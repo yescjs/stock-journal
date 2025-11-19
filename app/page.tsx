@@ -3,6 +3,7 @@
 import React, {
   useEffect,
   useState,
+  useRef,
   ChangeEvent,
   FormEvent,
 } from 'react';
@@ -69,6 +70,10 @@ export default function Home() {
 
   // 🎨 다크 모드
   const [darkMode, setDarkMode] = useState(false);
+
+  // 💾 백업 관련
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [backupMessage, setBackupMessage] = useState('');
 
   // 최초 로딩 시 localStorage에서 데이터 & 비밀번호 & 현재가 & 테마 읽기 + 날짜 기본값 세팅
   useEffect(() => {
@@ -343,6 +348,103 @@ export default function Home() {
     }));
   };
 
+  // 💾 JSON 백업 내보내기
+  const handleExportBackup = () => {
+    if (
+      trades.length === 0 &&
+      Object.keys(currentPrices).length === 0
+    ) {
+      alert('백업할 데이터가 없습니다.');
+      return;
+    }
+
+    const payload = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      trades,
+      currentPrices,
+    };
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: 'application/json;charset=utf-8;',
+    });
+
+    const dateStr = new Date()
+      .toISOString()
+      .slice(0, 10)
+      .replace(/-/g, '');
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute(
+      'download',
+      `stock-journal-backup-${dateStr}.json`,
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setBackupMessage('백업 파일을 다운로드했습니다.');
+  };
+
+  // 💾 JSON 백업 불러오기 버튼 클릭
+  const handleImportBackupClick = () => {
+    setBackupMessage('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+      fileInputRef.current.click();
+    }
+  };
+
+  // 💾 JSON 백업 파일 선택 처리
+  const handleBackupFileChange = (
+    e: ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const text = ev.target?.result as string;
+        const data = JSON.parse(text);
+
+        if (!data || typeof data !== 'object') {
+          throw new Error('잘못된 파일 형식입니다.');
+        }
+        if (!Array.isArray((data as any).trades)) {
+          throw new Error('trades 필드가 없습니다.');
+        }
+        if (
+          typeof (data as any).currentPrices !== 'object' ||
+          (data as any).currentPrices === null
+        ) {
+          throw new Error('currentPrices 필드가 없습니다.');
+        }
+
+        if (
+          !confirm(
+            '백업 데이터를 불러오면 현재 브라우저에 저장된 매매 기록과 현재가 설정이 모두 덮어씌워집니다. 진행할까요?',
+          )
+        ) {
+          return;
+        }
+
+        setTrades((data as any).trades as Trade[]);
+        setCurrentPrices(
+          (data as any).currentPrices as Record<string, number>,
+        );
+        setBackupMessage('백업 데이터를 성공적으로 불러왔습니다.');
+      } catch (err) {
+        console.error(err);
+        alert(
+          '백업 파일을 읽는 중 오류가 발생했습니다. 올바른 백업 파일인지 확인해주세요.',
+        );
+      }
+    };
+    reader.readAsText(file, 'utf-8');
+  };
+
   // 1차 필터: 종목 검색
   const symbolFilteredTrades = trades.filter(t =>
     filterSymbol
@@ -472,16 +574,9 @@ export default function Home() {
       ? 'bg-slate-900 border border-slate-700 text-slate-100'
       : 'bg-white text-slate-900');
 
-  const subCardBg = (light: boolean) =>
-    light
-      ? darkMode
-        ? 'bg-slate-800'
-        : 'bg-slate-50'
-      : '';
-
   const tableHeaderBg =
-    'bg-slate-50 border-b ' +
-    (darkMode ? 'bg-slate-800 border-slate-700' : '');
+    'border-b ' +
+    (darkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200');
 
   // 🔐 잠금 화면 (비밀번호 있는 경우에만)
   if (!isUnlocked && hasPassword) {
@@ -539,7 +634,16 @@ export default function Home() {
   return (
     <main className={mainClass}>
       <div className={containerClass}>
-        <header className="flex flex-col gap-2 border-b pb-4 mb-2 border-slate-200 dark:border-slate-700">
+        {/* 숨겨진 백업 파일 입력 */}
+        <input
+          type="file"
+          accept="application/json"
+          ref={fileInputRef}
+          onChange={handleBackupFileChange}
+          className="hidden"
+        />
+
+        <header className="flex flex-col gap-2 border-b pb-4 mb-2 border-slate-200">
           <div className="flex items-center justify-between gap-3">
             <div>
               <h1 className="text-2xl font-bold">
@@ -1104,6 +1208,41 @@ export default function Home() {
               </button>
             </div>
           </form>
+        </section>
+
+        {/* 💾 데이터 백업 / 복원 */}
+        <section className="space-y-1 text-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold">
+              데이터 백업 / 복원
+            </span>
+            <button
+              type="button"
+              onClick={handleExportBackup}
+              className="px-3 py-1.5 border rounded-lg text-xs text-slate-600 hover:bg-slate-50"
+            >
+              JSON 백업 다운로드
+            </button>
+            <button
+              type="button"
+              onClick={handleImportBackupClick}
+              className="px-3 py-1.5 border rounded-lg text-xs text-slate-600 hover:bg-slate-50"
+            >
+              백업 파일 불러오기
+            </button>
+            {backupMessage && (
+              <span className="text-[11px] text-slate-400">
+                {backupMessage}
+              </span>
+            )}
+          </div>
+          <p className="text-[11px] text-slate-400">
+            ❗ JSON 백업에는 매매 기록과 종목별 현재가 설정이
+            모두 포함됩니다. 다른 브라우저나 PC에서 이
+            파일을 "백업 파일 불러오기"로 읽으면 데이터가
+            그대로 복원됩니다. (비밀번호 설정은
+            브라우저별로 따로 관리됩니다)
+          </p>
         </section>
 
         {/* 필터 & 목록 */}
