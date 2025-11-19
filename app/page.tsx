@@ -40,8 +40,18 @@ const THEME_KEY = 'stock-journal-theme-v1';
 
 type ActiveTab = 'journal' | 'stats' | 'settings';
 
+function getKoreanWeekdayLabel(dateStr: string): string {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return '';
+  const names = ['일', '월', '화', '수', '목', '금', '토'];
+  const day = d.getDay();
+  return `${names[day]}요일`;
+}
+
 export default function Home() {
   const [trades, setTrades] = useState<Trade[]>([]);
+  const [openMonths, setOpenMonths] = useState<Record<string, boolean>>({});
   const [form, setForm] = useState({
     date: '',
     symbol: '',
@@ -160,6 +170,19 @@ export default function Home() {
       maximumFractionDigits: digits,
     });
 
+  // 🔹 YYYY-MM → "2025년 11월" 같은 라벨
+  function formatMonthLabel(monthKey: string): string {
+    const parts = monthKey.split('-');
+    if (parts.length >= 2) {
+      const year = parts[0];
+      const monthNum = Number(parts[1]);
+      if (!Number.isNaN(monthNum)) {
+        return `${year}년 ${monthNum}월`;
+      }
+    }
+    return monthKey;
+  }
+
   // 입력 핸들러
   const handleChange = (
     e: ChangeEvent<
@@ -225,6 +248,13 @@ export default function Home() {
     if (!confirm('모든 매매 기록을 삭제할까요?')) return;
     setTrades([]);
     setSelectedSymbol('');
+  };
+
+  const toggleMonth = (key: string) => {
+    setOpenMonths(prev => ({
+      ...prev,
+      [key]: !(prev[key] ?? true), // 기본은 열려 있음
+    }));
   };
 
   // CSV
@@ -493,6 +523,33 @@ export default function Home() {
 
   const displayedTrades = dateFilteredTrades;
 
+  // 🔹 현재 필터 조건이 적용된 기록을 월별로 그룹화
+  const monthGroups = (() => {
+    if (displayedTrades.length === 0) return [];
+
+    const map = new Map<string, Trade[]>();
+
+    for (const t of displayedTrades) {
+      const key =
+        t.date && t.date.length >= 7 ? t.date.slice(0, 7) : '기타';
+      const list = map.get(key) ?? [];
+      list.push(t);
+      map.set(key, list);
+    }
+
+    // 최근 달이 위로 오도록 내림차순 정렬
+    const keys = Array.from(map.keys()).sort((a, b) =>
+      b.localeCompare(a),
+    );
+
+    return keys.map(key => ({
+      key,
+      label: formatMonthLabel(key),
+      trades: map.get(key)!,
+      count: map.get(key)!.length,
+    }));
+  })();
+
   const stats = displayedTrades.reduce(
     (acc, t) => {
       const amount = t.price * t.quantity;
@@ -619,6 +676,9 @@ export default function Home() {
     (darkMode
       ? 'bg-slate-800 border-slate-700'
       : 'bg-slate-50 border-slate-200');
+
+  const weekdayLabel =
+    getKoreanWeekdayLabel(form.date);
 
   // 🔒 잠금 화면
   if (!isUnlocked && hasPassword) {
@@ -826,131 +886,171 @@ export default function Home() {
                   최소 정보만 입력하고 빠르게 쌓는 용도
                 </span>
               </div>
-              <form
-                onSubmit={handleSubmit}
-                className="grid grid-cols-2 md:grid-cols-6 gap-2 items-end"
-              >
-                <div className="flex flex-col gap-1 md:col-span-2">
-                  <label className="text-[11px] text-slate-500">
-                    날짜
-                  </label>
-                  <input
-                    type="date"
-                    name="date"
-                    value={form.date}
-                    onChange={handleChange}
-                    className={
-                      'border rounded px-2 py-1 text-xs bg-transparent ' +
-                      (darkMode ? 'border-slate-600' : '')
-                    }
-                  />
-                </div>
-                <div className="flex flex-col gap-1 md:col-span-2">
-                  <label className="text-[11px] text-slate-500">
-                    종목
-                  </label>
-                  <input
-                    type="text"
-                    name="symbol"
-                    placeholder="예: MU, 삼성전자"
-                    value={form.symbol}
-                    onChange={handleChange}
-                    className={
-                      'border rounded px-2 py-1 text-xs bg-transparent ' +
-                      (darkMode ? 'border-slate-600' : '')
-                    }
-                  />
-                </div>
-                <div className="flex flex-col gap-1 md:col-span-2">
-                  <label className="text-[11px] text-slate-500">
-                    구분
-                  </label>
-                  <select
-                    name="side"
-                    value={form.side}
-                    onChange={handleChange}
-                    className={
-                      'border rounded px-2 py-1 text-xs bg-transparent ' +
-                      (darkMode ? 'border-slate-600' : '')
-                    }
-                  >
-                    <option value="BUY">매수</option>
-                    <option value="SELL">매도</option>
-                  </select>
-                </div>
+<form
+  onSubmit={handleSubmit}
+  className="space-y-3"
+>
+  {/* 1줄: 날짜 + 요일, 종목, 구분 */}
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+    {/* 날짜 + 요일 박스 */}
+    <div className="flex flex-col gap-1">
+      <label className="text-[11px] text-slate-500">
+        날짜
+      </label>
+      <div className="flex gap-2">
+        <input
+          type="date"
+          name="date"
+          value={form.date}
+          onChange={handleChange}
+          className={
+            'flex-1 border rounded px-2 py-1 text-xs bg-transparent ' +
+            (darkMode ? 'border-slate-600' : '')
+          }
+        />
+        <div
+          className={
+            'px-2 min-w-[70px] text-center text-[11px] flex items-center justify-center rounded ' +
+            (darkMode
+              ? 'bg-slate-800 text-slate-200'
+              : 'bg-slate-100 text-slate-600')
+          }
+        >
+          {weekdayLabel || '요일'}
+        </div>
+      </div>
+    </div>
 
-                <div className="flex flex-col gap-1 md:col-span-2">
-                  <label className="text-[11px] text-slate-500">
-                    가격
-                  </label>
-                  <input
-                    type="number"
-                    name="price"
-                    value={form.price}
-                    onChange={handleChange}
-                    className={
-                      'border rounded px-2 py-1 text-xs text-right bg-transparent ' +
-                      (darkMode ? 'border-slate-600' : '')
-                    }
-                  />
-                </div>
-                <div className="flex flex-col gap-1 md:col-span-2">
-                  <label className="text-[11px] text-slate-500">
-                    수량
-                  </label>
-                  <input
-                    type="number"
-                    name="quantity"
-                    value={form.quantity}
-                    onChange={handleChange}
-                    className={
-                      'border rounded px-2 py-1 text-xs text-right bg-transparent ' +
-                      (darkMode ? 'border-slate-600' : '')
-                    }
-                  />
-                </div>
+    {/* 종목 */}
+    <div className="flex flex-col gap-1">
+      <label className="text-[11px] text-slate-500">
+        종목
+      </label>
+      <input
+        type="text"
+        name="symbol"
+        placeholder="예: 삼성전자"
+        value={form.symbol}
+        onChange={handleChange}
+        className={
+          'border rounded px-2 py-1 text-xs bg-transparent ' +
+          (darkMode ? 'border-slate-600' : '')
+        }
+      />
+    </div>
 
-                <div className="flex flex-col gap-1 md:col-span-3">
-                  <label className="text-[11px] text-slate-500">
-                    메모 (선택)
-                  </label>
-                  <textarea
-                    name="memo"
-                    value={form.memo}
-                    onChange={handleChange}
-                    className={
-                      'border rounded px-2 py-1 text-xs bg-transparent ' +
-                      (darkMode ? 'border-slate-600' : '')
-                    }
-                    rows={1}
-                  />
-                </div>
+    {/* 구분 */}
+    <div className="flex flex-col gap-1">
+      <label className="text-[11px] text-slate-500">
+        구분
+      </label>
+      <select
+        name="side"
+        value={form.side}
+        onChange={handleChange}
+        className={
+          'border rounded px-2 py-1 text-xs bg-transparent ' +
+          (darkMode ? 'border-slate-600' : '')
+        }
+      >
+        <option value="BUY">매수</option>
+        <option value="SELL">매도</option>
+      </select>
+    </div>
+  </div>
 
-                <div className="flex flex-col gap-1 md:col-span-3">
-                  <label className="text-[11px] text-slate-500">
-                    태그 (쉼표로 구분, 예: 단타, MU전략1)
-                  </label>
-                  <input
-                    type="text"
-                    name="tags"
-                    value={form.tags}
-                    onChange={handleChange}
-                    className={
-                      'border rounded px-2 py-1 text-xs bg-transparent ' +
-                      (darkMode ? 'border-slate-600' : '')
-                    }
-                  />
-                </div>
+  {/* 2줄: 가격, 수량, 태그 */}
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+    <div className="flex flex-col gap-1">
+      <label className="text-[11px] text-slate-500">
+        가격
+      </label>
+      <input
+        type="number"
+        name="price"
+        value={form.price}
+        onChange={handleChange}
+        className={
+          'border rounded px-2 py-1 text-xs text-right bg-transparent ' +
+          (darkMode ? 'border-slate-600' : '')
+        }
+      />
+    </div>
+    <div className="flex flex-col gap-1">
+      <label className="text-[11px] text-slate-500">
+        수량
+      </label>
+      <input
+        type="number"
+        name="quantity"
+        value={form.quantity}
+        onChange={handleChange}
+        className={
+          'border rounded px-2 py-1 text-xs text-right bg-transparent ' +
+          (darkMode ? 'border-slate-600' : '')
+        }
+      />
+    </div>
+    <div className="flex flex-col gap-1">
+      <label className="text-[11px] text-slate-500">
+        태그 (쉼표로 구분, 예: 단타, 장투)
+      </label>
+      <input
+        type="text"
+        name="tags"
+        value={form.tags}
+        onChange={handleChange}
+        className={
+          'border rounded px-2 py-1 text-xs bg-transparent ' +
+          (darkMode ? 'border-slate-600' : '')
+        }
+      />
+    </div>
+  </div>
 
-                <div className="md:col-span-6">
-                  <button
-                    type="submit"
-                    className="w-full bg-blue-600 text-white text-sm font-medium rounded-lg py-2"
-                  >
-                    기록 추가
-                  </button>
-                </div>
-              </form>
+  {/* 3줄: 메모 (넓게) */}
+  <div className="flex flex-col gap-1">
+    <label className="text-[11px] text-slate-500">
+      메모 (선택)
+    </label>
+    <textarea
+      name="memo"
+      value={form.memo}
+      onChange={handleChange}
+      className={
+        'border rounded px-2 py-1 text-xs bg-transparent resize-none ' +
+        (darkMode ? 'border-slate-600' : '')
+      }
+      rows={1}
+    />
+  </div>
+
+  {/* 마지막 줄: 안내 + 기록 추가 버튼 (눈에 띄게) */}
+  <div
+    className={
+      'flex items-center justify-between rounded-lg px-3 py-2 mt-1 ' +
+      (darkMode
+        ? 'bg-slate-800/70'
+        : 'bg-slate-50 border border-slate-200')
+    }
+  >
+    <span className="text-[11px] text-slate-500">
+      👉 내용 입력 후&nbsp;
+      <span className="font-semibold text-slate-700">
+        ‘기록 추가’
+      </span>
+      를 누르면 매매 일지가 저장됩니다.
+    </span>
+    <button
+      type="submit"
+      className="flex items-center gap-1 px-6 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg shadow hover:bg-blue-700 active:bg-blue-800 transition"
+    >
+      <span>＋</span>
+      <span>기록 추가</span>
+    </button>
+  </div>
+</form>
+
             </div>
 
             {/* 필터 카드 */}
@@ -982,40 +1082,6 @@ export default function Home() {
               <div className="flex flex-wrap gap-3">
                 <div className="flex items-center gap-2">
                   <span className="text-slate-600 text-xs">
-                    종목
-                  </span>
-                  <input
-                    type="text"
-                    placeholder="예: MU"
-                    value={filterSymbol}
-                    onChange={e =>
-                      setFilterSymbol(e.target.value)
-                    }
-                    className={
-                      'border rounded px-2 py-1 text-xs bg-transparent ' +
-                      (darkMode ? 'border-slate-600' : '')
-                    }
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-slate-600 text-xs">
-                    태그
-                  </span>
-                  <input
-                    type="text"
-                    placeholder="예: 단타"
-                    value={filterTag}
-                    onChange={e =>
-                      setFilterTag(e.target.value)
-                    }
-                    className={
-                      'border rounded px-2 py-1 text-xs bg-transparent ' +
-                      (darkMode ? 'border-slate-600' : '')
-                    }
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-slate-600 text-xs">
                     기간
                   </span>
                   <input
@@ -1040,6 +1106,40 @@ export default function Home() {
                     }
                     className={
                       'border rounded px-2 py-1 text-[11px] bg-transparent ' +
+                      (darkMode ? 'border-slate-600' : '')
+                    }
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-600 text-xs">
+                    종목
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="예: 삼성전자"
+                    value={filterSymbol}
+                    onChange={e =>
+                      setFilterSymbol(e.target.value)
+                    }
+                    className={
+                      'border rounded px-2 py-1 text-xs bg-transparent ' +
+                      (darkMode ? 'border-slate-600' : '')
+                    }
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-600 text-xs">
+                    태그
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="예: 단타"
+                    value={filterTag}
+                    onChange={e =>
+                      setFilterTag(e.target.value)
+                    }
+                    className={
+                      'border rounded px-2 py-1 text-xs bg-transparent ' +
                       (darkMode ? 'border-slate-600' : '')
                     }
                   />
@@ -1151,156 +1251,192 @@ export default function Home() {
               )}
             </div>
 
-            {/* 기록 목록 */}
+            {/* 기록 목록 (월별 그룹 + 고정 높이 스크롤) */}
             <div
               className={
-                'border rounded-lg overflow-hidden ' +
-                (darkMode
-                  ? 'border-slate-700'
-                  : 'border-slate-200')
+                'border rounded-lg ' +
+                (darkMode ? 'border-slate-700' : 'border-slate-200')
               }
             >
-              <table className="w-full text-xs md:text-sm">
-                <thead className={tableHeaderBg}>
-                  <tr>
-                    <th className="px-2 py-2 text-left">날짜</th>
-                    <th className="px-2 py-2 text-left">종목</th>
-                    <th className="px-2 py-2 text-center">
-                      구분
-                    </th>
-                    <th className="px-2 py-2 text-right">
-                      가격
-                    </th>
-                    <th className="px-2 py-2 text-right">
-                      수량
-                    </th>
-                    <th className="px-2 py-2 text-right">
-                      금액
-                    </th>
-                    <th className="px-2 py-2 text-left">
-                      태그
-                    </th>
-                    <th className="px-2 py-2 text-left">
-                      메모
-                    </th>
-                    <th className="px-2 py-2 text-center">
-                      삭제
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {displayedTrades.length === 0 ? (
+              <div className="h-[420px] overflow-y-auto">
+                <table className="w-full text-xs md:text-sm">
+                  <thead
+                    className={
+                      'sticky top-0 z-10 ' +
+                      (darkMode
+                        ? 'bg-slate-800 border-b border-slate-700'
+                        : 'bg-slate-50 border-b border-slate-200')
+                    }
+                  >
                     <tr>
-                      <td
-                        colSpan={9}
-                        className="px-2 py-6 text-center text-slate-400"
-                      >
-                        현재 조건에 해당하는 기록이 없습니다.
-                      </td>
+                      <th className="px-2 py-2 text-left">날짜</th>
+                      <th className="px-2 py-2 text-left">종목</th>
+                      <th className="px-2 py-2 text-center">구분</th>
+                      <th className="px-2 py-2 text-right">가격</th>
+                      <th className="px-2 py-2 text-right">수량</th>
+                      <th className="px-2 py-2 text-right">금액</th>
+                      <th className="px-2 py-2 text-left">태그</th>
+                      <th className="px-2 py-2 text-left">메모</th>
+                      <th className="px-2 py-2 text-center">삭제</th>
                     </tr>
-                  ) : (
-                    displayedTrades.map(trade => {
-                      const amount =
-                        trade.price * trade.quantity;
-                      const isSelected =
-                        trade.symbol === selectedSymbol;
-                      const tags = trade.tags ?? [];
-                      return (
-                        <tr
-                          key={trade.id}
-                          className={
-                            'border-t ' +
-                            (darkMode
-                              ? 'border-slate-700'
-                              : 'border-slate-200')
-                          }
+                  </thead>
+                  <tbody>
+                    {monthGroups.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={9}
+                          className="px-2 py-6 text-center text-slate-400"
                         >
-                          <td className="px-2 py-2">
-                            {trade.date}
-                          </td>
-                          <td className="px-2 py-2">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleSymbolClick(
-                                  trade.symbol,
-                                )
-                              }
-                              className={
-                                'underline-offset-2 ' +
-                                (isSelected
-                                  ? 'font-semibold underline text-blue-400'
-                                  : 'text-blue-500 hover:underline')
-                              }
-                            >
-                              {trade.symbol}
-                            </button>
-                          </td>
-                          <td className="px-2 py-2 text-center">
-                            <span
-                              className={
-                                trade.side === 'BUY'
-                                  ? 'text-emerald-500 font-semibold'
-                                  : 'text-rose-400 font-semibold'
-                              }
-                            >
-                              {trade.side === 'BUY'
-                                ? '매수'
-                                : '매도'}
-                            </span>
-                          </td>
-                          <td className="px-2 py-2 text-right">
-                            {formatNumber(trade.price)}
-                          </td>
-                          <td className="px-2 py-2 text-right">
-                            {formatNumber(trade.quantity)}
-                          </td>
-                          <td className="px-2 py-2 text-right">
-                            {formatNumber(amount)}
-                          </td>
-                          <td className="px-2 py-2">
-                            {tags.length === 0 ? (
-                              <span className="text-slate-400">
-                                -
-                              </span>
-                            ) : (
-                              <div className="flex flex-wrap gap-1">
-                                {tags.map(tag => (
-                                  <button
-                                    key={tag}
-                                    type="button"
-                                    onClick={() =>
-                                      setFilterTag(tag)
+                          현재 조건에 해당하는 기록이 없습니다.
+                        </td>
+                      </tr>
+                    ) : (
+                      monthGroups.map(group => {
+                        const isOpen = openMonths[group.key] ?? true;
+                        const monthRowClass = darkMode
+                          ? 'bg-slate-900 border-t border-slate-700'
+                          : 'bg-slate-100 border-t border-slate-200';
+
+                        return (
+                          <React.Fragment key={group.key}>
+                            {/* 월 헤더 행 */}
+                            <tr>
+                              <td
+                                colSpan={9}
+                                className={
+                                  monthRowClass +
+                                  ' px-2 py-1.5 text-[11px] md:text-xs cursor-pointer'
+                                }
+                                onClick={() => toggleMonth(group.key)}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-slate-500">
+                                      {isOpen ? '▼' : '▶'}
+                                    </span>
+                                    <span className="font-semibold">
+                                      {group.label}
+                                    </span>
+                                    <span className="text-slate-400">
+                                      ({group.count}건)
+                                    </span>
+                                  </div>
+                                  <span className="text-[10px] text-slate-400">
+                                    클릭해서 {isOpen ? '접기' : '펼치기'}
+                                  </span>
+                                </div>
+                              </td>
+                            </tr>
+
+                            {/* 월별 실제 기록 행들 */}
+                            {isOpen &&
+                              group.trades.map(trade => {
+                                const amount =
+                                  trade.price * trade.quantity;
+                                const isSelected =
+                                  trade.symbol === selectedSymbol;
+                                const tags = trade.tags ?? [];
+
+                                return (
+                                  <tr
+                                    key={trade.id}
+                                    className={
+                                      'border-t ' +
+                                      (darkMode
+                                        ? 'border-slate-700'
+                                        : 'border-slate-200')
                                     }
-                                    className="px-1.5 py-0.5 rounded-full border border-slate-300 text-[10px] text-slate-600"
                                   >
-                                    #{tag}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-2 py-2 max-w-xs">
-                            <span className="line-clamp-2">
-                              {trade.memo}
-                            </span>
-                          </td>
-                          <td className="px-2 py-2 text-center">
-                            <button
-                              onClick={() =>
-                                handleDelete(trade.id)
-                              }
-                              className="text-[11px] text-slate-400 hover:text-red-500"
-                            >
-                              삭제
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
+                                    <td className="px-2 py-2">
+                                      {trade.date}
+                                    </td>
+                                    <td className="px-2 py-2">
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleSymbolClick(
+                                            trade.symbol,
+                                          )
+                                        }
+                                        className={
+                                          'underline-offset-2 ' +
+                                          (isSelected
+                                            ? 'font-semibold underline text-blue-400'
+                                            : 'text-blue-500 hover:underline')
+                                        }
+                                      >
+                                        {trade.symbol}
+                                      </button>
+                                    </td>
+                                    <td className="px-2 py-2 text-center">
+                                      <span
+                                        className={
+                                          trade.side === 'BUY'
+                                            ? 'text-emerald-500 font-semibold'
+                                            : 'text-rose-400 font-semibold'
+                                        }
+                                      >
+                                        {trade.side === 'BUY'
+                                          ? '매수'
+                                          : '매도'}
+                                      </span>
+                                    </td>
+                                    <td className="px-2 py-2 text-right">
+                                      {formatNumber(trade.price)}
+                                    </td>
+                                    <td className="px-2 py-2 text-right">
+                                      {formatNumber(trade.quantity)}
+                                    </td>
+                                    <td className="px-2 py-2 text-right">
+                                      {formatNumber(amount)}
+                                    </td>
+                                    <td className="px-2 py-2">
+                                      {tags.length === 0 ? (
+                                        <span className="text-slate-400">
+                                          -
+                                        </span>
+                                      ) : (
+                                        <div className="flex flex-wrap gap-1">
+                                          {tags.map(tag => (
+                                            <button
+                                              key={tag}
+                                              type="button"
+                                              onClick={() =>
+                                                setFilterTag(tag)
+                                              }
+                                              className="px-1.5 py-0.5 rounded-full border border-slate-300 text-[10px] text-slate-600"
+                                            >
+                                              #{tag}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </td>
+                                    <td className="px-2 py-2 max-w-xs">
+                                      <span className="line-clamp-2">
+                                        {trade.memo}
+                                      </span>
+                                    </td>
+                                    <td className="px-2 py-2 text-center">
+                                      <button
+                                        onClick={() =>
+                                          handleDelete(trade.id)
+                                        }
+                                        className="text-[11px] text-slate-400 hover:text-red-500"
+                                      >
+                                        삭제
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                          </React.Fragment>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </section>
         )}
