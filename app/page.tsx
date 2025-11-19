@@ -20,6 +20,7 @@ interface Trade {
 }
 
 const STORAGE_KEY = 'stock-journal-trades-v1';
+const PASSWORD_KEY = 'stock-journal-password-v1';
 
 export default function Home() {
   const [trades, setTrades] = useState<Trade[]>([]);
@@ -36,7 +37,16 @@ export default function Home() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
-  // 최초 로딩 시 localStorage에서 불러오기 + 날짜 기본값 세팅
+  // 🔐 비밀번호 관련 상태
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [hasPassword, setHasPassword] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
+  const [passwordMessage, setPasswordMessage] = useState('');
+  const [showPasswordSettings, setShowPasswordSettings] = useState(false);
+
+  // 최초 로딩 시 localStorage에서 데이터 & 비밀번호 읽기 + 날짜 기본값 세팅
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -48,6 +58,15 @@ export default function Home() {
       } catch {
         // 파싱 실패 시 무시
       }
+    }
+
+    const savedPassword = localStorage.getItem(PASSWORD_KEY);
+    if (savedPassword) {
+      setHasPassword(true);
+      setIsUnlocked(false); // 잠금 화면부터
+    } else {
+      setHasPassword(false);
+      setIsUnlocked(true); // 비번 없으면 바로 열림
     }
 
     if (!form.date) {
@@ -191,6 +210,54 @@ export default function Home() {
       maximumFractionDigits: 0,
     });
 
+  // 🔐 잠금 해제 처리
+  const handleUnlock = (e: FormEvent) => {
+    e.preventDefault();
+    const savedPassword = localStorage.getItem(PASSWORD_KEY);
+    if (!savedPassword) {
+      setPasswordMessage('설정된 비밀번호가 없습니다.');
+      setHasPassword(false);
+      setIsUnlocked(true);
+      return;
+    }
+    if (passwordInput === savedPassword) {
+      setIsUnlocked(true);
+      setPasswordInput('');
+      setPasswordMessage('');
+    } else {
+      setPasswordMessage('비밀번호가 올바르지 않습니다.');
+    }
+  };
+
+  // 🔐 비밀번호 설정/변경
+  const handleSavePassword = (e: FormEvent) => {
+    e.preventDefault();
+    if (!newPassword) {
+      setPasswordMessage('비밀번호를 입력해주세요.');
+      return;
+    }
+    if (newPassword !== newPasswordConfirm) {
+      setPasswordMessage('비밀번호와 확인이 일치하지 않습니다.');
+      return;
+    }
+    if (typeof window === 'undefined') return;
+    // ⚠️ 단순 localStorage 저장이므로 보안이 강한 방식은 아님
+    localStorage.setItem(PASSWORD_KEY, newPassword);
+    setHasPassword(true);
+    setPasswordMessage('비밀번호가 저장되었습니다. 다음 접속부터 잠금 화면이 표시됩니다.');
+    setNewPassword('');
+    setNewPasswordConfirm('');
+  };
+
+  // 🔐 비밀번호 삭제
+  const handleRemovePassword = () => {
+    if (!confirm('비밀번호 잠금을 해제할까요? (localStorage에서 비밀번호 삭제)')) return;
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem(PASSWORD_KEY);
+    setHasPassword(false);
+    setPasswordMessage('비밀번호 잠금이 해제되었습니다.');
+  };
+
   // 1차 필터: 종목 검색
   const symbolFilteredTrades = trades.filter(t =>
     filterSymbol
@@ -233,18 +300,160 @@ export default function Home() {
     );
   const symbolNetCash = symbolStats.sell - symbolStats.buy;
 
-  const hasDateRangeError =
-    dateFrom && dateTo && dateFrom > dateTo;
+  const hasDateRangeError = dateFrom && dateTo && dateFrom > dateTo;
 
+  // 🔐 잠금 화면 (비밀번호 있는 경우에만)
+  if (!isUnlocked && hasPassword) {
+    return (
+      <main className="min-h-screen bg-slate-100 flex justify-center items-center px-4">
+        <div className="w-full max-w-sm bg-white shadow-md rounded-xl p-6 space-y-4">
+          <h1 className="text-xl font-bold text-center">
+            주식 매매 일지 잠금 해제
+          </h1>
+          <p className="text-xs text-slate-500 text-center">
+            이 브라우저에 저장된 비밀번호를 입력해야
+            매매 일지를 볼 수 있습니다.
+            <br />
+            (비밀번호는 localStorage에만 저장되며,
+            서버로 전송되지 않습니다.)
+          </p>
+          <form onSubmit={handleUnlock} className="space-y-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-slate-600">
+                비밀번호
+              </label>
+              <input
+                type="password"
+                value={passwordInput}
+                onChange={e => setPasswordInput(e.target.value)}
+                className="border rounded px-2 py-1 text-sm"
+                placeholder="비밀번호 입력"
+              />
+            </div>
+            {passwordMessage && (
+              <div className="text-xs text-rose-500">
+                {passwordMessage}
+              </div>
+            )}
+            <button
+              type="submit"
+              className="w-full bg-blue-600 text-white text-sm font-medium rounded-lg py-2"
+            >
+              잠금 해제
+            </button>
+          </form>
+          <div className="text-[10px] text-slate-400 text-center">
+            ⚠️ 이 잠금 기능은 기본적인 사생활 보호용입니다.
+            브라우저 접근이 가능한 사람은
+            개발자 도구/스토리지를 통해 데이터를 볼 수도 있습니다.
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  // 🔓 잠금 해제 이후 메인 화면
   return (
     <main className="min-h-screen bg-slate-100 flex justify-center px-4 py-8">
       <div className="w-full max-w-5xl bg-white shadow-md rounded-xl p-6 space-y-6">
-        <header className="flex flex-col gap-1 border-b pb-4 mb-2">
-          <h1 className="text-2xl font-bold">나만 보는 주식 매매 일지</h1>
-          <p className="text-sm text-slate-500">
-            데이터는 이 브라우저의 <b>localStorage</b>에만 저장됩니다.
-            (다른 사람/다른 브라우저에서는 보이지 않음)
-          </p>
+        <header className="flex flex-col gap-2 border-b pb-4 mb-2">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-bold">나만 보는 주식 매매 일지</h1>
+              <p className="text-sm text-slate-500">
+                데이터와 비밀번호는 이 브라우저의{' '}
+                <b>localStorage</b>에만 저장됩니다.
+                (다른 사람/다른 브라우저에서는 보이지 않음)
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                setShowPasswordSettings(prev => !prev)
+              }
+              className="text-xs border rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-50"
+            >
+              🔐 잠금 설정
+            </button>
+          </div>
+
+          {/* 🔐 비밀번호 설정/변경 섹션 (접이식) */}
+          {showPasswordSettings && (
+            <section className="mt-2 border rounded-lg p-3 text-sm space-y-3 bg-slate-50">
+              <div className="flex items-center justify-between">
+                <div className="font-semibold text-xs">
+                  잠금 설정 (이 브라우저에만 적용)
+                </div>
+                {hasPassword && (
+                  <span className="text-[10px] text-emerald-600">
+                    현재 비밀번호가 설정되어 있습니다.
+                  </span>
+                )}
+              </div>
+              <form
+                onSubmit={handleSavePassword}
+                className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end"
+              >
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-slate-600">
+                    새 비밀번호
+                  </label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={e =>
+                      setNewPassword(e.target.value)
+                    }
+                    className="border rounded px-2 py-1 text-sm"
+                    placeholder="새 비밀번호"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-slate-600">
+                    새 비밀번호 확인
+                  </label>
+                  <input
+                    type="password"
+                    value={newPasswordConfirm}
+                    onChange={e =>
+                      setNewPasswordConfirm(e.target.value)
+                    }
+                    className="border rounded px-2 py-1 text-sm"
+                    placeholder="다시 입력"
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="submit"
+                    className="px-3 py-2 text-xs rounded-lg bg-blue-600 text-white"
+                  >
+                    비밀번호 저장
+                  </button>
+                  {hasPassword && (
+                    <button
+                      type="button"
+                      onClick={handleRemovePassword}
+                      className="px-3 py-2 text-xs border rounded-lg text-slate-500"
+                    >
+                      비밀번호 삭제
+                    </button>
+                  )}
+                </div>
+              </form>
+              {passwordMessage && (
+                <div className="text-xs text-slate-600">
+                  {passwordMessage}
+                </div>
+              )}
+              <div className="text-[10px] text-slate-400">
+                ⚠️ 참고: 이 잠금 기능은 기본적인 개인 정보 보호용입니다.
+                브라우저에 물리적으로 접근 가능한 사용자는
+                개발자 도구를 통해 localStorage 내용에 접근할 수 있습니다.
+                아주 민감한 정보는 가능한 한 다른 방식으로 관리하는 것을
+                추천합니다.
+              </div>
+            </section>
+          )}
         </header>
 
         {/* 요약 (현재 필터 기준) */}
