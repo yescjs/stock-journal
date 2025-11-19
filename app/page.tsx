@@ -33,6 +33,7 @@ interface SymbolSummary {
 
 const STORAGE_KEY = 'stock-journal-trades-v1';
 const PASSWORD_KEY = 'stock-journal-password-v1';
+const CURRENT_PRICE_KEY = 'stock-journal-current-prices-v1';
 
 export default function Home() {
   const [trades, setTrades] = useState<Trade[]>([]);
@@ -60,7 +61,12 @@ export default function Home() {
   const [showPasswordSettings, setShowPasswordSettings] =
     useState(false);
 
-  // 최초 로딩 시 localStorage에서 데이터 & 비밀번호 읽기 + 날짜 기본값 세팅
+  // 💰 현재가 (심볼별)
+  const [currentPrices, setCurrentPrices] = useState<
+    Record<string, number>
+  >({});
+
+  // 최초 로딩 시 localStorage에서 데이터 & 비밀번호 & 현재가 읽기 + 날짜 기본값 세팅
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -83,6 +89,19 @@ export default function Home() {
       setIsUnlocked(true); // 비번 없으면 바로 열림
     }
 
+    const savedPrices = localStorage.getItem(CURRENT_PRICE_KEY);
+    if (savedPrices) {
+      try {
+        const parsed = JSON.parse(savedPrices) as Record<
+          string,
+          number
+        >;
+        setCurrentPrices(parsed);
+      } catch {
+        // 무시
+      }
+    }
+
     if (!form.date) {
       const today = new Date().toISOString().slice(0, 10);
       setForm(prev => ({ ...prev, date: today }));
@@ -95,6 +114,15 @@ export default function Home() {
     if (typeof window === 'undefined') return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(trades));
   }, [trades]);
+
+  // 현재가 변경될 때마다 localStorage에 저장
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(
+      CURRENT_PRICE_KEY,
+      JSON.stringify(currentPrices),
+    );
+  }, [currentPrices]);
 
   const handleChange = (
     e: ChangeEvent<
@@ -280,6 +308,24 @@ export default function Home() {
     localStorage.removeItem(PASSWORD_KEY);
     setHasPassword(false);
     setPasswordMessage('비밀번호 잠금이 해제되었습니다.');
+  };
+
+  // 💰 현재가 입력 핸들러
+  const handleCurrentPriceChange = (symbol: string, value: string) => {
+    if (value === '') {
+      setCurrentPrices(prev => {
+        const next = { ...prev };
+        delete next[symbol];
+        return next;
+      });
+      return;
+    }
+    const num = Number(value);
+    if (Number.isNaN(num)) return;
+    setCurrentPrices(prev => ({
+      ...prev,
+      [symbol]: num,
+    }));
   };
 
   // 1차 필터: 종목 검색
@@ -677,11 +723,12 @@ export default function Home() {
               </div>
               <div className="text-[11px] text-slate-400">
                 * 필터와 관계없이 지금까지 입력한 모든
-                내역으로 계산됩니다.
+                내역으로 계산됩니다. 현재가는 여기에서
+                직접 입력합니다.
               </div>
             </div>
-            <div className="border rounded-lg overflow-hidden">
-              <table className="w-full text-xs md:text-sm">
+            <div className="border rounded-lg overflow-x-auto">
+              <table className="w-full text-xs md:text-sm min-w-[720px]">
                 <thead className="bg-slate-50 border-b">
                   <tr>
                     <th className="px-2 py-2 text-left">종목</th>
@@ -700,43 +747,126 @@ export default function Home() {
                     <th className="px-2 py-2 text-right">
                       실현손익
                     </th>
+                    <th className="px-2 py-2 text-right">
+                      현재가
+                    </th>
+                    <th className="px-2 py-2 text-right">
+                      평가금액
+                    </th>
+                    <th className="px-2 py-2 text-right">
+                      평가손익(미실현)
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {symbolSummaries.map(s => (
-                    <tr key={s.symbol} className="border-t">
-                      <td className="px-2 py-2">
-                        {s.symbol}
-                      </td>
-                      <td className="px-2 py-2 text-right">
-                        {formatNumber(s.positionQty)}
-                      </td>
-                      <td className="px-2 py-2 text-right">
-                        {s.positionQty > 0
-                          ? formatNumber(s.avgCost, 2)
-                          : '-'}
-                      </td>
-                      <td className="px-2 py-2 text-right">
-                        {formatNumber(s.totalBuyAmount)}
-                      </td>
-                      <td className="px-2 py-2 text-right">
-                        {formatNumber(s.totalSellAmount)}
-                      </td>
-                      <td className="px-2 py-2 text-right">
-                        <span
-                          className={
-                            s.realizedPnL > 0
-                              ? 'text-emerald-600 font-semibold'
-                              : s.realizedPnL < 0
-                              ? 'text-rose-600 font-semibold'
-                              : ''
-                          }
-                        >
-                          {formatNumber(s.realizedPnL)}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  {symbolSummaries.map(s => {
+                    const hasPrice =
+                      currentPrices[s.symbol] !== undefined;
+                    const currentPrice = hasPrice
+                      ? currentPrices[s.symbol]
+                      : undefined;
+
+                    const positionValue =
+                      s.positionQty > 0 && hasPrice
+                        ? s.positionQty * (currentPrice as number)
+                        : 0;
+
+                    const unrealizedPnL =
+                      s.positionQty > 0 && hasPrice
+                        ? ((currentPrice as number) - s.avgCost) *
+                          s.positionQty
+                        : 0;
+
+                    return (
+                      <tr
+                        key={s.symbol}
+                        className="border-t align-middle"
+                      >
+                        <td className="px-2 py-2">
+                          {s.symbol}
+                        </td>
+                        <td className="px-2 py-2 text-right">
+                          {formatNumber(s.positionQty)}
+                        </td>
+                        <td className="px-2 py-2 text-right">
+                          {s.positionQty > 0
+                            ? formatNumber(s.avgCost, 2)
+                            : '-'}
+                        </td>
+                        <td className="px-2 py-2 text-right">
+                          {formatNumber(s.totalBuyAmount)}
+                        </td>
+                        <td className="px-2 py-2 text-right">
+                          {formatNumber(s.totalSellAmount)}
+                        </td>
+                        <td className="px-2 py-2 text-right">
+                          <span
+                            className={
+                              s.realizedPnL > 0
+                                ? 'text-emerald-600 font-semibold'
+                                : s.realizedPnL < 0
+                                ? 'text-rose-600 font-semibold'
+                                : ''
+                            }
+                          >
+                            {formatNumber(s.realizedPnL)}
+                          </span>
+                        </td>
+                        <td className="px-2 py-2 text-right">
+                          {s.positionQty > 0 ? (
+                            <input
+                              type="number"
+                              className="border rounded px-1 py-0.5 text-right w-24"
+                              value={
+                                hasPrice && currentPrice !== undefined
+                                  ? String(currentPrice)
+                                  : ''
+                              }
+                              onChange={e =>
+                                handleCurrentPriceChange(
+                                  s.symbol,
+                                  e.target.value,
+                                )
+                              }
+                              placeholder="현재가"
+                            />
+                          ) : (
+                            <span className="text-slate-400">
+                              -
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-2 py-2 text-right">
+                          {s.positionQty > 0 && hasPrice
+                            ? formatNumber(positionValue)
+                            : s.positionQty > 0
+                            ? '현재가 입력'
+                            : '-'}
+                        </td>
+                        <td className="px-2 py-2 text-right">
+                          {s.positionQty > 0 && hasPrice ? (
+                            <span
+                              className={
+                                unrealizedPnL > 0
+                                  ? 'text-emerald-600 font-semibold'
+                                  : unrealizedPnL < 0
+                                  ? 'text-rose-600 font-semibold'
+                                  : ''
+                              }
+                            >
+                              {formatNumber(unrealizedPnL)}
+                            </span>
+                          ) : s.positionQty > 0 ? (
+                            <span className="text-slate-400">
+                              현재가 입력
+                            </span>
+                          ) : (
+                            '-'
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
