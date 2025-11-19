@@ -19,6 +19,18 @@ interface Trade {
   memo: string;
 }
 
+interface SymbolSummary {
+  symbol: string;
+  totalBuyQty: number;
+  totalBuyAmount: number;
+  totalSellQty: number;
+  totalSellAmount: number;
+  positionQty: number;
+  avgCost: number;
+  costBasis: number;
+  realizedPnL: number;
+}
+
 const STORAGE_KEY = 'stock-journal-trades-v1';
 const PASSWORD_KEY = 'stock-journal-password-v1';
 
@@ -42,9 +54,11 @@ export default function Home() {
   const [hasPassword, setHasPassword] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
+  const [newPasswordConfirm, setNewPasswordConfirm] =
+    useState('');
   const [passwordMessage, setPasswordMessage] = useState('');
-  const [showPasswordSettings, setShowPasswordSettings] = useState(false);
+  const [showPasswordSettings, setShowPasswordSettings] =
+    useState(false);
 
   // 최초 로딩 시 localStorage에서 데이터 & 비밀번호 읽기 + 날짜 기본값 세팅
   useEffect(() => {
@@ -83,7 +97,9 @@ export default function Home() {
   }, [trades]);
 
   const handleChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
+    e: ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >,
   ) => {
     const { name, value } = e.target;
     setForm(prev => ({
@@ -140,7 +156,7 @@ export default function Home() {
     setSelectedSymbol('');
   };
 
-  // CSV 다운로드
+  // CSV 다운로드 (전체 내역 기준)
   const handleExportCsv = () => {
     if (trades.length === 0) {
       alert('내보낼 기록이 없습니다.');
@@ -205,9 +221,10 @@ export default function Home() {
     setSelectedSymbol(prev => (prev === symbol ? '' : symbol));
   };
 
-  const formatNumber = (n: number) =>
+  const formatNumber = (n: number, digits = 0) =>
     n.toLocaleString('ko-KR', {
-      maximumFractionDigits: 0,
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
     });
 
   // 🔐 잠금 해제 처리
@@ -244,14 +261,21 @@ export default function Home() {
     // ⚠️ 단순 localStorage 저장이므로 보안이 강한 방식은 아님
     localStorage.setItem(PASSWORD_KEY, newPassword);
     setHasPassword(true);
-    setPasswordMessage('비밀번호가 저장되었습니다. 다음 접속부터 잠금 화면이 표시됩니다.');
+    setPasswordMessage(
+      '비밀번호가 저장되었습니다. 다음 접속부터 잠금 화면이 표시됩니다.',
+    );
     setNewPassword('');
     setNewPasswordConfirm('');
   };
 
   // 🔐 비밀번호 삭제
   const handleRemovePassword = () => {
-    if (!confirm('비밀번호 잠금을 해제할까요? (localStorage에서 비밀번호 삭제)')) return;
+    if (
+      !confirm(
+        '비밀번호 잠금을 해제할까요? (localStorage에서 비밀번호 삭제)',
+      )
+    )
+      return;
     if (typeof window === 'undefined') return;
     localStorage.removeItem(PASSWORD_KEY);
     setHasPassword(false);
@@ -286,7 +310,7 @@ export default function Home() {
   );
   const netCash = stats.sell - stats.buy;
 
-  // 선택된 종목 통계 (역시 현재 기간/종목필터 기준으로)
+  // 선택된 종목 통계 (현재 필터 기준)
   const symbolStats = displayedTrades
     .filter(t => selectedSymbol && t.symbol === selectedSymbol)
     .reduce(
@@ -300,7 +324,82 @@ export default function Home() {
     );
   const symbolNetCash = symbolStats.sell - symbolStats.buy;
 
-  const hasDateRangeError = dateFrom && dateTo && dateFrom > dateTo;
+  const hasDateRangeError =
+    dateFrom && dateTo && dateFrom > dateTo;
+
+  // 📊 종목별 보유/손익 요약 (전체 내역 기준, 필터와 무관)
+  const symbolSummaries: SymbolSummary[] = (() => {
+    if (trades.length === 0) return [];
+
+    const sortedTrades = [...trades].sort((a, b) => {
+      if (a.date === b.date) {
+        return a.id - b.id;
+      }
+      return a.date.localeCompare(b.date);
+    });
+
+    const map = new Map<string, SymbolSummary>();
+
+    for (const t of sortedTrades) {
+      let s = map.get(t.symbol);
+      if (!s) {
+        s = {
+          symbol: t.symbol,
+          totalBuyQty: 0,
+          totalBuyAmount: 0,
+          totalSellQty: 0,
+          totalSellAmount: 0,
+          positionQty: 0,
+          avgCost: 0,
+          costBasis: 0,
+          realizedPnL: 0,
+        };
+        map.set(t.symbol, s);
+      }
+
+      const amount = t.price * t.quantity;
+
+      if (t.side === 'BUY') {
+        s.totalBuyQty += t.quantity;
+        s.totalBuyAmount += amount;
+        s.positionQty += t.quantity;
+        s.costBasis += amount;
+      } else {
+        s.totalSellQty += t.quantity;
+        s.totalSellAmount += amount;
+
+        const prevQty = s.positionQty;
+        const prevCostBasis = s.costBasis;
+        const prevAvgCost =
+          prevQty !== 0 ? prevCostBasis / prevQty : 0;
+
+        const sellQty = t.quantity;
+        const realizedThis =
+          (t.price - prevAvgCost) * sellQty;
+
+        s.realizedPnL += realizedThis;
+
+        s.positionQty = prevQty - sellQty;
+        s.costBasis = prevCostBasis - prevAvgCost * sellQty;
+      }
+    }
+
+    const result: SymbolSummary[] = [];
+    for (const s of map.values()) {
+      if (s.positionQty > 0) {
+        s.avgCost = s.costBasis / s.positionQty;
+      } else {
+        s.avgCost = 0;
+        s.costBasis = 0;
+      }
+      result.push(s);
+    }
+
+    result.sort((a, b) =>
+      a.symbol.localeCompare(b.symbol),
+    );
+    return result;
+  })();
 
   // 🔐 잠금 화면 (비밀번호 있는 경우에만)
   if (!isUnlocked && hasPassword) {
@@ -325,7 +424,9 @@ export default function Home() {
               <input
                 type="password"
                 value={passwordInput}
-                onChange={e => setPasswordInput(e.target.value)}
+                onChange={e =>
+                  setPasswordInput(e.target.value)
+                }
                 className="border rounded px-2 py-1 text-sm"
                 placeholder="비밀번호 입력"
               />
@@ -359,7 +460,9 @@ export default function Home() {
         <header className="flex flex-col gap-2 border-b pb-4 mb-2">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-bold">나만 보는 주식 매매 일지</h1>
+              <h1 className="text-2xl font-bold">
+                나만 보는 주식 매매 일지
+              </h1>
               <p className="text-sm text-slate-500">
                 데이터와 비밀번호는 이 브라우저의{' '}
                 <b>localStorage</b>에만 저장됩니다.
@@ -416,7 +519,9 @@ export default function Home() {
                     type="password"
                     value={newPasswordConfirm}
                     onChange={e =>
-                      setNewPasswordConfirm(e.target.value)
+                      setNewPasswordConfirm(
+                        e.target.value,
+                      )
                     }
                     className="border rounded px-2 py-1 text-sm"
                     placeholder="다시 입력"
@@ -446,10 +551,12 @@ export default function Home() {
                 </div>
               )}
               <div className="text-[10px] text-slate-400">
-                ⚠️ 참고: 이 잠금 기능은 기본적인 개인 정보 보호용입니다.
+                ⚠️ 참고: 이 잠금 기능은 기본적인 개인 정보
+                보호용입니다.
                 브라우저에 물리적으로 접근 가능한 사용자는
-                개발자 도구를 통해 localStorage 내용에 접근할 수 있습니다.
-                아주 민감한 정보는 가능한 한 다른 방식으로 관리하는 것을
+                개발자 도구를 통해 localStorage 내용에
+                접근할 수 있습니다. 아주 민감한 정보는
+                가능한 한 다른 방식으로 관리하는 것을
                 추천합니다.
               </div>
             </section>
@@ -479,7 +586,9 @@ export default function Home() {
             </div>
           </div>
           <div className="border rounded-lg p-3">
-            <div className="text-slate-500">순 현금 흐름 (매도 - 매수)</div>
+            <div className="text-slate-500">
+              순 현금 흐름 (매도 - 매수)
+            </div>
             <div
               className={
                 'text-xl font-semibold ' +
@@ -495,7 +604,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 선택된 종목 요약 */}
+        {/* 선택된 종목 요약 (필터 기준) */}
         <section>
           <div className="border rounded-lg p-3 text-sm bg-slate-50">
             {selectedSymbol ? (
@@ -550,13 +659,89 @@ export default function Home() {
               </div>
             ) : (
               <div className="text-xs text-slate-500">
-                아래 표에서 <b>종목 이름을 클릭</b>하면 해당 종목의
-                매수/매도/순 현금 흐름 요약이 여기 표시됩니다.
-                (현재 설정된 종목/기간 필터 조건이 반영됩니다.)
+                아래 표에서 <b>종목 이름을 클릭</b>하면 해당
+                종목의 매수/매도/순 현금 흐름 요약이 여기
+                표시됩니다. (현재 설정된 종목/기간 필터 조건이
+                반영됩니다.)
               </div>
             )}
           </div>
         </section>
+
+        {/* 📊 종목별 보유/손익 요약 (전체 기준) */}
+        {symbolSummaries.length > 0 && (
+          <section className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-semibold">
+                종목별 보유/손익 요약 (전체 내역 기준)
+              </div>
+              <div className="text-[11px] text-slate-400">
+                * 필터와 관계없이 지금까지 입력한 모든
+                내역으로 계산됩니다.
+              </div>
+            </div>
+            <div className="border rounded-lg overflow-hidden">
+              <table className="w-full text-xs md:text-sm">
+                <thead className="bg-slate-50 border-b">
+                  <tr>
+                    <th className="px-2 py-2 text-left">종목</th>
+                    <th className="px-2 py-2 text-right">
+                      보유수량
+                    </th>
+                    <th className="px-2 py-2 text-right">
+                      평단가
+                    </th>
+                    <th className="px-2 py-2 text-right">
+                      총 매수금액
+                    </th>
+                    <th className="px-2 py-2 text-right">
+                      총 매도금액
+                    </th>
+                    <th className="px-2 py-2 text-right">
+                      실현손익
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {symbolSummaries.map(s => (
+                    <tr key={s.symbol} className="border-t">
+                      <td className="px-2 py-2">
+                        {s.symbol}
+                      </td>
+                      <td className="px-2 py-2 text-right">
+                        {formatNumber(s.positionQty)}
+                      </td>
+                      <td className="px-2 py-2 text-right">
+                        {s.positionQty > 0
+                          ? formatNumber(s.avgCost, 2)
+                          : '-'}
+                      </td>
+                      <td className="px-2 py-2 text-right">
+                        {formatNumber(s.totalBuyAmount)}
+                      </td>
+                      <td className="px-2 py-2 text-right">
+                        {formatNumber(s.totalSellAmount)}
+                      </td>
+                      <td className="px-2 py-2 text-right">
+                        <span
+                          className={
+                            s.realizedPnL > 0
+                              ? 'text-emerald-600 font-semibold'
+                              : s.realizedPnL < 0
+                              ? 'text-rose-600 font-semibold'
+                              : ''
+                          }
+                        >
+                          {formatNumber(s.realizedPnL)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
 
         {/* 입력 폼 */}
         <section>
@@ -565,7 +750,9 @@ export default function Home() {
             className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end"
           >
             <div className="flex flex-col gap-1 md:col-span-1">
-              <label className="text-xs text-slate-600">날짜</label>
+              <label className="text-xs text-slate-600">
+                날짜
+              </label>
               <input
                 type="date"
                 name="date"
@@ -576,7 +763,9 @@ export default function Home() {
             </div>
 
             <div className="flex flex-col gap-1 md:col-span-1">
-              <label className="text-xs text-slate-600">종목</label>
+              <label className="text-xs text-slate-600">
+                종목
+              </label>
               <input
                 type="text"
                 name="symbol"
@@ -588,7 +777,9 @@ export default function Home() {
             </div>
 
             <div className="flex flex-col gap-1 md:col-span-1">
-              <label className="text-xs text-slate-600">구분</label>
+              <label className="text-xs text-slate-600">
+                구분
+              </label>
               <select
                 name="side"
                 value={form.side}
@@ -601,7 +792,9 @@ export default function Home() {
             </div>
 
             <div className="flex flex-col gap-1 md:col-span-1">
-              <label className="text-xs text-slate-600">가격</label>
+              <label className="text-xs text-slate-600">
+                가격
+              </label>
               <input
                 type="number"
                 name="price"
@@ -612,7 +805,9 @@ export default function Home() {
             </div>
 
             <div className="flex flex-col gap-1 md:col-span-1">
-              <label className="text-xs text-slate-600">수량</label>
+              <label className="text-xs text-slate-600">
+                수량
+              </label>
               <input
                 type="number"
                 name="quantity"
@@ -623,7 +818,9 @@ export default function Home() {
             </div>
 
             <div className="flex flex-col gap-1 md:col-span-2">
-              <label className="text-xs text-slate-600">메모</label>
+              <label className="text-xs text-slate-600">
+                메모
+              </label>
               <textarea
                 name="memo"
                 value={form.memo}
@@ -664,7 +861,9 @@ export default function Home() {
             {/* 왼쪽: 종목 + 기간 필터 */}
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2 text-sm">
-                <span className="text-slate-600">종목 필터</span>
+                <span className="text-slate-600">
+                  종목 필터
+                </span>
                 <input
                   type="text"
                   placeholder="종목 검색"
@@ -730,12 +929,22 @@ export default function Home() {
                 <tr>
                   <th className="px-2 py-2 text-left">날짜</th>
                   <th className="px-2 py-2 text-left">종목</th>
-                  <th className="px-2 py-2 text-center">구분</th>
-                  <th className="px-2 py-2 text-right">가격</th>
-                  <th className="px-2 py-2 text-right">수량</th>
-                  <th className="px-2 py-2 text-right">금액</th>
+                  <th className="px-2 py-2 text-center">
+                    구분
+                  </th>
+                  <th className="px-2 py-2 text-right">
+                    가격
+                  </th>
+                  <th className="px-2 py-2 text-right">
+                    수량
+                  </th>
+                  <th className="px-2 py-2 text-right">
+                    금액
+                  </th>
                   <th className="px-2 py-2 text-left">메모</th>
-                  <th className="px-2 py-2 text-center">삭제</th>
+                  <th className="px-2 py-2 text-center">
+                    삭제
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -745,9 +954,9 @@ export default function Home() {
                       colSpan={8}
                       className="px-2 py-6 text-center text-slate-400"
                     >
-                      현재 필터 조건에 해당하는 기록이 없습니다.
-                      (필터를 초기화하거나 다른 기간/종목을
-                      선택해보세요.)
+                      현재 필터 조건에 해당하는 기록이
+                      없습니다. (필터를 초기화하거나 다른
+                      기간/종목을 선택해보세요.)
                     </td>
                   </tr>
                 ) : (
