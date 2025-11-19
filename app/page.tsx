@@ -34,6 +34,7 @@ interface SymbolSummary {
 const STORAGE_KEY = 'stock-journal-trades-v1';
 const PASSWORD_KEY = 'stock-journal-password-v1';
 const CURRENT_PRICE_KEY = 'stock-journal-current-prices-v1';
+const THEME_KEY = 'stock-journal-theme-v1';
 
 export default function Home() {
   const [trades, setTrades] = useState<Trade[]>([]);
@@ -66,7 +67,10 @@ export default function Home() {
     Record<string, number>
   >({});
 
-  // 최초 로딩 시 localStorage에서 데이터 & 비밀번호 & 현재가 읽기 + 날짜 기본값 세팅
+  // 🎨 다크 모드
+  const [darkMode, setDarkMode] = useState(false);
+
+  // 최초 로딩 시 localStorage에서 데이터 & 비밀번호 & 현재가 & 테마 읽기 + 날짜 기본값 세팅
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -102,6 +106,11 @@ export default function Home() {
       }
     }
 
+    const savedTheme = localStorage.getItem(THEME_KEY);
+    if (savedTheme === 'dark') {
+      setDarkMode(true);
+    }
+
     if (!form.date) {
       const today = new Date().toISOString().slice(0, 10);
       setForm(prev => ({ ...prev, date: today }));
@@ -123,6 +132,12 @@ export default function Home() {
       JSON.stringify(currentPrices),
     );
   }, [currentPrices]);
+
+  // 테마 변경될 때마다 localStorage에 저장
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(THEME_KEY, darkMode ? 'dark' : 'light');
+  }, [darkMode]);
 
   const handleChange = (
     e: ChangeEvent<
@@ -447,6 +462,27 @@ export default function Home() {
     return result;
   })();
 
+  const mainClass =
+    'min-h-screen flex justify-center px-4 py-8 ' +
+    (darkMode ? 'bg-slate-900' : 'bg-slate-100');
+
+  const containerClass =
+    'w-full max-w-5xl shadow-md rounded-xl p-6 space-y-6 ' +
+    (darkMode
+      ? 'bg-slate-900 border border-slate-700 text-slate-100'
+      : 'bg-white text-slate-900');
+
+  const subCardBg = (light: boolean) =>
+    light
+      ? darkMode
+        ? 'bg-slate-800'
+        : 'bg-slate-50'
+      : '';
+
+  const tableHeaderBg =
+    'bg-slate-50 border-b ' +
+    (darkMode ? 'bg-slate-800 border-slate-700' : '');
+
   // 🔐 잠금 화면 (비밀번호 있는 경우에만)
   if (!isUnlocked && hasPassword) {
     return (
@@ -501,9 +537,9 @@ export default function Home() {
 
   // 🔓 잠금 해제 이후 메인 화면
   return (
-    <main className="min-h-screen bg-slate-100 flex justify-center px-4 py-8">
-      <div className="w-full max-w-5xl bg-white shadow-md rounded-xl p-6 space-y-6">
-        <header className="flex flex-col gap-2 border-b pb-4 mb-2">
+    <main className={mainClass}>
+      <div className={containerClass}>
+        <header className="flex flex-col gap-2 border-b pb-4 mb-2 border-slate-200 dark:border-slate-700">
           <div className="flex items-center justify-between gap-3">
             <div>
               <h1 className="text-2xl font-bold">
@@ -515,26 +551,52 @@ export default function Home() {
                 (다른 사람/다른 브라우저에서는 보이지 않음)
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() =>
-                setShowPasswordSettings(prev => !prev)
-              }
-              className="text-xs border rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-50"
-            >
-              🔐 잠금 설정
-            </button>
+            <div className="flex flex-col items-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDarkMode(prev => !prev)}
+                className={
+                  'text-xs rounded-lg px-3 py-1.5 border ' +
+                  (darkMode
+                    ? 'border-slate-600 text-slate-200 hover:bg-slate-800'
+                    : 'border-slate-300 text-slate-700 hover:bg-slate-50')
+                }
+              >
+                {darkMode ? '☀️ 라이트 모드' : '🌙 다크 모드'}
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setShowPasswordSettings(prev => !prev)
+                }
+                className={
+                  'text-xs rounded-lg px-3 py-1.5 border ' +
+                  (darkMode
+                    ? 'border-slate-600 text-slate-200 hover:bg-slate-800'
+                    : 'border-slate-300 text-slate-700 hover:bg-slate-50')
+                }
+              >
+                🔐 잠금 설정
+              </button>
+            </div>
           </div>
 
           {/* 🔐 비밀번호 설정/변경 섹션 (접이식) */}
           {showPasswordSettings && (
-            <section className="mt-2 border rounded-lg p-3 text-sm space-y-3 bg-slate-50">
+            <section
+              className={
+                'mt-2 border rounded-lg p-3 text-sm space-y-3 ' +
+                (darkMode
+                  ? 'bg-slate-800 border-slate-700'
+                  : 'bg-slate-50')
+              }
+            >
               <div className="flex items-center justify-between">
                 <div className="font-semibold text-xs">
                   잠금 설정 (이 브라우저에만 적용)
                 </div>
                 {hasPassword && (
-                  <span className="text-[10px] text-emerald-600">
+                  <span className="text-[10px] text-emerald-500">
                     현재 비밀번호가 설정되어 있습니다.
                   </span>
                 )}
@@ -553,7 +615,7 @@ export default function Home() {
                     onChange={e =>
                       setNewPassword(e.target.value)
                     }
-                    className="border rounded px-2 py-1 text-sm"
+                    className="border rounded px-2 py-1 text-sm bg-transparent"
                     placeholder="새 비밀번호"
                   />
                 </div>
@@ -569,7 +631,7 @@ export default function Home() {
                         e.target.value,
                       )
                     }
-                    className="border rounded px-2 py-1 text-sm"
+                    className="border rounded px-2 py-1 text-sm bg-transparent"
                     placeholder="다시 입력"
                   />
                 </div>
@@ -592,18 +654,17 @@ export default function Home() {
                 </div>
               </form>
               {passwordMessage && (
-                <div className="text-xs text-slate-600">
+                <div className="text-xs text-slate-300">
                   {passwordMessage}
                 </div>
               )}
               <div className="text-[10px] text-slate-400">
                 ⚠️ 참고: 이 잠금 기능은 기본적인 개인 정보
-                보호용입니다.
-                브라우저에 물리적으로 접근 가능한 사용자는
-                개발자 도구를 통해 localStorage 내용에
-                접근할 수 있습니다. 아주 민감한 정보는
-                가능한 한 다른 방식으로 관리하는 것을
-                추천합니다.
+                보호용입니다. 브라우저에 물리적으로 접근
+                가능한 사용자는 개발자 도구를 통해
+                localStorage 내용에 접근할 수 있습니다. 아주
+                민감한 정보는 가능한 한 다른 방식으로
+                관리하는 것을 추천합니다.
               </div>
             </section>
           )}
@@ -611,7 +672,12 @@ export default function Home() {
 
         {/* 요약 (현재 필터 기준) */}
         <section className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
-          <div className="border rounded-lg p-3">
+          <div
+            className={
+              'border rounded-lg p-3 ' +
+              (darkMode ? 'border-slate-700' : 'border-slate-200')
+            }
+          >
             <div className="text-slate-500">
               현재 조건의 거래 건수
             </div>
@@ -619,19 +685,34 @@ export default function Home() {
               {displayedTrades.length} 건
             </div>
           </div>
-          <div className="border rounded-lg p-3">
+          <div
+            className={
+              'border rounded-lg p-3 ' +
+              (darkMode ? 'border-slate-700' : 'border-slate-200')
+            }
+          >
             <div className="text-slate-500">매수 금액 합계</div>
             <div className="text-xl font-semibold">
               {formatNumber(stats.buy)} 원
             </div>
           </div>
-          <div className="border rounded-lg p-3">
+          <div
+            className={
+              'border rounded-lg p-3 ' +
+              (darkMode ? 'border-slate-700' : 'border-slate-200')
+            }
+          >
             <div className="text-slate-500">매도 금액 합계</div>
             <div className="text-xl font-semibold">
               {formatNumber(stats.sell)} 원
             </div>
           </div>
-          <div className="border rounded-lg p-3">
+          <div
+            className={
+              'border rounded-lg p-3 ' +
+              (darkMode ? 'border-slate-700' : 'border-slate-200')
+            }
+          >
             <div className="text-slate-500">
               순 현금 흐름 (매도 - 매수)
             </div>
@@ -639,9 +720,9 @@ export default function Home() {
               className={
                 'text-xl font-semibold ' +
                 (netCash > 0
-                  ? 'text-emerald-600'
+                  ? 'text-emerald-500'
                   : netCash < 0
-                  ? 'text-rose-600'
+                  ? 'text-rose-400'
                   : '')
               }
             >
@@ -652,7 +733,14 @@ export default function Home() {
 
         {/* 선택된 종목 요약 (필터 기준) */}
         <section>
-          <div className="border rounded-lg p-3 text-sm bg-slate-50">
+          <div
+            className={
+              'border rounded-lg p-3 text-sm ' +
+              (darkMode
+                ? 'bg-slate-800 border-slate-700'
+                : 'bg-slate-50 border-slate-200')
+            }
+          >
             {selectedSymbol ? (
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
@@ -692,9 +780,9 @@ export default function Home() {
                       className={
                         'text-base font-semibold ' +
                         (symbolNetCash > 0
-                          ? 'text-emerald-600'
+                          ? 'text-emerald-500'
                           : symbolNetCash < 0
-                          ? 'text-rose-600'
+                          ? 'text-rose-400'
                           : '')
                       }
                     >
@@ -727,9 +815,14 @@ export default function Home() {
                 직접 입력합니다.
               </div>
             </div>
-            <div className="border rounded-lg overflow-x-auto">
+            <div
+              className={
+                'border rounded-lg overflow-x-auto ' +
+                (darkMode ? 'border-slate-700' : 'border-slate-200')
+              }
+            >
               <table className="w-full text-xs md:text-sm min-w-[720px]">
-                <thead className="bg-slate-50 border-b">
+                <thead className={tableHeaderBg}>
                   <tr>
                     <th className="px-2 py-2 text-left">종목</th>
                     <th className="px-2 py-2 text-right">
@@ -780,7 +873,12 @@ export default function Home() {
                     return (
                       <tr
                         key={s.symbol}
-                        className="border-t align-middle"
+                        className={
+                          'border-t ' +
+                          (darkMode
+                            ? 'border-slate-700'
+                            : 'border-slate-200')
+                        }
                       >
                         <td className="px-2 py-2">
                           {s.symbol}
@@ -803,9 +901,9 @@ export default function Home() {
                           <span
                             className={
                               s.realizedPnL > 0
-                                ? 'text-emerald-600 font-semibold'
+                                ? 'text-emerald-500 font-semibold'
                                 : s.realizedPnL < 0
-                                ? 'text-rose-600 font-semibold'
+                                ? 'text-rose-400 font-semibold'
                                 : ''
                             }
                           >
@@ -816,7 +914,12 @@ export default function Home() {
                           {s.positionQty > 0 ? (
                             <input
                               type="number"
-                              className="border rounded px-1 py-0.5 text-right w-24"
+                              className={
+                                'border rounded px-1 py-0.5 text-right w-24 text-xs ' +
+                                (darkMode
+                                  ? 'bg-slate-900 border-slate-600'
+                                  : '')
+                              }
                               value={
                                 hasPrice && currentPrice !== undefined
                                   ? String(currentPrice)
@@ -848,9 +951,9 @@ export default function Home() {
                             <span
                               className={
                                 unrealizedPnL > 0
-                                  ? 'text-emerald-600 font-semibold'
+                                  ? 'text-emerald-500 font-semibold'
                                   : unrealizedPnL < 0
-                                  ? 'text-rose-600 font-semibold'
+                                  ? 'text-rose-400 font-semibold'
                                   : ''
                               }
                             >
@@ -888,7 +991,10 @@ export default function Home() {
                 name="date"
                 value={form.date}
                 onChange={handleChange}
-                className="border rounded px-2 py-1 text-sm"
+                className={
+                  'border rounded px-2 py-1 text-sm bg-transparent ' +
+                  (darkMode ? 'border-slate-600' : '')
+                }
               />
             </div>
 
@@ -902,7 +1008,10 @@ export default function Home() {
                 placeholder="예: MU, 삼성전자"
                 value={form.symbol}
                 onChange={handleChange}
-                className="border rounded px-2 py-1 text-sm"
+                className={
+                  'border rounded px-2 py-1 text-sm bg-transparent ' +
+                  (darkMode ? 'border-slate-600' : '')
+                }
               />
             </div>
 
@@ -914,7 +1023,10 @@ export default function Home() {
                 name="side"
                 value={form.side}
                 onChange={handleChange}
-                className="border rounded px-2 py-1 text-sm"
+                className={
+                  'border rounded px-2 py-1 text-sm bg-transparent ' +
+                  (darkMode ? 'border-slate-600' : '')
+                }
               >
                 <option value="BUY">매수</option>
                 <option value="SELL">매도</option>
@@ -930,7 +1042,10 @@ export default function Home() {
                 name="price"
                 value={form.price}
                 onChange={handleChange}
-                className="border rounded px-2 py-1 text-sm text-right"
+                className={
+                  'border rounded px-2 py-1 text-sm text-right bg-transparent ' +
+                  (darkMode ? 'border-slate-600' : '')
+                }
               />
             </div>
 
@@ -943,7 +1058,10 @@ export default function Home() {
                 name="quantity"
                 value={form.quantity}
                 onChange={handleChange}
-                className="border rounded px-2 py-1 text-sm text-right"
+                className={
+                  'border rounded px-2 py-1 text-sm text-right bg-transparent ' +
+                  (darkMode ? 'border-slate-600' : '')
+                }
               />
             </div>
 
@@ -955,7 +1073,10 @@ export default function Home() {
                 name="memo"
                 value={form.memo}
                 onChange={handleChange}
-                className="border rounded px-2 py-1 text-sm"
+                className={
+                  'border rounded px-2 py-1 text-sm bg-transparent ' +
+                  (darkMode ? 'border-slate-600' : '')
+                }
                 rows={1}
               />
             </div>
@@ -1001,7 +1122,10 @@ export default function Home() {
                   onChange={e =>
                     setFilterSymbol(e.target.value)
                   }
-                  className="border rounded px-2 py-1 text-sm"
+                  className={
+                    'border rounded px-2 py-1 text-sm bg-transparent ' +
+                    (darkMode ? 'border-slate-600' : '')
+                  }
                 />
               </div>
               <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -1014,7 +1138,10 @@ export default function Home() {
                   onChange={e =>
                     setDateFrom(e.target.value)
                   }
-                  className="border rounded px-2 py-1 text-xs"
+                  className={
+                    'border rounded px-2 py-1 text-xs bg-transparent ' +
+                    (darkMode ? 'border-slate-600' : '')
+                  }
                   placeholder="시작일"
                 />
                 <span className="text-xs text-slate-400">
@@ -1026,7 +1153,10 @@ export default function Home() {
                   onChange={e =>
                     setDateTo(e.target.value)
                   }
-                  className="border rounded px-2 py-1 text-xs"
+                  className={
+                    'border rounded px-2 py-1 text-xs bg-transparent ' +
+                    (darkMode ? 'border-slate-600' : '')
+                  }
                   placeholder="종료일"
                 />
                 <button
@@ -1053,9 +1183,14 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="border rounded-lg overflow-hidden">
+          <div
+            className={
+              'border rounded-lg overflow-hidden ' +
+              (darkMode ? 'border-slate-700' : 'border-slate-200')
+            }
+          >
             <table className="w-full text-xs md:text-sm">
-              <thead className="bg-slate-50 border-b">
+              <thead className={tableHeaderBg}>
                 <tr>
                   <th className="px-2 py-2 text-left">날짜</th>
                   <th className="px-2 py-2 text-left">종목</th>
@@ -1098,7 +1233,12 @@ export default function Home() {
                     return (
                       <tr
                         key={trade.id}
-                        className="border-t"
+                        className={
+                          'border-t ' +
+                          (darkMode
+                            ? 'border-slate-700'
+                            : 'border-slate-200')
+                        }
                       >
                         <td className="px-2 py-2">
                           {trade.date}
@@ -1114,8 +1254,8 @@ export default function Home() {
                             className={
                               'underline-offset-2 ' +
                               (isSelected
-                                ? 'font-semibold underline text-blue-600'
-                                : 'text-blue-700 hover:underline')
+                                ? 'font-semibold underline text-blue-400'
+                                : 'text-blue-500 hover:underline')
                             }
                           >
                             {trade.symbol}
@@ -1125,8 +1265,8 @@ export default function Home() {
                           <span
                             className={
                               trade.side === 'BUY'
-                                ? 'text-emerald-600 font-semibold'
-                                : 'text-rose-600 font-semibold'
+                                ? 'text-emerald-500 font-semibold'
+                                : 'text-rose-400 font-semibold'
                             }
                           >
                             {trade.side === 'BUY'
