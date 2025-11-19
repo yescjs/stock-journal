@@ -18,6 +18,7 @@ interface Trade {
   price: number;
   quantity: number;
   memo: string;
+  tags?: string[]; // 🆕 태그 (선택)
 }
 
 interface SymbolSummary {
@@ -46,8 +47,10 @@ export default function Home() {
     price: '',
     quantity: '',
     memo: '',
+    tags: '', // 🆕 태그 입력 문자열 (쉼표 구분)
   });
   const [filterSymbol, setFilterSymbol] = useState('');
+  const [filterTag, setFilterTag] = useState(''); // 🆕 태그 필터
   const [selectedSymbol, setSelectedSymbol] = useState<string>('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -83,7 +86,12 @@ export default function Home() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved) as Trade[];
-        setTrades(parsed);
+        // 🆕 예전 데이터에 tags가 없을 수 있으므로 기본값 부여
+        const normalized = parsed.map(t => ({
+          ...t,
+          tags: t.tags ?? [],
+        }));
+        setTrades(normalized);
       } catch {
         // 파싱 실패 시 무시
       }
@@ -172,6 +180,14 @@ export default function Home() {
       return;
     }
 
+    // 🆕 태그 파싱 (쉼표 구분, 앞뒤 공백 제거, 중복 제거)
+    const parsedTags =
+      form.tags
+        ?.split(',')
+        .map(tag => tag.trim())
+        .filter(tag => tag.length > 0) ?? [];
+    const uniqueTags = Array.from(new Set(parsedTags));
+
     const newTrade: Trade = {
       id: Date.now(),
       date: form.date,
@@ -180,16 +196,18 @@ export default function Home() {
       price,
       quantity,
       memo: form.memo,
+      tags: uniqueTags,
     };
 
     setTrades(prev => [newTrade, ...prev]);
 
-    // 종목/구분/날짜는 그대로 두고, 가격/수량/메모만 초기화
+    // 종목/구분/날짜는 그대로 두고, 가격/수량/메모/태그만 초기화
     setForm(prev => ({
       ...prev,
       price: '',
       quantity: '',
       memo: '',
+      tags: '',
     }));
   };
 
@@ -220,6 +238,7 @@ export default function Home() {
       'quantity',
       'amount',
       'memo',
+      'tags', // 🆕 태그
     ];
 
     const rows = trades.map(t => [
@@ -231,6 +250,7 @@ export default function Home() {
       t.quantity,
       t.price * t.quantity,
       t.memo.replace(/\r?\n/g, ' '),
+      (t.tags ?? []).join(','),
     ]);
 
     const csvContent =
@@ -430,9 +450,16 @@ export default function Home() {
           return;
         }
 
-        setTrades((data as any).trades as Trade[]);
+        const importedTrades = (data as any).trades as Trade[];
+        const normalized = importedTrades.map(t => ({
+          ...t,
+          tags: t.tags ?? [],
+        }));
+
+        setTrades(normalized);
         setCurrentPrices(
-          (data as any).currentPrices as Record<string, number>,
+          (data as any)
+            .currentPrices as Record<string, number>,
         );
         setBackupMessage('백업 데이터를 성공적으로 불러왔습니다.');
       } catch (err) {
@@ -445,6 +472,13 @@ export default function Home() {
     reader.readAsText(file, 'utf-8');
   };
 
+  // 전체 태그 목록 (중복 제거)
+  const allTags: string[] = Array.from(
+    new Set(
+      trades.flatMap(t => t.tags ?? []),
+    ),
+  ).sort((a, b) => a.localeCompare(b));
+
   // 1차 필터: 종목 검색
   const symbolFilteredTrades = trades.filter(t =>
     filterSymbol
@@ -452,8 +486,18 @@ export default function Home() {
       : true,
   );
 
-  // 2차 필터: 기간(시작일/종료일)
-  const dateFilteredTrades = symbolFilteredTrades.filter(t => {
+  // 2차 필터: 태그 필터
+  const tagFilteredTrades = symbolFilteredTrades.filter(t => {
+    if (!filterTag) return true;
+    const tags = (t.tags ?? []).map(tag =>
+      tag.toLowerCase(),
+    );
+    const keyword = filterTag.toLowerCase();
+    return tags.some(tag => tag.includes(keyword));
+  });
+
+  // 3차 필터: 기간(시작일/종료일)
+  const dateFilteredTrades = tagFilteredTrades.filter(t => {
     if (dateFrom && t.date < dateFrom) return false;
     if (dateTo && t.date > dateTo) return false;
     return true;
@@ -576,7 +620,9 @@ export default function Home() {
 
   const tableHeaderBg =
     'border-b ' +
-    (darkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200');
+    (darkMode
+      ? 'bg-slate-800 border-slate-700'
+      : 'bg-slate-50 border-slate-200');
 
   // 🔐 잠금 화면 (비밀번호 있는 경우에만)
   if (!isUnlocked && hasPassword) {
@@ -899,8 +945,8 @@ export default function Home() {
               <div className="text-xs text-slate-500">
                 아래 표에서 <b>종목 이름을 클릭</b>하면 해당
                 종목의 매수/매도/순 현금 흐름 요약이 여기
-                표시됩니다. (현재 설정된 종목/기간 필터 조건이
-                반영됩니다.)
+                표시됩니다. (현재 설정된 종목/기간/태그 필터
+                조건이 반영됩니다.)
               </div>
             )}
           </div>
@@ -1185,7 +1231,25 @@ export default function Home() {
               />
             </div>
 
-            <div className="flex flex-wrap gap-2 md:col-span-3">
+            {/* 🆕 태그 입력 */}
+            <div className="flex flex-col gap-1 md:col-span-2">
+              <label className="text-xs text-slate-600">
+                태그 (쉼표로 구분) 예: 단타, MU전략1, IRA
+              </label>
+              <input
+                type="text"
+                name="tags"
+                value={form.tags}
+                onChange={handleChange}
+                className={
+                  'border rounded px-2 py-1 text-sm bg-transparent ' +
+                  (darkMode ? 'border-slate-600' : '')
+                }
+                placeholder="예: 단타, 장기, MU전략1"
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-2 md:col-span-4">
               <button
                 type="submit"
                 className="flex-1 bg-blue-600 text-white text-sm font-medium rounded-lg py-2"
@@ -1248,9 +1312,9 @@ export default function Home() {
         {/* 필터 & 목록 */}
         <section className="space-y-3">
           <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-            {/* 왼쪽: 종목 + 기간 필터 */}
+            {/* 왼쪽: 종목 + 태그 + 기간 필터 */}
             <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2 text-sm">
+              <div className="flex flex-wrap items-center gap-2 text-sm">
                 <span className="text-slate-600">
                   종목 필터
                 </span>
@@ -1267,7 +1331,68 @@ export default function Home() {
                   }
                 />
               </div>
+
               <div className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="text-slate-600">
+                  태그 필터
+                </span>
+                <input
+                  type="text"
+                  placeholder="태그 검색 (예: 단타)"
+                  value={filterTag}
+                  onChange={e =>
+                    setFilterTag(e.target.value)
+                  }
+                  className={
+                    'border rounded px-2 py-1 text-sm bg-transparent ' +
+                    (darkMode ? 'border-slate-600' : '')
+                  }
+                />
+                {filterTag && (
+                  <button
+                    type="button"
+                    onClick={() => setFilterTag('')}
+                    className="px-2 py-1 text-xs border rounded-lg text-slate-500"
+                  >
+                    태그 필터 초기화
+                  </button>
+                )}
+              </div>
+
+              {/* 전체 태그 목록 (빠른 선택) */}
+              {allTags.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                  <span className="text-slate-500">
+                    자주 쓰는 태그:
+                  </span>
+                  {allTags.map(tag => {
+                    const selected =
+                      filterTag.toLowerCase() ===
+                      tag.toLowerCase();
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() =>
+                          setFilterTag(
+                            selected ? '' : tag,
+                          )
+                        }
+                        className={
+                          'px-2 py-1 rounded-full border ' +
+                          (selected
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'border-slate-300 text-slate-600 hover:bg-slate-50')
+                        }
+                      >
+                        #{tag}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center gap-2 text-sm mt-1">
                 <span className="text-slate-600">
                   기간 필터
                 </span>
@@ -1281,7 +1406,6 @@ export default function Home() {
                     'border rounded px-2 py-1 text-xs bg-transparent ' +
                     (darkMode ? 'border-slate-600' : '')
                   }
-                  placeholder="시작일"
                 />
                 <span className="text-xs text-slate-400">
                   ~
@@ -1296,7 +1420,6 @@ export default function Home() {
                     'border rounded px-2 py-1 text-xs bg-transparent ' +
                     (darkMode ? 'border-slate-600' : '')
                   }
-                  placeholder="종료일"
                 />
                 <button
                   type="button"
@@ -1306,6 +1429,7 @@ export default function Home() {
                   기간 초기화
                 </button>
               </div>
+
               {hasDateRangeError && (
                 <div className="text-xs text-rose-500">
                   시작일이 종료일보다 늦습니다. 날짜 범위를
@@ -1316,8 +1440,8 @@ export default function Home() {
 
             {/* 오른쪽: 안내 */}
             <div className="text-xs text-slate-400 mt-2 md:mt-0">
-              종목/기간 필터 조건이 위 요약과 아래 목록에 모두
-              반영됩니다. 종목 이름을 클릭하면 해당 종목
+              종목/태그/기간 필터 조건이 위 요약과 아래 목록에
+              모두 반영됩니다. 종목 이름을 클릭하면 해당 종목
               요약이 위에 표시됩니다.
             </div>
           </div>
@@ -1345,6 +1469,9 @@ export default function Home() {
                   <th className="px-2 py-2 text-right">
                     금액
                   </th>
+                  <th className="px-2 py-2 text-left">
+                    태그
+                  </th>
                   <th className="px-2 py-2 text-left">메모</th>
                   <th className="px-2 py-2 text-center">
                     삭제
@@ -1355,12 +1482,12 @@ export default function Home() {
                 {displayedTrades.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={8}
+                      colSpan={9}
                       className="px-2 py-6 text-center text-slate-400"
                     >
                       현재 필터 조건에 해당하는 기록이
                       없습니다. (필터를 초기화하거나 다른
-                      기간/종목을 선택해보세요.)
+                      기간/종목/태그를 선택해보세요.)
                     </td>
                   </tr>
                 ) : (
@@ -1369,6 +1496,7 @@ export default function Home() {
                       trade.price * trade.quantity;
                     const isSelected =
                       trade.symbol === selectedSymbol;
+                    const tags = trade.tags ?? [];
                     return (
                       <tr
                         key={trade.id}
@@ -1421,6 +1549,34 @@ export default function Home() {
                         </td>
                         <td className="px-2 py-2 text-right">
                           {formatNumber(amount)}
+                        </td>
+                        <td className="px-2 py-2">
+                          {tags.length === 0 ? (
+                            <span className="text-slate-400">
+                              -
+                            </span>
+                          ) : (
+                            <div className="flex flex-wrap gap-1">
+                              {tags.map(tag => (
+                                <button
+                                  key={tag}
+                                  type="button"
+                                  onClick={() =>
+                                    setFilterTag(tag)
+                                  }
+                                  className={
+                                    'px-1.5 py-0.5 rounded-full text-[10px] border ' +
+                                    (filterTag.toLowerCase() ===
+                                    tag.toLowerCase()
+                                      ? 'bg-blue-600 text-white border-blue-600'
+                                      : 'border-slate-300 text-slate-600 hover:bg-slate-50')
+                                  }
+                                >
+                                  #{tag}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </td>
                         <td className="px-2 py-2 max-w-xs">
                           <span className="line-clamp-2">
