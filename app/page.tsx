@@ -98,7 +98,7 @@ export default function Home() {
 
     setTrades(prev => [newTrade, ...prev]);
 
-    // 종목/메모는 유지하고 싶으면 여기서 원하는 대로 조정
+    // 종목/구분/날짜는 그대로 두고, 가격/수량/메모만 초기화
     setForm(prev => ({
       ...prev,
       price: '',
@@ -117,6 +117,62 @@ export default function Home() {
     setTrades([]);
   };
 
+  // CSV 다운로드
+  const handleExportCsv = () => {
+    if (trades.length === 0) {
+      alert('내보낼 기록이 없습니다.');
+      return;
+    }
+
+    const header = [
+      'id',
+      'date',
+      'symbol',
+      'side',
+      'price',
+      'quantity',
+      'amount',
+      'memo',
+    ];
+
+    const rows = trades.map(t => [
+      t.id,
+      t.date,
+      t.symbol,
+      t.side,
+      t.price,
+      t.quantity,
+      t.price * t.quantity,
+      t.memo.replace(/\r?\n/g, ' '),
+    ]);
+
+    const csvContent =
+      '\uFEFF' +
+      [header, ...rows]
+        .map(row =>
+          row
+            .map(value => {
+              const str = String(value ?? '');
+              const escaped = str.replace(/"/g, '""');
+              return `"${escaped}"`;
+            })
+            .join(','),
+        )
+        .join('\r\n');
+
+    const blob = new Blob([csvContent], {
+      type: 'text/csv;charset=utf-8;',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'stock-journal.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const filteredTrades = trades.filter(t =>
     filterSymbol
       ? t.symbol.toLowerCase().includes(filterSymbol.toLowerCase())
@@ -133,6 +189,8 @@ export default function Home() {
     { buy: 0, sell: 0 },
   );
 
+  const netCash = stats.sell - stats.buy;
+
   const formatNumber = (n: number) =>
     n.toLocaleString('ko-KR', {
       maximumFractionDigits: 0,
@@ -140,7 +198,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-slate-100 flex justify-center px-4 py-8">
-      <div className="w-full max-w-4xl bg-white shadow-md rounded-xl p-6 space-y-6">
+      <div className="w-full max-w-5xl bg-white shadow-md rounded-xl p-6 space-y-6">
         <header className="flex flex-col gap-1 border-b pb-4 mb-2">
           <h1 className="text-2xl font-bold">나만 보는 주식 매매 일지</h1>
           <p className="text-sm text-slate-500">
@@ -150,7 +208,7 @@ export default function Home() {
         </header>
 
         {/* 요약 */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+        <section className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
           <div className="border rounded-lg p-3">
             <div className="text-slate-500">총 거래 건수</div>
             <div className="text-xl font-semibold">{trades.length} 건</div>
@@ -165,6 +223,21 @@ export default function Home() {
             <div className="text-slate-500">총 매도 금액</div>
             <div className="text-xl font-semibold">
               {formatNumber(stats.sell)} 원
+            </div>
+          </div>
+          <div className="border rounded-lg p-3">
+            <div className="text-slate-500">순 현금 흐름 (매도 - 매수)</div>
+            <div
+              className={
+                'text-xl font-semibold ' +
+                (netCash > 0
+                  ? 'text-emerald-600'
+                  : netCash < 0
+                  ? 'text-rose-600'
+                  : '')
+              }
+            >
+              {formatNumber(netCash)} 원
             </div>
           </div>
         </section>
@@ -244,7 +317,7 @@ export default function Home() {
               />
             </div>
 
-            <div className="flex gap-2 md:col-span-2">
+            <div className="flex flex-wrap gap-2 md:col-span-3">
               <button
                 type="submit"
                 className="flex-1 bg-blue-600 text-white text-sm font-medium rounded-lg py-2"
@@ -258,13 +331,20 @@ export default function Home() {
               >
                 전체 삭제
               </button>
+              <button
+                type="button"
+                onClick={handleExportCsv}
+                className="px-3 py-2 text-xs border rounded-lg text-slate-500"
+              >
+                CSV 다운로드
+              </button>
             </div>
           </form>
         </section>
 
         {/* 필터 & 목록 */}
         <section className="space-y-3">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-sm">
               <span className="text-slate-600">종목 필터</span>
               <input
@@ -289,6 +369,7 @@ export default function Home() {
                   <th className="px-2 py-2 text-center">구분</th>
                   <th className="px-2 py-2 text-right">가격</th>
                   <th className="px-2 py-2 text-right">수량</th>
+                  <th className="px-2 py-2 text-right">금액</th>
                   <th className="px-2 py-2 text-left">메모</th>
                   <th className="px-2 py-2 text-center">삭제</th>
                 </tr>
@@ -297,47 +378,53 @@ export default function Home() {
                 {filteredTrades.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={8}
                       className="px-2 py-6 text-center text-slate-400"
                     >
                       아직 기록이 없습니다. 위에서 첫 거래를 기록해 보세요.
                     </td>
                   </tr>
                 ) : (
-                  filteredTrades.map(trade => (
-                    <tr key={trade.id} className="border-t">
-                      <td className="px-2 py-2">{trade.date}</td>
-                      <td className="px-2 py-2">{trade.symbol}</td>
-                      <td className="px-2 py-2 text-center">
-                        <span
-                          className={
-                            trade.side === 'BUY'
-                              ? 'text-emerald-600 font-semibold'
-                              : 'text-rose-600 font-semibold'
-                          }
-                        >
-                          {trade.side === 'BUY' ? '매수' : '매도'}
-                        </span>
-                      </td>
-                      <td className="px-2 py-2 text-right">
-                        {formatNumber(trade.price)}
-                      </td>
-                      <td className="px-2 py-2 text-right">
-                        {formatNumber(trade.quantity)}
-                      </td>
-                      <td className="px-2 py-2 max-w-xs">
-                        <span className="line-clamp-2">{trade.memo}</span>
-                      </td>
-                      <td className="px-2 py-2 text-center">
-                        <button
-                          onClick={() => handleDelete(trade.id)}
-                          className="text-xs text-slate-400 hover:text-red-500"
-                        >
-                          삭제
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                  filteredTrades.map(trade => {
+                    const amount = trade.price * trade.quantity;
+                    return (
+                      <tr key={trade.id} className="border-t">
+                        <td className="px-2 py-2">{trade.date}</td>
+                        <td className="px-2 py-2">{trade.symbol}</td>
+                        <td className="px-2 py-2 text-center">
+                          <span
+                            className={
+                              trade.side === 'BUY'
+                                ? 'text-emerald-600 font-semibold'
+                                : 'text-rose-600 font-semibold'
+                            }
+                          >
+                            {trade.side === 'BUY' ? '매수' : '매도'}
+                          </span>
+                        </td>
+                        <td className="px-2 py-2 text-right">
+                          {formatNumber(trade.price)}
+                        </td>
+                        <td className="px-2 py-2 text-right">
+                          {formatNumber(trade.quantity)}
+                        </td>
+                        <td className="px-2 py-2 text-right">
+                          {formatNumber(amount)}
+                        </td>
+                        <td className="px-2 py-2 max-w-xs">
+                          <span className="line-clamp-2">{trade.memo}</span>
+                        </td>
+                        <td className="px-2 py-2 text-center">
+                          <button
+                            onClick={() => handleDelete(trade.id)}
+                            className="text-xs text-slate-400 hover:text-red-500"
+                          >
+                            삭제
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
