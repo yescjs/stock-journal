@@ -32,6 +32,7 @@ export default function Home() {
     memo: '',
   });
   const [filterSymbol, setFilterSymbol] = useState('');
+  const [selectedSymbol, setSelectedSymbol] = useState<string>('');
 
   // 최초 로딩 시 localStorage에서 불러오기 + 날짜 기본값 세팅
   useEffect(() => {
@@ -115,6 +116,7 @@ export default function Home() {
   const handleClearAll = () => {
     if (!confirm('모든 매매 기록을 삭제할까요?')) return;
     setTrades([]);
+    setSelectedSymbol('');
   };
 
   // CSV 다운로드
@@ -179,6 +181,7 @@ export default function Home() {
       : true,
   );
 
+  // 전체 통계
   const stats = trades.reduce(
     (acc, t) => {
       const amount = t.price * t.quantity;
@@ -188,13 +191,32 @@ export default function Home() {
     },
     { buy: 0, sell: 0 },
   );
-
   const netCash = stats.sell - stats.buy;
+
+  // 선택된 종목 통계
+  const symbolStats = trades
+    .filter(t => selectedSymbol && t.symbol === selectedSymbol)
+    .reduce(
+      (acc, t) => {
+        const amount = t.price * t.quantity;
+        if (t.side === 'BUY') acc.buy += amount;
+        else acc.sell += amount;
+        return acc;
+      },
+      { buy: 0, sell: 0 },
+    );
+  const symbolNetCash = symbolStats.sell - symbolStats.buy;
 
   const formatNumber = (n: number) =>
     n.toLocaleString('ko-KR', {
       maximumFractionDigits: 0,
     });
+
+  const handleSymbolClick = (symbol: string) => {
+    setSelectedSymbol(prev =>
+      prev === symbol ? '' : symbol,
+    );
+  };
 
   return (
     <main className="min-h-screen bg-slate-100 flex justify-center px-4 py-8">
@@ -239,6 +261,63 @@ export default function Home() {
             >
               {formatNumber(netCash)} 원
             </div>
+          </div>
+        </section>
+
+        {/* 선택된 종목 요약 */}
+        <section>
+          <div className="border rounded-lg p-3 text-sm bg-slate-50">
+            {selectedSymbol ? (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold">
+                    선택된 종목: {selectedSymbol}
+                  </div>
+                  <button
+                    className="text-xs text-slate-500 underline"
+                    onClick={() => setSelectedSymbol('')}
+                  >
+                    선택 해제
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <div className="text-slate-500 text-xs">매수 금액</div>
+                    <div className="text-base font-semibold">
+                      {formatNumber(symbolStats.buy)} 원
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-slate-500 text-xs">매도 금액</div>
+                    <div className="text-base font-semibold">
+                      {formatNumber(symbolStats.sell)} 원
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-slate-500 text-xs">
+                      순 현금 흐름 (매도 - 매수)
+                    </div>
+                    <div
+                      className={
+                        'text-base font-semibold ' +
+                        (symbolNetCash > 0
+                          ? 'text-emerald-600'
+                          : symbolNetCash < 0
+                          ? 'text-rose-600'
+                          : '')
+                      }
+                    >
+                      {formatNumber(symbolNetCash)} 원
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-xs text-slate-500">
+                아래 표에서 <b>종목 이름을 클릭</b>하면 해당 종목의 매수/매도/순
+                현금 흐름 요약이 여기 표시됩니다.
+              </div>
+            )}
           </div>
         </section>
 
@@ -356,7 +435,8 @@ export default function Home() {
               />
             </div>
             <div className="text-xs text-slate-400">
-              최근 기록이 위에 표시됩니다.
+              최근 기록이 위에 표시됩니다. 종목 이름을 클릭하면 종목 요약이
+              위에 표시됩니다.
             </div>
           </div>
 
@@ -387,10 +467,24 @@ export default function Home() {
                 ) : (
                   filteredTrades.map(trade => {
                     const amount = trade.price * trade.quantity;
+                    const isSelected = trade.symbol === selectedSymbol;
                     return (
                       <tr key={trade.id} className="border-t">
                         <td className="px-2 py-2">{trade.date}</td>
-                        <td className="px-2 py-2">{trade.symbol}</td>
+                        <td className="px-2 py-2">
+                          <button
+                            type="button"
+                            onClick={() => handleSymbolClick(trade.symbol)}
+                            className={
+                              'underline-offset-2 ' +
+                              (isSelected
+                                ? 'font-semibold underline text-blue-600'
+                                : 'text-blue-700 hover:underline')
+                            }
+                          >
+                            {trade.symbol}
+                          </button>
+                        </td>
                         <td className="px-2 py-2 text-center">
                           <span
                             className={
