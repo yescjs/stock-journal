@@ -7,19 +7,20 @@ import React, {
   ChangeEvent,
   FormEvent,
 } from 'react';
+import { createClient } from '@supabase/supabase-js';
 
 type TradeSide = 'BUY' | 'SELL';
 
 interface Trade {
-  id: number;
-  date: string; // YYYY-MM-DD
+  id: string;            // Supabase uuid 기준으로 문자열 사용
+  date: string;          // YYYY-MM-DD
   symbol: string;
   side: TradeSide;
   price: number;
   quantity: number;
   memo: string;
   tags?: string[];
-  image?: string; // 이미지 파일 (data URL)
+  image?: string;        // 이미지 파일 (URL 또는 data URL)
 }
 
 interface SymbolSummary {
@@ -34,12 +35,17 @@ interface SymbolSummary {
   realizedPnL: number;
 }
 
-const STORAGE_KEY = 'stock-journal-trades-v1';
+// localStorage용 키 (비밀번호, 현재가, 테마, 백업용)
 const PASSWORD_KEY = 'stock-journal-password-v1';
 const CURRENT_PRICE_KEY = 'stock-journal-current-prices-v1';
 const THEME_KEY = 'stock-journal-theme-v1';
 
 type ActiveTab = 'journal' | 'stats' | 'settings';
+
+// Supabase 클라이언트 (브라우저 공개키 사용)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 function getKoreanWeekdayLabel(dateStr: string): string {
   if (!dateStr) return '';
@@ -71,6 +77,9 @@ function formatMonthLabel(monthKey: string): string {
 
 export default function Home() {
   const [trades, setTrades] = useState<Trade[]>([]);
+  const [tradesLoading, setTradesLoading] = useState(true);
+  const [tradesError, setTradesError] = useState<string | null>(null);
+
   const [form, setForm] = useState({
     date: '',
     symbol: '',
@@ -119,61 +128,76 @@ export default function Home() {
   // 전체 화면 모달용 이미지
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-  // 초기 로딩
+  // 초기 로딩: Supabase에서 매매 기록 불러오기 + localStorage 값들 불러오기
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
+    async function init() {
+      setTradesLoading(true);
+      setTradesError(null);
+
       try {
-        const parsed = JSON.parse(saved) as Trade[];
-        const normalized = parsed.map(t => ({
-          ...t,
-          tags: t.tags ?? [],
-        }));
-        setTrades(normalized);
-      } catch {
-        //
+        const { data, error } = await supabase
+          .from('trades')
+          .select('*')
+          .order('date', { ascending: false });
+
+        if (error) {
+          console.error('Failed to fetch trades:', error);
+          setTradesError('매매 기록을 불러오는 중 오류가 발생했습니다.');
+        } else if (data) {
+          const normalized = (data as Trade[]).map(t => ({
+            ...t,
+            tags: t.tags ?? [],
+          }));
+          setTrades(normalized);
+        }
+      } catch (err) {
+        console.error(err);
+        setTradesError('매매 기록을 불러오는 중 오류가 발생했습니다.');
+      } finally {
+        setTradesLoading(false);
+      }
+
+      // 비밀번호 / 잠금 상태
+      const savedPassword = localStorage.getItem(PASSWORD_KEY);
+      if (savedPassword) {
+        setHasPassword(true);
+        setIsUnlocked(false);
+      } else {
+        setHasPassword(false);
+        setIsUnlocked(true);
+      }
+
+      // 현재가
+      const savedPrices = localStorage.getItem(CURRENT_PRICE_KEY);
+      if (savedPrices) {
+        try {
+          const parsed = JSON.parse(savedPrices) as Record<string, number>;
+          setCurrentPrices(parsed);
+        } catch {
+          //
+        }
+      }
+
+      // 테마
+      const savedTheme = localStorage.getItem(THEME_KEY);
+      if (savedTheme === 'dark') {
+        setDarkMode(true);
+      }
+
+      // 폼 날짜 기본값
+      if (!form.date) {
+        const today = new Date().toISOString().slice(0, 10);
+        setForm(prev => ({ ...prev, date: today }));
       }
     }
 
-    const savedPassword = localStorage.getItem(PASSWORD_KEY);
-    if (savedPassword) {
-      setHasPassword(true);
-      setIsUnlocked(false);
-    } else {
-      setHasPassword(false);
-      setIsUnlocked(true);
-    }
-
-    const savedPrices = localStorage.getItem(CURRENT_PRICE_KEY);
-    if (savedPrices) {
-      try {
-        const parsed = JSON.parse(savedPrices) as Record<string, number>;
-        setCurrentPrices(parsed);
-      } catch {
-        //
-      }
-    }
-
-    const savedTheme = localStorage.getItem(THEME_KEY);
-    if (savedTheme === 'dark') {
-      setDarkMode(true);
-    }
-
-    if (!form.date) {
-      const today = new Date().toISOString().slice(0, 10);
-      setForm(prev => ({ ...prev, date: today }));
-    }
+    init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 저장
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(trades));
-  }, [trades]);
-
+  // 현재가/테마는 계속 localStorage에 저장
   useEffect(() => {
     if (typeof window === 'undefined') return;
     localStorage.setItem(CURRENT_PRICE_KEY, JSON.stringify(currentPrices));
@@ -199,7 +223,8 @@ export default function Home() {
     }));
   };
 
-  const handleSubmit = (e: FormEvent) => {
+  // Supabase에 저장하는 제출 로직
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
     if (!form.date || !form.symbol || !form.price || !form.quantity) {
@@ -221,42 +246,91 @@ export default function Home() {
         .filter(tag => tag.length > 0) ?? [];
     const uniqueTags = Array.from(new Set(parsedTags));
 
-    const newTrade: Trade = {
-      id: Date.now(),
-      date: form.date,
-      symbol: form.symbol.toUpperCase().trim(),
-      side: form.side,
-      price,
-      quantity,
-      memo: form.memo,
-      tags: uniqueTags,
-      image: chartImage || undefined,
-    };
+    try {
+      const { data, error } = await supabase
+        .from('trades')
+        .insert([
+          {
+            date: form.date,
+            symbol: form.symbol.toUpperCase().trim(),
+            side: form.side,
+            price,
+            quantity,
+            memo: form.memo,
+            tags: uniqueTags,
+            image: chartImage,
+          },
+        ])
+        .select()
+        .single();
 
-    setTrades(prev => [newTrade, ...prev]);
+      if (error) {
+        console.error('Failed to insert trade:', error);
+        alert('저장 중 오류가 발생했습니다.');
+        return;
+      }
 
-    setForm(prev => ({
-      ...prev,
-      price: '',
-      quantity: '',
-      memo: '',
-      tags: '',
-    }));
-    setChartImage(null);
-    if (chartInputRef.current) {
-      chartInputRef.current.value = '';
+      const savedTrade = {
+        ...(data as Trade),
+        tags: (data as any).tags ?? uniqueTags,
+      };
+
+      setTrades(prev => [savedTrade, ...prev]);
+
+      // 폼 초기화
+      setForm(prev => ({
+        ...prev,
+        price: '',
+        quantity: '',
+        memo: '',
+        tags: '',
+      }));
+      setChartImage(null);
+      if (chartInputRef.current) {
+        chartInputRef.current.value = '';
+      }
+    } catch (err) {
+      console.error(err);
+      alert('저장 중 오류가 발생했습니다.');
     }
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: string) => {
     if (!confirm('이 기록을 삭제할까요?')) return;
-    setTrades(prev => prev.filter(t => t.id !== id));
+
+    try {
+      const { error } = await supabase.from('trades').delete().eq('id', id);
+      if (error) {
+        console.error('Failed to delete trade:', error);
+        alert('삭제 중 오류가 발생했습니다.');
+        return;
+      }
+      setTrades(prev => prev.filter(t => t.id !== id));
+    } catch (err) {
+      console.error(err);
+      alert('삭제 중 오류가 발생했습니다.');
+    }
   };
 
-  const handleClearAll = () => {
+  const handleClearAll = async () => {
     if (!confirm('모든 매매 기록을 삭제할까요?')) return;
-    setTrades([]);
-    setSelectedSymbol('');
+
+    try {
+      const { error } = await supabase
+        .from('trades')
+        .delete()
+        .neq('id', ''); // 모든 행 삭제
+      if (error) {
+        console.error('Failed to clear trades:', error);
+        alert('전체 삭제 중 오류가 발생했습니다.');
+        return;
+      }
+      setTrades([]);
+      setSelectedSymbol('');
+    } catch (err) {
+      console.error(err);
+      alert('전체 삭제 중 오류가 발생했습니다.');
+    }
   };
 
   const handleChartFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -421,7 +495,7 @@ export default function Home() {
     }));
   };
 
-  // 백업
+  // 백업 (지금은 상태 기준으로만 작동 — Supabase와는 별도)
   const handleExportBackup = () => {
     if (trades.length === 0 && Object.keys(currentPrices).length === 0) {
       alert('백업할 데이터가 없습니다.');
@@ -484,7 +558,7 @@ export default function Home() {
 
         if (
           !confirm(
-            '백업 데이터를 불러오면 현재 브라우저에 저장된 매매 기록과 현재가 설정이 모두 덮어씌워집니다. 진행할까요?',
+            '백업 데이터를 불러오면 현재 화면에 보이는 매매 기록과 현재가 설정이 모두 덮어씌워집니다. (Supabase DB에는 자동 반영되지 않습니다.) 진행할까요?',
           )
         ) {
           return;
@@ -500,7 +574,9 @@ export default function Home() {
         setCurrentPrices(
           (data as any).currentPrices as Record<string, number>,
         );
-        setBackupMessage('백업 데이터를 성공적으로 불러왔습니다.');
+        setBackupMessage(
+          '백업 데이터를 성공적으로 불러왔습니다. (DB 반영은 별도 작업이 필요합니다.)',
+        );
       } catch (err) {
         console.error(err);
         alert(
@@ -569,7 +645,7 @@ export default function Home() {
     if (trades.length === 0) return [];
 
     const sortedTrades = [...trades].sort((a, b) => {
-      if (a.date === b.date) return a.id - b.id;
+      if (a.date === b.date) return a.id.localeCompare(b.id);
       return a.date.localeCompare(b.date);
     });
 
@@ -771,7 +847,8 @@ export default function Home() {
             <div>
               <h1 className="text-xl font-bold">나만 보는 주식 매매 일지</h1>
               <p className="text-xs text-slate-500">
-                서버 없이, 이 브라우저에만 저장되는 개인용 매매 노트
+                매매 기록은 Supabase 서버 DB에 저장되고, 비밀번호/설정은 이
+                브라우저에만 저장되는 개인용 매매 노트입니다.
               </p>
             </div>
             <div className="flex flex-col items-end gap-1">
@@ -815,9 +892,7 @@ export default function Home() {
                   onClick={() => setActiveTab(tab.id as ActiveTab)}
                   className={
                     'flex-1 px-3 py-1.5 text-center ' +
-                    (selected
-                      ? 'bg-blue-600 text-white'
-                      : 'text-slate-500')
+                    (selected ? 'bg-blue-600 text-white' : 'text-slate-500')
                   }
                 >
                   {tab.label}
@@ -841,7 +916,7 @@ export default function Home() {
                 >
                   <div className="text-slate-500">필터 후 거래 건수</div>
                   <div className="text-lg font-semibold">
-                    {displayedTrades.length} 건
+                    {tradesLoading ? '로딩 중…' : `${displayedTrades.length} 건`}
                   </div>
                 </div>
                 <div
@@ -1034,7 +1109,7 @@ export default function Home() {
                           'border rounded px-2 py-1 text-xs bg-transparent resize-none ' +
                           (darkMode ? 'border-slate-600' : '')
                         }
-                        rows={2}   // 필요하면 1로 줄여도 됨
+                        rows={2}
                       />
                     </div>
 
@@ -1065,9 +1140,7 @@ export default function Home() {
                             : 'border-slate-300 bg-white hover:bg-slate-50')
                         }
                       >
-                        <span className="font-medium">
-                          파일 선택하기
-                        </span>
+                        <span className="font-medium">파일 선택하기</span>
                       </button>
 
                       {/* 선택된 이미지 미리보기 */}
@@ -1076,7 +1149,9 @@ export default function Home() {
                           <div
                             className={
                               'w-12 h-12 rounded border overflow-hidden flex items-center justify-center ' +
-                              (darkMode ? 'border-slate-600 bg-slate-900' : 'border-slate-300')
+                              (darkMode
+                                ? 'border-slate-600 bg-slate-900'
+                                : 'border-slate-300')
                             }
                           >
                             <img
@@ -1098,12 +1173,11 @@ export default function Home() {
 
                       {!chartImage && (
                         <p className="text-[10px] text-slate-400 mt-1">
-                          당시에 보던 HTS/웹 차트를 캡처해서 첨부해두면 복기할 때
-                          도움이 됩니다. (예: 500KB 이하의 작은 캡처 이미지)
+                          당시에 보던 HTS/웹 차트를 캡처해서 첨부해두면 복기할
+                          때 도움이 됩니다. (예: 500KB 이하의 작은 캡처 이미지)
                         </p>
                       )}
                     </div>
-
                   </div>
 
                   {/* 기록 추가 버튼 라인 */}
@@ -1156,7 +1230,7 @@ export default function Home() {
                     전체 초기화
                   </button>
                 </div>
-                
+
                 <div className="flex flex-wrap gap-3">
                   <div className="flex items-center gap-2">
                     <span className="text-slate-600 text-xs">기간</span>
@@ -1210,7 +1284,8 @@ export default function Home() {
 
                 {hasDateRangeError && (
                   <div className="text-xs text-rose-500">
-                    시작일이 종료일보다 늦습니다. 날짜 범위를 다시 확인해주세요.
+                    시작일이 종료일보다 늦습니다. 날짜 범위를 다시
+                    확인해주세요.
                   </div>
                 )}
 
@@ -1314,6 +1389,11 @@ export default function Home() {
                   (darkMode ? 'border-slate-700' : 'border-slate-200')
                 }
               >
+                {tradesError && (
+                  <div className="px-3 py-2 text-xs text-rose-500 border-b border-slate-200">
+                    {tradesError}
+                  </div>
+                )}
                 <div className="h-[420px] overflow-y-auto">
                   <table className="w-full text-xs md:text-sm">
                     <thead
@@ -1338,7 +1418,16 @@ export default function Home() {
                       </tr>
                     </thead>
                     <tbody>
-                      {monthGroups.length === 0 ? (
+                      {tradesLoading ? (
+                        <tr>
+                          <td
+                            colSpan={10}
+                            className="px-2 py-6 text-center text-slate-400"
+                          >
+                            매매 기록을 불러오는 중입니다…
+                          </td>
+                        </tr>
+                      ) : monthGroups.length === 0 ? (
                         <tr>
                           <td
                             colSpan={10}
@@ -1813,9 +1902,9 @@ export default function Home() {
                   </div>
                 )}
                 <p className="text-[10px] text-slate-400">
-                  이 잠금 기능은 기본적인 사생활 보호용입니다. 브라우저
-                  localStorage에만 저장되며, 아주 민감한 정보는 다른 방법으로
-                  관리하는 것을 권장합니다.
+                  이 잠금 기능은 기본적인 사생활 보호용입니다. 비밀번호는 이
+                  브라우저 localStorage에만 저장되며, 매매 기록(DB 데이터)과는
+                  별도입니다.
                 </p>
               </div>
 
@@ -1842,21 +1931,21 @@ export default function Home() {
                     onClick={handleExportBackup}
                     className="px-3 py-1.5 border rounded-lg text-xs text-slate-600 bg-white"
                   >
-                    JSON 백업 다운로드
+                    JSON 백업 다운로드 (현재 화면 기준)
                   </button>
                   <button
                     type="button"
                     onClick={handleImportBackupClick}
                     className="px-3 py-1.5 border rounded-lg text-xs text-slate-600 bg-white"
                   >
-                    백업 파일 불러오기
+                    백업 파일 불러오기 (상태만 반영)
                   </button>
                   <button
                     type="button"
                     onClick={handleClearAll}
                     className="px-3 py-1.5 border rounded-lg text-xs text-rose-500 bg-white"
                   >
-                    모든 기록 삭제
+                    모든 기록 삭제 (DB 포함)
                   </button>
                 </div>
                 {backupMessage && (
@@ -1865,16 +1954,15 @@ export default function Home() {
                   </p>
                 )}
                 <p className="text-[10px] text-slate-400">
-                  JSON 백업에는 매매 기록과 종목별 현재가가 함께 저장됩니다.
-                  다른 브라우저에서 이 파일을 불러오면 동일한 데이터로
-                  복원됩니다.
+                  JSON 백업에는 현재 화면에 표시된 매매 기록과 종목별 현재가가
+                  함께 저장됩니다. 이 기능은 로컬 상태 복원용이며, Supabase DB
+                  데이터와는 별도로 동작합니다.
                 </p>
               </div>
 
               <p className="text-[10px] text-slate-400">
-                이 서비스는 어디에도 업로드되지 않고, 이 브라우저의
-                localStorage에만 저장됩니다. 브라우저 캐시 삭제나 시크릿 모드
-                에서는 데이터가 사라질 수 있습니다.
+                매매 기록은 Supabase 데이터베이스에 저장되며, 비밀번호·테마·현재가
+                정보 등 일부 설정은 이 브라우저의 localStorage에만 저장됩니다.
               </p>
             </section>
           )}
