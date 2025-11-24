@@ -144,6 +144,12 @@ export default function Home() {
   const [chartFile, setChartFile] = useState<File | null>(null);
   const [chartPreview, setChartPreview] = useState<string | null>(null);
 
+  // 기록 추가 버튼 로딩
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  // 상단/우측에 잠깐 뜨는 알림(토스트)
+  type NotifyType = 'success' | 'error' | 'info';
+  const [notify, setNotify] = useState<{ type: NotifyType; message: string } | null>(null);
 
   // 전체 화면 모달용 이미지
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -175,7 +181,7 @@ export default function Home() {
         const { data, error } = await supabase
           .from('trades')
           .select('*')
-          .eq('client_id', cid)              // ✅ 이 브라우저의 데이터만
+          .eq('client_id', cid)
           .order('date', { ascending: false });
 
         if (error) {
@@ -290,6 +296,8 @@ export default function Home() {
     let imageUrl: string | null = null;
 
     try {
+      setIsSubmitting(true);              // ✅ 버튼 로딩 시작
+
       // 1) 이미지 파일이 있다면 Supabase Storage에 업로드
       if (chartFile) {
         const fileExt = chartFile.name.split('.').pop()?.toLowerCase() || 'png';
@@ -361,12 +369,22 @@ export default function Home() {
       if (chartInputRef.current) {
         chartInputRef.current.value = '';
       }
+
+      showNotify('success', '매매 기록이 저장되었습니다.');   // ✅ 성공 알림
     } catch (err) {
       console.error(err);
       alert('저장 중 알 수 없는 오류가 발생했습니다.');
+    } finally {
+      setIsSubmitting(false);            // ✅ 버튼 로딩 끝
     }
   };
 
+  const showNotify = (type: NotifyType, message: string) => {
+    setNotify({ type, message });
+    setTimeout(() => {
+      setNotify(null);
+    }, 2500); // 2.5초 뒤 자동 사라짐
+  };
 
   const handleDelete = async (id: string) => {
     if (!confirm('이 기록을 삭제할까요?')) return;
@@ -385,13 +403,16 @@ export default function Home() {
       if (error) {
         console.error('Failed to delete trade:', error);
         alert('삭제 중 오류가 발생했습니다.');
+        showNotify('error', '삭제 중 오류가 발생했습니다.');
         return;
       }
 
       setTrades(prev => prev.filter(t => t.id !== id));
+      showNotify('success', '기록을 삭제했습니다.');
     } catch (err) {
       console.error(err);
       alert('삭제 중 오류가 발생했습니다.');
+      showNotify('error', '삭제 중 오류가 발생했습니다.');
     }
   };
 
@@ -411,14 +432,17 @@ export default function Home() {
       if (error) {
         console.error('Failed to clear trades:', error);
         alert('전체 삭제 중 오류가 발생했습니다.');
+        showNotify('error', '전체 삭제 중 오류가 발생했습니다.');
         return;
       }
 
       setTrades([]);
       setSelectedSymbol('');
+      showNotify('success', '모든 기록을 삭제했습니다.');
     } catch (err) {
       console.error(err);
       alert('전체 삭제 중 오류가 발생했습니다.');
+      showNotify('error', '전체 삭제 중 오류가 발생했습니다.');
     }
   };
 
@@ -523,9 +547,11 @@ export default function Home() {
         prev.map(t => (t.id === editingTrade.id ? updated : t)),
       );
       handleCancelEdit();
+      showNotify('success', '기록이 수정되었습니다.');
     } catch (err) {
       console.error(err);
       alert('수정 저장 중 오류가 발생했습니다.');
+      showNotify('error', '기록 수정 중 오류가 발생했습니다.');
     } finally {
       setEditingSaving(false);
     }
@@ -1392,10 +1418,25 @@ export default function Home() {
                     </span>
                     <button
                       type="submit"
-                      className="flex items-center gap-1 px-6 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg shadow hover:bg-blue-700 active:bg-blue-800 transition"
+                      disabled={isSubmitting}
+                      className={
+                        'flex items-center gap-1 px-6 py-2 text-sm font-semibold rounded-lg shadow transition ' +
+                        (isSubmitting
+                          ? 'bg-slate-400 text-white cursor-not-allowed'
+                          : 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800')
+                      }
                     >
-                      <span>＋</span>
-                      <span>기록 추가</span>
+                      {isSubmitting ? (
+                        <span className="flex items-center gap-1">
+                          <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span>저장 중...</span>
+                        </span>
+                      ) : (
+                        <>
+                          <span>＋</span>
+                          <span>기록 추가</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 </form>
@@ -1782,6 +1823,12 @@ export default function Home() {
                             className="px-2 py-6 text-center text-slate-400"
                           >
                             매매 기록을 불러오는 중입니다…
+                          </td>
+                        </tr>
+                      ) : tradesError ? (
+                        <tr>
+                          <td colSpan={11} className="px-2 py-6 text-center text-rose-400">
+                            {tradesError}
                           </td>
                         </tr>
                       ) : monthGroups.length === 0 ? (
@@ -2332,6 +2379,31 @@ export default function Home() {
             </section>
           )}
         </div>
+        {notify && (
+          <div className="fixed bottom-4 right-4 z-50">
+            <div
+              className={
+                'min-w-[220px] max-w-xs px-4 py-3 rounded-lg shadow-lg text-xs md:text-sm ' +
+                (notify.type === 'success'
+                  ? 'bg-emerald-500 text-white'
+                  : notify.type === 'error'
+                  ? 'bg-rose-500 text-white'
+                  : 'bg-slate-700 text-white')
+              }
+            >
+              <div className="flex items-start justify-between gap-2">
+                <span>{notify.message}</span>
+                <button
+                  type="button"
+                  onClick={() => setNotify(null)}
+                  className="text-[10px] opacity-80 hover:opacity-100"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </>
   );
