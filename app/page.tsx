@@ -139,8 +139,11 @@ export default function Home() {
   const [editingSaving, setEditingSaving] = useState(false);
 
   // 이미지 파일 업로드용
-  const [chartImage, setChartImage] = useState<string | null>(null);
+  // const [chartImage, setChartImage] = useState<string | null>(null);
   const chartInputRef = useRef<HTMLInputElement | null>(null);
+  const [chartFile, setChartFile] = useState<File | null>(null);
+  const [chartPreview, setChartPreview] = useState<string | null>(null);
+
 
   // 전체 화면 모달용 이미지
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -260,6 +263,11 @@ export default function Home() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
+    if (!clientId) {
+      alert('초기화 중입니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+
     if (!form.date || !form.symbol || !form.price || !form.quantity) {
       alert('날짜, 종목, 가격, 수량은 필수입니다.');
       return;
@@ -272,11 +280,6 @@ export default function Home() {
       return;
     }
 
-    if (!clientId) {
-      alert('초기화 중입니다. 잠시 후 다시 시도해주세요.');
-      return;
-    }
-
     const parsedTags =
       form.tags
         ?.split(',')
@@ -284,12 +287,40 @@ export default function Home() {
         .filter(tag => tag.length > 0) ?? [];
     const uniqueTags = Array.from(new Set(parsedTags));
 
+    let imageUrl: string | null = null;
+
     try {
+      // 1) 이미지 파일이 있다면 Supabase Storage에 업로드
+      if (chartFile) {
+        const fileExt = chartFile.name.split('.').pop()?.toLowerCase() || 'png';
+        const fileName = `${Date.now()}.${fileExt}`;
+        const filePath = `${clientId}/${fileName}`; // 브라우저별 폴더 느낌
+
+        const { error: uploadError } = await supabase.storage
+          .from('trade-images')          // ✅ 버킷 이름
+          .upload(filePath, chartFile, {
+            contentType: chartFile.type,
+            upsert: false,
+          });
+
+        if (uploadError) {
+          console.error('Failed to upload image:', uploadError);
+          alert('이미지 업로드 중 오류가 발생했습니다. 이미지 없이 기록만 저장합니다.');
+        } else {
+          const { data: publicUrlData } = supabase.storage
+            .from('trade-images')
+            .getPublicUrl(filePath);
+
+          imageUrl = publicUrlData.publicUrl;
+        }
+      }
+
+      // 2) DB에 레코드 저장
       const { data, error } = await supabase
         .from('trades')
         .insert([
           {
-            client_id: clientId,                    // ✅ 추가
+            client_id: clientId,
             date: form.date,
             symbol: form.symbol.toUpperCase().trim(),
             side: form.side,
@@ -297,7 +328,7 @@ export default function Home() {
             quantity,
             memo: form.memo,
             tags: uniqueTags,
-            image: chartImage,
+            image: imageUrl, // ✅ Storage URL (또는 null)
           },
         ])
         .select()
@@ -305,18 +336,19 @@ export default function Home() {
 
       if (error) {
         console.error('Failed to insert trade:', error);
-        alert('저장 중 오류가 발생했습니다.');
+        alert('매매 기록 저장 중 오류가 발생했습니다.');
         return;
       }
 
-      const savedTrade = {
+      // 3) 화면 상태 갱신
+      const created: Trade = {
         ...(data as Trade),
         tags: (data as any).tags ?? uniqueTags,
       };
 
-      setTrades(prev => [savedTrade, ...prev]);
+      setTrades(prev => [created, ...prev]);
 
-      // 폼 초기화
+      // 4) 폼 리셋
       setForm(prev => ({
         ...prev,
         price: '',
@@ -324,15 +356,17 @@ export default function Home() {
         memo: '',
         tags: '',
       }));
-      setChartImage(null);
+      setChartFile(null);
+      setChartPreview(null);
       if (chartInputRef.current) {
         chartInputRef.current.value = '';
       }
     } catch (err) {
       console.error(err);
-      alert('저장 중 오류가 발생했습니다.');
+      alert('저장 중 알 수 없는 오류가 발생했습니다.');
     }
   };
+
 
   const handleDelete = async (id: string) => {
     if (!confirm('이 기록을 삭제할까요?')) return;
@@ -500,7 +534,8 @@ export default function Home() {
   const handleChartFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) {
-      setChartImage(null);
+      setChartFile(null);
+      setChartPreview(null);
       return;
     }
 
@@ -508,18 +543,16 @@ export default function Home() {
     if (file.size > maxSize) {
       alert('이미지 용량이 너무 큽니다. 500KB 이하로 줄여서 올려주세요.');
       e.target.value = '';
-      setChartImage(null);
+      setChartFile(null);
+      setChartPreview(null);
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = ev => {
-      const result = ev.target?.result;
-      if (typeof result === 'string') {
-        setChartImage(result);
-      }
-    };
-    reader.readAsDataURL(file);
+    setChartFile(file);
+
+    // 미리보기용 URL
+    const previewUrl = URL.createObjectURL(file);
+    setChartPreview(previewUrl);
   };
 
   // CSV
@@ -1283,7 +1316,6 @@ export default function Home() {
                         이미지 파일 (선택)
                       </label>
 
-                      {/* 진짜 input은 숨기고 ref로만 접근 */}
                       <input
                         ref={chartInputRef}
                         id="chart-file-input"
@@ -1293,7 +1325,6 @@ export default function Home() {
                         className="hidden"
                       />
 
-                      {/* 사용자가 클릭할 큰 버튼/박스 */}
                       <button
                         type="button"
                         onClick={() => chartInputRef.current?.click()}
@@ -1304,22 +1335,21 @@ export default function Home() {
                             : 'border-slate-300 bg-white hover:bg-slate-50')
                         }
                       >
-                        <span className="font-medium">파일 선택하기</span>
+                        <span className="font-medium">
+                          파일 선택하기
+                        </span>
                       </button>
 
-                      {/* 선택된 이미지 미리보기 */}
-                      {chartImage && (
+                      {chartPreview && (
                         <div className="mt-2 flex items-center gap-2">
                           <div
                             className={
                               'w-12 h-12 rounded border overflow-hidden flex items-center justify-center ' +
-                              (darkMode
-                                ? 'border-slate-600 bg-slate-900'
-                                : 'border-slate-300')
+                              (darkMode ? 'border-slate-600 bg-slate-900' : 'border-slate-300')
                             }
                           >
                             <img
-                              src={chartImage}
+                              src={chartPreview}
                               alt="선택된 파일"
                               className="max-w-full max-h-full object-contain"
                             />
@@ -1329,16 +1359,16 @@ export default function Home() {
                               선택된 파일 미리보기
                             </span>
                             <span className="text-[10px] text-emerald-500">
-                              기록 저장 시 함께 보관됩니다.
+                              기록 저장 시 Supabase Storage에 업로드됩니다.
                             </span>
                           </div>
                         </div>
                       )}
 
-                      {!chartImage && (
+                      {!chartPreview && (
                         <p className="text-[10px] text-slate-400 mt-1">
-                          당시에 보던 HTS/웹 차트를 캡처해서 첨부해두면 복기할
-                          때 도움이 됩니다. (예: 500KB 이하의 작은 캡처 이미지)
+                          당시 보던 차트 화면을 캡처해서 올려두면 복기할 때 도움이 됩니다.
+                          (예: 500KB 이하의 작은 캡처 이미지)
                         </p>
                       )}
                     </div>
