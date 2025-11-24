@@ -1,0 +1,9 @@
+# *
+User-agent: *
+Allow: /
+
+# Host
+Host: https://www.xn--9z2ba455hkgc.com
+
+# Sitemaps
+Sitemap: https://www.xn--9z2ba455hkgc.com/sitemap.xml

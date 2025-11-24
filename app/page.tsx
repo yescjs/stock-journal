@@ -1065,7 +1065,6 @@ export default function Home() {
                             : 'border-slate-300 bg-white hover:bg-slate-50')
                         }
                       >
-                        <span>📸</span>
                         <span className="font-medium">
                           파일 선택하기
                         </span>
