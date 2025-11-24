@@ -9,4 +9,5 @@ export type TradeLog = {
   image_url?: string | null;
   created_at?: string;
   tags?: string;
+  client_id?: string;
 };

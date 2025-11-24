@@ -39,6 +39,7 @@ interface SymbolSummary {
 const PASSWORD_KEY = 'stock-journal-password-v1';
 const CURRENT_PRICE_KEY = 'stock-journal-current-prices-v1';
 const THEME_KEY = 'stock-journal-theme-v1';
+const CLIENT_ID_KEY = 'stock-journal-client-id-v1';
 
 type ActiveTab = 'journal' | 'stats' | 'settings';
 
@@ -79,6 +80,8 @@ export default function Home() {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [tradesLoading, setTradesLoading] = useState(true);
   const [tradesError, setTradesError] = useState<string | null>(null);
+  const [clientId, setClientId] = useState<string | null>(null);
+
 
   const [form, setForm] = useState({
     date: '',
@@ -121,6 +124,20 @@ export default function Home() {
   // 월별 접기 상태
   const [openMonths, setOpenMonths] = useState<Record<string, boolean>>({});
 
+    // 수정 기능
+  const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
+  const [editForm, setEditForm] = useState({
+    id: '',
+    date: '',
+    symbol: '',
+    side: 'BUY' as TradeSide,
+    price: '',
+    quantity: '',
+    memo: '',
+    tags: '',
+  });
+  const [editingSaving, setEditingSaving] = useState(false);
+
   // 이미지 파일 업로드용
   const [chartImage, setChartImage] = useState<string | null>(null);
   const chartInputRef = useRef<HTMLInputElement | null>(null);
@@ -132,7 +149,22 @@ export default function Home() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    async function init() {
+    // 1) 브라우저별 clientId 생성/로드
+    let storedClientId = localStorage.getItem(CLIENT_ID_KEY);
+    if (!storedClientId) {
+      if (window.crypto && 'randomUUID' in window.crypto) {
+        storedClientId = window.crypto.randomUUID();
+      } else {
+        storedClientId =
+          'client-' +
+          Math.random().toString(36).substring(2) +
+          Date.now().toString(36);
+      }
+      localStorage.setItem(CLIENT_ID_KEY, storedClientId);
+    }
+    setClientId(storedClientId);
+
+    async function init(cid: string) {
       setTradesLoading(true);
       setTradesError(null);
 
@@ -140,6 +172,7 @@ export default function Home() {
         const { data, error } = await supabase
           .from('trades')
           .select('*')
+          .eq('client_id', cid)              // ✅ 이 브라우저의 데이터만
           .order('date', { ascending: false });
 
         if (error) {
@@ -193,7 +226,7 @@ export default function Home() {
       }
     }
 
-    init();
+    init(storedClientId!);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -239,6 +272,11 @@ export default function Home() {
       return;
     }
 
+    if (!clientId) {
+      alert('초기화 중입니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+
     const parsedTags =
       form.tags
         ?.split(',')
@@ -251,6 +289,7 @@ export default function Home() {
         .from('trades')
         .insert([
           {
+            client_id: clientId,                    // ✅ 추가
             date: form.date,
             symbol: form.symbol.toUpperCase().trim(),
             side: form.side,
@@ -297,14 +336,24 @@ export default function Home() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('이 기록을 삭제할까요?')) return;
+    if (!clientId) {
+      alert('초기화 중입니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
 
     try {
-      const { error } = await supabase.from('trades').delete().eq('id', id);
+      const { error } = await supabase
+        .from('trades')
+        .delete()
+        .eq('id', id)
+        .eq('client_id', clientId);   // ✅ 내가 쓴 것만
+
       if (error) {
         console.error('Failed to delete trade:', error);
         alert('삭제 중 오류가 발생했습니다.');
         return;
       }
+
       setTrades(prev => prev.filter(t => t.id !== id));
     } catch (err) {
       console.error(err);
@@ -314,22 +363,137 @@ export default function Home() {
 
   const handleClearAll = async () => {
     if (!confirm('모든 매매 기록을 삭제할까요?')) return;
+    if (!clientId) {
+      alert('초기화 중입니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
 
     try {
       const { error } = await supabase
         .from('trades')
         .delete()
-        .neq('id', ''); // 모든 행 삭제
+        .eq('client_id', clientId);   // ✅ 이 브라우저 것만
+
       if (error) {
         console.error('Failed to clear trades:', error);
         alert('전체 삭제 중 오류가 발생했습니다.');
         return;
       }
+
       setTrades([]);
       setSelectedSymbol('');
     } catch (err) {
       console.error(err);
       alert('전체 삭제 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleStartEdit = (trade: Trade) => {
+    setEditingTrade(trade);
+    setEditForm({
+      id: trade.id,
+      date: trade.date,
+      symbol: trade.symbol,
+      side: trade.side,
+      price: String(trade.price),
+      quantity: String(trade.quantity),
+      memo: trade.memo ?? '',
+      tags: (trade.tags ?? []).join(','),
+    });
+  };
+
+  const handleEditChange = (
+    e: ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >,
+  ) => {
+    const { name, value } = e.target;
+    setEditForm(prev => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleCancelEdit = () => {
+    setEditingTrade(null);
+    setEditForm({
+      id: '',
+      date: '',
+      symbol: '',
+      side: 'BUY',
+      price: '',
+      quantity: '',
+      memo: '',
+      tags: '',
+    });
+  };
+
+  const handleEditSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editingTrade) return;
+    if (!clientId) {
+      alert('초기화 중입니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+
+    if (!editForm.date || !editForm.symbol || !editForm.price || !editForm.quantity) {
+      alert('날짜, 종목, 가격, 수량은 필수입니다.');
+      return;
+    }
+
+    const price = Number(editForm.price);
+    const quantity = Number(editForm.quantity);
+    if (Number.isNaN(price) || Number.isNaN(quantity)) {
+      alert('가격과 수량은 숫자로 입력해주세요.');
+      return;
+    }
+
+    const parsedTags =
+      editForm.tags
+        ?.split(',')
+        .map(tag => tag.trim())
+        .filter(tag => tag.length > 0) ?? [];
+    const uniqueTags = Array.from(new Set(parsedTags));
+
+    try {
+      setEditingSaving(true);
+      const { data, error } = await supabase
+        .from('trades')
+        .update({
+          date: editForm.date,
+          symbol: editForm.symbol.toUpperCase().trim(),
+          side: editForm.side,
+          price,
+          quantity,
+          memo: editForm.memo,
+          tags: uniqueTags,
+          // image는 여기서는 그대로 유지 (필요하면 나중에 확장)
+        })
+        .eq('id', editingTrade.id)
+        .eq('client_id', clientId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Failed to update trade:', error);
+        alert('수정 저장 중 오류가 발생했습니다.');
+        return;
+      }
+
+      const updated = {
+        ...(data as Trade),
+        tags: (data as any).tags ?? uniqueTags,
+      };
+
+      setTrades(prev =>
+        prev.map(t => (t.id === editingTrade.id ? updated : t)),
+      );
+      handleCancelEdit();
+    } catch (err) {
+      console.error(err);
+      alert('수정 저장 중 오류가 발생했습니다.');
+    } finally {
+      setEditingSaving(false);
     }
   };
 
@@ -1207,6 +1371,168 @@ export default function Home() {
                 </form>
               </div>
 
+              {/* 선택한 기록 수정 카드 */}
+              {editingTrade && (
+                <div
+                  className={
+                    'border rounded-lg p-3 space-y-3 ' +
+                    (darkMode
+                      ? 'border-amber-500/60 bg-slate-900'
+                      : 'border-amber-400/60 bg-amber-50')
+                  }
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold">
+                      선택한 기록 수정: {editingTrade.symbol} ({editingTrade.date})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleCancelEdit}
+                      className="text-[11px] px-2 py-1 rounded border border-slate-300 text-slate-600 hover:bg-slate-100"
+                    >
+                      수정 취소
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleEditSubmit} className="space-y-3 text-xs md:text-sm">
+                    {/* 1줄: 날짜, 종목, 구분 */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[11px] text-slate-500">
+                          날짜
+                        </label>
+                        <input
+                          type="date"
+                          name="date"
+                          value={editForm.date}
+                          onChange={handleEditChange}
+                          className={
+                            'border rounded px-2 py-1 text-xs bg-transparent ' +
+                            (darkMode ? 'border-slate-600' : '')
+                          }
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[11px] text-slate-500">
+                          종목
+                        </label>
+                        <input
+                          type="text"
+                          name="symbol"
+                          value={editForm.symbol}
+                          onChange={handleEditChange}
+                          className={
+                            'border rounded px-2 py-1 text-xs bg-transparent ' +
+                            (darkMode ? 'border-slate-600' : '')
+                          }
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[11px] text-slate-500">
+                          구분
+                        </label>
+                        <select
+                          name="side"
+                          value={editForm.side}
+                          onChange={handleEditChange}
+                          className={
+                            'border rounded px-2 py-1 text-xs bg-transparent ' +
+                            (darkMode ? 'border-slate-600' : '')
+                          }
+                        >
+                          <option value="BUY">매수</option>
+                          <option value="SELL">매도</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* 2줄: 가격, 수량, 태그 */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[11px] text-slate-500">
+                          가격
+                        </label>
+                        <input
+                          type="number"
+                          name="price"
+                          value={editForm.price}
+                          onChange={handleEditChange}
+                          className={
+                            'border rounded px-2 py-1 text-xs text-right bg-transparent ' +
+                            (darkMode ? 'border-slate-600' : '')
+                          }
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[11px] text-slate-500">
+                          수량
+                        </label>
+                        <input
+                          type="number"
+                          name="quantity"
+                          value={editForm.quantity}
+                          onChange={handleEditChange}
+                          className={
+                            'border rounded px-2 py-1 text-xs text-right bg-transparent ' +
+                            (darkMode ? 'border-slate-600' : '')
+                          }
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[11px] text-slate-500">
+                          태그 (쉼표로 구분)
+                        </label>
+                        <input
+                          type="text"
+                          name="tags"
+                          value={editForm.tags}
+                          onChange={handleEditChange}
+                          className={
+                            'border rounded px-2 py-1 text-xs bg-transparent ' +
+                            (darkMode ? 'border-slate-600' : '')
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    {/* 메모 */}
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[11px] text-slate-500">
+                        메모
+                      </label>
+                      <textarea
+                        name="memo"
+                        value={editForm.memo}
+                        onChange={handleEditChange}
+                        className={
+                          'border rounded px-2 py-1 text-xs bg-transparent resize-none ' +
+                          (darkMode ? 'border-slate-600' : '')
+                        }
+                        rows={2}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-slate-500">
+                        선택한 매매 기록의 기본 정보만 수정합니다. (이미지 변경은 추후 지원 예정)
+                      </span>
+                      <button
+                        type="submit"
+                        disabled={editingSaving}
+                        className={
+                          'px-4 py-2 rounded-lg text-xs font-semibold shadow ' +
+                          (editingSaving
+                            ? 'bg-slate-400 text-white'
+                            : 'bg-amber-500 text-white hover:bg-amber-600')
+                        }
+                      >
+                        {editingSaving ? '저장 중...' : '수정 저장'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
               {/* 필터 카드 */}
               <div
                 className={
@@ -1414,6 +1740,7 @@ export default function Home() {
                         <th className="px-2 py-2 text-left">태그</th>
                         <th className="px-2 py-2 text-left">파일</th>
                         <th className="px-2 py-2 text-left">메모</th>
+                        <th className="px-2 py-2 text-center">수정</th>
                         <th className="px-2 py-2 text-center">삭제</th>
                       </tr>
                     </thead>
@@ -1421,7 +1748,7 @@ export default function Home() {
                       {tradesLoading ? (
                         <tr>
                           <td
-                            colSpan={10}
+                            colSpan={11}
                             className="px-2 py-6 text-center text-slate-400"
                           >
                             매매 기록을 불러오는 중입니다…
@@ -1430,7 +1757,7 @@ export default function Home() {
                       ) : monthGroups.length === 0 ? (
                         <tr>
                           <td
-                            colSpan={10}
+                            colSpan={11}
                             className="px-2 py-6 text-center text-slate-400"
                           >
                             현재 조건에 해당하는 기록이 없습니다.
@@ -1448,7 +1775,7 @@ export default function Home() {
                               {/* 월 헤더 행 */}
                               <tr>
                                 <td
-                                  colSpan={10}
+                                  colSpan={11}
                                   className={
                                     monthRowClass +
                                     ' px-2 py-1.5 text-[11px] md:text-xs cursor-pointer'
@@ -1578,9 +1905,17 @@ export default function Home() {
                                       </td>
                                       <td className="px-2 py-2 text-center">
                                         <button
-                                          onClick={() =>
-                                            handleDelete(trade.id)
-                                          }
+                                          type="button"
+                                          onClick={() => handleStartEdit(trade)}
+                                          className="text-[11px] text-blue-500 hover:underline"
+                                        >
+                                          수정
+                                        </button>
+                                      </td>
+                                      <td className="px-2 py-2 text-center">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDelete(trade.id)}
                                           className="text-[11px] text-slate-400 hover:text-red-500"
                                         >
                                           삭제
