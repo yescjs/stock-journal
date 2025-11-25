@@ -7,7 +7,7 @@ import React, {
   ChangeEvent,
   FormEvent,
 } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type User } from '@supabase/supabase-js';
 
 type TradeSide = 'BUY' | 'SELL';
 
@@ -20,7 +20,7 @@ interface Trade {
   quantity: number;
   memo: string;
   tags?: string[];
-  image?: string;        // 이미지 파일 (URL 또는 data URL)
+  image?: string;        // 이미지 파일 (URL)
 }
 
 interface SymbolSummary {
@@ -39,7 +39,6 @@ interface SymbolSummary {
 const PASSWORD_KEY = 'stock-journal-password-v1';
 const CURRENT_PRICE_KEY = 'stock-journal-current-prices-v1';
 const THEME_KEY = 'stock-journal-theme-v1';
-const CLIENT_ID_KEY = 'stock-journal-client-id-v1';
 
 type ActiveTab = 'journal' | 'stats' | 'settings';
 
@@ -76,12 +75,16 @@ function formatMonthLabel(monthKey: string): string {
   return monthKey;
 }
 
+type NotifyType = 'success' | 'error' | 'info';
+
 export default function Home() {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [tradesLoading, setTradesLoading] = useState(true);
   const [tradesError, setTradesError] = useState<string | null>(null);
-  const [clientId, setClientId] = useState<string | null>(null);
 
+  // 🔐 Supabase Auth 상태
+  const [authLoading, setAuthLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   const [form, setForm] = useState({
     date: '',
@@ -124,7 +127,7 @@ export default function Home() {
   // 월별 접기 상태
   const [openMonths, setOpenMonths] = useState<Record<string, boolean>>({});
 
-    // 수정 기능
+  // 수정 기능
   const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
   const [editForm, setEditForm] = useState({
     id: '',
@@ -139,7 +142,6 @@ export default function Home() {
   const [editingSaving, setEditingSaving] = useState(false);
 
   // 이미지 파일 업로드용
-  // const [chartImage, setChartImage] = useState<string | null>(null);
   const chartInputRef = useRef<HTMLInputElement | null>(null);
   const [chartFile, setChartFile] = useState<File | null>(null);
   const [chartPreview, setChartPreview] = useState<string | null>(null);
@@ -147,95 +149,126 @@ export default function Home() {
   // 기록 추가 버튼 로딩
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  // 상단/우측에 잠깐 뜨는 알림(토스트)
-  type NotifyType = 'success' | 'error' | 'info';
+  // 토스트 알림
   const [notify, setNotify] = useState<{ type: NotifyType; message: string } | null>(null);
 
   // 전체 화면 모달용 이미지
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-  // 초기 로딩: Supabase에서 매매 기록 불러오기 + localStorage 값들 불러오기
+  const weekdayLabel = getKoreanWeekdayLabel(form.date);
+
+  // Supabase에서 매매 기록 불러오는 함수 (user_id 기준)
+  async function initTrades(userId: string) {
+    setTradesLoading(true);
+    setTradesError(null);
+
+    try {
+      const { data, error } = await supabase
+        .from('trades')
+        .select('*')
+        .eq('user_id', userId)
+        .order('date', { ascending: false });
+
+      if (error) {
+        console.error('Failed to fetch trades:', error);
+        setTradesError('매매 기록을 불러오는 중 오류가 발생했습니다.');
+      } else if (data) {
+        const normalized = (data as Trade[]).map(t => ({
+          ...t,
+          tags: t.tags ?? [],
+        }));
+        setTrades(normalized);
+      }
+    } catch (err) {
+      console.error(err);
+      setTradesError('매매 기록을 불러오는 중 오류가 발생했습니다.');
+    } finally {
+      setTradesLoading(false);
+    }
+  }
+
+  // 초기 로딩: localStorage 값들 + 로그인 상태 확인 + trades 조회
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // 1) 브라우저별 clientId 생성/로드
-    let storedClientId = localStorage.getItem(CLIENT_ID_KEY);
-    if (!storedClientId) {
-      if (window.crypto && 'randomUUID' in window.crypto) {
-        storedClientId = window.crypto.randomUUID();
-      } else {
-        storedClientId =
-          'client-' +
-          Math.random().toString(36).substring(2) +
-          Date.now().toString(36);
-      }
-      localStorage.setItem(CLIENT_ID_KEY, storedClientId);
+    // 1) 비밀번호 / 잠금 상태
+    const savedPassword = localStorage.getItem(PASSWORD_KEY);
+    if (savedPassword) {
+      setHasPassword(true);
+      setIsUnlocked(false);
+    } else {
+      setHasPassword(false);
+      setIsUnlocked(true);
     }
-    setClientId(storedClientId);
 
-    async function init(cid: string) {
-      setTradesLoading(true);
-      setTradesError(null);
-
+    // 2) 현재가
+    const savedPrices = localStorage.getItem(CURRENT_PRICE_KEY);
+    if (savedPrices) {
       try {
-        const { data, error } = await supabase
-          .from('trades')
-          .select('*')
-          .eq('client_id', cid)
-          .order('date', { ascending: false });
+        const parsed = JSON.parse(savedPrices) as Record<string, number>;
+        setCurrentPrices(parsed);
+      } catch {
+        //
+      }
+    }
+
+    // 3) 테마
+    const savedTheme = localStorage.getItem(THEME_KEY);
+    if (savedTheme === 'dark') {
+      setDarkMode(true);
+    }
+
+    // 4) 폼 날짜 기본값
+    if (!form.date) {
+      const today = new Date().toISOString().slice(0, 10);
+      setForm(prev => ({ ...prev, date: today }));
+    }
+
+    // 5) Supabase Auth 상태 확인 (getUser -> getSession 으로 변경)
+    async function bootstrap() {
+      setAuthLoading(true);
+      try {
+        const { data, error } = await supabase.auth.getSession();
 
         if (error) {
-          console.error('Failed to fetch trades:', error);
-          setTradesError('매매 기록을 불러오는 중 오류가 발생했습니다.');
-        } else if (data) {
-          const normalized = (data as Trade[]).map(t => ({
-            ...t,
-            tags: t.tags ?? [],
-          }));
-          setTrades(normalized);
+          console.error('getSession error:', error);
+        }
+
+        const session = data?.session ?? null;
+
+        if (session?.user) {
+          setCurrentUser(session.user);
+          await initTrades(session.user.id);
+        } else {
+          setCurrentUser(null);
+          setTrades([]);
         }
       } catch (err) {
-        console.error(err);
-        setTradesError('매매 기록을 불러오는 중 오류가 발생했습니다.');
+        console.error('bootstrap unexpected error:', err);
       } finally {
-        setTradesLoading(false);
-      }
-
-      // 비밀번호 / 잠금 상태
-      const savedPassword = localStorage.getItem(PASSWORD_KEY);
-      if (savedPassword) {
-        setHasPassword(true);
-        setIsUnlocked(false);
-      } else {
-        setHasPassword(false);
-        setIsUnlocked(true);
-      }
-
-      // 현재가
-      const savedPrices = localStorage.getItem(CURRENT_PRICE_KEY);
-      if (savedPrices) {
-        try {
-          const parsed = JSON.parse(savedPrices) as Record<string, number>;
-          setCurrentPrices(parsed);
-        } catch {
-          //
-        }
-      }
-
-      // 테마
-      const savedTheme = localStorage.getItem(THEME_KEY);
-      if (savedTheme === 'dark') {
-        setDarkMode(true);
-      }
-
-      // 폼 날짜 기본값
-      if (!form.date) {
-        const today = new Date().toISOString().slice(0, 10);
-        setForm(prev => ({ ...prev, date: today }));
+        setAuthLoading(false);
       }
     }
 
-    init(storedClientId!);
+    bootstrap();
+
+    // 6) 로그인/로그아웃 상태 변화 감지
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setCurrentUser(session.user);
+        initTrades(session.user.id);
+      } else {
+        setCurrentUser(null);
+        setTrades([]);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -250,8 +283,6 @@ export default function Home() {
     localStorage.setItem(THEME_KEY, darkMode ? 'dark' : 'light');
   }, [darkMode]);
 
-  const weekdayLabel = getKoreanWeekdayLabel(form.date);
-
   // 공통 유틸
   const handleChange = (
     e: ChangeEvent<
@@ -265,12 +296,17 @@ export default function Home() {
     }));
   };
 
-  // Supabase에 저장하는 제출 로직
+  const showNotify = (type: NotifyType, message: string) => {
+    setNotify({ type, message });
+    setTimeout(() => setNotify(null), 2500);
+  };
+
+  // Supabase에 저장하는 제출 로직 (user_id 기준)
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
-    if (!clientId) {
-      alert('초기화 중입니다. 잠시 후 다시 시도해주세요.');
+    if (!currentUser) {
+      alert('로그인 후 사용해주세요.');
       return;
     }
 
@@ -296,16 +332,16 @@ export default function Home() {
     let imageUrl: string | null = null;
 
     try {
-      setIsSubmitting(true);              // ✅ 버튼 로딩 시작
+      setIsSubmitting(true);
 
       // 1) 이미지 파일이 있다면 Supabase Storage에 업로드
       if (chartFile) {
         const fileExt = chartFile.name.split('.').pop()?.toLowerCase() || 'png';
         const fileName = `${Date.now()}.${fileExt}`;
-        const filePath = `${clientId}/${fileName}`; // 브라우저별 폴더 느낌
+        const filePath = `${currentUser.id}/${fileName}`; // 유저별 폴더
 
         const { error: uploadError } = await supabase.storage
-          .from('trade-images')          // ✅ 버킷 이름
+          .from('trade-images')
           .upload(filePath, chartFile, {
             contentType: chartFile.type,
             upsert: false,
@@ -328,7 +364,7 @@ export default function Home() {
         .from('trades')
         .insert([
           {
-            client_id: clientId,
+            user_id: currentUser.id,
             date: form.date,
             symbol: form.symbol.toUpperCase().trim(),
             side: form.side,
@@ -336,7 +372,7 @@ export default function Home() {
             quantity,
             memo: form.memo,
             tags: uniqueTags,
-            image: imageUrl, // ✅ Storage URL (또는 null)
+            image: imageUrl,
           },
         ])
         .select()
@@ -348,7 +384,6 @@ export default function Home() {
         return;
       }
 
-      // 3) 화면 상태 갱신
       const created: Trade = {
         ...(data as Trade),
         tags: (data as any).tags ?? uniqueTags,
@@ -356,7 +391,7 @@ export default function Home() {
 
       setTrades(prev => [created, ...prev]);
 
-      // 4) 폼 리셋
+      // 폼 리셋
       setForm(prev => ({
         ...prev,
         price: '',
@@ -370,26 +405,19 @@ export default function Home() {
         chartInputRef.current.value = '';
       }
 
-      showNotify('success', '매매 기록이 저장되었습니다.');   // ✅ 성공 알림
+      showNotify('success', '매매 기록이 저장되었습니다.');
     } catch (err) {
       console.error(err);
       alert('저장 중 알 수 없는 오류가 발생했습니다.');
     } finally {
-      setIsSubmitting(false);            // ✅ 버튼 로딩 끝
+      setIsSubmitting(false);
     }
-  };
-
-  const showNotify = (type: NotifyType, message: string) => {
-    setNotify({ type, message });
-    setTimeout(() => {
-      setNotify(null);
-    }, 2500); // 2.5초 뒤 자동 사라짐
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('이 기록을 삭제할까요?')) return;
-    if (!clientId) {
-      alert('초기화 중입니다. 잠시 후 다시 시도해주세요.');
+    if (!currentUser) {
+      alert('로그인 후 다시 시도해주세요.');
       return;
     }
 
@@ -398,7 +426,7 @@ export default function Home() {
         .from('trades')
         .delete()
         .eq('id', id)
-        .eq('client_id', clientId);   // ✅ 내가 쓴 것만
+        .eq('user_id', currentUser.id);
 
       if (error) {
         console.error('Failed to delete trade:', error);
@@ -418,8 +446,8 @@ export default function Home() {
 
   const handleClearAll = async () => {
     if (!confirm('모든 매매 기록을 삭제할까요?')) return;
-    if (!clientId) {
-      alert('초기화 중입니다. 잠시 후 다시 시도해주세요.');
+    if (!currentUser) {
+      alert('로그인 후 다시 시도해주세요.');
       return;
     }
 
@@ -427,7 +455,7 @@ export default function Home() {
       const { error } = await supabase
         .from('trades')
         .delete()
-        .eq('client_id', clientId);   // ✅ 이 브라우저 것만
+        .eq('user_id', currentUser.id);
 
       if (error) {
         console.error('Failed to clear trades:', error);
@@ -489,8 +517,8 @@ export default function Home() {
   const handleEditSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!editingTrade) return;
-    if (!clientId) {
-      alert('초기화 중입니다. 잠시 후 다시 시도해주세요.');
+    if (!currentUser) {
+      alert('로그인 후 다시 시도해주세요.');
       return;
     }
 
@@ -525,10 +553,9 @@ export default function Home() {
           quantity,
           memo: editForm.memo,
           tags: uniqueTags,
-          // image는 여기서는 그대로 유지 (필요하면 나중에 확장)
         })
         .eq('id', editingTrade.id)
-        .eq('client_id', clientId)
+        .eq('user_id', currentUser.id)
         .select()
         .single();
 
@@ -576,7 +603,6 @@ export default function Home() {
 
     setChartFile(file);
 
-    // 미리보기용 URL
     const previewUrl = URL.createObjectURL(file);
     setChartPreview(previewUrl);
   };
@@ -718,7 +744,7 @@ export default function Home() {
     }));
   };
 
-  // 백업 (지금은 상태 기준으로만 작동 — Supabase와는 별도)
+  // 백업 (상태 기준)
   const handleExportBackup = () => {
     if (trades.length === 0 && Object.keys(currentPrices).length === 0) {
       alert('백업할 데이터가 없습니다.');
@@ -980,7 +1006,31 @@ export default function Home() {
       ? 'bg-slate-800 border-slate-700'
       : 'bg-slate-50 border-slate-200');
 
-  // 🔒 잠금 화면
+  // 🚩 1단계: 로그인 상태 확인
+  if (authLoading) {
+    return (
+      <main className="min-h-screen bg-slate-100 flex items-center justify-center px-4">
+        <div className="text-sm text-slate-500">로그인 상태를 확인하는 중입니다…</div>
+      </main>
+    );
+  }
+
+  // 로그인 안 되어 있으면 로그인 화면
+  if (!currentUser) {
+    return (
+      <main className="min-h-screen bg-slate-100 flex items-center justify-center px-4">
+        <div className="w-full max-w-sm bg-white rounded-xl shadow p-6 space-y-4">
+          <h1 className="text-lg font-bold">나만 보는 주식 매매 일지</h1>
+          <p className="text-xs text-slate-500">
+            이메일 로그인 후, 어디서 접속해도 같은 매매 일지를 불러올 수 있습니다.
+          </p>
+          <LoginForm />
+        </div>
+      </main>
+    );
+  }
+
+  // 🚩 2단계: 잠금 화면
   if (!isUnlocked && hasPassword) {
     return (
       <main className="min-h-screen bg-slate-100 flex justify-center items-center px-4">
@@ -1070,7 +1120,7 @@ export default function Home() {
             <div>
               <h1 className="text-xl font-bold">나만 보는 주식 매매 일지</h1>
               <p className="text-xs text-slate-500">
-                매매 기록은 Supabase 서버 DB에 저장되고, 비밀번호/설정은 이
+                매매 기록은 Supabase 서버 DB에 계정별로 저장되고, 비밀번호/설정은 이
                 브라우저에만 저장되는 개인용 매매 노트입니다.
               </p>
             </div>
@@ -1087,6 +1137,18 @@ export default function Home() {
               >
                 {darkMode ? '☀️ 라이트 모드' : '🌙 다크 모드'}
               </button>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-slate-400">
+                  {currentUser.email}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => supabase.auth.signOut()}
+                  className="text-[10px] px-2 py-1 rounded border border-slate-300 text-slate-500 hover:bg-slate-50"
+                >
+                  로그아웃
+                </button>
+              </div>
               <span className="text-[10px] text-slate-400">
                 잠금 상태: {hasPassword ? '비밀번호 설정됨' : '설정 안 됨'}
               </span>
@@ -2406,5 +2468,70 @@ export default function Home() {
         )}
       </main>
     </>
+  );
+}
+
+/** 이메일 로그인 폼 (매직 링크) */
+function LoginForm() {
+  const [email, setEmail] = useState('');
+  const [sending, setSending] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const handleSendMagicLink = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+
+    try {
+      setSending(true);
+      setMsg(null);
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo:
+            typeof window !== 'undefined'
+              ? window.location.origin
+              : undefined,
+        },
+      });
+      if (error) {
+        console.error(error);
+        setMsg('로그인 메일 전송 중 오류가 발생했습니다.');
+      } else {
+        setMsg('로그인 링크가 이메일로 전송되었습니다. 메일함을 확인해주세요.');
+      }
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSendMagicLink} className="space-y-3 text-xs">
+      <div className="flex flex-col gap-1">
+        <label className="text-[11px] text-slate-600">이메일</label>
+        <input
+          type="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          placeholder="your@email.com"
+          className="border rounded px-2 py-1 text-xs"
+        />
+      </div>
+      <button
+        type="submit"
+        disabled={sending || !email}
+        className={
+          'w-full rounded-lg py-2 text-xs font-semibold ' +
+          (sending
+            ? 'bg-slate-400 text-white'
+            : 'bg-blue-600 text-white hover:bg-blue-700')
+        }
+      >
+        {sending ? '메일 전송 중...' : '로그인 링크 보내기'}
+      </button>
+      {msg && <p className="text-[11px] text-slate-500">{msg}</p>}
+      <p className="text-[10px] text-slate-400">
+        이 서비스는 Supabase Auth를 사용하며, 비밀번호 없이 이메일 링크로만 로그인합니다.
+      </p>
+    </form>
   );
 }
