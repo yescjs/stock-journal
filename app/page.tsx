@@ -36,7 +36,6 @@ interface SymbolSummary {
 }
 
 // localStorage용 키 (비밀번호, 현재가, 테마, 게스트용 매매기록)
-const PASSWORD_KEY = 'stock-journal-password-v1';
 const CURRENT_PRICE_KEY = 'stock-journal-current-prices-v1';
 const THEME_KEY = 'stock-journal-theme-v1';
 const GUEST_TRADES_KEY = 'stock-journal-guest-trades-v1';
@@ -113,14 +112,6 @@ export default function Home() {
   const [selectedSymbol, setSelectedSymbol] = useState<string>('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-
-  // 잠금
-  const [isUnlocked, setIsUnlocked] = useState(false);
-  const [hasPassword, setHasPassword] = useState(false);
-  const [passwordInput, setPasswordInput] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
-  const [passwordMessage, setPasswordMessage] = useState('');
 
   // 현재가
   const [currentPrices, setCurrentPrices] = useState<Record<string, number>>(
@@ -252,17 +243,7 @@ export default function Home() {
     // 게스트 기록 로딩 완료 플래그
     setGuestLoaded(true);
 
-    // 1) 비밀번호 / 잠금 상태
-    const savedPassword = localStorage.getItem(PASSWORD_KEY);
-    if (savedPassword) {
-      setHasPassword(true);
-      setIsUnlocked(false);
-    } else {
-      setHasPassword(false);
-      setIsUnlocked(true);
-    }
-
-    // 2) 현재가
+    // 1) 현재가
     const savedPrices = localStorage.getItem(CURRENT_PRICE_KEY);
     if (savedPrices) {
       try {
@@ -818,51 +799,6 @@ export default function Home() {
     }));
   };
 
-  // 잠금
-  const handleUnlock = (e: FormEvent) => {
-    e.preventDefault();
-    const savedPassword = localStorage.getItem(PASSWORD_KEY);
-    if (!savedPassword) {
-      setPasswordMessage('설정된 비밀번호가 없습니다.');
-      setHasPassword(false);
-      setIsUnlocked(true);
-      return;
-    }
-    if (passwordInput === savedPassword) {
-      setIsUnlocked(true);
-      setPasswordInput('');
-      setPasswordMessage('');
-    } else {
-      setPasswordMessage('비밀번호가 올바르지 않습니다.');
-    }
-  };
-
-  const handleSavePassword = (e: FormEvent) => {
-    e.preventDefault();
-    if (!newPassword) {
-      setPasswordMessage('비밀번호를 입력해주세요.');
-      return;
-    }
-    if (newPassword !== newPasswordConfirm) {
-      setPasswordMessage('비밀번호와 확인이 일치하지 않습니다.');
-      return;
-    }
-    localStorage.setItem(PASSWORD_KEY, newPassword);
-    setHasPassword(true);
-    setPasswordMessage(
-      '비밀번호가 저장되었습니다. 다음 접속부터 잠금 화면이 표시됩니다.',
-    );
-    setNewPassword('');
-    setNewPasswordConfirm('');
-  };
-
-  const handleRemovePassword = () => {
-    if (!confirm('비밀번호 잠금을 해제할까요?')) return;
-    localStorage.removeItem(PASSWORD_KEY);
-    setHasPassword(false);
-    setPasswordMessage('비밀번호 잠금이 해제되었습니다.');
-  };
-
   // 현재가
   const handleCurrentPriceChange = (symbol: string, value: string) => {
     if (value === '') {
@@ -1246,47 +1182,6 @@ export default function Home() {
     );
   }
 
-  // 🚩 2단계: 잠금 화면
-  if (!isUnlocked && hasPassword) {
-    return (
-      <main className="min-h-screen bg-slate-100 flex justify-center items-center px-4">
-        <div className="w-full max-w-sm bg-white shadow-md rounded-xl p-6 space-y-4">
-          <h1 className="text-xl font-bold text-center">
-            주식 매매 일지 잠금 해제
-          </h1>
-          <p className="text-xs text-slate-500 text-center">
-            이 브라우저에 저장된 비밀번호를 입력하면 매매 일지를 볼 수
-            있습니다.
-          </p>
-          <form onSubmit={handleUnlock} className="space-y-3">
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-slate-600">비밀번호</label>
-              <input
-                type="password"
-                value={passwordInput}
-                onChange={e => setPasswordInput(e.target.value)}
-                className="border rounded px-2 py-1 text-sm"
-                placeholder="비밀번호 입력"
-              />
-            </div>
-            {passwordMessage && (
-              <div className="text-xs text-rose-500">{passwordMessage}</div>
-            )}
-            <button
-              type="submit"
-              className="w-full bg-blue-600 text-white text-sm font-medium rounded-lg py-2"
-            >
-              잠금 해제
-            </button>
-          </form>
-          <p className="text-[10px] text-slate-400 text-center">
-            비밀번호는 이 브라우저의 localStorage에만 저장됩니다.
-          </p>
-        </div>
-      </main>
-    );
-  }
-
   // 🔓 메인 화면 + 모달
   return (
     <>
@@ -1363,8 +1258,7 @@ export default function Home() {
               <h1 className="text-xl font-bold">나만 보는 주식 매매 일지</h1>
               <p className="text-xs text-slate-500">
                 로그인하면 Supabase 서버 DB에 저장되고, 로그인하지 않으면 이
-                브라우저(게스트 모드)에만 저장됩니다. 비밀번호/테마/현재가는 항상
-                이 브라우저에만 저장됩니다.
+                브라우저(게스트 모드)에만 저장됩니다. 
               </p>
             </div>
 
@@ -1416,10 +1310,6 @@ export default function Home() {
                   </span>
                 </>
               )}
-
-              <span className="text-[10px] text-slate-400">
-                잠금 상태: {hasPassword ? '비밀번호 설정됨' : '설정 안 됨'}
-              </span>
             </div>
           </header>
 
@@ -2636,89 +2526,6 @@ export default function Home() {
           {/* SETTINGS 탭 */}
           {activeTab === 'settings' && (
             <section className="space-y-4 text-xs md:text-sm">
-              {/* 비밀번호 설정 */}
-              <div
-                className={
-                  'border rounded-lg p-3 space-y-3 ' +
-                  (darkMode
-                    ? 'border-slate-700 bg-slate-900'
-                    : 'border-slate-200 bg-slate-50')
-                }
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-sm">
-                    잠금 비밀번호 설정
-                  </span>
-                  {hasPassword && (
-                    <span className="text-[11px] text-emerald-500">
-                      현재 비밀번호가 설정되어 있습니다.
-                    </span>
-                  )}
-                </div>
-                <form
-                  onSubmit={handleSavePassword}
-                  className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end"
-                >
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[11px] text-slate-500">
-                      새 비밀번호
-                    </label>
-                    <input
-                      type="password"
-                      value={newPassword}
-                      onChange={e => setNewPassword(e.target.value)}
-                      className={
-                        'border rounded px-2 py-1 text-xs bg-transparent ' +
-                        (darkMode ? 'border-slate-600' : '')
-                      }
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[11px] text-slate-500">
-                      새 비밀번호 확인
-                    </label>
-                    <input
-                      type="password"
-                      value={newPasswordConfirm}
-                      onChange={e => setNewPasswordConfirm(e.target.value)}
-                      className={
-                        'border rounded px-2 py-1 text-xs bg-transparent ' +
-                        (darkMode ? 'border-slate-600' : '')
-                      }
-                    />
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="submit"
-                      className="px-3 py-2 text-xs rounded-lg bg-blue-600 text-white"
-                    >
-                      비밀번호 저장
-                    </button>
-                    {hasPassword && (
-                      <button
-                        type="button"
-                        onClick={handleRemovePassword}
-                        className="px-3 py-2 text-xs border rounded-lg text-slate-500"
-                      >
-                        비밀번호 삭제
-                      </button>
-                    )}
-                  </div>
-                </form>
-                {passwordMessage && (
-                  <div className="text-[11px] text-slate-300">
-                    {passwordMessage}
-                  </div>
-                )}
-                <p className="text-[10px] text-slate-400">
-                  매매 기록은 (로그인 시) Supabase 데이터베이스 또는 (게스트
-                  모드 시) 이 브라우저에 저장되며, 잠금 비밀번호·테마·현재가
-                  정보는 항상 이 브라우저의 localStorage에만 저장됩니다.
-                  브라우저를 바꾸면 기록은 유지되지만, 비밀번호·테마·현재가는
-                  다시 설정해야 합니다.
-                </p>
-              </div>
-
               {/* 데이터 관리 */}
               <div
                 className={
@@ -2760,7 +2567,7 @@ export default function Home() {
                     className="px-3 py-1.5 border rounded-lg text-xs text-rose-500 bg-white"
                   >
                     모든 기록 삭제
-                    {currentUser ? ' (DB 포함)' : ' (게스트 데이터)'}
+                    {currentUser ? ' (로그인 데이터)' : ' (게스트 데이터)'}
                   </button>
                 </div>
                 {backupMessage && (
@@ -2965,9 +2772,14 @@ function LoginForm({ onDone }: LoginFormProps) {
       /** 🔑 비밀번호 재설정(찾기) */
       if (mode === 'resetPassword') {
         // Supabase Auth 설정에서 지정한 리다이렉트 URL로 메일 발송
-        const { error } = await supabase.auth.resetPasswordForEmail(
-          trimmedEmail,
-        );
+        const redirectTo =
+          typeof window !== 'undefined'
+            ? `${window.location.origin}/reset-password`
+            : undefined;
+
+        const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
+          redirectTo,
+        });
 
         if (error) {
           console.warn('reset password error:', error);
