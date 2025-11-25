@@ -7,12 +7,12 @@ import React, {
   ChangeEvent,
   FormEvent,
 } from 'react';
-import { createClient, type User } from '@supabase/supabase-js';
+import { createClient, type User, AuthApiError, AuthWeakPasswordError } from '@supabase/supabase-js';
 
 type TradeSide = 'BUY' | 'SELL';
 
 interface Trade {
-  id: string;            // Supabase uuid 기준으로 문자열 사용
+  id: string;            // Supabase uuid 또는 guest-... 문자열
   date: string;          // YYYY-MM-DD
   symbol: string;
   side: TradeSide;
@@ -20,7 +20,7 @@ interface Trade {
   quantity: number;
   memo: string;
   tags?: string[];
-  image?: string;        // 이미지 파일 (URL)
+  image?: string;        // 이미지 파일 (URL 또는 data URL)
 }
 
 interface SymbolSummary {
@@ -35,10 +35,11 @@ interface SymbolSummary {
   realizedPnL: number;
 }
 
-// localStorage용 키 (비밀번호, 현재가, 테마, 백업용)
+// localStorage용 키 (비밀번호, 현재가, 테마, 게스트용 매매기록)
 const PASSWORD_KEY = 'stock-journal-password-v1';
 const CURRENT_PRICE_KEY = 'stock-journal-current-prices-v1';
 const THEME_KEY = 'stock-journal-theme-v1';
+const GUEST_TRADES_KEY = 'stock-journal-guest-trades-v1';
 
 type ActiveTab = 'journal' | 'stats' | 'settings';
 
@@ -77,8 +78,20 @@ function formatMonthLabel(monthKey: string): string {
 
 type NotifyType = 'success' | 'error' | 'info';
 
+// File → data URL (게스트 모드에서 이미지 저장용)
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = err => reject(err);
+    reader.onload = () => resolve(reader.result as string);
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function Home() {
-  const [trades, setTrades] = useState<Trade[]>([]);
+  const [trades, setTrades] = useState<Trade[]>([]);        // 로그인 계정의 DB 기록
+  const [guestTrades, setGuestTrades] = useState<Trade[]>([]); // 게스트 모드 로컬 기록
+  const [guestLoaded, setGuestLoaded] = useState(false); // 게스트 기록 로딩 완료 여부
   const [tradesLoading, setTradesLoading] = useState(true);
   const [tradesError, setTradesError] = useState<string | null>(null);
 
@@ -150,12 +163,24 @@ export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   // 토스트 알림
-  const [notify, setNotify] = useState<{ type: NotifyType; message: string } | null>(null);
+  const [notify, setNotify] = useState<{
+    type: NotifyType;
+    message: string;
+  } | null>(null);
 
   // 전체 화면 모달용 이미지
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
+  // 로그인 모달
+  const [showLoginModal, setShowLoginModal] = useState(false);
+
+  // 게스트 → 계정 마이그레이션
+  const [isMigrating, setIsMigrating] = useState(false);
+
   const weekdayLabel = getKoreanWeekdayLabel(form.date);
+
+  // 현재 화면에서 사용하는 "기준 매매 기록"
+  const baseTrades = currentUser ? trades : guestTrades;
 
   // Supabase에서 매매 기록 불러오는 함수 (user_id 기준)
   async function initTrades(userId: string) {
@@ -187,9 +212,45 @@ export default function Home() {
     }
   }
 
+  // 로그아웃 후 상태 초기화
+  async function handleLogout() {
+    try {
+      await supabase.auth.signOut();
+      setCurrentUser(null);
+      setTrades([]); // 로그아웃 시 DB 목록 비우기 (게스트 기록은 유지)
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
+  }
+
+  // 게스트 기록 로컬스토리지 저장
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!guestLoaded) return;
+    localStorage.setItem(GUEST_TRADES_KEY, JSON.stringify(guestTrades));
+  }, [guestTrades, guestLoaded]);
+
   // 초기 로딩: localStorage 값들 + 로그인 상태 확인 + trades 조회
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
+    // 0) 게스트 모드 매매 기록 로드
+    const guestRaw = localStorage.getItem(GUEST_TRADES_KEY);
+    if (guestRaw) {
+      try {
+        const parsed = JSON.parse(guestRaw) as Trade[];
+        const normalized = parsed.map(t => ({
+          ...t,
+          tags: t.tags ?? [],
+        }));
+        setGuestTrades(normalized);
+      } catch (err) {
+        console.error('Failed to parse guest trades from localStorage', err);
+      }
+    }
+
+    // 게스트 기록 로딩 완료 플래그
+    setGuestLoaded(true);
 
     // 1) 비밀번호 / 잠금 상태
     const savedPassword = localStorage.getItem(PASSWORD_KEY);
@@ -224,7 +285,7 @@ export default function Home() {
       setForm(prev => ({ ...prev, date: today }));
     }
 
-    // 5) Supabase Auth 상태 확인 (getUser -> getSession 으로 변경)
+    // 5) Supabase Auth 상태 확인
     async function bootstrap() {
       setAuthLoading(true);
       try {
@@ -301,14 +362,9 @@ export default function Home() {
     setTimeout(() => setNotify(null), 2500);
   };
 
-  // Supabase에 저장하는 제출 로직 (user_id 기준)
+  // Supabase / 게스트에 저장하는 제출 로직
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-
-    if (!currentUser) {
-      alert('로그인 후 사용해주세요.');
-      return;
-    }
 
     if (!form.date || !form.symbol || !form.price || !form.quantity) {
       alert('날짜, 종목, 가격, 수량은 필수입니다.');
@@ -334,32 +390,79 @@ export default function Home() {
     try {
       setIsSubmitting(true);
 
-      // 1) 이미지 파일이 있다면 Supabase Storage에 업로드
+      // 1) 이미지가 있다면, 로그인 상태에 따라 처리
       if (chartFile) {
-        const fileExt = chartFile.name.split('.').pop()?.toLowerCase() || 'png';
-        const fileName = `${Date.now()}.${fileExt}`;
-        const filePath = `${currentUser.id}/${fileName}`; // 유저별 폴더
+        if (currentUser) {
+          // Supabase Storage 업로드
+          const fileExt =
+            chartFile.name.split('.').pop()?.toLowerCase() || 'png';
+          const fileName = `${Date.now()}.${fileExt}`;
+          const filePath = `${currentUser.id}/${fileName}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from('trade-images')
-          .upload(filePath, chartFile, {
-            contentType: chartFile.type,
-            upsert: false,
-          });
-
-        if (uploadError) {
-          console.error('Failed to upload image:', uploadError);
-          alert('이미지 업로드 중 오류가 발생했습니다. 이미지 없이 기록만 저장합니다.');
-        } else {
-          const { data: publicUrlData } = supabase.storage
+          const { error: uploadError } = await supabase.storage
             .from('trade-images')
-            .getPublicUrl(filePath);
+            .upload(filePath, chartFile, {
+              contentType: chartFile.type,
+              upsert: false,
+            });
 
-          imageUrl = publicUrlData.publicUrl;
+          if (uploadError) {
+            console.error('Failed to upload image:', uploadError);
+            alert(
+              '이미지 업로드 중 오류가 발생했습니다. 이미지 없이 기록만 저장합니다.',
+            );
+          } else {
+            const { data: publicUrlData } = supabase.storage
+              .from('trade-images')
+              .getPublicUrl(filePath);
+            imageUrl = publicUrlData.publicUrl;
+          }
+        } else {
+          // 게스트 모드: data URL로 localStorage에 저장
+          imageUrl = await fileToDataUrl(chartFile);
         }
       }
 
-      // 2) DB에 레코드 저장
+      // 2) 로그인 안 된 경우 → 게스트 모드 로컬 저장
+      if (!currentUser) {
+        const newTrade: Trade = {
+          id: `guest-${Date.now()}-${Math.random()
+            .toString(36)
+            .slice(2, 8)}`,
+          date: form.date,
+          symbol: form.symbol.toUpperCase().trim(),
+          side: form.side,
+          price,
+          quantity,
+          memo: form.memo,
+          tags: uniqueTags,
+          image: imageUrl ?? undefined,
+        };
+
+        setGuestTrades(prev => [newTrade, ...prev]);
+
+        // 폼 리셋
+        setForm(prev => ({
+          ...prev,
+          price: '',
+          quantity: '',
+          memo: '',
+          tags: '',
+        }));
+        setChartFile(null);
+        setChartPreview(null);
+        if (chartInputRef.current) {
+          chartInputRef.current.value = '';
+        }
+
+        showNotify(
+          'success',
+          '게스트 모드로 매매 기록을 저장했습니다. (이 브라우저에서만 보입니다.)',
+        );
+        return;
+      }
+
+      // 3) 로그인된 경우 → Supabase DB에 레코드 저장
       const { data, error } = await supabase
         .from('trades')
         .insert([
@@ -416,8 +519,11 @@ export default function Home() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('이 기록을 삭제할까요?')) return;
+
+    // 게스트 모드 삭제
     if (!currentUser) {
-      alert('로그인 후 다시 시도해주세요.');
+      setGuestTrades(prev => prev.filter(t => t.id !== id));
+      showNotify('success', '기록을 삭제했습니다. (게스트 모드)');
       return;
     }
 
@@ -446,8 +552,13 @@ export default function Home() {
 
   const handleClearAll = async () => {
     if (!confirm('모든 매매 기록을 삭제할까요?')) return;
+
+    // 게스트 모드 전체 삭제
     if (!currentUser) {
-      alert('로그인 후 다시 시도해주세요.');
+      setGuestTrades([]);
+      localStorage.removeItem(GUEST_TRADES_KEY);
+      setSelectedSymbol('');
+      showNotify('success', '모든 기록을 삭제했습니다. (이 브라우저의 게스트 데이터가 삭제됨)');
       return;
     }
 
@@ -517,12 +628,13 @@ export default function Home() {
   const handleEditSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!editingTrade) return;
-    if (!currentUser) {
-      alert('로그인 후 다시 시도해주세요.');
-      return;
-    }
 
-    if (!editForm.date || !editForm.symbol || !editForm.price || !editForm.quantity) {
+    if (
+      !editForm.date ||
+      !editForm.symbol ||
+      !editForm.price ||
+      !editForm.quantity
+    ) {
       alert('날짜, 종목, 가격, 수량은 필수입니다.');
       return;
     }
@@ -541,6 +653,28 @@ export default function Home() {
         .filter(tag => tag.length > 0) ?? [];
     const uniqueTags = Array.from(new Set(parsedTags));
 
+    // 게스트 모드 수정
+    if (!currentUser) {
+      const updatedTrade: Trade = {
+        ...editingTrade,
+        date: editForm.date,
+        symbol: editForm.symbol.toUpperCase().trim(),
+        side: editForm.side,
+        price,
+        quantity,
+        memo: editForm.memo,
+        tags: uniqueTags,
+      };
+
+      setGuestTrades(prev =>
+        prev.map(t => (t.id === editingTrade.id ? updatedTrade : t)),
+      );
+      handleCancelEdit();
+      showNotify('success', '기록이 수정되었습니다. (게스트 모드)');
+      return;
+    }
+
+    // 로그인 상태 수정
     try {
       setEditingSaving(true);
       const { data, error } = await supabase
@@ -607,9 +741,9 @@ export default function Home() {
     setChartPreview(previewUrl);
   };
 
-  // CSV
+  // CSV (현재 기준 데이터: baseTrades)
   const handleExportCsv = () => {
-    if (trades.length === 0) {
+    if (baseTrades.length === 0) {
       alert('내보낼 기록이 없습니다.');
       return;
     }
@@ -626,7 +760,7 @@ export default function Home() {
       'tags',
     ];
 
-    const rows = trades.map(t => [
+    const rows = baseTrades.map(t => [
       t.id,
       t.date,
       t.symbol,
@@ -634,7 +768,7 @@ export default function Home() {
       t.price,
       t.quantity,
       t.price * t.quantity,
-      t.memo.replace(/\r?\n/g, ' '),
+      (t.memo ?? '').replace(/\r?\n/g, ' '),
       (t.tags ?? []).join(','),
     ]);
 
@@ -658,7 +792,10 @@ export default function Home() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', 'stock-journal.csv');
+    link.setAttribute(
+      'download',
+      currentUser ? 'stock-journal.csv' : 'stock-journal-guest.csv',
+    );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -744,9 +881,9 @@ export default function Home() {
     }));
   };
 
-  // 백업 (상태 기준)
+  // 백업 (상태 기준: baseTrades)
   const handleExportBackup = () => {
-    if (trades.length === 0 && Object.keys(currentPrices).length === 0) {
+    if (baseTrades.length === 0 && Object.keys(currentPrices).length === 0) {
       alert('백업할 데이터가 없습니다.');
       return;
     }
@@ -754,8 +891,9 @@ export default function Home() {
     const payload = {
       version: 1,
       exportedAt: new Date().toISOString(),
-      trades,
+      trades: baseTrades,
       currentPrices,
+      mode: currentUser ? 'account' : 'guest',
     };
 
     const blob = new Blob([JSON.stringify(payload, null, 2)], {
@@ -766,7 +904,12 @@ export default function Home() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `stock-journal-backup-${dateStr}.json`);
+    link.setAttribute(
+      'download',
+      currentUser
+        ? `stock-journal-backup-${dateStr}.json`
+        : `stock-journal-guest-backup-${dateStr}.json`,
+    );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -819,7 +962,12 @@ export default function Home() {
           tags: t.tags ?? [],
         }));
 
-        setTrades(normalized);
+        if (currentUser) {
+          setTrades(normalized);
+        } else {
+          setGuestTrades(normalized);
+        }
+
         setCurrentPrices(
           (data as any).currentPrices as Record<string, number>,
         );
@@ -836,13 +984,13 @@ export default function Home() {
     reader.readAsText(file, 'utf-8');
   };
 
-  // 태그 목록
+  // 태그 목록 (현재 모드 기준)
   const allTags: string[] = Array.from(
-    new Set(trades.flatMap(t => t.tags ?? [])),
+    new Set(baseTrades.flatMap(t => t.tags ?? [])),
   ).sort((a, b) => a.localeCompare(b));
 
-  // 필터링
-  const symbolFilteredTrades = trades.filter(t =>
+  // 필터링 (현재 모드 기준)
+  const symbolFilteredTrades = baseTrades.filter(t =>
     filterSymbol
       ? t.symbol.toLowerCase().includes(filterSymbol.toLowerCase())
       : true,
@@ -889,11 +1037,11 @@ export default function Home() {
 
   const hasDateRangeError = dateFrom && dateTo && dateFrom > dateTo;
 
-  // 종목별 요약 (전체 기준)
+  // 종목별 요약 (전체 기준, 현재 모드)
   const symbolSummaries: SymbolSummary[] = (() => {
-    if (trades.length === 0) return [];
+    if (baseTrades.length === 0) return [];
 
-    const sortedTrades = [...trades].sort((a, b) => {
+    const sortedTrades = [...baseTrades].sort((a, b) => {
       if (a.date === b.date) return a.id.localeCompare(b.id);
       return a.date.localeCompare(b.date);
     });
@@ -956,10 +1104,10 @@ export default function Home() {
     return result;
   })();
 
-  // 태그 통계 (거래 수)
+  // 태그 통계 (거래 수, 현재 모드)
   const tagStats = (() => {
     const map = new Map<string, number>();
-    for (const t of trades) {
+    for (const t of baseTrades) {
       (t.tags ?? []).forEach(tag => {
         map.set(tag, (map.get(tag) ?? 0) + 1);
       });
@@ -967,7 +1115,7 @@ export default function Home() {
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   })();
 
-  // 월별 그룹
+  // 월별 그룹 (현재 모드 + 필터 결과)
   const monthGroups = (() => {
     if (displayedTrades.length === 0) return [];
 
@@ -1006,25 +1154,93 @@ export default function Home() {
       ? 'bg-slate-800 border-slate-700'
       : 'bg-slate-50 border-slate-200');
 
+  // 게스트 → 계정 마이그레이션
+  const handleMigrateGuestToAccount = async () => {
+    if (!currentUser) {
+      alert('로그인 후에 마이그레이션할 수 있습니다.');
+      return;
+    }
+    if (guestTrades.length === 0) {
+      alert('옮길 게스트 기록이 없습니다.');
+      return;
+    }
+
+    if (
+      !confirm(
+        `이 브라우저(게스트 모드)에만 저장된 매매 기록 ${guestTrades.length}건을\n현재 로그인한 계정으로 옮길까요? (성공 시 게스트 데이터는 삭제됩니다.)`,
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setIsMigrating(true);
+
+      const rows = guestTrades.map(t => ({
+        user_id: currentUser.id,
+        date: t.date,
+        symbol: t.symbol,
+        side: t.side,
+        price: t.price,
+        quantity: t.quantity,
+        memo: t.memo,
+        tags: t.tags ?? [],
+        image: t.image ?? null,
+      }));
+
+      const { data, error } = await supabase
+        .from('trades')
+        .insert(rows)
+        .select();
+
+      if (error) {
+        console.error('Failed to migrate guest trades:', error);
+        alert('마이그레이션 중 오류가 발생했습니다.');
+        showNotify('error', '마이그레이션 중 오류가 발생했습니다.');
+        return;
+      }
+
+      const inserted = (data as Trade[]).map(t => ({
+        ...t,
+        tags: (t as any).tags ?? [],
+      }));
+
+      setTrades(prev => [...inserted, ...prev]);
+      setGuestTrades([]);
+      localStorage.removeItem(GUEST_TRADES_KEY);
+
+      showNotify(
+        'success',
+        '게스트 모드 기록을 현재 계정으로 모두 옮겼습니다.',
+      );
+    } catch (err) {
+      console.error(err);
+      alert('마이그레이션 중 알 수 없는 오류가 발생했습니다.');
+      showNotify('error', '마이그레이션 중 알 수 없는 오류가 발생했습니다.');
+    } finally {
+      setIsMigrating(false);
+    }
+  };
+
+  const handleDropGuestData = () => {
+    if (
+      !confirm(
+        '이 브라우저에 저장된 게스트 모드 매매 기록을 모두 삭제할까요?\n(계정에 저장된 DB 데이터에는 영향을 주지 않습니다.)',
+      )
+    ) {
+      return;
+    }
+    setGuestTrades([]);
+    localStorage.removeItem(GUEST_TRADES_KEY);
+    showNotify('success', '게스트 모드 매매 기록을 모두 삭제했습니다.');
+  };
+
   // 🚩 1단계: 로그인 상태 확인
   if (authLoading) {
     return (
       <main className="min-h-screen bg-slate-100 flex items-center justify-center px-4">
-        <div className="text-sm text-slate-500">로그인 상태를 확인하는 중입니다…</div>
-      </main>
-    );
-  }
-
-  // 로그인 안 되어 있으면 로그인 화면
-  if (!currentUser) {
-    return (
-      <main className="min-h-screen bg-slate-100 flex items-center justify-center px-4">
-        <div className="w-full max-w-sm bg-white rounded-xl shadow p-6 space-y-4">
-          <h1 className="text-lg font-bold">나만 보는 주식 매매 일지</h1>
-          <p className="text-xs text-slate-500">
-            이메일 로그인 후, 어디서 접속해도 같은 매매 일지를 불러올 수 있습니다.
-          </p>
-          <LoginForm />
+        <div className="text-sm text-slate-500">
+          로그인 상태를 확인하는 중입니다…
         </div>
       </main>
     );
@@ -1104,6 +1320,32 @@ export default function Home() {
         </div>
       )}
 
+      {/* 로그인 모달 */}
+      {showLoginModal && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50">
+          <div
+            className={
+              'w-full max-w-sm rounded-xl shadow-xl p-4 ' +
+              (darkMode
+                ? 'bg-slate-900 text-slate-100'
+                : 'bg-white text-slate-900')
+            }
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-sm font-semibold">로그인 / 회원가입</h2>
+              <button
+                type="button"
+                onClick={() => setShowLoginModal(false)}
+                className="text-xs text-slate-400 hover:text-slate-600"
+              >
+                ✕
+              </button>
+            </div>
+            <LoginForm onDone={() => setShowLoginModal(false)} />
+          </div>
+        </div>
+      )}
+
       <main className={mainClass}>
         <div className={containerClass}>
           {/* 숨겨진 파일 입력 (백업 복원용) */}
@@ -1120,11 +1362,14 @@ export default function Home() {
             <div>
               <h1 className="text-xl font-bold">나만 보는 주식 매매 일지</h1>
               <p className="text-xs text-slate-500">
-                매매 기록은 Supabase 서버 DB에 계정별로 저장되고, 비밀번호/설정은 이
-                브라우저에만 저장되는 개인용 매매 노트입니다.
+                로그인하면 Supabase 서버 DB에 저장되고, 로그인하지 않으면 이
+                브라우저(게스트 모드)에만 저장됩니다. 비밀번호/테마/현재가는 항상
+                이 브라우저에만 저장됩니다.
               </p>
             </div>
-            <div className="flex flex-col items-end gap-1">
+
+            <div className="flex flex-col items-end gap-1 text-right">
+              {/* 다크 모드 토글 */}
               <button
                 type="button"
                 onClick={() => setDarkMode(prev => !prev)}
@@ -1137,18 +1382,41 @@ export default function Home() {
               >
                 {darkMode ? '☀️ 라이트 모드' : '🌙 다크 모드'}
               </button>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] text-slate-400">
-                  {currentUser.email}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => supabase.auth.signOut()}
-                  className="text-[10px] px-2 py-1 rounded border border-slate-300 text-slate-500 hover:bg-slate-50"
-                >
-                  로그아웃
-                </button>
-              </div>
+
+              {/* 로그인 상태 표시 */}
+              {currentUser ? (
+                <div className="flex flex-col items-end gap-0.5">
+                  <span className="text-[10px] text-slate-400">
+                    로그인 계정:{' '}
+                    <span className="font-semibold">
+                      {currentUser.email}
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="text-[10px] text-slate-400 underline underline-offset-2 hover:text-slate-600"
+                  >
+                    로그아웃
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setShowLoginModal(true)}
+                    className="text-[10px] text-blue-500 underline underline-offset-2"
+                  >
+                    로그인 / 회원가입
+                  </button>
+                  <span className="text-[10px] text-slate-400">
+                    지금은{' '}
+                    <span className="font-semibold">게스트 모드</span>로
+                    사용 중입니다.
+                  </span>
+                </>
+              )}
+
               <span className="text-[10px] text-slate-400">
                 잠금 상태: {hasPassword ? '비밀번호 설정됨' : '설정 안 됨'}
               </span>
@@ -1199,9 +1467,14 @@ export default function Home() {
                       : 'border-slate-200 bg-slate-50')
                   }
                 >
-                  <div className="text-slate-500">필터 후 거래 건수</div>
+                  <div className="text-slate-500">
+                    필터 후 거래 건수
+                    {currentUser ? ' (계정)' : ' (게스트)'}
+                  </div>
                   <div className="text-lg font-semibold">
-                    {tradesLoading ? '로딩 중…' : `${displayedTrades.length} 건`}
+                    {tradesLoading && currentUser
+                      ? '로딩 중…'
+                      : `${displayedTrades.length} 건`}
                   </div>
                 </div>
                 <div
@@ -1241,7 +1514,56 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 빠른 입력 카드 */}
+              {/* 로그인 후 + 게스트 데이터가 남아있는 경우 마이그레이션 안내 */}
+              {currentUser && guestTrades.length > 0 && (
+                <div
+                  className={
+                    'border rounded-lg p-3 text-xs md:text-sm ' +
+                    (darkMode
+                      ? 'border-amber-500/60 bg-slate-900'
+                      : 'border-amber-400/60 bg-amber-50')
+                  }
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-semibold">
+                      이 브라우저(게스트 모드)에만 저장된 기록이{' '}
+                      {guestTrades.length}건 있습니다.
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 mb-2">
+                    이전에 로그인 없이 사용하며 저장한 기록입니다. 현재 계정으로
+                    옮겨 두면 다른 기기에서도 볼 수 있습니다.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={isMigrating}
+                      onClick={handleMigrateGuestToAccount}
+                      className={
+                        'px-3 py-1.5 rounded-lg text-xs font-semibold ' +
+                        (isMigrating
+                          ? 'bg-slate-400 text-white'
+                          : 'bg-blue-600 text-white hover:bg-blue-700')
+                      }
+                    >
+                      {isMigrating ? '옮기는 중...' : '이 계정으로 모두 옮기기'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDropGuestData}
+                      className="px-3 py-1.5 rounded-lg text-xs border border-slate-300 text-slate-600 hover:bg-slate-100"
+                    >
+                      로컬 게스트 기록 삭제
+                    </button>
+                  </div>
+                  <p className="mt-1 text-[10px] text-slate-500">
+                    마이그레이션 후에는 이 브라우저의 게스트 데이터가 삭제되고,
+                    Supabase DB에만 기록이 남습니다.
+                  </p>
+                </div>
+              )}
+
+              {/* 빠른 입력 카드 (게스트/로그인 공통) */}
               <div
                 className={
                   'border rounded-lg p-3 space-y-3 ' +
@@ -1255,7 +1577,9 @@ export default function Home() {
                     새 매매 기록 추가
                   </span>
                   <span className="text-[11px] text-slate-400">
-                    최소 정보만 입력하고 빠르게 쌓는 용도
+                    {currentUser
+                      ? '현재 계정의 Supabase DB에 저장됩니다.'
+                      : '게스트 모드: 이 브라우저에만 저장됩니다.'}
                   </span>
                 </div>
 
@@ -1423,9 +1747,7 @@ export default function Home() {
                             : 'border-slate-300 bg-white hover:bg-slate-50')
                         }
                       >
-                        <span className="font-medium">
-                          파일 선택하기
-                        </span>
+                        <span className="font-medium">파일 선택하기</span>
                       </button>
 
                       {chartPreview && (
@@ -1433,7 +1755,9 @@ export default function Home() {
                           <div
                             className={
                               'w-12 h-12 rounded border overflow-hidden flex items-center justify-center ' +
-                              (darkMode ? 'border-slate-600 bg-slate-900' : 'border-slate-300')
+                              (darkMode
+                                ? 'border-slate-600 bg-slate-900'
+                                : 'border-slate-300')
                             }
                           >
                             <img
@@ -1447,7 +1771,9 @@ export default function Home() {
                               선택된 파일 미리보기
                             </span>
                             <span className="text-[10px] text-emerald-500">
-                              기록 저장 시 Supabase Storage에 업로드됩니다.
+                              {currentUser
+                                ? '기록 저장 시 Supabase Storage에 업로드됩니다.'
+                                : '게스트 모드에서는 이 브라우저에 data URL로 저장됩니다.'}
                             </span>
                           </div>
                         </div>
@@ -1455,8 +1781,8 @@ export default function Home() {
 
                       {!chartPreview && (
                         <p className="text-[10px] text-slate-400 mt-1">
-                          당시 보던 차트 화면을 캡처해서 올려두면 복기할 때 도움이 됩니다.
-                          (예: 500KB 이하의 작은 캡처 이미지)
+                          당시 보던 차트 화면을 캡처해서 올려두면 복기할 때
+                          도움이 됩니다. (예: 500KB 이하의 작은 캡처 이미지)
                         </p>
                       )}
                     </div>
@@ -1516,7 +1842,8 @@ export default function Home() {
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-semibold">
-                      선택한 기록 수정: {editingTrade.symbol} ({editingTrade.date})
+                      선택한 기록 수정: {editingTrade.symbol} (
+                      {editingTrade.date})
                     </span>
                     <button
                       type="button"
@@ -1527,7 +1854,10 @@ export default function Home() {
                     </button>
                   </div>
 
-                  <form onSubmit={handleEditSubmit} className="space-y-3 text-xs md:text-sm">
+                  <form
+                    onSubmit={handleEditSubmit}
+                    className="space-y-3 text-xs md:text-sm"
+                  >
                     {/* 1줄: 날짜, 종목, 구분 */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div className="flex flex-col gap-1">
@@ -1647,7 +1977,8 @@ export default function Home() {
 
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] text-slate-500">
-                        선택한 매매 기록의 기본 정보만 수정합니다. (이미지 변경은 추후 지원 예정)
+                        선택한 매매 기록의 기본 정보만 수정합니다. (이미지 변경은
+                        추후 지원 예정)
                       </span>
                       <button
                         type="submit"
@@ -1848,7 +2179,7 @@ export default function Home() {
                   (darkMode ? 'border-slate-700' : 'border-slate-200')
                 }
               >
-                {tradesError && (
+                {tradesError && currentUser && (
                   <div className="px-3 py-2 text-xs text-rose-500 border-b border-slate-200">
                     {tradesError}
                   </div>
@@ -1878,7 +2209,7 @@ export default function Home() {
                       </tr>
                     </thead>
                     <tbody>
-                      {tradesLoading ? (
+                      {tradesLoading && currentUser ? (
                         <tr>
                           <td
                             colSpan={11}
@@ -1887,9 +2218,12 @@ export default function Home() {
                             매매 기록을 불러오는 중입니다…
                           </td>
                         </tr>
-                      ) : tradesError ? (
+                      ) : tradesError && currentUser ? (
                         <tr>
-                          <td colSpan={11} className="px-2 py-6 text-center text-rose-400">
+                          <td
+                            colSpan={11}
+                            className="px-2 py-6 text-center text-rose-400"
+                          >
                             {tradesError}
                           </td>
                         </tr>
@@ -2054,7 +2388,9 @@ export default function Home() {
                                       <td className="px-2 py-2 text-center">
                                         <button
                                           type="button"
-                                          onClick={() => handleDelete(trade.id)}
+                                          onClick={() =>
+                                            handleDelete(trade.id)
+                                          }
                                           className="text-[11px] text-slate-400 hover:text-red-500"
                                         >
                                           삭제
@@ -2080,7 +2416,8 @@ export default function Home() {
               {symbolSummaries.length === 0 ? (
                 <p className="text-slate-500">
                   아직 입력된 매매 기록이 없습니다. 먼저 &quot;기록&quot; 탭에서
-                  몇 개 입력해 보세요.
+                  몇 개 입력해 보세요. (현재 모드:{' '}
+                  {currentUser ? '계정' : '게스트'})
                 </p>
               ) : (
                 <>
@@ -2343,9 +2680,7 @@ export default function Home() {
                     <input
                       type="password"
                       value={newPasswordConfirm}
-                      onChange={e =>
-                        setNewPasswordConfirm(e.target.value)
-                      }
+                      onChange={e => setNewPasswordConfirm(e.target.value)}
                       className={
                         'border rounded px-2 py-1 text-xs bg-transparent ' +
                         (darkMode ? 'border-slate-600' : '')
@@ -2376,9 +2711,11 @@ export default function Home() {
                   </div>
                 )}
                 <p className="text-[10px] text-slate-400">
-                  이 잠금 기능은 기본적인 사생활 보호용입니다. 비밀번호는 이
-                  브라우저 localStorage에만 저장되며, 매매 기록(DB 데이터)과는
-                  별도입니다.
+                  매매 기록은 (로그인 시) Supabase 데이터베이스 또는 (게스트
+                  모드 시) 이 브라우저에 저장되며, 잠금 비밀번호·테마·현재가
+                  정보는 항상 이 브라우저의 localStorage에만 저장됩니다.
+                  브라우저를 바꾸면 기록은 유지되지만, 비밀번호·테마·현재가는
+                  다시 설정해야 합니다.
                 </p>
               </div>
 
@@ -2392,13 +2729,16 @@ export default function Home() {
                 }
               >
                 <span className="font-semibold text-sm">데이터 관리</span>
+                <p className="text-[11px] text-slate-500 mb-1">
+                  현재 모드: {currentUser ? '로그인 계정(DB 기반)' : '게스트 모드(이 브라우저 저장)'}
+                </p>
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={handleExportCsv}
                     className="px-3 py-1.5 border rounded-lg text-xs text-slate-600 bg-white"
                   >
-                    CSV 다운로드
+                    CSV 다운로드 (현재 모드 기준)
                   </button>
                   <button
                     type="button"
@@ -2419,7 +2759,8 @@ export default function Home() {
                     onClick={handleClearAll}
                     className="px-3 py-1.5 border rounded-lg text-xs text-rose-500 bg-white"
                   >
-                    모든 기록 삭제 (DB 포함)
+                    모든 기록 삭제
+                    {currentUser ? ' (DB 포함)' : ' (게스트 데이터)'}
                   </button>
                 </div>
                 {backupMessage && (
@@ -2435,8 +2776,9 @@ export default function Home() {
               </div>
 
               <p className="text-[10px] text-slate-400">
-                매매 기록은 Supabase 데이터베이스에 저장되며, 비밀번호·테마·현재가
-                정보 등 일부 설정은 이 브라우저의 localStorage에만 저장됩니다.
+                로그인 계정을 사용하면 Supabase 데이터베이스에 기록이 저장되어
+                여러 기기에서 동일한 매매 일지를 볼 수 있습니다. 로그인하지 않으면
+                이 브라우저(게스트 모드)에만 기록이 저장됩니다.
               </p>
             </section>
           )}
@@ -2471,67 +2813,342 @@ export default function Home() {
   );
 }
 
-/** 이메일 로그인 폼 (매직 링크) */
-function LoginForm() {
+/** 이메일 + 비밀번호 로그인/회원가입 폼 */
+interface LoginFormProps {
+  onDone?: () => void;
+}
+
+/** 이메일 + 비밀번호 로그인/회원가입 폼 */
+function LoginForm({ onDone }: LoginFormProps) {
+  type Mode = 'login' | 'signup' | 'resetPassword';
+
+  const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState(''); // ✅ 비밀번호 확인
   const [sending, setSending] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [msgType, setMsgType] = useState<'error' | 'success' | null>(null);
 
-  const handleSendMagicLink = async (e: FormEvent) => {
+  const resetMsg = () => {
+    setMsg(null);
+    setMsgType(null);
+  };
+
+  const resetForm = () => {
+    setEmail('');
+    setPassword('');
+    setConfirmPassword('');
+    resetMsg();
+  };
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!email) return;
+    resetMsg();
+
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+    const trimmedConfirm = confirmPassword.trim();
+
+    // 공통: 이메일 형식 체크 (resetPassword 포함)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
+      setMsgType('error');
+      setMsg('올바른 이메일 주소 형식이 아닙니다. 예: name@example.com');
+      return;
+    }
+
+    // 비밀번호 재설정 모드일 때는 비밀번호 검사를 건너뜀
+    if (mode !== 'resetPassword') {
+      // Supabase 기본 정책: 최소 6자
+      if (!trimmedPassword || trimmedPassword.length < 6) {
+        setMsgType('error');
+        setMsg('비밀번호는 최소 6자 이상이어야 합니다.');
+        return;
+      }
+
+      // 회원가입일 때 비밀번호 확인 일치 여부 검사
+      if (mode === 'signup' && trimmedPassword !== trimmedConfirm) {
+        setMsgType('error');
+        setMsg('비밀번호와 비밀번호 확인이 일치하지 않습니다.');
+        return;
+      }
+    }
 
     try {
       setSending(true);
-      setMsg(null);
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo:
-            typeof window !== 'undefined'
-              ? window.location.origin
-              : undefined,
-        },
-      });
-      if (error) {
-        console.error(error);
-        setMsg('로그인 메일 전송 중 오류가 발생했습니다.');
-      } else {
-        setMsg('로그인 링크가 이메일로 전송되었습니다. 메일함을 확인해주세요.');
+
+      /** 🔐 로그인 */
+      if (mode === 'login') {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: trimmedEmail,
+          password: trimmedPassword,
+        });
+
+        if (error) {
+          console.warn('login error:', error);
+          setMsgType('error');
+
+          if (
+            error.message.toLowerCase().includes('invalid login credentials')
+          ) {
+            setMsg('이메일 또는 비밀번호가 올바르지 않습니다.');
+          } else {
+            setMsg(`로그인 중 오류가 발생했습니다. (${error.message})`);
+          }
+          return;
+        }
+
+        console.log('login data:', data);
+        setMsgType('success');
+        setMsg('로그인 되었습니다.');
+
+        // 부모에서 넘겨준 콜백 → 모달 닫기
+        onDone?.();
+        return;
       }
+
+      /** 🆕 회원가입 */
+      if (mode === 'signup') {
+        const { data, error } = await supabase.auth.signUp({
+          email: trimmedEmail,
+          password: trimmedPassword,
+        });
+
+        if (error) {
+          console.warn('signup error:', error);
+          setMsgType('error');
+
+          if (
+            error.message
+              .toLowerCase()
+              .includes('password should be at least 6 characters')
+          ) {
+            setMsg('비밀번호는 최소 6자 이상이어야 합니다.');
+          } else if (
+            error.message.toLowerCase().includes('email address') &&
+            error.message.toLowerCase().includes('is invalid')
+          ) {
+            setMsg('이메일 주소 형식이 올바르지 않습니다.');
+          } else if (
+            error.message.toLowerCase().includes('already registered') ||
+            error.message.toLowerCase().includes('user already registered')
+          ) {
+            setMsg('이미 가입된 이메일입니다. 로그인으로 시도해 주세요.');
+          } else {
+            setMsg(`회원가입 중 오류가 발생했습니다. (${error.message})`);
+          }
+          return;
+        }
+
+        console.log('signup data:', data);
+        setMsgType('success');
+
+        if (data?.session) {
+          // 이메일 인증 옵션 OFF 인 경우: 바로 로그인
+          setMsg('회원가입이 완료되었고 자동으로 로그인되었습니다.');
+          onDone?.();
+        } else {
+          // 이메일 인증 옵션 ON 인 경우
+          setMsg(
+            '회원가입이 완료되었습니다. 이메일로 전송된 인증 링크를 눌러야 로그인할 수 있습니다.',
+          );
+          setMode('login');
+        }
+
+        // 폼 클리어
+        setPassword('');
+        setConfirmPassword('');
+        return;
+      }
+
+      /** 🔑 비밀번호 재설정(찾기) */
+      if (mode === 'resetPassword') {
+        // Supabase Auth 설정에서 지정한 리다이렉트 URL로 메일 발송
+        const { error } = await supabase.auth.resetPasswordForEmail(
+          trimmedEmail,
+        );
+
+        if (error) {
+          console.warn('reset password error:', error);
+          setMsgType('error');
+          setMsg(
+            `비밀번호 재설정 메일을 보내는 중 오류가 발생했습니다. (${error.message})`,
+          );
+          return;
+        }
+
+        setMsgType('success');
+        setMsg(
+          '비밀번호 재설정 안내 메일을 보냈습니다. 메일함(스팸함 포함)을 확인해 주세요.',
+        );
+        return;
+      }
+    } catch (err) {
+      console.warn('auth unknown error:', err);
+      setMsgType('error');
+      setMsg('처리 중 알 수 없는 오류가 발생했습니다.');
     } finally {
       setSending(false);
     }
   };
 
   return (
-    <form onSubmit={handleSendMagicLink} className="space-y-3 text-xs">
-      <div className="flex flex-col gap-1">
-        <label className="text-[11px] text-slate-600">이메일</label>
-        <input
-          type="email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          placeholder="your@email.com"
-          className="border rounded px-2 py-1 text-xs"
-        />
+    <div className="space-y-3 text-xs">
+      {/* 로그인 / 회원가입 탭 */}
+      <div className="flex mb-1 text-[11px] border rounded-full overflow-hidden">
+        <button
+          type="button"
+          onClick={() => {
+            setMode('login');
+            resetForm();
+          }}
+          className={
+            'flex-1 py-1.5 text-center ' +
+            (mode === 'login'
+              ? 'bg-blue-600 text-white'
+              : 'bg-white text-slate-600')
+          }
+        >
+          로그인
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setMode('signup');
+            resetForm();
+          }}
+          className={
+            'flex-1 py-1.5 text-center ' +
+            (mode === 'signup'
+              ? 'bg-blue-600 text-white'
+              : 'bg-white text-slate-600')
+          }
+        >
+          회원가입
+        </button>
       </div>
-      <button
-        type="submit"
-        disabled={sending || !email}
-        className={
-          'w-full rounded-lg py-2 text-xs font-semibold ' +
-          (sending
-            ? 'bg-slate-400 text-white'
-            : 'bg-blue-600 text-white hover:bg-blue-700')
-        }
-      >
-        {sending ? '메일 전송 중...' : '로그인 링크 보내기'}
-      </button>
-      {msg && <p className="text-[11px] text-slate-500">{msg}</p>}
-      <p className="text-[10px] text-slate-400">
-        이 서비스는 Supabase Auth를 사용하며, 비밀번호 없이 이메일 링크로만 로그인합니다.
+
+      {/* 현재 모드 표시 (비밀번호 찾기일 때) */}
+      {mode === 'resetPassword' && (
+        <div className="text-[11px] text-blue-600 font-semibold mb-1">
+          비밀번호 찾기 (재설정 메일 발송)
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="flex flex-col gap-1">
+          <label className="text-[11px] text-slate-600">이메일</label>
+          <input
+            type="email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder="name@example.com"
+            className="border rounded px-2 py-1 text-xs"
+          />
+        </div>
+
+        {/* 로그인/회원가입에서만 비밀번호 입력 */}
+        {mode !== 'resetPassword' && (
+          <>
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] text-slate-600">비밀번호</label>
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="6자 이상 입력"
+                className="border rounded px-2 py-1 text-xs"
+              />
+            </div>
+
+            {/* 회원가입 모드일 때 비밀번호 확인 */}
+            {mode === 'signup' && (
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] text-slate-600">
+                  비밀번호 확인
+                </label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  placeholder="비밀번호를 한 번 더 입력"
+                  className="border rounded px-2 py-1 text-xs"
+                />
+              </div>
+            )}
+          </>
+        )}
+
+        {/* 안내 메시지 (에러/성공) */}
+        {msg && (
+          <div
+            className={
+              'mt-1 rounded-md border px-3 py-2 text-[11px] leading-snug ' +
+              (msgType === 'error'
+                ? 'bg-rose-50 border-rose-200 text-rose-600'
+                : 'bg-emerald-50 border-emerald-200 text-emerald-700')
+            }
+          >
+            {msg}
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={
+            sending ||
+            !email ||
+            (mode !== 'resetPassword' && !password) ||
+            (mode === 'signup' && !confirmPassword)
+          }
+          className={
+            'w-full rounded-lg py-2 text-xs font-semibold mt-1 ' +
+            (sending
+              ? 'bg-slate-400 text-white'
+              : 'bg-blue-600 text-white hover:bg-blue-700')
+          }
+        >
+          {sending
+            ? mode === 'login'
+              ? '로그인 중...'
+              : mode === 'signup'
+              ? '회원가입 중...'
+              : '메일 발송 중...'
+            : mode === 'login'
+            ? '로그인'
+            : mode === 'signup'
+            ? '회원가입'
+            : '비밀번호 재설정 메일 보내기'}
+        </button>
+      </form>
+
+      {/* 아이디/비밀번호 찾기 영역 */}
+      <div className="flex flex-col gap-1 mt-2">
+        <button
+          type="button"
+          onClick={() => {
+            setMode('resetPassword');
+            setPassword('');
+            setConfirmPassword('');
+            resetMsg();
+          }}
+          className="text-[11px] text-blue-500 underline underline-offset-2 self-start"
+        >
+          비밀번호를 잊으셨나요? (비밀번호 찾기)
+        </button>
+        <p className="text-[10px] text-slate-500">
+          <span className="font-semibold">회원가입할 때 사용한 이메일 주소</span>
+          가 기억나지 않는 경우, 사용 중인 메일함에서 &quot;Confirm your signup&quot; 관련 메일을 검색해 보세요.
+        </p>
+      </div>
+
+      <p className="text-[10px] text-slate-400 mt-1">
+        이 서비스는 한 번 로그인하면 세션이 유지되어, 다음 접속 시
+        자동으로 로그인 상태를 복원합니다.
       </p>
-    </form>
+    </div>
   );
 }
+
+
