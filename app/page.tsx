@@ -33,6 +33,22 @@ interface SymbolSummary {
   avgCost: number;
   costBasis: number;
   realizedPnL: number;
+  winCount: number;
+  lossCount: number;
+  evenCount: number;
+  tradeCount: number;
+  winRate: number;
+}
+
+interface TagPerf {
+  tag: string;
+  tradeCount: number;      // 이 태그가 달린 SELL 거래 수
+  winCount: number;        // 이익
+  lossCount: number;       // 손실
+  evenCount: number;       // 본전
+  realizedPnL: number;     // 실현손익 합계
+  avgPnLPerTrade: number;  // 거래 1건당 평균 손익
+  winRate: number;         // 승률 (%)
 }
 
 // localStorage용 키 (비밀번호, 현재가, 테마, 게스트용 매매기록)
@@ -112,6 +128,7 @@ export default function Home() {
   const [selectedSymbol, setSelectedSymbol] = useState<string>('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [filtersOpen, setFiltersOpen] = useState(true);
 
   // 현재가
   const [currentPrices, setCurrentPrices] = useState<Record<string, number>>(
@@ -172,6 +189,40 @@ export default function Home() {
 
   // 현재 화면에서 사용하는 "기준 매매 기록"
   const baseTrades = currentUser ? trades : guestTrades;
+
+  // 기록 추가 폼 위치
+  const addFormRef = useRef<HTMLDivElement | null>(null);
+
+  // 상태 & 핸들러 추가
+  const [symbolSuggestions, setSymbolSuggestions] = useState<string[]>([]);
+  const [showSymbolSuggestions, setShowSymbolSuggestions] = useState(false);
+
+  // 태그 문자열(form.tags)을 쉼표 기준 배열로 파싱
+  function parseTagString(str: string | undefined | null): string[] {
+    if (!str) return [];
+    return str
+      .split(',')
+      .map(t => t.trim())
+      .filter(Boolean);
+  }
+
+  // 태그 하나를 추가/제거하면서 form.tags 갱신
+  const toggleFormTag = (tag: string) => {
+    setForm(prev => {
+      const currentTags = parseTagString(prev.tags);
+      const lower = tag.toLowerCase();
+
+      const has = currentTags.some(t => t.toLowerCase() === lower);
+      const nextTags = has
+        ? currentTags.filter(t => t.toLowerCase() !== lower)
+        : [...currentTags, tag];
+
+      return {
+        ...prev,
+        tags: nextTags.join(','),
+      };
+    });
+  };
 
   // Supabase에서 매매 기록 불러오는 함수 (user_id 기준)
   async function initTrades(userId: string) {
@@ -338,6 +389,40 @@ export default function Home() {
     }));
   };
 
+  // 종목 전용 핸들러
+  const handleSymbolChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { value } = e.target;
+
+    // 기존 폼 상태 업데이트 (name="symbol" 그대로 가정)
+    setForm(prev => ({
+      ...prev,
+      symbol: value,
+    }));
+
+    const trimmed = value.trim().toLowerCase();
+    if (!trimmed) {
+      setSymbolSuggestions([]);
+      setShowSymbolSuggestions(false);
+      return;
+    }
+
+    // 현재 보유한 기록(trades)에서 종목 이름 모아오기
+    const uniq = Array.from(
+      new Set(
+        trades
+          .map(t => t.symbol)
+          .filter(
+            sym =>
+              sym &&
+              sym.toLowerCase().includes(trimmed),
+          ),
+      ),
+    ).slice(0, 5); // 최대 5개만 표시
+
+    setSymbolSuggestions(uniq);
+    setShowSymbolSuggestions(uniq.length > 0);
+  };
+
   const showNotify = (type: NotifyType, message: string) => {
     setNotify({ type, message });
     setTimeout(() => setNotify(null), 2500);
@@ -438,7 +523,7 @@ export default function Home() {
 
         showNotify(
           'success',
-          '게스트 모드로 매매 기록을 저장했습니다. (이 브라우저에서만 보입니다.)',
+          '매매 기록이 저장되었습니다. (게스트 모드)',
         );
         return;
       }
@@ -501,13 +586,41 @@ export default function Home() {
   const handleDelete = async (id: string) => {
     if (!confirm('이 기록을 삭제할까요?')) return;
 
+    // 삭제 대상 종목 찾기 (게스트/로그인 공통)
+    const baseList = currentUser ? trades : guestTrades;
+    const target = baseList.find(t => t.id === id);
+    const deletedSymbol = target?.symbol;
+
+    // 🧹 헬퍼: 이 종목 거래가 더 없으면 선택/필터 초기화
+    const clearSymbolFilterIfNoTrade = () => {
+      if (!deletedSymbol) return;
+
+      const stillExists = baseList.some(
+        t => t.id !== id && t.symbol === deletedSymbol,
+      );
+
+      if (!stillExists) {
+        if (selectedSymbol === deletedSymbol) {
+          setSelectedSymbol('');
+        }
+        if (
+          filterSymbol &&
+          filterSymbol.toLowerCase() === deletedSymbol.toLowerCase()
+        ) {
+          setFilterSymbol('');
+        }
+      }
+    };
+
     // 게스트 모드 삭제
     if (!currentUser) {
       setGuestTrades(prev => prev.filter(t => t.id !== id));
+      clearSymbolFilterIfNoTrade();
       showNotify('success', '기록을 삭제했습니다. (게스트 모드)');
       return;
     }
 
+    // 로그인 상태 삭제
     try {
       const { error } = await supabase
         .from('trades')
@@ -523,6 +636,7 @@ export default function Home() {
       }
 
       setTrades(prev => prev.filter(t => t.id !== id));
+      clearSymbolFilterIfNoTrade();
       showNotify('success', '기록을 삭제했습니다.');
     } catch (err) {
       console.error(err);
@@ -539,7 +653,7 @@ export default function Home() {
       setGuestTrades([]);
       localStorage.removeItem(GUEST_TRADES_KEY);
       setSelectedSymbol('');
-      showNotify('success', '모든 기록을 삭제했습니다. (이 브라우저의 게스트 데이터가 삭제됨)');
+      showNotify('success', '모든 기록을 삭제했습니다. (게스트 모드)');
       return;
     }
 
@@ -866,11 +980,12 @@ export default function Home() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = ev => {
+    reader.onload = async ev => {
       try {
         const text = ev.target?.result as string;
         const data = JSON.parse(text);
 
+        // 형식 체크 부분 그대로 유지
         if (!data || typeof data !== 'object') {
           throw new Error('잘못된 파일 형식입니다.');
         }
@@ -886,7 +1001,7 @@ export default function Home() {
 
         if (
           !confirm(
-            '백업 데이터를 불러오면 현재 화면에 보이는 매매 기록과 현재가 설정이 모두 덮어씌워집니다. (Supabase DB에는 자동 반영되지 않습니다.) 진행할까요?',
+            '백업 데이터를 불러오면 현재 화면에 보이는 매매 기록과 현재가 설정이 모두 덮어씌워집니다. 계속 진행할까요?',
           )
         ) {
           return;
@@ -898,6 +1013,7 @@ export default function Home() {
           tags: t.tags ?? [],
         }));
 
+        // 1) 화면 상태 갱신 (기존 코드)
         if (currentUser) {
           setTrades(normalized);
         } else {
@@ -907,18 +1023,98 @@ export default function Home() {
         setCurrentPrices(
           (data as any).currentPrices as Record<string, number>,
         );
-        setBackupMessage(
-          '백업 데이터를 성공적으로 불러왔습니다. (DB 반영은 별도 작업이 필요합니다.)',
-        );
+
+        // 2) 로그인 상태라면 Supabase DB에도 반영
+        if (currentUser) {
+          if (
+            !confirm(
+              '현재 로그인한 계정의 기존 매매 기록을 모두 지워집니다.\n백업 파일 내용을 그대로 계정에 저장할까요?',
+            )
+          ) {
+            setBackupMessage(
+              '화면에는 백업 데이터를 불러왔지만, 계정(DB)에는 반영하지 않았어요.'
+            );
+            showNotify(
+              'success',
+              '백업 파일은 화면에만 적용됐어요. 계정(DB)에는 저장되지 않았어요.'
+            );
+            return;
+          }
+
+          // (1) 기존 기록 삭제
+          const { error: delError } = await supabase
+            .from('trades')
+            .delete()
+            .eq('user_id', currentUser.id);
+
+          if (delError) {
+            console.error('Failed to clear trades before restore:', delError);
+            alert('계정 기록을 초기화하는 중 오류가 발생했습니다.');
+            setBackupMessage(
+              '화면에는 백업 데이터를 불러왔지만, 계정 초기화 중 오류가 났어요.',
+            );
+            return;
+          }
+
+          // (2) 백업 데이터 그대로 insert
+          const rows = normalized.map(t => ({
+            user_id: currentUser.id,
+            date: t.date,
+            symbol: t.symbol,
+            side: t.side,
+            price: t.price,
+            quantity: t.quantity,
+            memo: t.memo,
+            tags: t.tags ?? [],
+            image: t.image ?? null,
+          }));
+
+          const { data: inserted, error: insError } = await supabase
+            .from('trades')
+            .insert(rows)
+            .select();
+
+          if (insError) {
+            console.error('Failed to restore trades to DB:', insError);
+            alert('백업 데이터를 계정에 저장하는 중 오류가 발생했습니다.');
+            setBackupMessage(
+              '화면에는 백업 데이터를 불러왔지만, 계정 저장 중 오류가 났어요.',
+            );
+            return;
+          }
+
+          // DB 기준으로 다시 정규화해서 상태 세팅 (id 포함)
+          const normalizedFromDb = (inserted as Trade[]).map(t => ({
+            ...t,
+            tags: t.tags ?? [],
+          }));
+          setTrades(normalizedFromDb);
+
+          setBackupMessage(
+            '백업 데이터를 화면과 계정 모두에 성공적으로 반영했어요.',
+          );
+          showNotify(
+            'success',
+            '백업 데이터를 화면과 계정 모두에 성공적으로 반영했어요.'
+          );
+        } else {
+          // 게스트 모드일 때 메시지
+          setBackupMessage(
+            '백업 데이터를 이 브라우저에 성공적으로 불러왔어요. (게스트 모드)',
+          );
+        }
       } catch (err) {
         console.error(err);
         alert(
-          '백업 파일을 읽는 중 오류가 발생했습니다. 올바른 백업 파일인지 확인해주세요.',
+          '백업 파일을 읽는 중 오류가 발생했습니다. 올바른 백업 파일인지 확인해 주세요.',
         );
+        setBackupMessage('백업 파일을 불러오는 중 오류가 발생했어요.');
       }
     };
+
     reader.readAsText(file, 'utf-8');
   };
+
 
   // 태그 목록 (현재 모드 기준)
   const allTags: string[] = Array.from(
@@ -997,6 +1193,11 @@ export default function Home() {
           avgCost: 0,
           costBasis: 0,
           realizedPnL: 0,
+          winCount: 0,
+          lossCount: 0,
+          evenCount: 0,
+          tradeCount: 0,
+          winRate: 0,
         };
         map.set(t.symbol, s);
       }
@@ -1022,34 +1223,174 @@ export default function Home() {
         s.realizedPnL += realizedThis;
         s.positionQty = prevQty - sellQty;
         s.costBasis = prevCostBasis - prevAvgCost * sellQty;
+        
+        // 승/패/본전 카운트
+        s.tradeCount += 1;
+        if (realizedThis > 0) s.winCount += 1;
+        else if (realizedThis < 0) s.lossCount += 1;
+        else s.evenCount += 1;
       }
     }
 
     const result: SymbolSummary[] = [];
-    for (const s of map.values()) {
-      if (s.positionQty > 0) {
-        s.avgCost = s.costBasis / s.positionQty;
-      } else {
-        s.avgCost = 0;
-        s.costBasis = 0;
+      for (const s of map.values()) {
+        if (s.positionQty > 0) {
+          s.avgCost = s.costBasis / s.positionQty;
+        } else {
+          s.avgCost = 0;
+          s.costBasis = 0;
+        }
+
+        s.winRate =
+          s.tradeCount > 0 ? (s.winCount / s.tradeCount) * 100 : 0;
+
+        result.push(s);
       }
-      result.push(s);
-    }
 
     result.sort((a, b) => a.symbol.localeCompare(b.symbol));
     return result;
   })();
 
-  // 태그 통계 (거래 수, 현재 모드)
-  const tagStats = (() => {
-    const map = new Map<string, number>();
-    for (const t of baseTrades) {
-      (t.tags ?? []).forEach(tag => {
-        map.set(tag, (map.get(tag) ?? 0) + 1);
-      });
+  // 누계 수치 / 수익률
+  const overallStats = (() => {
+    let totalBuyAmount = 0;        // 총 매수금액 (정보용)
+    let totalSellAmount = 0;       // 총 매도금액 (정보용)
+    let totalRealizedPnL = 0;      // 실현손익 누계
+
+    let totalOpenCostBasis = 0;    // 아직 보유 중인 종목들의 원금 합
+    let totalOpenMarketValue = 0;  // 아직 보유 중인 종목들의 현재 평가금액 합
+
+    for (const s of symbolSummaries) {
+      totalBuyAmount += s.totalBuyAmount;
+      totalSellAmount += s.totalSellAmount;
+      totalRealizedPnL += s.realizedPnL;
+
+      const price = currentPrices[s.symbol];
+      if (s.positionQty > 0 && price !== undefined) {
+        const costBasis = s.positionQty * s.avgCost;
+        const marketValue = s.positionQty * price;
+
+        totalOpenCostBasis += costBasis;
+        totalOpenMarketValue += marketValue;
+      }
     }
-    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+
+    const evalPnL = totalOpenMarketValue - totalOpenCostBasis; // 평가손익(보유분)
+    const totalPnL = totalRealizedPnL + evalPnL;               // 총 손익
+
+    const holdingReturnRate =
+      totalOpenCostBasis > 0 ? (evalPnL / totalOpenCostBasis) * 100 : 0;
+
+    return {
+      totalBuyAmount,
+      totalSellAmount,
+      totalRealizedPnL,
+      totalOpenCostBasis,
+      totalOpenMarketValue,
+      evalPnL,
+      totalPnL,
+      holdingReturnRate,
+    };
   })();
+
+
+// 전체 수익률 (실현 + 평가 기준)
+const totalPnL =
+  overallStats.totalRealizedPnL +
+  (overallStats.totalPositionValue - overallStats.totalCostBasis);
+
+const totalReturnRate =
+  overallStats.totalCostBasis > 0
+    ? (totalPnL / overallStats.totalCostBasis) * 100
+    : 0;
+
+
+  // 태그별 성적 (SELL 거래 기준)
+  const tagStats: TagPerf[] = (() => {
+    if (baseTrades.length === 0) return [];
+
+    // 날짜 + id 순으로 정렬 (종목 요약과 동일)
+    const sortedTrades = [...baseTrades].sort((a, b) => {
+      if (a.date === b.date) return a.id.localeCompare(b.id);
+      return a.date.localeCompare(b.date);
+    });
+
+    type PosState = {
+      positionQty: number;
+      costBasis: number;
+    };
+
+    const posMap = new Map<string, PosState>();
+    const tagMap = new Map<string, TagPerf>();
+
+    for (const t of sortedTrades) {
+      let pos = posMap.get(t.symbol);
+      if (!pos) {
+        pos = { positionQty: 0, costBasis: 0 };
+        posMap.set(t.symbol, pos);
+      }
+
+      const amount = t.price * t.quantity;
+
+      if (t.side === 'BUY') {
+        pos.positionQty += t.quantity;
+        pos.costBasis += amount;
+      } else {
+        const prevQty = pos.positionQty;
+        const prevCostBasis = pos.costBasis;
+        const prevAvgCost = prevQty !== 0 ? prevCostBasis / prevQty : 0;
+
+        const sellQty = t.quantity;
+        const realizedThis = (t.price - prevAvgCost) * sellQty;
+
+        // 포지션 업데이트
+        pos.positionQty = prevQty - sellQty;
+        pos.costBasis = prevCostBasis - prevAvgCost * sellQty;
+
+        // 태그별 실현손익/승률 집계
+        const tags = t.tags ?? [];
+        for (const tag of tags) {
+          let tp = tagMap.get(tag);
+          if (!tp) {
+            tp = {
+              tag,
+              tradeCount: 0,
+              winCount: 0,
+              lossCount: 0,
+              evenCount: 0,
+              realizedPnL: 0,
+              avgPnLPerTrade: 0,
+              winRate: 0,
+            };
+            tagMap.set(tag, tp);
+          }
+
+          tp.tradeCount += 1;
+          tp.realizedPnL += realizedThis;
+
+          if (realizedThis > 0) tp.winCount += 1;
+          else if (realizedThis < 0) tp.lossCount += 1;
+          else tp.evenCount += 1;
+        }
+      }
+    }
+
+    const result: TagPerf[] = [];
+    for (const tp of tagMap.values()) {
+      if (tp.tradeCount > 0) {
+        tp.avgPnLPerTrade = tp.realizedPnL / tp.tradeCount;
+        tp.winRate = (tp.winCount / tp.tradeCount) * 100;
+      }
+      result.push(tp);
+    }
+
+    // 많이 사용한 태그 순
+    result.sort((a, b) => b.tradeCount - a.tradeCount);
+    return result;
+  })();
+
+  // 자주 쓰는 태그 목록 (Top N)
+  const topTags = tagStats.map(tp => tp.tag);
 
   // 월별 그룹 (현재 모드 + 필터 결과)
   const monthGroups = (() => {
@@ -1073,6 +1414,40 @@ export default function Home() {
       count: map.get(key)!.length,
     }));
   })();
+
+  // 활성 필터/선택 상태 요약용
+  const activeFilterChips: { label: string; onClear?: () => void }[] = [];
+
+  if (dateFrom || dateTo) {
+    const label =
+      dateFrom && dateTo
+        ? `기간: ${dateFrom} ~ ${dateTo}`
+        : dateFrom
+        ? `기간: ${dateFrom} 이후`
+        : `기간: ${dateTo} 이전`;
+
+    activeFilterChips.push({
+      label,
+      onClear: () => {
+        setDateFrom('');
+        setDateTo('');
+      },
+    });
+  }
+
+  if (filterSymbol) {
+    activeFilterChips.push({
+      label: `종목 필터: ${filterSymbol}`,
+      onClear: () => setFilterSymbol(''),
+    });
+  }
+
+  if (filterTag) {
+    activeFilterChips.push({
+      label: `태그 필터: ${filterTag}`,
+      onClear: () => setFilterTag(''),
+    });
+  }
 
   const mainClass =
     'min-h-screen flex justify-center px-4 py-8 ' +
@@ -1252,97 +1627,131 @@ export default function Home() {
             className="hidden"
           />
 
-          {/* 헤더 */}
-          <header className="flex items-center justify-between gap-3 pb-3 border-b border-slate-200/70">
-            <div>
-              <h1 className="text-xl font-bold">나만 보는 주식 매매 일지</h1>
-              <p className="text-xs text-slate-500">
-                로그인하면 Supabase 서버 DB에 저장되고, 로그인하지 않으면 이
-                브라우저(게스트 모드)에만 저장됩니다. 
-              </p>
-            </div>
-
-            <div className="flex flex-col items-end gap-1 text-right">
-              {/* 다크 모드 토글 */}
-              <button
-                type="button"
-                onClick={() => setDarkMode(prev => !prev)}
-                className={
-                  'text-xs rounded-lg px-3 py-1.5 border ' +
-                  (darkMode
-                    ? 'border-slate-600 text-slate-200 hover:bg-slate-800'
-                    : 'border-slate-300 text-slate-700 hover:bg-slate-50')
-                }
-              >
-                {darkMode ? '☀️ 라이트 모드' : '🌙 다크 모드'}
-              </button>
-
-              {/* 로그인 상태 표시 */}
-              {currentUser ? (
-                <div className="flex flex-col items-end gap-0.5">
-                  <span className="text-[10px] text-slate-400">
-                    로그인 계정:{' '}
-                    <span className="font-semibold">
-                      {currentUser.email}
-                    </span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="text-[10px] text-slate-400 underline underline-offset-2 hover:text-slate-600"
-                  >
-                    로그아웃
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setShowLoginModal(true)}
-                    className="text-[10px] text-blue-500 underline underline-offset-2"
-                  >
-                    로그인 / 회원가입
-                  </button>
-                  <span className="text-[10px] text-slate-400">
-                    지금은{' '}
-                    <span className="font-semibold">게스트 모드</span>로
-                    사용 중입니다.
-                  </span>
-                </>
-              )}
-            </div>
-          </header>
-
-          {/* 탭 */}
-          <nav
+          {/* 상단 영역: 헤더 + 탭 (모바일에서 sticky) */}
+          <div
             className={
-              'flex text-xs md:text-sm rounded-full overflow-hidden border ' +
-              (darkMode
-                ? 'border-slate-700 bg-slate-900'
-                : 'border-slate-200 bg-slate-50')
+              // 모바일에서는 sticky, md 이상(태블릿/데스크톱)에서는 static
+              'pb-3 z-20 sticky top-0 ' +
+              (darkMode ? 'bg-slate-900' : 'bg-white')
             }
           >
-            {[
-              { id: 'journal', label: '기록' },
-              { id: 'stats', label: '통계' },
-              { id: 'settings', label: '설정·백업' },
-            ].map(tab => {
-              const selected = activeTab === tab.id;
-              return (
+            {/* 헤더 */}
+            <header
+              className="
+                flex flex-col gap-3           // 기본: 세로 배치
+                pb-3 border-b border-slate-200/70
+                sm:flex-row sm:items-center sm:justify-between  // sm 이상: 가로 배치
+              "
+            >
+              <div>
+                <h1 className="text-xl font-bold">나만 보는 주식 매매 일지</h1>
+                <p className="text-xs text-slate-500">
+                  로그인하면 계정(DB)에 저장되고, 로그인하지 않으면 이
+                  브라우저(게스트 모드)에만 저장됩니다.
+                </p>
+              </div>
+
+              <div
+                className="
+                  flex flex-col gap-1
+                  items-end sm:text-right
+                  sm:items-end sm:text-right
+                "
+              >
+                {/* 다크 모드 토글 */}
                 <button
-                  key={tab.id}
                   type="button"
-                  onClick={() => setActiveTab(tab.id as ActiveTab)}
+                  onClick={() => setDarkMode(prev => !prev)}
                   className={
-                    'flex-1 px-3 py-1.5 text-center ' +
-                    (selected ? 'bg-blue-600 text-white' : 'text-slate-500')
+                    'text-xs rounded-lg px-3 py-1.5 border ' +
+                    (darkMode
+                      ? 'border-slate-600 text-slate-200 hover:bg-slate-800'
+                      : 'border-slate-300 text-slate-700 hover:bg-slate-50')
                   }
                 >
-                  {tab.label}
+                  {darkMode ? '☀️ 라이트 모드' : '🌙 다크 모드'}
                 </button>
-              );
-            })}
-          </nav>
+
+                {/* 로그인 상태 표시 */}
+                {currentUser ? (
+                  <div className="flex flex-col items-end gap-0.5">
+                    <span className="text-[10px] text-slate-400">
+                      로그인 계정:{' '}
+                      <span className="font-semibold">
+                        {currentUser.email}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="text-[10px] text-slate-400 underline underline-offset-2 hover:text-slate-600"
+                    >
+                      로그아웃
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginModal(true)}
+                      className="text-[10px] text-blue-500 underline underline-offset-2"
+                    >
+                      로그인 / 회원가입
+                    </button>
+                    <span className="text-[10px] text-slate-400">
+                      지금은{' '}
+                      <span className="font-semibold">
+                        게스트 모드
+                      </span>
+                      로 사용 중입니다.
+                    </span>
+                  </>
+                )}
+
+                {/* 잠금 상태 문구는 안 쓴다면 여기서 지워도 됨 */}
+                {/* <span className="text-[10px] text-slate-400">
+                  잠금 상태: {hasPassword ? '비밀번호 설정됨' : '설정 안 됨'}
+                </span> */}
+              </div>
+            </header>
+
+            {/* 탭 */}
+            <nav
+              className={
+                'mt-3 flex text-xs md:text-sm rounded-full overflow-hidden border ' +
+                (darkMode
+                  ? 'border-slate-700 bg-slate-900'
+                  : 'border-slate-200 bg-slate-50')
+              }
+            >
+              {[
+                { id: 'journal', label: '기록' },
+                { id: 'stats', label: '통계' },
+                { id: 'settings', label: '설정·백업' },
+              ].map(tab => {
+                const selected = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id as ActiveTab)}
+                    className={
+                      'flex-1 px-3 py-1.5 text-center ' +
+                      (selected
+                        ? darkMode
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-blue-600 text-white'
+                        : darkMode
+                        ? 'text-slate-300'
+                        : 'text-slate-700')
+                    }
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
 
           {/* JOURNAL 탭 */}
           {activeTab === 'journal' && (
@@ -1448,13 +1857,14 @@ export default function Home() {
                   </div>
                   <p className="mt-1 text-[10px] text-slate-500">
                     마이그레이션 후에는 이 브라우저의 게스트 데이터가 삭제되고,
-                    Supabase DB에만 기록이 남습니다.
+                    계정(DB)에만 기록이 남습니다.
                   </p>
                 </div>
               )}
 
               {/* 빠른 입력 카드 (게스트/로그인 공통) */}
               <div
+                ref={addFormRef}
                 className={
                   'border rounded-lg p-3 space-y-3 ' +
                   (darkMode
@@ -1468,7 +1878,7 @@ export default function Home() {
                   </span>
                   <span className="text-[11px] text-slate-400">
                     {currentUser
-                      ? '현재 계정의 Supabase DB에 저장됩니다.'
+                      ? '현재 계정(DB)에 저장됩니다.'
                       : '게스트 모드: 이 브라우저에만 저장됩니다.'}
                   </span>
                 </div>
@@ -1516,12 +1926,45 @@ export default function Home() {
                         name="symbol"
                         placeholder="예: 삼성전자"
                         value={form.symbol}
-                        onChange={handleChange}
+                        onChange={handleSymbolChange}
+                        autoFocus
                         className={
                           'border rounded px-2 py-1 text-xs bg-transparent ' +
                           (darkMode ? 'border-slate-600' : '')
                         }
                       />
+                      {showSymbolSuggestions && symbolSuggestions.length > 0 && (
+                        <div
+                          className={
+                            'mt-1 flex flex-wrap gap-1 text-[10px] ' +
+                            (darkMode ? 'text-slate-200' : 'text-slate-600')
+                          }
+                        >
+                          {symbolSuggestions.map(sym => (
+                            <button
+                              key={sym}
+                              type="button"
+                              onClick={() => {
+                                // 선택 시 폼에 반영
+                                setForm(prev => ({
+                                  ...prev,
+                                  symbol: sym,
+                                }));
+                                setSymbolSuggestions([]);
+                                setShowSymbolSuggestions(false);
+                              }}
+                              className={
+                                'px-2 py-0.5 rounded-full border ' +
+                                (darkMode
+                                  ? 'border-slate-600 hover:bg-slate-800'
+                                  : 'border-slate-300 hover:bg-slate-100')
+                              }
+                            >
+                              {sym}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     {/* 구분 */}
@@ -1552,6 +1995,8 @@ export default function Home() {
                       </label>
                       <input
                         type="number"
+                        inputMode="numeric"
+                        min={0}
                         name="price"
                         value={form.price}
                         onChange={handleChange}
@@ -1567,6 +2012,8 @@ export default function Home() {
                       </label>
                       <input
                         type="number"
+                        inputMode="numeric"
+                        min={0}
                         name="quantity"
                         value={form.quantity}
                         onChange={handleChange}
@@ -1578,7 +2025,7 @@ export default function Home() {
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-[11px] text-slate-500">
-                        태그 (쉼표로 구분, 예: 단타, 장기)
+                        태그 (쉼표로 구분, 예: 단타, 스윙)
                       </label>
                       <input
                         type="text"
@@ -1590,6 +2037,38 @@ export default function Home() {
                           (darkMode ? 'border-slate-600' : '')
                         }
                       />
+                      {/* 자주 쓰는 태그 버튼 (입력용) */}
+                      {allTags.length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          <span className="text-[10px] text-slate-400 mr-1">
+                            자주 쓰는 태그:
+                          </span>
+                          {topTags.slice(0, 5).map(tag => {
+                            const current = parseTagString(form.tags);
+                            const selected = current
+                              .map(t => t.toLowerCase())
+                              .includes(tag.toLowerCase());
+
+                            return (
+                              <button
+                                key={tag}
+                                type="button"
+                                onClick={() => toggleFormTag(tag)}
+                                className={
+                                  'px-2 py-0.5 rounded-full border text-[10px] ' +
+                                  (selected
+                                    ? 'bg-blue-600 text-white border-blue-600'
+                                    : darkMode
+                                    ? 'border-slate-600 text-slate-200 hover:bg-slate-800'
+                                    : 'border-slate-300 text-slate-600 hover:bg-slate-100')
+                                }
+                              >
+                                #{tag}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1662,8 +2141,8 @@ export default function Home() {
                             </span>
                             <span className="text-[10px] text-emerald-500">
                               {currentUser
-                                ? '기록 저장 시 Supabase Storage에 업로드됩니다.'
-                                : '게스트 모드에서는 이 브라우저에 data URL로 저장됩니다.'}
+                                ? '기록 저장 시 계정(DB)에 업로드됩니다.'
+                                : '게스트 모드에서는 이 브라우저에 저장됩니다.'}
                             </span>
                           </div>
                         </div>
@@ -1897,7 +2376,17 @@ export default function Home() {
                 }
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold text-sm">보기 필터</span>
+                  <button
+                    type="button"
+                    onClick={() => setFiltersOpen(prev => !prev)}
+                    className="flex items-center gap-2"
+                  >
+                    <span className="font-semibold text-sm">보기 필터</span>
+                    <span className="text-[10px] text-slate-400">
+                      {filtersOpen ? '접기 ▲' : '펼치기 ▼'}
+                    </span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => {
@@ -1911,87 +2400,91 @@ export default function Home() {
                   </button>
                 </div>
 
-                <div className="flex flex-wrap gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-slate-600 text-xs">기간</span>
-                    <input
-                      type="date"
-                      value={dateFrom}
-                      onChange={e => setDateFrom(e.target.value)}
-                      className={
-                        'border rounded px-2 py-1 text-[11px] bg-transparent ' +
-                        (darkMode ? 'border-slate-600' : '')
-                      }
-                    />
-                    <span className="text-[11px] text-slate-400">~</span>
-                    <input
-                      type="date"
-                      value={dateTo}
-                      onChange={e => setDateTo(e.target.value)}
-                      className={
-                        'border rounded px-2 py-1 text-[11px] bg-transparent ' +
-                        (darkMode ? 'border-slate-600' : '')
-                      }
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-slate-600 text-xs">종목</span>
-                    <input
-                      type="text"
-                      placeholder="예: 삼성전자"
-                      value={filterSymbol}
-                      onChange={e => setFilterSymbol(e.target.value)}
-                      className={
-                        'border rounded px-2 py-1 text-xs bg-transparent ' +
-                        (darkMode ? 'border-slate-600' : '')
-                      }
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-slate-600 text-xs">태그</span>
-                    <input
-                      type="text"
-                      placeholder="예: 단타"
-                      value={filterTag}
-                      onChange={e => setFilterTag(e.target.value)}
-                      className={
-                        'border rounded px-2 py-1 text-xs bg-transparent ' +
-                        (darkMode ? 'border-slate-600' : '')
-                      }
-                    />
-                  </div>
-                </div>
-
-                {hasDateRangeError && (
-                  <div className="text-xs text-rose-500">
-                    시작일이 종료일보다 늦습니다. 날짜 범위를 다시
-                    확인해주세요.
-                  </div>
-                )}
-
-                {allTags.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-1 mt-1 text-[11px]">
-                    <span className="text-slate-500">자주 쓰는 태그:</span>
-                    {allTags.map(tag => {
-                      const selected =
-                        filterTag.toLowerCase() === tag.toLowerCase();
-                      return (
-                        <button
-                          key={tag}
-                          type="button"
-                          onClick={() => setFilterTag(selected ? '' : tag)}
+                {filtersOpen && (
+                  <>
+                    <div className="flex flex-wrap gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-600 text-xs">기간</span>
+                        <input
+                          type="date"
+                          value={dateFrom}
+                          onChange={e => setDateFrom(e.target.value)}
                           className={
-                            'px-2 py-0.5 rounded-full border ' +
-                            (selected
-                              ? 'bg-blue-600 text-white border-blue-600'
-                              : 'border-slate-300 text-slate-600 hover:bg-slate-100')
+                            'border rounded px-2 py-1 text-[11px] bg-transparent ' +
+                            (darkMode ? 'border-slate-600' : '')
                           }
-                        >
-                          #{tag}
-                        </button>
-                      );
-                    })}
-                  </div>
+                        />
+                        <span className="text-[11px] text-slate-400">~</span>
+                        <input
+                          type="date"
+                          value={dateTo}
+                          onChange={e => setDateTo(e.target.value)}
+                          className={
+                            'border rounded px-2 py-1 text-[11px] bg-transparent ' +
+                            (darkMode ? 'border-slate-600' : '')
+                          }
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-600 text-xs">종목</span>
+                        <input
+                          type="text"
+                          placeholder="예: 삼성전자"
+                          value={filterSymbol}
+                          onChange={e => setFilterSymbol(e.target.value)}
+                          className={
+                            'border rounded px-2 py-1 text-xs bg-transparent ' +
+                            (darkMode ? 'border-slate-600' : '')
+                          }
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-600 text-xs">태그</span>
+                        <input
+                          type="text"
+                          placeholder="예: 단타"
+                          value={filterTag}
+                          onChange={e => setFilterTag(e.target.value)}
+                          className={
+                            'border rounded px-2 py-1 text-xs bg-transparent ' +
+                            (darkMode ? 'border-slate-600' : '')
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    {hasDateRangeError && (
+                      <div className="text-xs text-rose-500">
+                        시작일이 종료일보다 늦습니다. 날짜 범위를 다시
+                        확인해주세요.
+                      </div>
+                    )}
+
+                    {allTags.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1 mt-1 text-[11px]">
+                        <span className="text-slate-500">자주 쓰는 태그:</span>
+                        {topTags.slice(0, 5).map(tag => {
+                          const selected =
+                            filterTag.toLowerCase() === tag.toLowerCase();
+                          return (
+                            <button
+                              key={tag}
+                              type="button"
+                              onClick={() => setFilterTag(selected ? '' : tag)}
+                              className={
+                                'px-2 py-0.5 rounded-full border ' +
+                                (selected
+                                  ? 'bg-blue-600 text-white border-blue-600'
+                                  : 'border-slate-300 text-slate-600 hover:bg-slate-100')
+                              }
+                            >
+                              #{tag}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -2062,6 +2555,29 @@ export default function Home() {
                 )}
               </div>
 
+              {/* 활성 필터/선택 상태 뱃지 줄 */}
+              {activeFilterChips.length > 0 && (
+                <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px]">
+                  <span className="text-slate-400">현재 적용된 필터:</span>
+                  {activeFilterChips.map(chip => (
+                    <button
+                      key={chip.label}
+                      type="button"
+                      onClick={chip.onClear}
+                      className={
+                        'inline-flex items-center gap-1 px-2 py-0.5 rounded-full border ' +
+                        (darkMode
+                          ? 'border-slate-600 text-slate-200 hover:bg-slate-800'
+                          : 'border-slate-300 text-slate-600 hover:bg-slate-100')
+                      }
+                    >
+                      <span>{chip.label}</span>
+                      <span className="text-[10px] text-slate-400">✕</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {/* 기록 목록 (월별 그룹 + 고정 높이 스크롤) */}
               <div
                 className={
@@ -2088,14 +2604,14 @@ export default function Home() {
                         <th className="px-2 py-2 text-left">날짜</th>
                         <th className="px-2 py-2 text-left">종목</th>
                         <th className="px-2 py-2 text-center">구분</th>
-                        <th className="px-2 py-2 text-right">가격</th>
-                        <th className="px-2 py-2 text-right">수량</th>
+                        <th className="px-2 py-2 text-right hidden sm:table-cell">가격</th>
+                        <th className="px-2 py-2 text-right hidden sm:table-cell">수량</th>
                         <th className="px-2 py-2 text-right">금액</th>
-                        <th className="px-2 py-2 text-left">태그</th>
-                        <th className="px-2 py-2 text-left">파일</th>
-                        <th className="px-2 py-2 text-left">메모</th>
-                        <th className="px-2 py-2 text-center">수정</th>
-                        <th className="px-2 py-2 text-center">삭제</th>
+                        <th className="px-2 py-2 text-left hidden md:table-cell">태그</th>
+                        <th className="px-2 py-2 text-left hidden md:table-cell">파일</th>
+                        <th className="px-2 py-2 text-left hidden md:table-cell">메모</th>
+                        <th className="px-2 py-2 text-center hidden md:table-cell">수정</th>
+                        <th className="px-2 py-2 text-center hidden md:table-cell">삭제</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2167,33 +2683,40 @@ export default function Home() {
                               {/* 월별 실제 기록 행들 */}
                               {isOpen &&
                                 group.trades.map(trade => {
-                                  const amount =
-                                    trade.price * trade.quantity;
-                                  const isSelected =
-                                    trade.symbol === selectedSymbol;
+                                  const amount = trade.price * trade.quantity;
+                                  const isSelected = trade.symbol === selectedSymbol;
                                   const tags = trade.tags ?? [];
+
+                                  const baseRowClass =
+                                    'border-t text-[11px] md:text-xs transition-colors ' +
+                                    (darkMode
+                                      ? 'border-slate-700 hover:bg-slate-800/70'
+                                      : 'border-slate-200 hover:bg-slate-50');
+
+                                  const selectedRowClass = isSelected
+                                    ? darkMode
+                                      ? ' bg-slate-900/60'
+                                      : ' bg-blue-50'
+                                    : '';
 
                                   return (
                                     <tr
                                       key={trade.id}
-                                      className={
-                                        'border-t ' +
-                                        (darkMode
-                                          ? 'border-slate-700'
-                                          : 'border-slate-200')
-                                      }
+                                      className={baseRowClass + selectedRowClass}
                                     >
-                                      <td className="px-2 py-2">
+                                      {/* 날짜 */}
+                                      <td className="px-2 py-1.5 whitespace-nowrap">
                                         {trade.date}
                                       </td>
-                                      <td className="px-2 py-2">
+
+                                      {/* 종목: 너무 길면 ... + 전체는 title */}
+                                      <td className="px-2 py-1.5 max-w-[120px]">
                                         <button
                                           type="button"
-                                          onClick={() =>
-                                            handleSymbolClick(trade.symbol)
-                                          }
+                                          onClick={() => handleSymbolClick(trade.symbol)}
+                                          title={trade.symbol}
                                           className={
-                                            'underline-offset-2 ' +
+                                            'block text-left truncate underline-offset-2 ' +
                                             (isSelected
                                               ? 'font-semibold underline text-blue-400'
                                               : 'text-blue-500 hover:underline')
@@ -2202,71 +2725,95 @@ export default function Home() {
                                           {trade.symbol}
                                         </button>
                                       </td>
-                                      <td className="px-2 py-2 text-center">
+
+                                      {/* 구분(BUY/SELL) */}
+                                      <td className="px-2 py-1.5 text-center whitespace-nowrap">
                                         <span
                                           className={
-                                            trade.side === 'BUY'
-                                              ? 'text-emerald-500 font-semibold'
-                                              : 'text-rose-400 font-semibold'
+                                            'inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-semibold border ' +
+                                            (trade.side === 'BUY'
+                                              ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                                              : 'bg-rose-50 text-rose-600 border-rose-200')
                                           }
                                         >
                                           {trade.side === 'BUY' ? '매수' : '매도'}
                                         </span>
                                       </td>
-                                      <td className="px-2 py-2 text-right">
+
+                                      {/* 가격: 모바일에서는 숨김 */}
+                                      <td className="px-2 py-2 text-right hidden sm:table-cell">
                                         {formatNumber(trade.price)}
                                       </td>
-                                      <td className="px-2 py-2 text-right">
+
+                                      {/* 수량: 모바일에서는 숨김 */}
+                                      <td className="px-2 py-2 text-right hidden sm:table-cell">
                                         {formatNumber(trade.quantity)}
                                       </td>
-                                      <td className="px-2 py-2 text-right">
+
+                                      {/* 금액: 항상 표시 */}
+                                      <td className="px-2 py-2 text-right whitespace-nowrap">
                                         {formatNumber(amount)}
                                       </td>
-                                      <td className="px-2 py-2">
+
+                                      {/* 태그: md 이상에서만 보이게 + 많으면 +N */}
+                                      <td className="px-2 py-1.5 max-w-[160px] hidden md:table-cell">
                                         {tags.length === 0 ? (
-                                          <span className="text-slate-400">
-                                            -
-                                          </span>
+                                          <span className="text-[11px] text-slate-400">-</span>
                                         ) : (
-                                          <div className="flex flex-wrap gap-1">
-                                            {tags.map(tag => (
-                                              <button
-                                                key={tag}
-                                                type="button"
-                                                onClick={() =>
-                                                  setFilterTag(tag)
-                                                }
-                                                className="px-1.5 py-0.5 rounded-full border border-slate-300 text-[10px] text-slate-600"
-                                              >
-                                                #{tag}
-                                              </button>
-                                            ))}
+                                          <div className="flex gap-1 overflow-hidden">
+                                            <div className="flex gap-1 truncate">
+                                              {tags.slice(0, 3).map(tag => (
+                                                <button
+                                                  key={tag}
+                                                  type="button"
+                                                  onClick={() => setFilterTag(tag)}
+                                                  className={
+                                                    'px-2 py-0.5 rounded-full border text-[10px] ' +
+                                                    (darkMode
+                                                      ? 'border-slate-600 text-slate-200 hover:bg-slate-800'
+                                                      : 'border-slate-300 text-slate-600 hover:bg-slate-100')
+                                                  }
+                                                >
+                                                  #{tag}
+                                                </button>
+                                              ))}
+                                            </div>
+                                            {tags.length > 3 && (
+                                              <span className="text-[10px] text-slate-400">
+                                                +{tags.length - 3}
+                                              </span>
+                                            )}
                                           </div>
                                         )}
                                       </td>
-                                      <td className="px-2 py-2 text-left">
+
+                                      {/* 파일: md 이상에서만 보이게 */}
+                                      <td className="px-2 py-2 text-left hidden md:table-cell">
                                         {trade.image ? (
                                           <button
                                             type="button"
-                                            onClick={() =>
-                                              setPreviewImage(trade.image!)
-                                            }
+                                            onClick={() => setPreviewImage(trade.image!)}
                                             className="text-[11px] text-blue-500 underline underline-offset-2"
                                           >
                                             보기
                                           </button>
                                         ) : (
-                                          <span className="text-[11px] text-slate-400">
-                                            -
-                                          </span>
+                                          <span className="text-[11px] text-slate-400">-</span>
                                         )}
                                       </td>
-                                      <td className="px-2 py-2 max-w-xs">
-                                        <span className="line-clamp-2">
+
+                                      {/* 메모: 두 줄까지만 + ... + 전체는 title, md 이상에서만 */}
+                                      <td className="px-2 py-1.5 max-w-[220px] hidden md:table-cell">
+                                        <span
+                                          className="block text-[11px] leading-snug line-clamp-2 break-words"
+                                          title={trade.memo || undefined}
+                                        >
                                           {trade.memo}
                                         </span>
                                       </td>
-                                      <td className="px-2 py-2 text-center">
+
+                                      {/* 수정 버튼: md 이상 */}
+                                      <td className="px-2 py-1.5 text-center hidden md:table-cell">
                                         <button
                                           type="button"
                                           onClick={() => handleStartEdit(trade)}
@@ -2275,12 +2822,12 @@ export default function Home() {
                                           수정
                                         </button>
                                       </td>
-                                      <td className="px-2 py-2 text-center">
+
+                                      {/* 삭제 버튼: md 이상 */}
+                                      <td className="px-2 py-1.5 text-center hidden md:table-cell">
                                         <button
                                           type="button"
-                                          onClick={() =>
-                                            handleDelete(trade.id)
-                                          }
+                                          onClick={() => handleDelete(trade.id)}
                                           className="text-[11px] text-slate-400 hover:text-red-500"
                                         >
                                           삭제
@@ -2311,6 +2858,101 @@ export default function Home() {
                 </p>
               ) : (
                 <>
+                  {/* 계좌 요약 */}
+                  <div
+                    className={
+                      'border rounded-lg p-3 mb-2 ' +
+                      (darkMode
+                        ? 'border-slate-700 bg-slate-900'
+                        : 'border-slate-200 bg-slate-50')
+                    }
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-sm">전체 계좌 누적 요약</span>
+                      <span className="text-[11px] text-slate-400">
+                        현재 모드: {currentUser ? '계정' : '게스트'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2 text-xs">
+                      <div>
+                        <div className="text-slate-500 mb-0.5">총 매수금액</div>
+                        <div className="font-semibold">
+                          {formatNumber(overallStats.totalBuyAmount)} 원
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-slate-500 mb-0.5">총 매도금액</div>
+                        <div className="font-semibold">
+                          {formatNumber(overallStats.totalSellAmount)} 원
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-slate-500 mb-0.5">실현손익 누계</div>
+                        <div
+                          className={
+                            'font-semibold ' +
+                            (overallStats.totalRealizedPnL > 0
+                              ? 'text-emerald-500'
+                              : overallStats.totalRealizedPnL < 0
+                              ? 'text-rose-400'
+                              : '')
+                          }
+                        >
+                          {formatNumber(overallStats.totalRealizedPnL)} 원
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-slate-500 mb-0.5">보유분 평가손익</div>
+                        <div
+                          className={
+                            'font-semibold ' +
+                            (overallStats.evalPnL > 0
+                              ? 'text-emerald-500'
+                              : overallStats.evalPnL < 0
+                              ? 'text-rose-400'
+                              : '')
+                          }
+                        >
+                          {formatNumber(overallStats.evalPnL)} 원
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-slate-500 mb-0.5">총 손익(실현+평가)</div>
+                        <div
+                          className={
+                            'font-semibold ' +
+                            (overallStats.totalPnL > 0
+                              ? 'text-emerald-500'
+                              : overallStats.totalPnL < 0
+                              ? 'text-rose-400'
+                              : '')
+                          }
+                        >
+                          {formatNumber(overallStats.totalPnL)} 원
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-slate-500 mb-0.5">
+                          보유분 수익률
+                          <span className="text-[10px] text-slate-400 ml-1">
+                            (현재 들고 있는 종목 기준)
+                          </span>
+                        </div>
+                        <div
+                          className={
+                            'font-semibold ' +
+                            (overallStats.holdingReturnRate > 0
+                              ? 'text-emerald-500'
+                              : overallStats.holdingReturnRate < 0
+                              ? 'text-rose-400'
+                              : '')
+                          }
+                        >
+                          {overallStats.holdingReturnRate.toFixed(2)} %
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                   <div
                     className={
                       'border rounded-lg p-3 space-y-2 ' +
@@ -2339,11 +2981,11 @@ export default function Home() {
                         <thead className={tableHeaderBg}>
                           <tr>
                             <th className="px-2 py-2 text-left">종목</th>
-                            <th className="px-2 py-2 text-right">보유수량</th>
+                            <th className="px-2 py-2 text-right min-w-[40px]">수량</th>
                             <th className="px-2 py-2 text-right">평단가</th>
                             <th className="px-2 py-2 text-right">총 매수</th>
                             <th className="px-2 py-2 text-right">총 매도</th>
-                            <th className="px-2 py-2 text-right">
+                            <th className="px-2 py-2 text-right min-w-[60px]">
                               실현손익
                             </th>
                             <th className="px-2 py-2 text-right">현재가</th>
@@ -2353,6 +2995,7 @@ export default function Home() {
                             <th className="px-2 py-2 text-right">
                               평가손익
                             </th>
+                            <th className="px-2 py-2 text-right">승률</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -2384,7 +3027,7 @@ export default function Home() {
                                     : 'border-slate-200')
                                 }
                               >
-                                <td className="px-2 py-2">{s.symbol}</td>
+                                <td className="px-2 py-1.5">{s.symbol}</td>
                                 <td className="px-2 py-2 text-right">
                                   {formatNumber(s.positionQty)}
                                 </td>
@@ -2467,6 +3110,11 @@ export default function Home() {
                                     '-'
                                   )}
                                 </td>
+                                <td className="px-2 py-2 text-right">
+                                  {s.tradeCount > 0
+                                    ? `${s.winRate.toFixed(1)}%`
+                                    : '-'}
+                                </td>
                               </tr>
                             );
                           })}
@@ -2492,29 +3140,106 @@ export default function Home() {
                         전략 / 계좌 / 심리 상태 등을 태그로 관리해보세요.
                       </span>
                     </div>
-                    {tagStats.length === 0 ? (
+                                        {tagStats.length === 0 ? (
                       <p className="text-[11px] text-slate-500">
                         아직 태그가 없습니다. 기록 입력 시 &quot;태그&quot; 칸에
                         전략명을 적어보세요.
                       </p>
                     ) : (
-                      <div className="flex flex-wrap gap-2">
-                        {tagStats.map(([tag, count]) => (
-                          <button
-                            key={tag}
-                            type="button"
-                            onClick={() => {
-                              setFilterTag(tag);
-                              setActiveTab('journal');
-                            }}
-                            className="px-3 py-1 rounded-full border border-slate-300 text-[11px] text-slate-700 bg-white"
-                          >
-                            #{tag}{' '}
-                            <span className="text-slate-400">
-                              ({count}건)
-                            </span>
-                          </button>
-                        ))}
+                      <div
+                        className={
+                          'border rounded-lg overflow-x-auto ' +
+                          (darkMode
+                            ? 'border-slate-700'
+                            : 'border-slate-200')
+                        }
+                      >
+                        <table className="w-full text-[11px] md:text-xs min-w-[640px]">
+                          <thead className={tableHeaderBg}>
+                            <tr>
+                              <th className="px-2 py-1.5 text-left">태그</th>
+                              <th className="px-2 py-1.5 text-right">거래 수</th>
+                              <th className="px-2 py-1.5 text-right">
+                                승/패/무
+                              </th>
+                              <th className="px-2 py-1.5 text-right">승률</th>
+                              <th className="px-2 py-1.5 text-right">
+                                실현손익 합계
+                              </th>
+                              <th className="px-2 py-1.5 text-right">
+                                거래당 평균 손익
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {tagStats.map(tp => (
+                              <tr
+                                key={tp.tag}
+                                className={
+                                  'border-t ' +
+                                  (darkMode
+                                    ? 'border-slate-700'
+                                    : 'border-slate-200')
+                                }
+                              >
+                                <td className="px-2 py-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setFilterTag(tp.tag);
+                                      setActiveTab('journal');
+                                    }}
+                                    className="underline underline-offset-2 decoration-dotted"
+                                  >
+                                    #{tp.tag}
+                                  </button>
+                                </td>
+                                <td className="px-2 py-1.5 text-right">
+                                  {tp.tradeCount}
+                                </td>
+                                <td className="px-2 py-1.5 text-right">
+                                  {tp.winCount}/{tp.lossCount}/
+                                  {tp.evenCount}
+                                </td>
+                                <td className="px-2 py-1.5 text-right">
+                                  {tp.tradeCount > 0
+                                    ? `${tp.winRate.toFixed(1)}%`
+                                    : '-'}
+                                </td>
+                                <td className="px-2 py-1.5 text-right">
+                                  <span
+                                    className={
+                                      tp.realizedPnL > 0
+                                        ? 'text-emerald-500 font-semibold'
+                                        : tp.realizedPnL < 0
+                                        ? 'text-rose-400 font-semibold'
+                                        : 'text-slate-500'
+                                    }
+                                  >
+                                    {formatNumber(tp.realizedPnL)} 원
+                                  </span>
+                                </td>
+                                <td className="px-2 py-1.5 text-right">
+                                  {tp.tradeCount > 0 ? (
+                                    <span
+                                      className={
+                                        tp.avgPnLPerTrade > 0
+                                          ? 'text-emerald-500'
+                                          : tp.avgPnLPerTrade < 0
+                                          ? 'text-rose-400'
+                                          : 'text-slate-500'
+                                      }
+                                    >
+                                      {formatNumber(tp.avgPnLPerTrade)} 원
+                                    </span>
+                                  ) : (
+                                    '-'
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     )}
                   </div>
@@ -2577,13 +3302,13 @@ export default function Home() {
                 )}
                 <p className="text-[10px] text-slate-400">
                   JSON 백업에는 현재 화면에 표시된 매매 기록과 종목별 현재가가
-                  함께 저장됩니다. 이 기능은 로컬 상태 복원용이며, Supabase DB
+                  함께 저장됩니다. 이 기능은 로컬 상태 복원용이며, 계정(DB)
                   데이터와는 별도로 동작합니다.
                 </p>
               </div>
 
               <p className="text-[10px] text-slate-400">
-                로그인 계정을 사용하면 Supabase 데이터베이스에 기록이 저장되어
+                로그인 계정을 사용하면 계정(DB)에 기록이 저장되어
                 여러 기기에서 동일한 매매 일지를 볼 수 있습니다. 로그인하지 않으면
                 이 브라우저(게스트 모드)에만 기록이 저장됩니다.
               </p>
@@ -2615,6 +3340,25 @@ export default function Home() {
             </div>
           </div>
         )}
+        
+        {/* 화면 어디서든 기록 추가 폼으로 점프하는 Floating 버튼 */}
+        <button
+          type="button"
+          onClick={() => {
+            addFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }}
+          className={
+            'fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full shadow-lg px-4 py-2 text-xs font-semibold transition ' +
+            'md:hidden ' + // 👈 데스크톱에서는 숨기고, 모바일/태블릿에서만 보이게
+            (darkMode
+              ? 'bg-blue-500 text-white hover:bg-blue-600'
+              : 'bg-blue-600 text-white hover:bg-blue-700')
+          }
+        >
+          <span className="text-base leading-none">＋</span>
+          <span>기록 추가</span>
+        </button>
+
       </main>
     </>
   );
