@@ -1293,18 +1293,6 @@ export default function Home() {
     };
   })();
 
-
-// 전체 수익률 (실현 + 평가 기준)
-const totalPnL =
-  overallStats.totalRealizedPnL +
-  (overallStats.totalPositionValue - overallStats.totalCostBasis);
-
-const totalReturnRate =
-  overallStats.totalCostBasis > 0
-    ? (totalPnL / overallStats.totalCostBasis) * 100
-    : 0;
-
-
   // 태그별 성적 (SELL 거래 기준)
   const tagStats: TagPerf[] = (() => {
     if (baseTrades.length === 0) return [];
@@ -3706,5 +3694,3 @@ function LoginForm({ onDone }: LoginFormProps) {
     </div>
   );
 }
-
-
