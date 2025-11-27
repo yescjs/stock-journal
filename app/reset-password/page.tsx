@@ -2,7 +2,7 @@
 
 import { useEffect, useState, FormEvent } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 
 // 👉 Home 페이지와 같은 키 사용
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
