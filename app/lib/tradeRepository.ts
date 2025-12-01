@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import type { TradeLog } from '@/types/trade';
+import type { TradeLog } from '@/app/types/trade';
 
 export async function fetchTradeLogs(): Promise<TradeLog[]> {
   const { data, error } = await supabase
