@@ -55,8 +55,35 @@ interface TagPerf {
 const CURRENT_PRICE_KEY = 'stock-journal-current-prices-v1';
 const THEME_KEY = 'stock-journal-theme-v1';
 const GUEST_TRADES_KEY = 'stock-journal-guest-trades-v1';
+const OPEN_MONTHS_KEY = 'stock-journal-open-months-v1';
 
 type ActiveTab = 'journal' | 'stats' | 'settings';
+type SortKey = 'date' | 'symbol' | 'amount';
+type SymbolSortKey =
+  | 'symbol'
+  | 'positionQty'
+  | 'avgCost'
+  | 'totalBuyAmount'
+  | 'totalSellAmount'
+  | 'realizedPnL'
+  | 'currentPrice'
+  | 'positionValue'
+  | 'unrealizedPnL'
+  | 'winRate';
+
+type TagSortKey =
+  | 'tag'
+  | 'tradeCount'
+  | 'winRate'
+  | 'realizedPnL'
+  | 'avgPnLPerTrade';
+
+type SortState = {
+  key: SortKey;
+  dir: 'asc' | 'desc';
+};
+
+type TagFilterMode = 'AND' | 'OR';
 
 // Supabase 클라이언트 (브라우저 공개키 사용)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -125,6 +152,7 @@ export default function Home() {
   });
   const [filterSymbol, setFilterSymbol] = useState('');
   const [filterTag, setFilterTag] = useState('');
+  const [tagFilterMode, setTagFilterMode] = useState<TagFilterMode>('OR');
   const [selectedSymbol, setSelectedSymbol] = useState<string>('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -144,6 +172,30 @@ export default function Home() {
 
   // 탭
   const [activeTab, setActiveTab] = useState<ActiveTab>('journal');
+
+  // 정렬 상태
+const [sort, setSort] = useState<SortState>({
+  key: 'date',
+  dir: 'desc',
+});
+
+  // STATS 탭 - 종목표 정렬
+  const [symbolSort, setSymbolSort] = useState<{
+    key: SymbolSortKey;
+    dir: 'asc' | 'desc';
+  }>({
+    key: 'symbol',
+    dir: 'asc',
+  });
+
+  // STATS 탭 - 태그표 정렬
+  const [tagSort, setTagSort] = useState<{
+    key: TagSortKey;
+    dir: 'asc' | 'desc';
+  }>({
+    key: 'tradeCount',
+    dir: 'desc',
+  });
 
   // 월별 접기 상태
   const [openMonths, setOpenMonths] = useState<Record<string, boolean>>({});
@@ -196,6 +248,31 @@ export default function Home() {
   // 상태 & 핸들러 추가
   const [symbolSuggestions, setSymbolSuggestions] = useState<string[]>([]);
   const [showSymbolSuggestions, setShowSymbolSuggestions] = useState(false);
+
+  // 자주 쓰는 기본 심볼 리스트 (국내 + 해외 예시)
+  const STATIC_SYMBOLS: string[] = [
+    // 국내 주식
+    '삼성전자',
+    'SK하이닉스',
+    'LG에너지솔루션',
+    'NAVER',
+    '카카오',
+    '삼성바이오로직스',
+
+    // 미국 주식 (티커/이름 혼용)
+    'AAPL',
+    'MSFT',
+    'NVDA',
+    'TSLA',
+    'AMZN',
+    'META',
+
+    // ETF 예시
+    'QQQ',
+    'SPY',
+    'SOXL',
+    'TQQQ',
+  ];
 
   // 태그 문자열(form.tags)을 쉼표 기준 배열로 파싱
   function parseTagString(str: string | undefined | null): string[] {
@@ -311,6 +388,19 @@ export default function Home() {
       setDarkMode(true);
     }
 
+    // 4) 월별 접기 상태 로드
+    try {
+      const savedOpenMonths = localStorage.getItem(OPEN_MONTHS_KEY);
+      if (savedOpenMonths) {
+        const parsed = JSON.parse(savedOpenMonths) as Record<string, boolean>;
+        if (parsed && typeof parsed === 'object') {
+          setOpenMonths(parsed);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to parse openMonths from localStorage', err);
+    }
+
     // 4) 폼 날짜 기본값
     if (!form.date) {
       const today = new Date().toISOString().slice(0, 10);
@@ -376,6 +466,16 @@ export default function Home() {
     localStorage.setItem(THEME_KEY, darkMode ? 'dark' : 'light');
   }, [darkMode]);
 
+  // 월별 접기 상태 저장
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(OPEN_MONTHS_KEY, JSON.stringify(openMonths));
+    } catch (err) {
+      console.error('Failed to save openMonths to localStorage', err);
+    }
+  }, [openMonths]);
+
   // 공통 유틸
   const handleChange = (
     e: ChangeEvent<
@@ -399,6 +499,7 @@ export default function Home() {
       symbol: value,
     }));
 
+    // 아무것도 안 적혀있으면 추천 숨김
     const trimmed = value.trim().toLowerCase();
     if (!trimmed) {
       setSymbolSuggestions([]);
@@ -406,10 +507,10 @@ export default function Home() {
       return;
     }
 
-    // 현재 보유한 기록(trades)에서 종목 이름 모아오기
-    const uniq = Array.from(
+    // 1) 현재 저장된 매매 기록(로그인/게스트 공통)에서 종목 이름 추출
+    const fromTrades = Array.from(
       new Set(
-        trades
+        baseTrades
           .map(t => t.symbol)
           .filter(
             sym =>
@@ -417,7 +518,15 @@ export default function Home() {
               sym.toLowerCase().includes(trimmed),
           ),
       ),
-    ).slice(0, 5); // 최대 5개만 표시
+    );
+
+    // 2) 기본 심볼 리스트(STATIC_SYMBOLS)에서 검색
+    const fromStatic = STATIC_SYMBOLS.filter(sym =>
+      sym.toLowerCase().includes(trimmed),
+    );
+
+    // 3) 둘을 합치고, 중복 제거한 뒤 상위 5개만 사용
+    const uniq = Array.from(new Set([...fromTrades, ...fromStatic])).slice(0, 5);
 
     setSymbolSuggestions(uniq);
     setShowSymbolSuggestions(uniq.length > 0);
@@ -913,6 +1022,56 @@ export default function Home() {
     }));
   };
 
+  // 정렬
+  const handleSort = (key: SortKey) => {
+    setSort(prev => {
+      // 같은 컬럼을 다시 클릭 → 방향 토글
+      if (prev.key === key) {
+        return {
+          key,
+          dir: prev.dir === 'asc' ? 'desc' : 'asc',
+        };
+      }
+      // 다른 컬럼을 클릭 → 그 컬럼 기준 오름차순부터 시작
+      return {
+        key,
+        dir: 'asc',
+      };
+    });
+  };
+
+  // STATS 탭용 정렬 핸들러
+  const handleSymbolStatsSort = (key: SymbolSortKey) => {
+    setSymbolSort(prev => {
+      if (prev.key === key) {
+        return {
+          key,
+          dir: prev.dir === 'asc' ? 'desc' : 'asc',
+        };
+      }
+      return {
+        key,
+        dir: 'asc',
+      };
+    });
+  };
+
+  // STATS 탭용 정렬 핸들러
+  const handleTagStatsSort = (key: TagSortKey) => {
+    setTagSort(prev => {
+      if (prev.key === key) {
+        return {
+          key,
+          dir: prev.dir === 'asc' ? 'desc' : 'asc',
+        };
+      }
+      return {
+        key,
+        dir: 'desc', // 태그는 기본을 "많이 쓰인 순"으로 시작
+      };
+    });
+  };
+
   // 현재가
   const handleCurrentPriceChange = (symbol: string, value: string) => {
     if (value === '') {
@@ -1128,11 +1287,36 @@ export default function Home() {
       : true,
   );
 
+  // 태그 입력값을 공백/쉼표 기준으로 나눈 키워드 배열
+  const tagKeywords = React.useMemo(
+    () =>
+      filterTag
+        .split(/[,\s]+/)               // 공백 또는 쉼표로 분리
+        .map(t => t.trim().toLowerCase())
+        .filter(Boolean),
+    [filterTag],
+  );
+
   const tagFilteredTrades = symbolFilteredTrades.filter(t => {
-    if (!filterTag) return true;
+    // 태그 키워드가 없으면 필터링 없이 통과
+    if (tagKeywords.length === 0) return true;
+
     const tags = (t.tags ?? []).map(tag => tag.toLowerCase());
-    const keyword = filterTag.toLowerCase();
-    return tags.some(tag => tag.includes(keyword));
+
+    // 태그가 하나도 없는 거래는 제외
+    if (tags.length === 0) return false;
+
+    if (tagFilterMode === 'AND') {
+      // 입력한 모든 키워드를 다 포함해야 통과
+      return tagKeywords.every(kw =>
+        tags.some(tag => tag.includes(kw)),
+      );
+    } else {
+      // OR: 키워드 중 하나라도 포함하면 통과
+      return tagKeywords.some(kw =>
+        tags.some(tag => tag.includes(kw)),
+      );
+    }
   });
 
   const dateFilteredTrades = tagFilteredTrades.filter(t => {
@@ -1142,6 +1326,31 @@ export default function Home() {
   });
 
   const displayedTrades = dateFilteredTrades;
+
+  // 정렬 적용 배열
+  const sortedTradesForList = React.useMemo(() => {
+    const list = [...displayedTrades];
+
+    list.sort((a, b) => {
+      let cmp = 0;
+
+      if (sort.key === 'date') {
+        cmp = a.date.localeCompare(b.date);
+      } else if (sort.key === 'symbol') {
+        cmp = a.symbol.localeCompare(b.symbol);
+      } else if (sort.key === 'amount') {
+        const amountA = a.price * a.quantity;
+        const amountB = b.price * b.quantity;
+        if (amountA < amountB) cmp = -1;
+        else if (amountA > amountB) cmp = 1;
+        else cmp = 0;
+      }
+
+      return sort.dir === 'asc' ? cmp : -cmp;
+    });
+
+    return list;
+  }, [displayedTrades, sort.key, sort.dir]);
 
   const stats = displayedTrades.reduce(
     (acc, t) => {
@@ -1250,6 +1459,67 @@ export default function Home() {
     result.sort((a, b) => a.symbol.localeCompare(b.symbol));
     return result;
   })();
+
+  // 종목별 요약용
+  const sortedSymbolSummaries = React.useMemo(() => {
+    const list = [...symbolSummaries];
+
+    const getMetric = (s: SymbolSummary): number | string => {
+      switch (symbolSort.key) {
+        case 'symbol':
+          return s.symbol;
+        case 'positionQty':
+          return s.positionQty;
+        case 'avgCost':
+          return s.avgCost;
+        case 'totalBuyAmount':
+          return s.totalBuyAmount;
+        case 'totalSellAmount':
+          return s.totalSellAmount;
+        case 'realizedPnL':
+          return s.realizedPnL;
+        case 'currentPrice': {
+          const price = currentPrices[s.symbol];
+          return price ?? 0;
+        }
+        case 'positionValue': {
+          const price = currentPrices[s.symbol];
+          if (price === undefined || s.positionQty <= 0) return 0;
+          return price * s.positionQty;
+        }
+        case 'unrealizedPnL': {
+          const price = currentPrices[s.symbol];
+          if (price === undefined || s.positionQty <= 0) return 0;
+          return (price - s.avgCost) * s.positionQty;
+        }
+        case 'winRate':
+          return s.winRate;
+        default:
+          return s.symbol;
+      }
+    };
+
+    list.sort((a, b) => {
+      const va = getMetric(a);
+      const vb = getMetric(b);
+
+      let cmp = 0;
+
+      if (typeof va === 'string' && typeof vb === 'string') {
+        cmp = va.localeCompare(vb);
+      } else {
+        const na = Number(va);
+        const nb = Number(vb);
+        if (na < nb) cmp = -1;
+        else if (na > nb) cmp = 1;
+        else cmp = 0;
+      }
+
+      return symbolSort.dir === 'asc' ? cmp : -cmp;
+    });
+
+    return list;
+  }, [symbolSummaries, symbolSort.key, symbolSort.dir, currentPrices]);
 
   // 누계 수치 / 수익률
   const overallStats = (() => {
@@ -1377,16 +1647,59 @@ export default function Home() {
     return result;
   })();
 
+  // Stats 탭 태그 정렬용
+  const sortedTagStats = React.useMemo(() => {
+    const list = [...tagStats];
+
+    const getMetric = (t: TagPerf): number | string => {
+      switch (tagSort.key) {
+        case 'tag':
+          return t.tag;
+        case 'tradeCount':
+          return t.tradeCount;
+        case 'winRate':
+          return t.winRate;
+        case 'realizedPnL':
+          return t.realizedPnL;
+        case 'avgPnLPerTrade':
+          return t.avgPnLPerTrade;
+        default:
+          return t.tag;
+      }
+    };
+
+    list.sort((a, b) => {
+      const va = getMetric(a);
+      const vb = getMetric(b);
+
+      let cmp = 0;
+
+      if (typeof va === 'string' && typeof vb === 'string') {
+        cmp = va.localeCompare(vb);
+      } else {
+        const na = Number(va);
+        const nb = Number(vb);
+        if (na < nb) cmp = -1;
+        else if (na > nb) cmp = 1;
+        else cmp = 0;
+      }
+
+      return tagSort.dir === 'asc' ? cmp : -cmp;
+    });
+
+    return list;
+  }, [tagStats, tagSort.key, tagSort.dir]);
+
   // 자주 쓰는 태그 목록 (Top N)
   const topTags = tagStats.map(tp => tp.tag);
 
   // 월별 그룹 (현재 모드 + 필터 결과)
   const monthGroups = (() => {
-    if (displayedTrades.length === 0) return [];
+    if (sortedTradesForList.length === 0) return [];
 
     const map = new Map<string, Trade[]>();
 
-    for (const t of displayedTrades) {
+    for (const t of sortedTradesForList) {
       const key = t.date && t.date.length >= 7 ? t.date.slice(0, 7) : '기타';
       const list = map.get(key) ?? [];
       list.push(t);
@@ -1430,9 +1743,12 @@ export default function Home() {
     });
   }
 
-  if (filterTag) {
+  if (tagKeywords.length > 0) {
+    const modeLabel =
+      tagFilterMode === 'AND' ? '모두 포함' : '하나 이상 포함';
+
     activeFilterChips.push({
-      label: `태그 필터: ${filterTag}`,
+      label: `태그 필터(${modeLabel}): ${tagKeywords.join(', ')}`,
       onClear: () => setFilterTag(''),
     });
   }
@@ -1915,6 +2231,22 @@ export default function Home() {
                         placeholder="예: 삼성전자"
                         value={form.symbol}
                         onChange={handleSymbolChange}
+                        onFocus={() => {
+                          // 아무것도 안 적었을 때, 최근 기록 5개 정도 보여주기
+                          if (!form.symbol.trim()) {
+                            const recent = Array.from(
+                              new Set(
+                                baseTrades
+                                  .slice(0, 50) // 최근 50개만 스캔
+                                  .map(t => t.symbol)
+                                  .filter(Boolean),
+                              ),
+                            ).slice(0, 5);
+
+                            setSymbolSuggestions(recent);
+                            setShowSymbolSuggestions(recent.length > 0);
+                          }
+                        }}
                         autoFocus
                         className={
                           'border rounded px-2 py-1 text-xs bg-transparent ' +
@@ -2439,6 +2771,42 @@ export default function Home() {
                           }
                         />
                       </div>
+                      <div className="flex items-center gap-2 mt-1 text-[11px]">
+                        <span className="text-slate-500">태그 조건</span>
+                        <div className="flex gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setTagFilterMode('AND')}
+                            className={
+                              'px-2 py-0.5 rounded-full border ' +
+                              (tagFilterMode === 'AND'
+                                ? 'bg-blue-600 text-white border-blue-600'
+                                : darkMode
+                                ? 'border-slate-600 text-slate-300'
+                                : 'border-slate-300 text-slate-600')
+                            }
+                          >
+                            AND (모두 포함)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setTagFilterMode('OR')}
+                            className={
+                              'px-2 py-0.5 rounded-full border ' +
+                              (tagFilterMode === 'OR'
+                                ? 'bg-blue-600 text-white border-blue-600'
+                                : darkMode
+                                ? 'border-slate-600 text-slate-300'
+                                : 'border-slate-300 text-slate-600')
+                            }
+                          >
+                            OR (하나 이상)
+                          </button>
+                        </div>
+                        <span className="text-slate-400">
+                          여러 태그는 공백이나 쉼표로 구분해 입력할 수 있어요.
+                        </span>
+                      </div>
                     </div>
 
                     {hasDateRangeError && (
@@ -2452,13 +2820,24 @@ export default function Home() {
                       <div className="flex flex-wrap items-center gap-1 mt-1 text-[11px]">
                         <span className="text-slate-500">자주 쓰는 태그:</span>
                         {topTags.slice(0, 5).map(tag => {
-                          const selected =
-                            filterTag.toLowerCase() === tag.toLowerCase();
+                          const lower = tag.toLowerCase();
+                          const selected = tagKeywords.includes(lower);
+
                           return (
                             <button
                               key={tag}
                               type="button"
-                              onClick={() => setFilterTag(selected ? '' : tag)}
+                              onClick={() => {
+                                if (selected) {
+                                  // 이미 선택된 태그면 제거
+                                  const next = tagKeywords.filter(kw => kw !== lower);
+                                  setFilterTag(next.join(' '));
+                                } else {
+                                  // 새 태그 추가
+                                  const next = [...tagKeywords, lower];
+                                  setFilterTag(next.join(' '));
+                                }
+                              }}
                               className={
                                 'px-2 py-0.5 rounded-full border ' +
                                 (selected
@@ -2589,12 +2968,78 @@ export default function Home() {
                       }
                     >
                       <tr>
-                        <th className="px-2 py-2 text-left">날짜</th>
-                        <th className="px-2 py-2 text-left">종목</th>
+                        <th className="px-2 py-2 text-left">
+                          <button
+                            type="button"
+                            onClick={() => handleSort('date')}
+                            className="flex items-center gap-1"
+                          >
+                            <span>날짜</span>
+                            <span
+                              className={
+                                'text-[10px] ' +
+                                (sort.key === 'date'
+                                  ? 'text-blue-500'
+                                  : 'text-slate-400')
+                              }
+                            >
+                              {sort.key === 'date'
+                                ? sort.dir === 'asc'
+                                  ? '▲'
+                                  : '▼'
+                                : '↕'}
+                            </span>
+                          </button>
+                        </th>
+                        <th className="px-2 py-2 text-left">
+                          <button
+                            type="button"
+                            onClick={() => handleSort('symbol')}
+                            className="flex items-center gap-1"
+                          >
+                            <span>종목</span>
+                            <span
+                              className={
+                                'text-[10px] ' +
+                                (sort.key === 'symbol'
+                                  ? 'text-blue-500'
+                                  : 'text-slate-400')
+                              }
+                            >
+                              {sort.key === 'symbol'
+                                ? sort.dir === 'asc'
+                                  ? '▲'
+                                  : '▼'
+                                : '↕'}
+                            </span>
+                          </button>
+                        </th>
                         <th className="px-2 py-2 text-center">구분</th>
                         <th className="px-2 py-2 text-right hidden sm:table-cell">가격</th>
                         <th className="px-2 py-2 text-right hidden sm:table-cell">수량</th>
-                        <th className="px-2 py-2 text-right">금액</th>
+                        <th className="px-2 py-2 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleSort('amount')}
+                            className="inline-flex items-center gap-1"
+                          >
+                            <span>금액</span>
+                            <span
+                              className={
+                                'text-[10px] ' +
+                                (sort.key === 'amount'
+                                  ? 'text-blue-500'
+                                  : 'text-slate-400')
+                              }
+                            >
+                              {sort.key === 'amount'
+                                ? sort.dir === 'asc'
+                                  ? '▲'
+                                  : '▼'
+                                : '↕'}
+                            </span>
+                          </button>
+                        </th>
                         <th className="px-2 py-2 text-left hidden md:table-cell">태그</th>
                         <th className="px-2 py-2 text-left hidden md:table-cell">파일</th>
                         <th className="px-2 py-2 text-left hidden md:table-cell">메모</th>
@@ -2968,26 +3413,259 @@ export default function Home() {
                       <table className="w-full text-xs md:text-sm min-w-[720px]">
                         <thead className={tableHeaderBg}>
                           <tr>
-                            <th className="px-2 py-2 text-left">종목</th>
-                            <th className="px-2 py-2 text-right min-w-[40px]">수량</th>
-                            <th className="px-2 py-2 text-right">평단가</th>
-                            <th className="px-2 py-2 text-right">총 매수</th>
-                            <th className="px-2 py-2 text-right">총 매도</th>
+                            {/* 종목 */}
+                            <th className="px-2 py-2 text-left">
+                              <button
+                                type="button"
+                                onClick={() => handleSymbolStatsSort('symbol')}
+                                className="flex items-center gap-1"
+                              >
+                                <span>종목</span>
+                                <span
+                                  className={
+                                    'text-[10px] ' +
+                                    (symbolSort.key === 'symbol'
+                                      ? 'text-blue-500'
+                                      : 'text-slate-400')
+                                  }
+                                >
+                                  {symbolSort.key === 'symbol'
+                                    ? symbolSort.dir === 'asc'
+                                      ? '▲'
+                                      : '▼'
+                                    : '↕'}
+                                </span>
+                              </button>
+                            </th>
+
+                            {/* 수량 */}
+                            <th className="px-2 py-2 text-right min-w-[40px]">
+                              <button
+                                type="button"
+                                onClick={() => handleSymbolStatsSort('positionQty')}
+                                className="inline-flex items-center gap-1 justify-end w-full"
+                              >
+                                <span>수량</span>
+                                <span
+                                  className={
+                                    'text-[10px] ' +
+                                    (symbolSort.key === 'positionQty'
+                                      ? 'text-blue-500'
+                                      : 'text-slate-400')
+                                  }
+                                >
+                                  {symbolSort.key === 'positionQty'
+                                    ? symbolSort.dir === 'asc'
+                                      ? '▲'
+                                      : '▼'
+                                    : '↕'}
+                                </span>
+                              </button>
+                            </th>
+
+                            {/* 평단가 */}
+                            <th className="px-2 py-2 text-right">
+                              <button
+                                type="button"
+                                onClick={() => handleSymbolStatsSort('avgCost')}
+                                className="inline-flex items-center gap-1 justify-end w-full"
+                              >
+                                <span>평단가</span>
+                                <span
+                                  className={
+                                    'text-[10px] ' +
+                                    (symbolSort.key === 'avgCost'
+                                      ? 'text-blue-500'
+                                      : 'text-slate-400')
+                                  }
+                                >
+                                  {symbolSort.key === 'avgCost'
+                                    ? symbolSort.dir === 'asc'
+                                      ? '▲'
+                                      : '▼'
+                                    : '↕'}
+                                </span>
+                              </button>
+                            </th>
+
+                            {/* 총 매수 */}
+                            <th className="px-2 py-2 text-right">
+                              <button
+                                type="button"
+                                onClick={() => handleSymbolStatsSort('totalBuyAmount')}
+                                className="inline-flex items-center gap-1 justify-end w-full"
+                              >
+                                <span>총 매수</span>
+                                <span
+                                  className={
+                                    'text-[10px] ' +
+                                    (symbolSort.key === 'totalBuyAmount'
+                                      ? 'text-blue-500'
+                                      : 'text-slate-400')
+                                  }
+                                >
+                                  {symbolSort.key === 'totalBuyAmount'
+                                    ? symbolSort.dir === 'asc'
+                                      ? '▲'
+                                      : '▼'
+                                    : '↕'}
+                                </span>
+                              </button>
+                            </th>
+
+                            {/* 총 매도 */}
+                            <th className="px-2 py-2 text-right">
+                              <button
+                                type="button"
+                                onClick={() => handleSymbolStatsSort('totalSellAmount')}
+                                className="inline-flex items-center gap-1 justify-end w-full"
+                              >
+                                <span>총 매도</span>
+                                <span
+                                  className={
+                                    'text-[10px] ' +
+                                    (symbolSort.key === 'totalSellAmount'
+                                      ? 'text-blue-500'
+                                      : 'text-slate-400')
+                                  }
+                                >
+                                  {symbolSort.key === 'totalSellAmount'
+                                    ? symbolSort.dir === 'asc'
+                                      ? '▲'
+                                      : '▼'
+                                    : '↕'}
+                                </span>
+                              </button>
+                            </th>
+
+                            {/* 실현손익 */}
                             <th className="px-2 py-2 text-right min-w-[60px]">
-                              실현손익
+                              <button
+                                type="button"
+                                onClick={() => handleSymbolStatsSort('realizedPnL')}
+                                className="inline-flex items-center gap-1 justify-end w-full"
+                              >
+                                <span>실현손익</span>
+                                <span
+                                  className={
+                                    'text-[10px] ' +
+                                    (symbolSort.key === 'realizedPnL'
+                                      ? 'text-blue-500'
+                                      : 'text-slate-400')
+                                  }
+                                >
+                                  {symbolSort.key === 'realizedPnL'
+                                    ? symbolSort.dir === 'asc'
+                                      ? '▲'
+                                      : '▼'
+                                    : '↕'}
+                                </span>
+                              </button>
                             </th>
-                            <th className="px-2 py-2 text-right">현재가</th>
+
+                            {/* 현재가 */}
                             <th className="px-2 py-2 text-right">
-                              평가금액
+                              <button
+                                type="button"
+                                onClick={() => handleSymbolStatsSort('currentPrice')}
+                                className="inline-flex items-center gap-1 justify-end w-full"
+                              >
+                                <span>현재가</span>
+                                <span
+                                  className={
+                                    'text-[10px] ' +
+                                    (symbolSort.key === 'currentPrice'
+                                      ? 'text-blue-500'
+                                      : 'text-slate-400')
+                                  }
+                                >
+                                  {symbolSort.key === 'currentPrice'
+                                    ? symbolSort.dir === 'asc'
+                                      ? '▲'
+                                      : '▼'
+                                    : '↕'}
+                                </span>
+                              </button>
                             </th>
+
+                            {/* 평가금액 */}
                             <th className="px-2 py-2 text-right">
-                              평가손익
+                              <button
+                                type="button"
+                                onClick={() => handleSymbolStatsSort('positionValue')}
+                                className="inline-flex items-center gap-1 justify-end w-full"
+                              >
+                                <span>평가금액</span>
+                                <span
+                                  className={
+                                    'text-[10px] ' +
+                                    (symbolSort.key === 'positionValue'
+                                      ? 'text-blue-500'
+                                      : 'text-slate-400')
+                                  }
+                                >
+                                  {symbolSort.key === 'positionValue'
+                                    ? symbolSort.dir === 'asc'
+                                      ? '▲'
+                                      : '▼'
+                                    : '↕'}
+                                </span>
+                              </button>
                             </th>
-                            <th className="px-2 py-2 text-right">승률</th>
+
+                            {/* 평가손익 */}
+                            <th className="px-2 py-2 text-right">
+                              <button
+                                type="button"
+                                onClick={() => handleSymbolStatsSort('unrealizedPnL')}
+                                className="inline-flex items-center gap-1 justify-end w-full"
+                              >
+                                <span>평가손익</span>
+                                <span
+                                  className={
+                                    'text-[10px] ' +
+                                    (symbolSort.key === 'unrealizedPnL'
+                                      ? 'text-blue-500'
+                                      : 'text-slate-400')
+                                  }
+                                >
+                                  {symbolSort.key === 'unrealizedPnL'
+                                    ? symbolSort.dir === 'asc'
+                                      ? '▲'
+                                      : '▼'
+                                    : '↕'}
+                                </span>
+                              </button>
+                            </th>
+
+                            {/* 승률 */}
+                            <th className="px-2 py-2 text-right">
+                              <button
+                                type="button"
+                                onClick={() => handleSymbolStatsSort('winRate')}
+                                className="inline-flex items-center gap-1 justify-end w-full"
+                              >
+                                <span>승률</span>
+                                <span
+                                  className={
+                                    'text-[10px] ' +
+                                    (symbolSort.key === 'winRate'
+                                      ? 'text-blue-500'
+                                      : 'text-slate-400')
+                                  }
+                                >
+                                  {symbolSort.key === 'winRate'
+                                    ? symbolSort.dir === 'asc'
+                                      ? '▲'
+                                      : '▼'
+                                    : '↕'}
+                                </span>
+                              </button>
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
-                          {symbolSummaries.map(s => {
+                          {sortedSymbolSummaries.map(s => {
                             const hasPrice =
                               currentPrices[s.symbol] !== undefined;
                             const currentPrice = hasPrice
@@ -3145,22 +3823,139 @@ export default function Home() {
                         <table className="w-full text-[11px] md:text-xs min-w-[640px]">
                           <thead className={tableHeaderBg}>
                             <tr>
-                              <th className="px-2 py-1.5 text-left">태그</th>
-                              <th className="px-2 py-1.5 text-right">거래 수</th>
+                              {/* 태그 */}
+                              <th className="px-2 py-1.5 text-left">
+                                <button
+                                  type="button"
+                                  onClick={() => handleTagStatsSort('tag')}
+                                  className="flex items-center gap-1 text-[14px]"
+                                >
+                                  <span>태그</span>
+                                  <span
+                                    className={
+                                      'text-[10px] ' +
+                                      (tagSort.key === 'tag'
+                                        ? 'text-blue-500'
+                                        : 'text-slate-400')
+                                    }
+                                  >
+                                    {tagSort.key === 'tag'
+                                      ? tagSort.dir === 'asc'
+                                        ? '▲'
+                                        : '▼'
+                                      : '↕'}
+                                  </span>
+                                </button>
+                              </th>
+
+                              {/* 거래 수 */}
+                              <th className="px-2 py-1.5 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => handleTagStatsSort('tradeCount')}
+                                  className="inline-flex items-center gap-1 text-[14px] justify-end w-full"
+                                >
+                                  <span>거래 수</span>
+                                  <span
+                                    className={
+                                      'text-[10px] ' +
+                                      (tagSort.key === 'tradeCount'
+                                        ? 'text-blue-500'
+                                        : 'text-slate-400')
+                                    }
+                                  >
+                                    {tagSort.key === 'tradeCount'
+                                      ? tagSort.dir === 'asc'
+                                        ? '▲'
+                                        : '▼'
+                                      : '↕'}
+                                  </span>
+                                </button>
+                              </th>
+
+                              {/* 승/패/무 → 정렬은 승률로만 따로 있음 */}
                               <th className="px-2 py-1.5 text-right">
                                 승/패/무
                               </th>
-                              <th className="px-2 py-1.5 text-right">승률</th>
+
+                              {/* 승률 */}
                               <th className="px-2 py-1.5 text-right">
-                                실현손익 합계
+                                <button
+                                  type="button"
+                                  onClick={() => handleTagStatsSort('winRate')}
+                                  className="inline-flex items-center gap-1 text-[14px] justify-end w-full"
+                                >
+                                  <span>승률</span>
+                                  <span
+                                    className={
+                                      'text-[10px] ' +
+                                      (tagSort.key === 'winRate'
+                                        ? 'text-blue-500'
+                                        : 'text-slate-400')
+                                    }
+                                  >
+                                    {tagSort.key === 'winRate'
+                                      ? tagSort.dir === 'asc'
+                                        ? '▲'
+                                        : '▼'
+                                      : '↕'}
+                                  </span>
+                                </button>
                               </th>
+
+                              {/* 실현손익 합계 */}
                               <th className="px-2 py-1.5 text-right">
-                                거래당 평균 손익
+                                <button
+                                  type="button"
+                                  onClick={() => handleTagStatsSort('realizedPnL')}
+                                  className="inline-flex items-center gap-1 text-[14px] justify-end w-full"
+                                >
+                                  <span>실현손익 합계</span>
+                                  <span
+                                    className={
+                                      'text-[10px] ' +
+                                      (tagSort.key === 'realizedPnL'
+                                        ? 'text-blue-500'
+                                        : 'text-slate-400')
+                                    }
+                                  >
+                                    {tagSort.key === 'realizedPnL'
+                                      ? tagSort.dir === 'asc'
+                                        ? '▲'
+                                        : '▼'
+                                      : '↕'}
+                                  </span>
+                                </button>
+                              </th>
+
+                              {/* 거래당 평균 손익 */}
+                              <th className="px-2 py-1.5 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => handleTagStatsSort('avgPnLPerTrade')}
+                                  className="inline-flex items-center gap-1 text-[14px] justify-end w-full"
+                                >
+                                  <span>거래당 평균 손익</span>
+                                  <span
+                                    className={
+                                      'text-[10px] ' +
+                                      (tagSort.key === 'avgPnLPerTrade'
+                                        ? 'text-blue-500'
+                                        : 'text-slate-400')
+                                    }
+                                  >
+                                    {tagSort.key === 'avgPnLPerTrade'
+                                      ? tagSort.dir === 'asc'
+                                        ? '▲'
+                                        : '▼'
+                                      : '↕'}
+                                  </span>
+                                </button>
                               </th>
                             </tr>
                           </thead>
                           <tbody>
-                            {tagStats.map(tp => (
+                            {sortedTagStats.map(tp => (
                               <tr
                                 key={tp.tag}
                                 className={
