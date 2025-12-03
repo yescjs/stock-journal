@@ -51,6 +51,15 @@ interface TagPerf {
   winRate: number;         // 승률 (%)
 }
 
+type PnLChartMode = 'daily' | 'monthly';
+
+type PnLPoint = {
+  key: string;   // YYYY-MM-DD 또는 YYYY-MM
+  label: string; // 화면에 찍을 라벨
+  value: number; // 해당 날짜/월의 실현 손익
+};
+
+
 // localStorage용 키 (비밀번호, 현재가, 테마, 게스트용 매매기록)
 const CURRENT_PRICE_KEY = 'stock-journal-current-prices-v1';
 const THEME_KEY = 'stock-journal-theme-v1';
@@ -172,6 +181,9 @@ export default function Home() {
 
   // 탭
   const [activeTab, setActiveTab] = useState<ActiveTab>('journal');
+
+  // 타입 & 상태
+  const [pnlChartMode, setPnlChartMode] = useState<PnLChartMode>('daily');
 
   // 정렬 상태
 const [sort, setSort] = useState<SortState>({
@@ -531,6 +543,18 @@ const [sort, setSort] = useState<SortState>({
     setSymbolSuggestions(uniq);
     setShowSymbolSuggestions(uniq.length > 0);
   };
+
+  // 종목 클릭 핸들러
+  const handleSymbolRowClick = (symbol: string) => {
+  setSelectedSymbol(prev => {
+    const next = prev === symbol ? '' : symbol;
+
+    // 심볼 필터도 같이 맞춰 주기
+    setFilterSymbol(current => (current === symbol ? '' : symbol));
+
+    return next;
+  });
+};
 
   const showNotify = (type: NotifyType, message: string) => {
     setNotify({ type, message });
@@ -1319,11 +1343,72 @@ const [sort, setSort] = useState<SortState>({
     }
   });
 
+  // 선택된 종목의 거래들 (현재 필터를 모두 통과한 범위 안에서만 계산)
+  const selectedSymbolTrades = React.useMemo(
+    () =>
+      selectedSymbol
+        ? tagFilteredTrades.filter(t => t.symbol === selectedSymbol)
+        : [],
+    [selectedSymbol, tagFilteredTrades],
+  );
+
   const dateFilteredTrades = tagFilteredTrades.filter(t => {
     if (dateFrom && t.date < dateFrom) return false;
     if (dateTo && t.date > dateTo) return false;
     return true;
   });
+
+  // 선택 종목 요약 통계 계산
+  const selectedSymbolSummary = React.useMemo(() => {
+    if (!selectedSymbol || selectedSymbolTrades.length === 0) return null;
+
+    let tradeCount = 0;
+    let buyCount = 0;
+    let sellCount = 0;
+
+    let buyQty = 0;
+    let sellQty = 0;
+
+    let buyAmount = 0;
+    let sellAmount = 0;
+
+    for (const t of selectedSymbolTrades) {
+      tradeCount += 1;
+
+      const qty = t.quantity ?? 0;
+      const amount = (t.price ?? 0) * qty;
+
+      if (t.side === 'BUY') {
+        buyCount += 1;
+        buyQty += qty;
+        buyAmount += amount;
+      } else if (t.side === 'SELL') {
+        sellCount += 1;
+        sellQty += qty;
+        sellAmount += amount;
+      }
+    }
+
+    const avgBuyPrice = buyQty > 0 ? buyAmount / buyQty : 0;
+    const avgSellPrice = sellQty > 0 ? sellAmount / sellQty : 0;
+
+    // 아주 러프한 실현 손익 (수수료/세금 무시)
+    const roughRealizedPnL = sellAmount - buyAmount;
+
+    return {
+      symbol: selectedSymbol,
+      tradeCount,
+      buyCount,
+      sellCount,
+      buyQty,
+      sellQty,
+      buyAmount,
+      sellAmount,
+      avgBuyPrice,
+      avgSellPrice,
+      roughRealizedPnL,
+    };
+  }, [selectedSymbol, selectedSymbolTrades]);
 
   const displayedTrades = dateFilteredTrades;
 
@@ -1362,6 +1447,10 @@ const [sort, setSort] = useState<SortState>({
     { buy: 0, sell: 0 },
   );
   const netCash = stats.sell - stats.buy;
+
+  const realizedPnL =
+  (selectedSymbolSummary?.sellAmount ?? 0) -
+  (selectedSymbolSummary?.buyAmount ?? 0);
 
   const symbolStats = displayedTrades
     .filter(t => selectedSymbol && t.symbol === selectedSymbol)
@@ -1562,6 +1651,102 @@ const [sort, setSort] = useState<SortState>({
       holdingReturnRate,
     };
   })();
+
+  // 일별 실현손익 (FIFO 기준, baseTrades 전체 기준)
+  const dailyRealizedPoints: PnLPoint[] = React.useMemo(() => {
+    if (baseTrades.length === 0) return [];
+
+    // 날짜 + id 순으로 정렬
+    const sortedTrades = [...baseTrades].sort((a, b) => {
+      if (a.date === b.date) return a.id.localeCompare(b.id);
+      return a.date.localeCompare(b.date);
+    });
+
+    type PosState = {
+      positionQty: number;
+      costBasis: number;
+    };
+
+    const posMap = new Map<string, PosState>(); // 종목별 포지션 상태
+    const dayMap = new Map<string, number>();   // 날짜별 실현손익 합계
+
+    for (const t of sortedTrades) {
+      const amount = t.price * t.quantity;
+      const symbol = t.symbol;
+
+      let pos = posMap.get(symbol);
+      if (!pos) {
+        pos = { positionQty: 0, costBasis: 0 };
+        posMap.set(symbol, pos);
+      }
+
+      if (t.side === 'BUY') {
+        // 매수: 수량/원금만 쌓는다
+        pos.positionQty += t.quantity;
+        pos.costBasis += amount;
+      } else {
+        // 매도: 이전 평단 기준으로 실현손익 계산
+        const prevQty = pos.positionQty;
+        const prevCostBasis = pos.costBasis;
+        const prevAvgCost = prevQty !== 0 ? prevCostBasis / prevQty : 0;
+
+        const sellQty = t.quantity;
+        const realizedThis = (t.price - prevAvgCost) * sellQty;
+
+        // 포지션/원금 업데이트
+        pos.positionQty = prevQty - sellQty;
+        pos.costBasis = prevCostBasis - prevAvgCost * sellQty;
+
+        // 날짜별로 합산
+        const prevDay = dayMap.get(t.date) ?? 0;
+        dayMap.set(t.date, prevDay + realizedThis);
+      }
+    }
+
+    return Array.from(dayMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0])) // 날짜 오름차순
+      .map(([date, value]) => ({
+        key: date,
+        label: date,
+        value: Number.isFinite(value) ? value : 0,
+      }));
+  }, [baseTrades]);
+
+  // 월별 실현손익: 일별 결과를 YYYY-MM 단위로 합산
+  const monthlyRealizedPoints: PnLPoint[] = React.useMemo(() => {
+    if (dailyRealizedPoints.length === 0) return [];
+
+    const monthMap = new Map<string, number>();
+
+    for (const pt of dailyRealizedPoints) {
+      const monthKey =
+        pt.key && pt.key.length >= 7 ? pt.key.slice(0, 7) : '기타';
+      const prev = monthMap.get(monthKey) ?? 0;
+      monthMap.set(monthKey, prev + pt.value);
+    }
+
+    return Array.from(monthMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([key, value]) => ({
+        key,
+        label: formatMonthLabel(key),
+        value: Number.isFinite(value) ? value : 0,
+      }));
+  }, [dailyRealizedPoints]);
+
+  // 현재 모드에 맞는 포인트 & 최대 절대값 (그래프 스케일용)
+  const pnlChartPoints =
+    pnlChartMode === 'daily' ? dailyRealizedPoints : monthlyRealizedPoints;
+
+  // 실현 손익 그래프용 최대 절대값 (NaN 방지)
+  const maxAbsPnLRaw = pnlChartPoints.reduce((max, p) => {
+    const v = Number(p.value ?? 0);
+    if (!Number.isFinite(v)) return max;
+    return Math.max(max, Math.abs(v));
+  }, 0);
+
+  const maxAbsPnL = Number.isFinite(maxAbsPnLRaw) ? maxAbsPnLRaw : 0;
+
 
   // 태그별 성적 (SELL 거래 기준)
   const tagStats: TagPerf[] = (() => {
@@ -2101,7 +2286,7 @@ const [sort, setSort] = useState<SortState>({
                       : 'border-slate-200 bg-slate-50')
                   }
                 >
-                  <div className="text-slate-500">순 현금 흐름</div>
+                  <div className="text-slate-500">실현 손익</div>
                   <div
                     className={
                       'text-lg font-semibold ' +
@@ -2865,63 +3050,162 @@ const [sort, setSort] = useState<SortState>({
                 }
               >
                 {selectedSymbol ? (
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold">
-                        선택 종목 요약: {selectedSymbol}
-                      </span>
+                  <div
+                    className={
+                      '' +
+                      (darkMode
+                        ? 'border-slate-700 bg-slate-900/70'
+                        : 'border-slate-200 bg-slate-50')
+                    }
+                  >
+                    {/* 제목 + 선택 해제 */}
+                    <div className="mb-3 flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold md:text-base">
+                          선택 종목 요약:{' '}
+                          <span className="font-bold">{selectedSymbol}</span>
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-slate-500">
+                          현재 필터(날짜 · 태그 · 매수/매도) 기준 요약입니다.
+                        </p>
+                      </div>
                       <button
                         type="button"
-                        className="text-[11px] text-slate-400 underline"
-                        onClick={() => setSelectedSymbol('')}
+                        onClick={() => {
+                          setSelectedSymbol('');
+                          setFilterSymbol('');
+                        }}
+                        className="text-[11px] text-slate-500 underline-offset-2 hover:underline"
                       >
                         선택 해제
                       </button>
                     </div>
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <div className="text-slate-500 text-[11px]">
-                          매수 금액
-                        </div>
-                        <div className="text-sm font-semibold">
-                          {formatNumber(symbolStats.buy)} 원
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-slate-500 text-[11px]">
-                          매도 금액
-                        </div>
-                        <div className="text-sm font-semibold">
-                          {formatNumber(symbolStats.sell)} 원
+
+                    {/* ➊ 위쪽: 금액 3칸 (매수/매도/실현 손익) */}
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <div className="space-y-0.5">
+                        <div className="text-[11px] text-slate-500">매수 금액</div>
+                        <div className="text-sm font-semibold md:text-base">
+                          {formatNumber(symbolStats.buy)}{' '}
+                          <span className="text-xs font-normal">원</span>
                         </div>
                       </div>
-                      <div>
-                        <div className="text-slate-500 text-[11px]">
-                          순 현금 흐름
+
+                      <div className="space-y-0.5">
+                        <div className="text-[11px] text-slate-500">매도 금액</div>
+                        <div className="text-sm font-semibold md:text-base">
+                          {formatNumber(symbolStats.sell)}{' '}
+                          <span className="text-xs font-normal">원</span>
                         </div>
+                      </div>
+
+                      <div className="space-y-0.5">
+                        <div className="text-[11px] text-slate-500">실현 손익</div>
                         <div
                           className={
-                            'text-sm font-semibold ' +
+                            'text-sm font-semibold md:text-base ' +
                             (symbolNetCash > 0
-                              ? 'text-emerald-500'
+                              ? 'text-rose-500'
                               : symbolNetCash < 0
-                              ? 'text-rose-400'
+                              ? 'text-blue-600'
                               : '')
                           }
                         >
-                          {formatNumber(symbolNetCash)} 원
+                          {formatNumber(realizedPnL)}{' '}
+                          <span className="text-xs font-normal">원</span>
                         </div>
                       </div>
                     </div>
+
+                    {/* 구분선 */}
+                    <div className="my-3 h-px bg-slate-200 dark:bg-slate-700" />
+
+                    {/* ➋ 아래쪽: 상세 요약 (selectedSymbolSummary 활용) */}
+                    {selectedSymbolSummary && (
+                      <div className="grid gap-3 md:grid-cols-4">
+                        {/* 거래 수 */}
+                        <div className="space-y-0.5">
+                          <div className="text-[11px] text-slate-500">
+                            거래 수 (매수/매도)
+                          </div>
+                          <div className="text-xs font-medium md:text-sm">
+                            {selectedSymbolSummary.tradeCount}회{' '}
+                            <span className="text-[11px] text-slate-500">
+                              ({selectedSymbolSummary.buyCount} 매수 /{' '}
+                              {selectedSymbolSummary.sellCount} 매도)
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* 매수 수량 / 금액 */}
+                        <div className="space-y-0.5">
+                          <div className="text-[11px] text-slate-500">매수 수량 / 금액</div>
+                          <div className="text-xs font-medium md:text-sm">
+                            {selectedSymbolSummary.buyQty}주{' '}
+                            <span className="text-[11px] text-slate-500">
+                              ({formatNumber(selectedSymbolSummary.buyAmount)}원)
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* 매도 수량 / 금액 */}
+                        <div className="space-y-0.5">
+                          <div className="text-[11px] text-slate-500">매도 수량 / 금액</div>
+                          <div className="text-xs font-medium md:text-sm">
+                            {selectedSymbolSummary.sellQty}주{' '}
+                            <span className="text-[11px] text-slate-500">
+                              ({formatNumber(selectedSymbolSummary.sellAmount)}원)
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* 평단 / 대략 손익 */}
+                        <div className="space-y-0.5">
+                          <div className="text-[11px] text-slate-500">매수 / 매도 평단</div>
+                          <div className="text-xs font-medium md:text-sm">
+                            {selectedSymbolSummary.avgBuyPrice > 0 && (
+                              <>
+                                {formatNumber(selectedSymbolSummary.avgBuyPrice)}원
+                              </>
+                            )}
+                            {selectedSymbolSummary.avgSellPrice > 0 && (
+                              <>
+                                {' · '}
+                                {formatNumber(selectedSymbolSummary.avgSellPrice)}원
+                              </>
+                            )}
+                            <span
+                              className={
+                                'ml-1 text-[11px] ' +
+                                (selectedSymbolSummary.roughRealizedPnL > 0
+                                  ? 'text-rose-500'
+                                  : selectedSymbolSummary.roughRealizedPnL < 0
+                                  ? 'text-blue-600'
+                                  : 'text-slate-500')
+                              }
+                            >
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
-                  <span className="text-[11px] text-slate-500">
-                    아래 목록에서 종목 이름을 클릭하면 이곳에 해당 종목 요약이
-                    표시됩니다.
-                  </span>
+                  // 선택 안 되었을 때 안내문 (기존 코드 그대로 두면 됨)
+                  <div
+                    className={
+                      'text-[11px] md:text-xs ' +
+                      (darkMode
+                        ? 'border-slate-700 bg-slate-900/60 text-slate-300'
+                        : 'border-slate-200 bg-slate-50 text-slate-500')
+                    }
+                  >
+                    종목명을 클릭하면 해당 종목의 매수/매도 금액과 거래 요약을 확인할 수
+                    있어요.
+                  </div>
                 )}
               </div>
-
+              
               {/* 활성 필터/선택 상태 뱃지 줄 */}
               {activeFilterChips.length > 0 && (
                 <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px]">
@@ -3133,16 +3417,13 @@ const [sort, setSort] = useState<SortState>({
                                     : '';
 
                                   return (
-                                    <tr
-                                      key={trade.id}
-                                      className={baseRowClass + selectedRowClass}
-                                    >
+                                    <tr key={trade.id} className={baseRowClass + selectedRowClass}>
                                       {/* 날짜 */}
                                       <td className="px-2 py-1.5 whitespace-nowrap">
                                         {trade.date}
                                       </td>
 
-                                      {/* 종목: 너무 길면 ... + 전체는 title */}
+                                      {/* 종목: 클릭 가능 + 너무 길면 ... 처리 */}
                                       <td className="px-2 py-1.5 max-w-[120px]">
                                         <button
                                           type="button"
@@ -3235,7 +3516,7 @@ const [sort, setSort] = useState<SortState>({
                                         )}
                                       </td>
 
-                                      {/* 메모: 두 줄까지만 + ... + 전체는 title, md 이상에서만 */}
+                                      {/* 메모 */}
                                       <td className="px-2 py-1.5 max-w-[220px] hidden md:table-cell">
                                         <span
                                           className="block text-[11px] leading-snug line-clamp-2 break-words"
@@ -3245,7 +3526,7 @@ const [sort, setSort] = useState<SortState>({
                                         </span>
                                       </td>
 
-                                      {/* 수정 버튼: md 이상 */}
+                                      {/* 수정 버튼 */}
                                       <td className="px-2 py-1.5 text-center hidden md:table-cell">
                                         <button
                                           type="button"
@@ -3256,7 +3537,7 @@ const [sort, setSort] = useState<SortState>({
                                         </button>
                                       </td>
 
-                                      {/* 삭제 버튼: md 이상 */}
+                                      {/* 삭제 버튼 */}
                                       <td className="px-2 py-1.5 text-center hidden md:table-cell">
                                         <button
                                           type="button"
@@ -3291,6 +3572,102 @@ const [sort, setSort] = useState<SortState>({
                 </p>
               ) : (
                 <>
+                  {/* 실현손익 그래프 */}
+                  {pnlChartPoints.length > 0 && (
+                    <div
+                      className={
+                        'border rounded-lg p-3 md:p-4 mb-3 ' +
+                        (darkMode
+                          ? 'border-slate-700 bg-slate-900/70'
+                          : 'border-slate-200 bg-white')
+                      }
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold md:text-base">
+                            실현 손익 그래프
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-slate-500">
+                            {pnlChartMode === 'daily'
+                              ? '일별 실현 손익 (매도 거래 기준, FIFO 계산)'
+                              : '월별 실현 손익 (매도 거래 기준, FIFO 계산)'}
+                          </p>
+                        </div>
+                        <div className="flex gap-1 text-[11px]">
+                          <button
+                            type="button"
+                            onClick={() => setPnlChartMode('daily')}
+                            className={
+                              'px-2 py-0.5 rounded-full border ' +
+                              (pnlChartMode === 'daily'
+                                ? 'bg-blue-600 text-white border-blue-600'
+                                : darkMode
+                                ? 'border-slate-600 text-slate-200'
+                                : 'border-slate-300 text-slate-600')
+                            }
+                          >
+                            일별
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPnlChartMode('monthly')}
+                            className={
+                              'px-2 py-0.5 rounded-full border ' +
+                              (pnlChartMode === 'monthly'
+                                ? 'bg-blue-600 text-white border-blue-600'
+                                : darkMode
+                                ? 'border-slate-600 text-slate-200'
+                                : 'border-slate-300 text-slate-600')
+                            }
+                          >
+                            월별
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 막대 그래프 */}
+                      {maxAbsPnL === 0 ? (
+                        <p className="mt-3 text-[11px] text-slate-500">
+                          실현 손익이 없거나 계산할 수 없는 거래만 있습니다.
+                          <br />
+                          ※ 매도(SELL) 거래를 입력해야 실현 손익 막대가 생깁니다.
+                        </p>
+                      ) : (
+                        <div className="mt-3 h-40 md:h-48 flex items-end gap-[6px] overflow-x-auto px-1">
+                          {pnlChartPoints.map(point => {
+                            const v = Number(point.value ?? 0);
+                            const ratio = Math.abs(v) / maxAbsPnL;
+                            const heightPct = Math.max(5, ratio * 100);
+
+                            return (
+                              <div
+                                key={point.key}
+                                className="flex h-full min-w-[20px] flex-1 flex-col items-center justify-end"
+                              >
+                                <div
+                                  className={
+                                    'w-full rounded-t-sm ' +
+                                    (v > 0
+                                      ? 'bg-rose-400'
+                                      : v < 0
+                                      ? 'bg-blue-500'
+                                      : 'bg-slate-300')
+                                  }
+                                  style={{ height: `${heightPct}%` }}
+                                  title={`${point.label}: ${formatNumber(v)}원`}
+                                />
+                                <div className="mt-1 text-[9px] text-slate-500 whitespace-nowrap">
+                                  {pnlChartMode === 'daily'
+                                    ? point.label.slice(5)
+                                    : point.label.replace(' ', '')}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {/* 계좌 요약 */}
                   <div
                     className={
