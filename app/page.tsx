@@ -51,12 +51,48 @@ interface TagPerf {
   winRate: number;         // 승률 (%)
 }
 
+type PnLChartMode = 'daily' | 'monthly';
+
+type PnLPoint = {
+  key: string;   // YYYY-MM-DD 또는 YYYY-MM
+  label: string; // 화면에 찍을 라벨
+  value: number; // 해당 날짜/월의 실현 손익
+};
+
+
 // localStorage용 키 (비밀번호, 현재가, 테마, 게스트용 매매기록)
 const CURRENT_PRICE_KEY = 'stock-journal-current-prices-v1';
 const THEME_KEY = 'stock-journal-theme-v1';
 const GUEST_TRADES_KEY = 'stock-journal-guest-trades-v1';
+const OPEN_MONTHS_KEY = 'stock-journal-open-months-v1';
 
 type ActiveTab = 'journal' | 'stats' | 'settings';
+type SortKey = 'date' | 'symbol' | 'amount';
+type SymbolSortKey =
+  | 'symbol'
+  | 'positionQty'
+  | 'avgCost'
+  | 'totalBuyAmount'
+  | 'totalSellAmount'
+  | 'realizedPnL'
+  | 'currentPrice'
+  | 'positionValue'
+  | 'unrealizedPnL'
+  | 'winRate';
+
+type TagSortKey =
+  | 'tag'
+  | 'tradeCount'
+  | 'winRate'
+  | 'realizedPnL'
+  | 'avgPnLPerTrade';
+
+type SortState = {
+  key: SortKey;
+  dir: 'asc' | 'desc';
+};
+
+type TagFilterMode = 'AND' | 'OR';
 
 // Supabase 클라이언트 (브라우저 공개키 사용)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -125,6 +161,7 @@ export default function Home() {
   });
   const [filterSymbol, setFilterSymbol] = useState('');
   const [filterTag, setFilterTag] = useState('');
+  const [tagFilterMode, setTagFilterMode] = useState<TagFilterMode>('OR');
   const [selectedSymbol, setSelectedSymbol] = useState<string>('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -144,6 +181,33 @@ export default function Home() {
 
   // 탭
   const [activeTab, setActiveTab] = useState<ActiveTab>('journal');
+
+  // 타입 & 상태
+  const [pnlChartMode, setPnlChartMode] = useState<PnLChartMode>('daily');
+
+  // 정렬 상태
+const [sort, setSort] = useState<SortState>({
+  key: 'date',
+  dir: 'desc',
+});
+
+  // STATS 탭 - 종목표 정렬
+  const [symbolSort, setSymbolSort] = useState<{
+    key: SymbolSortKey;
+    dir: 'asc' | 'desc';
+  }>({
+    key: 'symbol',
+    dir: 'asc',
+  });
+
+  // STATS 탭 - 태그표 정렬
+  const [tagSort, setTagSort] = useState<{
+    key: TagSortKey;
+    dir: 'asc' | 'desc';
+  }>({
+    key: 'tradeCount',
+    dir: 'desc',
+  });
 
   // 월별 접기 상태
   const [openMonths, setOpenMonths] = useState<Record<string, boolean>>({});
@@ -196,6 +260,31 @@ export default function Home() {
   // 상태 & 핸들러 추가
   const [symbolSuggestions, setSymbolSuggestions] = useState<string[]>([]);
   const [showSymbolSuggestions, setShowSymbolSuggestions] = useState(false);
+
+  // 자주 쓰는 기본 심볼 리스트 (국내 + 해외 예시)
+  const STATIC_SYMBOLS: string[] = [
+    // 국내 주식
+    '삼성전자',
+    'SK하이닉스',
+    'LG에너지솔루션',
+    'NAVER',
+    '카카오',
+    '삼성바이오로직스',
+
+    // 미국 주식 (티커/이름 혼용)
+    'AAPL',
+    'MSFT',
+    'NVDA',
+    'TSLA',
+    'AMZN',
+    'META',
+
+    // ETF 예시
+    'QQQ',
+    'SPY',
+    'SOXL',
+    'TQQQ',
+  ];
 
   // 태그 문자열(form.tags)을 쉼표 기준 배열로 파싱
   function parseTagString(str: string | undefined | null): string[] {
@@ -311,6 +400,19 @@ export default function Home() {
       setDarkMode(true);
     }
 
+    // 4) 월별 접기 상태 로드
+    try {
+      const savedOpenMonths = localStorage.getItem(OPEN_MONTHS_KEY);
+      if (savedOpenMonths) {
+        const parsed = JSON.parse(savedOpenMonths) as Record<string, boolean>;
+        if (parsed && typeof parsed === 'object') {
+          setOpenMonths(parsed);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to parse openMonths from localStorage', err);
+    }
+
     // 4) 폼 날짜 기본값
     if (!form.date) {
       const today = new Date().toISOString().slice(0, 10);
@@ -376,6 +478,16 @@ export default function Home() {
     localStorage.setItem(THEME_KEY, darkMode ? 'dark' : 'light');
   }, [darkMode]);
 
+  // 월별 접기 상태 저장
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(OPEN_MONTHS_KEY, JSON.stringify(openMonths));
+    } catch (err) {
+      console.error('Failed to save openMonths to localStorage', err);
+    }
+  }, [openMonths]);
+
   // 공통 유틸
   const handleChange = (
     e: ChangeEvent<
@@ -399,6 +511,7 @@ export default function Home() {
       symbol: value,
     }));
 
+    // 아무것도 안 적혀있으면 추천 숨김
     const trimmed = value.trim().toLowerCase();
     if (!trimmed) {
       setSymbolSuggestions([]);
@@ -406,10 +519,10 @@ export default function Home() {
       return;
     }
 
-    // 현재 보유한 기록(trades)에서 종목 이름 모아오기
-    const uniq = Array.from(
+    // 1) 현재 저장된 매매 기록(로그인/게스트 공통)에서 종목 이름 추출
+    const fromTrades = Array.from(
       new Set(
-        trades
+        baseTrades
           .map(t => t.symbol)
           .filter(
             sym =>
@@ -417,11 +530,31 @@ export default function Home() {
               sym.toLowerCase().includes(trimmed),
           ),
       ),
-    ).slice(0, 5); // 최대 5개만 표시
+    );
+
+    // 2) 기본 심볼 리스트(STATIC_SYMBOLS)에서 검색
+    const fromStatic = STATIC_SYMBOLS.filter(sym =>
+      sym.toLowerCase().includes(trimmed),
+    );
+
+    // 3) 둘을 합치고, 중복 제거한 뒤 상위 5개만 사용
+    const uniq = Array.from(new Set([...fromTrades, ...fromStatic])).slice(0, 5);
 
     setSymbolSuggestions(uniq);
     setShowSymbolSuggestions(uniq.length > 0);
   };
+
+  // 종목 클릭 핸들러
+  const handleSymbolRowClick = (symbol: string) => {
+  setSelectedSymbol(prev => {
+    const next = prev === symbol ? '' : symbol;
+
+    // 심볼 필터도 같이 맞춰 주기
+    setFilterSymbol(current => (current === symbol ? '' : symbol));
+
+    return next;
+  });
+};
 
   const showNotify = (type: NotifyType, message: string) => {
     setNotify({ type, message });
@@ -913,6 +1046,56 @@ export default function Home() {
     }));
   };
 
+  // 정렬
+  const handleSort = (key: SortKey) => {
+    setSort(prev => {
+      // 같은 컬럼을 다시 클릭 → 방향 토글
+      if (prev.key === key) {
+        return {
+          key,
+          dir: prev.dir === 'asc' ? 'desc' : 'asc',
+        };
+      }
+      // 다른 컬럼을 클릭 → 그 컬럼 기준 오름차순부터 시작
+      return {
+        key,
+        dir: 'asc',
+      };
+    });
+  };
+
+  // STATS 탭용 정렬 핸들러
+  const handleSymbolStatsSort = (key: SymbolSortKey) => {
+    setSymbolSort(prev => {
+      if (prev.key === key) {
+        return {
+          key,
+          dir: prev.dir === 'asc' ? 'desc' : 'asc',
+        };
+      }
+      return {
+        key,
+        dir: 'asc',
+      };
+    });
+  };
+
+  // STATS 탭용 정렬 핸들러
+  const handleTagStatsSort = (key: TagSortKey) => {
+    setTagSort(prev => {
+      if (prev.key === key) {
+        return {
+          key,
+          dir: prev.dir === 'asc' ? 'desc' : 'asc',
+        };
+      }
+      return {
+        key,
+        dir: 'desc', // 태그는 기본을 "많이 쓰인 순"으로 시작
+      };
+    });
+  };
+
   // 현재가
   const handleCurrentPriceChange = (symbol: string, value: string) => {
     if (value === '') {
@@ -1128,12 +1311,46 @@ export default function Home() {
       : true,
   );
 
+  // 태그 입력값을 공백/쉼표 기준으로 나눈 키워드 배열
+  const tagKeywords = React.useMemo(
+    () =>
+      filterTag
+        .split(/[,\s]+/)               // 공백 또는 쉼표로 분리
+        .map(t => t.trim().toLowerCase())
+        .filter(Boolean),
+    [filterTag],
+  );
+
   const tagFilteredTrades = symbolFilteredTrades.filter(t => {
-    if (!filterTag) return true;
+    // 태그 키워드가 없으면 필터링 없이 통과
+    if (tagKeywords.length === 0) return true;
+
     const tags = (t.tags ?? []).map(tag => tag.toLowerCase());
-    const keyword = filterTag.toLowerCase();
-    return tags.some(tag => tag.includes(keyword));
+
+    // 태그가 하나도 없는 거래는 제외
+    if (tags.length === 0) return false;
+
+    if (tagFilterMode === 'AND') {
+      // 입력한 모든 키워드를 다 포함해야 통과
+      return tagKeywords.every(kw =>
+        tags.some(tag => tag.includes(kw)),
+      );
+    } else {
+      // OR: 키워드 중 하나라도 포함하면 통과
+      return tagKeywords.some(kw =>
+        tags.some(tag => tag.includes(kw)),
+      );
+    }
   });
+
+  // 선택된 종목의 거래들 (현재 필터를 모두 통과한 범위 안에서만 계산)
+  const selectedSymbolTrades = React.useMemo(
+    () =>
+      selectedSymbol
+        ? tagFilteredTrades.filter(t => t.symbol === selectedSymbol)
+        : [],
+    [selectedSymbol, tagFilteredTrades],
+  );
 
   const dateFilteredTrades = tagFilteredTrades.filter(t => {
     if (dateFrom && t.date < dateFrom) return false;
@@ -1141,7 +1358,84 @@ export default function Home() {
     return true;
   });
 
+  // 선택 종목 요약 통계 계산
+  const selectedSymbolSummary = React.useMemo(() => {
+    if (!selectedSymbol || selectedSymbolTrades.length === 0) return null;
+
+    let tradeCount = 0;
+    let buyCount = 0;
+    let sellCount = 0;
+
+    let buyQty = 0;
+    let sellQty = 0;
+
+    let buyAmount = 0;
+    let sellAmount = 0;
+
+    for (const t of selectedSymbolTrades) {
+      tradeCount += 1;
+
+      const qty = t.quantity ?? 0;
+      const amount = (t.price ?? 0) * qty;
+
+      if (t.side === 'BUY') {
+        buyCount += 1;
+        buyQty += qty;
+        buyAmount += amount;
+      } else if (t.side === 'SELL') {
+        sellCount += 1;
+        sellQty += qty;
+        sellAmount += amount;
+      }
+    }
+
+    const avgBuyPrice = buyQty > 0 ? buyAmount / buyQty : 0;
+    const avgSellPrice = sellQty > 0 ? sellAmount / sellQty : 0;
+
+    // 아주 러프한 실현 손익 (수수료/세금 무시)
+    const roughRealizedPnL = sellAmount - buyAmount;
+
+    return {
+      symbol: selectedSymbol,
+      tradeCount,
+      buyCount,
+      sellCount,
+      buyQty,
+      sellQty,
+      buyAmount,
+      sellAmount,
+      avgBuyPrice,
+      avgSellPrice,
+      roughRealizedPnL,
+    };
+  }, [selectedSymbol, selectedSymbolTrades]);
+
   const displayedTrades = dateFilteredTrades;
+
+  // 정렬 적용 배열
+  const sortedTradesForList = React.useMemo(() => {
+    const list = [...displayedTrades];
+
+    list.sort((a, b) => {
+      let cmp = 0;
+
+      if (sort.key === 'date') {
+        cmp = a.date.localeCompare(b.date);
+      } else if (sort.key === 'symbol') {
+        cmp = a.symbol.localeCompare(b.symbol);
+      } else if (sort.key === 'amount') {
+        const amountA = a.price * a.quantity;
+        const amountB = b.price * b.quantity;
+        if (amountA < amountB) cmp = -1;
+        else if (amountA > amountB) cmp = 1;
+        else cmp = 0;
+      }
+
+      return sort.dir === 'asc' ? cmp : -cmp;
+    });
+
+    return list;
+  }, [displayedTrades, sort.key, sort.dir]);
 
   const stats = displayedTrades.reduce(
     (acc, t) => {
@@ -1153,6 +1447,10 @@ export default function Home() {
     { buy: 0, sell: 0 },
   );
   const netCash = stats.sell - stats.buy;
+
+  const realizedPnL =
+  (selectedSymbolSummary?.sellAmount ?? 0) -
+  (selectedSymbolSummary?.buyAmount ?? 0);
 
   const symbolStats = displayedTrades
     .filter(t => selectedSymbol && t.symbol === selectedSymbol)
@@ -1251,6 +1549,67 @@ export default function Home() {
     return result;
   })();
 
+  // 종목별 요약용
+  const sortedSymbolSummaries = React.useMemo(() => {
+    const list = [...symbolSummaries];
+
+    const getMetric = (s: SymbolSummary): number | string => {
+      switch (symbolSort.key) {
+        case 'symbol':
+          return s.symbol;
+        case 'positionQty':
+          return s.positionQty;
+        case 'avgCost':
+          return s.avgCost;
+        case 'totalBuyAmount':
+          return s.totalBuyAmount;
+        case 'totalSellAmount':
+          return s.totalSellAmount;
+        case 'realizedPnL':
+          return s.realizedPnL;
+        case 'currentPrice': {
+          const price = currentPrices[s.symbol];
+          return price ?? 0;
+        }
+        case 'positionValue': {
+          const price = currentPrices[s.symbol];
+          if (price === undefined || s.positionQty <= 0) return 0;
+          return price * s.positionQty;
+        }
+        case 'unrealizedPnL': {
+          const price = currentPrices[s.symbol];
+          if (price === undefined || s.positionQty <= 0) return 0;
+          return (price - s.avgCost) * s.positionQty;
+        }
+        case 'winRate':
+          return s.winRate;
+        default:
+          return s.symbol;
+      }
+    };
+
+    list.sort((a, b) => {
+      const va = getMetric(a);
+      const vb = getMetric(b);
+
+      let cmp = 0;
+
+      if (typeof va === 'string' && typeof vb === 'string') {
+        cmp = va.localeCompare(vb);
+      } else {
+        const na = Number(va);
+        const nb = Number(vb);
+        if (na < nb) cmp = -1;
+        else if (na > nb) cmp = 1;
+        else cmp = 0;
+      }
+
+      return symbolSort.dir === 'asc' ? cmp : -cmp;
+    });
+
+    return list;
+  }, [symbolSummaries, symbolSort.key, symbolSort.dir, currentPrices]);
+
   // 누계 수치 / 수익률
   const overallStats = (() => {
     let totalBuyAmount = 0;        // 총 매수금액 (정보용)
@@ -1292,6 +1651,102 @@ export default function Home() {
       holdingReturnRate,
     };
   })();
+
+  // 일별 실현손익 (FIFO 기준, baseTrades 전체 기준)
+  const dailyRealizedPoints: PnLPoint[] = React.useMemo(() => {
+    if (baseTrades.length === 0) return [];
+
+    // 날짜 + id 순으로 정렬
+    const sortedTrades = [...baseTrades].sort((a, b) => {
+      if (a.date === b.date) return a.id.localeCompare(b.id);
+      return a.date.localeCompare(b.date);
+    });
+
+    type PosState = {
+      positionQty: number;
+      costBasis: number;
+    };
+
+    const posMap = new Map<string, PosState>(); // 종목별 포지션 상태
+    const dayMap = new Map<string, number>();   // 날짜별 실현손익 합계
+
+    for (const t of sortedTrades) {
+      const amount = t.price * t.quantity;
+      const symbol = t.symbol;
+
+      let pos = posMap.get(symbol);
+      if (!pos) {
+        pos = { positionQty: 0, costBasis: 0 };
+        posMap.set(symbol, pos);
+      }
+
+      if (t.side === 'BUY') {
+        // 매수: 수량/원금만 쌓는다
+        pos.positionQty += t.quantity;
+        pos.costBasis += amount;
+      } else {
+        // 매도: 이전 평단 기준으로 실현손익 계산
+        const prevQty = pos.positionQty;
+        const prevCostBasis = pos.costBasis;
+        const prevAvgCost = prevQty !== 0 ? prevCostBasis / prevQty : 0;
+
+        const sellQty = t.quantity;
+        const realizedThis = (t.price - prevAvgCost) * sellQty;
+
+        // 포지션/원금 업데이트
+        pos.positionQty = prevQty - sellQty;
+        pos.costBasis = prevCostBasis - prevAvgCost * sellQty;
+
+        // 날짜별로 합산
+        const prevDay = dayMap.get(t.date) ?? 0;
+        dayMap.set(t.date, prevDay + realizedThis);
+      }
+    }
+
+    return Array.from(dayMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0])) // 날짜 오름차순
+      .map(([date, value]) => ({
+        key: date,
+        label: date,
+        value: Number.isFinite(value) ? value : 0,
+      }));
+  }, [baseTrades]);
+
+  // 월별 실현손익: 일별 결과를 YYYY-MM 단위로 합산
+  const monthlyRealizedPoints: PnLPoint[] = React.useMemo(() => {
+    if (dailyRealizedPoints.length === 0) return [];
+
+    const monthMap = new Map<string, number>();
+
+    for (const pt of dailyRealizedPoints) {
+      const monthKey =
+        pt.key && pt.key.length >= 7 ? pt.key.slice(0, 7) : '기타';
+      const prev = monthMap.get(monthKey) ?? 0;
+      monthMap.set(monthKey, prev + pt.value);
+    }
+
+    return Array.from(monthMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([key, value]) => ({
+        key,
+        label: formatMonthLabel(key),
+        value: Number.isFinite(value) ? value : 0,
+      }));
+  }, [dailyRealizedPoints]);
+
+  // 현재 모드에 맞는 포인트 & 최대 절대값 (그래프 스케일용)
+  const pnlChartPoints =
+    pnlChartMode === 'daily' ? dailyRealizedPoints : monthlyRealizedPoints;
+
+  // 실현 손익 그래프용 최대 절대값 (NaN 방지)
+  const maxAbsPnLRaw = pnlChartPoints.reduce((max, p) => {
+    const v = Number(p.value ?? 0);
+    if (!Number.isFinite(v)) return max;
+    return Math.max(max, Math.abs(v));
+  }, 0);
+
+  const maxAbsPnL = Number.isFinite(maxAbsPnLRaw) ? maxAbsPnLRaw : 0;
+
 
   // 태그별 성적 (SELL 거래 기준)
   const tagStats: TagPerf[] = (() => {
@@ -1377,16 +1832,59 @@ export default function Home() {
     return result;
   })();
 
+  // Stats 탭 태그 정렬용
+  const sortedTagStats = React.useMemo(() => {
+    const list = [...tagStats];
+
+    const getMetric = (t: TagPerf): number | string => {
+      switch (tagSort.key) {
+        case 'tag':
+          return t.tag;
+        case 'tradeCount':
+          return t.tradeCount;
+        case 'winRate':
+          return t.winRate;
+        case 'realizedPnL':
+          return t.realizedPnL;
+        case 'avgPnLPerTrade':
+          return t.avgPnLPerTrade;
+        default:
+          return t.tag;
+      }
+    };
+
+    list.sort((a, b) => {
+      const va = getMetric(a);
+      const vb = getMetric(b);
+
+      let cmp = 0;
+
+      if (typeof va === 'string' && typeof vb === 'string') {
+        cmp = va.localeCompare(vb);
+      } else {
+        const na = Number(va);
+        const nb = Number(vb);
+        if (na < nb) cmp = -1;
+        else if (na > nb) cmp = 1;
+        else cmp = 0;
+      }
+
+      return tagSort.dir === 'asc' ? cmp : -cmp;
+    });
+
+    return list;
+  }, [tagStats, tagSort.key, tagSort.dir]);
+
   // 자주 쓰는 태그 목록 (Top N)
   const topTags = tagStats.map(tp => tp.tag);
 
   // 월별 그룹 (현재 모드 + 필터 결과)
   const monthGroups = (() => {
-    if (displayedTrades.length === 0) return [];
+    if (sortedTradesForList.length === 0) return [];
 
     const map = new Map<string, Trade[]>();
 
-    for (const t of displayedTrades) {
+    for (const t of sortedTradesForList) {
       const key = t.date && t.date.length >= 7 ? t.date.slice(0, 7) : '기타';
       const list = map.get(key) ?? [];
       list.push(t);
@@ -1430,9 +1928,12 @@ export default function Home() {
     });
   }
 
-  if (filterTag) {
+  if (tagKeywords.length > 0) {
+    const modeLabel =
+      tagFilterMode === 'AND' ? '모두 포함' : '하나 이상 포함';
+
     activeFilterChips.push({
-      label: `태그 필터: ${filterTag}`,
+      label: `태그 필터(${modeLabel}): ${tagKeywords.join(', ')}`,
       onClear: () => setFilterTag(''),
     });
   }
@@ -1532,6 +2033,16 @@ export default function Home() {
     setGuestTrades([]);
     localStorage.removeItem(GUEST_TRADES_KEY);
     showNotify('success', '게스트 모드 매매 기록을 모두 삭제했습니다.');
+  };
+  
+  const scrollToAddForm = () => {
+    const headerHeight = 210; // sticky header + tabs 대략적 높이
+    const y =
+      addFormRef.current!.getBoundingClientRect().top +
+      window.scrollY -
+      headerHeight;
+
+    window.scrollTo({ top: y, behavior: 'smooth' });
   };
 
   // 🚩 1단계: 로그인 상태 확인
@@ -1785,7 +2296,7 @@ export default function Home() {
                       : 'border-slate-200 bg-slate-50')
                   }
                 >
-                  <div className="text-slate-500">순 현금 흐름</div>
+                  <div className="text-slate-500">실현 손익</div>
                   <div
                     className={
                       'text-lg font-semibold ' +
@@ -1915,6 +2426,22 @@ export default function Home() {
                         placeholder="예: 삼성전자"
                         value={form.symbol}
                         onChange={handleSymbolChange}
+                        onFocus={() => {
+                          // 아무것도 안 적었을 때, 최근 기록 5개 정도 보여주기
+                          if (!form.symbol.trim()) {
+                            const recent = Array.from(
+                              new Set(
+                                baseTrades
+                                  .slice(0, 50) // 최근 50개만 스캔
+                                  .map(t => t.symbol)
+                                  .filter(Boolean),
+                              ),
+                            ).slice(0, 5);
+
+                            setSymbolSuggestions(recent);
+                            setShowSymbolSuggestions(recent.length > 0);
+                          }
+                        }}
                         autoFocus
                         className={
                           'border rounded px-2 py-1 text-xs bg-transparent ' +
@@ -2439,6 +2966,42 @@ export default function Home() {
                           }
                         />
                       </div>
+                      <div className="flex items-center gap-2 mt-1 text-[11px]">
+                        <span className="text-slate-500">태그 조건</span>
+                        <div className="flex gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setTagFilterMode('AND')}
+                            className={
+                              'px-2 py-0.5 rounded-full border ' +
+                              (tagFilterMode === 'AND'
+                                ? 'bg-blue-600 text-white border-blue-600'
+                                : darkMode
+                                ? 'border-slate-600 text-slate-300'
+                                : 'border-slate-300 text-slate-600')
+                            }
+                          >
+                            AND (모두 포함)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setTagFilterMode('OR')}
+                            className={
+                              'px-2 py-0.5 rounded-full border ' +
+                              (tagFilterMode === 'OR'
+                                ? 'bg-blue-600 text-white border-blue-600'
+                                : darkMode
+                                ? 'border-slate-600 text-slate-300'
+                                : 'border-slate-300 text-slate-600')
+                            }
+                          >
+                            OR (하나 이상)
+                          </button>
+                        </div>
+                        <span className="text-slate-400">
+                          여러 태그는 공백이나 쉼표로 구분해 입력할 수 있어요.
+                        </span>
+                      </div>
                     </div>
 
                     {hasDateRangeError && (
@@ -2452,13 +3015,24 @@ export default function Home() {
                       <div className="flex flex-wrap items-center gap-1 mt-1 text-[11px]">
                         <span className="text-slate-500">자주 쓰는 태그:</span>
                         {topTags.slice(0, 5).map(tag => {
-                          const selected =
-                            filterTag.toLowerCase() === tag.toLowerCase();
+                          const lower = tag.toLowerCase();
+                          const selected = tagKeywords.includes(lower);
+
                           return (
                             <button
                               key={tag}
                               type="button"
-                              onClick={() => setFilterTag(selected ? '' : tag)}
+                              onClick={() => {
+                                if (selected) {
+                                  // 이미 선택된 태그면 제거
+                                  const next = tagKeywords.filter(kw => kw !== lower);
+                                  setFilterTag(next.join(' '));
+                                } else {
+                                  // 새 태그 추가
+                                  const next = [...tagKeywords, lower];
+                                  setFilterTag(next.join(' '));
+                                }
+                              }}
                               className={
                                 'px-2 py-0.5 rounded-full border ' +
                                 (selected
@@ -2486,63 +3060,162 @@ export default function Home() {
                 }
               >
                 {selectedSymbol ? (
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold">
-                        선택 종목 요약: {selectedSymbol}
-                      </span>
+                  <div
+                    className={
+                      '' +
+                      (darkMode
+                        ? 'border-slate-700 bg-slate-900/70'
+                        : 'border-slate-200 bg-slate-50')
+                    }
+                  >
+                    {/* 제목 + 선택 해제 */}
+                    <div className="mb-3 flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold md:text-base">
+                          선택 종목 요약:{' '}
+                          <span className="font-bold">{selectedSymbol}</span>
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-slate-500">
+                          현재 필터(날짜 · 태그 · 매수/매도) 기준 요약입니다.
+                        </p>
+                      </div>
                       <button
                         type="button"
-                        className="text-[11px] text-slate-400 underline"
-                        onClick={() => setSelectedSymbol('')}
+                        onClick={() => {
+                          setSelectedSymbol('');
+                          setFilterSymbol('');
+                        }}
+                        className="text-[11px] text-slate-500 underline-offset-2 hover:underline"
                       >
                         선택 해제
                       </button>
                     </div>
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <div className="text-slate-500 text-[11px]">
-                          매수 금액
-                        </div>
-                        <div className="text-sm font-semibold">
-                          {formatNumber(symbolStats.buy)} 원
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-slate-500 text-[11px]">
-                          매도 금액
-                        </div>
-                        <div className="text-sm font-semibold">
-                          {formatNumber(symbolStats.sell)} 원
+
+                    {/* ➊ 위쪽: 금액 3칸 (매수/매도/실현 손익) */}
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <div className="space-y-0.5">
+                        <div className="text-[11px] text-slate-500">매수 금액</div>
+                        <div className="text-sm font-semibold md:text-base">
+                          {formatNumber(symbolStats.buy)}{' '}
+                          <span className="text-xs font-normal">원</span>
                         </div>
                       </div>
-                      <div>
-                        <div className="text-slate-500 text-[11px]">
-                          순 현금 흐름
+
+                      <div className="space-y-0.5">
+                        <div className="text-[11px] text-slate-500">매도 금액</div>
+                        <div className="text-sm font-semibold md:text-base">
+                          {formatNumber(symbolStats.sell)}{' '}
+                          <span className="text-xs font-normal">원</span>
                         </div>
+                      </div>
+
+                      <div className="space-y-0.5">
+                        <div className="text-[11px] text-slate-500">실현 손익</div>
                         <div
                           className={
-                            'text-sm font-semibold ' +
+                            'text-sm font-semibold md:text-base ' +
                             (symbolNetCash > 0
-                              ? 'text-emerald-500'
+                              ? 'text-rose-500'
                               : symbolNetCash < 0
-                              ? 'text-rose-400'
+                              ? 'text-blue-600'
                               : '')
                           }
                         >
-                          {formatNumber(symbolNetCash)} 원
+                          {formatNumber(realizedPnL)}{' '}
+                          <span className="text-xs font-normal">원</span>
                         </div>
                       </div>
                     </div>
+
+                    {/* 구분선 */}
+                    <div className="my-3 h-px bg-slate-200 dark:bg-slate-700" />
+
+                    {/* ➋ 아래쪽: 상세 요약 (selectedSymbolSummary 활용) */}
+                    {selectedSymbolSummary && (
+                      <div className="grid gap-3 md:grid-cols-4">
+                        {/* 거래 수 */}
+                        <div className="space-y-0.5">
+                          <div className="text-[11px] text-slate-500">
+                            거래 수 (매수/매도)
+                          </div>
+                          <div className="text-xs font-medium md:text-sm">
+                            {selectedSymbolSummary.tradeCount}회{' '}
+                            <span className="text-[11px] text-slate-500">
+                              ({selectedSymbolSummary.buyCount} 매수 /{' '}
+                              {selectedSymbolSummary.sellCount} 매도)
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* 매수 수량 / 금액 */}
+                        <div className="space-y-0.5">
+                          <div className="text-[11px] text-slate-500">매수 수량 / 금액</div>
+                          <div className="text-xs font-medium md:text-sm">
+                            {selectedSymbolSummary.buyQty}주{' '}
+                            <span className="text-[11px] text-slate-500">
+                              ({formatNumber(selectedSymbolSummary.buyAmount)}원)
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* 매도 수량 / 금액 */}
+                        <div className="space-y-0.5">
+                          <div className="text-[11px] text-slate-500">매도 수량 / 금액</div>
+                          <div className="text-xs font-medium md:text-sm">
+                            {selectedSymbolSummary.sellQty}주{' '}
+                            <span className="text-[11px] text-slate-500">
+                              ({formatNumber(selectedSymbolSummary.sellAmount)}원)
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* 평단 / 대략 손익 */}
+                        <div className="space-y-0.5">
+                          <div className="text-[11px] text-slate-500">매수 / 매도 평단</div>
+                          <div className="text-xs font-medium md:text-sm">
+                            {selectedSymbolSummary.avgBuyPrice > 0 && (
+                              <>
+                                {formatNumber(selectedSymbolSummary.avgBuyPrice)}원
+                              </>
+                            )}
+                            {selectedSymbolSummary.avgSellPrice > 0 && (
+                              <>
+                                {' · '}
+                                {formatNumber(selectedSymbolSummary.avgSellPrice)}원
+                              </>
+                            )}
+                            <span
+                              className={
+                                'ml-1 text-[11px] ' +
+                                (selectedSymbolSummary.roughRealizedPnL > 0
+                                  ? 'text-rose-500'
+                                  : selectedSymbolSummary.roughRealizedPnL < 0
+                                  ? 'text-blue-600'
+                                  : 'text-slate-500')
+                              }
+                            >
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
-                  <span className="text-[11px] text-slate-500">
-                    아래 목록에서 종목 이름을 클릭하면 이곳에 해당 종목 요약이
-                    표시됩니다.
-                  </span>
+                  // 선택 안 되었을 때 안내문 (기존 코드 그대로 두면 됨)
+                  <div
+                    className={
+                      'text-[11px] md:text-xs ' +
+                      (darkMode
+                        ? 'border-slate-700 bg-slate-900/60 text-slate-300'
+                        : 'border-slate-200 bg-slate-50 text-slate-500')
+                    }
+                  >
+                    종목명을 클릭하면 해당 종목의 매수/매도 금액과 거래 요약을 확인할 수
+                    있어요.
+                  </div>
                 )}
               </div>
-
+              
               {/* 활성 필터/선택 상태 뱃지 줄 */}
               {activeFilterChips.length > 0 && (
                 <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px]">
@@ -2589,12 +3262,78 @@ export default function Home() {
                       }
                     >
                       <tr>
-                        <th className="px-2 py-2 text-left">날짜</th>
-                        <th className="px-2 py-2 text-left">종목</th>
+                        <th className="px-2 py-2 text-left">
+                          <button
+                            type="button"
+                            onClick={() => handleSort('date')}
+                            className="flex items-center gap-1"
+                          >
+                            <span>날짜</span>
+                            <span
+                              className={
+                                'text-[10px] ' +
+                                (sort.key === 'date'
+                                  ? 'text-blue-500'
+                                  : 'text-slate-400')
+                              }
+                            >
+                              {sort.key === 'date'
+                                ? sort.dir === 'asc'
+                                  ? '▲'
+                                  : '▼'
+                                : '↕'}
+                            </span>
+                          </button>
+                        </th>
+                        <th className="px-2 py-2 text-left">
+                          <button
+                            type="button"
+                            onClick={() => handleSort('symbol')}
+                            className="flex items-center gap-1"
+                          >
+                            <span>종목</span>
+                            <span
+                              className={
+                                'text-[10px] ' +
+                                (sort.key === 'symbol'
+                                  ? 'text-blue-500'
+                                  : 'text-slate-400')
+                              }
+                            >
+                              {sort.key === 'symbol'
+                                ? sort.dir === 'asc'
+                                  ? '▲'
+                                  : '▼'
+                                : '↕'}
+                            </span>
+                          </button>
+                        </th>
                         <th className="px-2 py-2 text-center">구분</th>
                         <th className="px-2 py-2 text-right hidden sm:table-cell">가격</th>
                         <th className="px-2 py-2 text-right hidden sm:table-cell">수량</th>
-                        <th className="px-2 py-2 text-right">금액</th>
+                        <th className="px-2 py-2 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleSort('amount')}
+                            className="inline-flex items-center gap-1"
+                          >
+                            <span>금액</span>
+                            <span
+                              className={
+                                'text-[10px] ' +
+                                (sort.key === 'amount'
+                                  ? 'text-blue-500'
+                                  : 'text-slate-400')
+                              }
+                            >
+                              {sort.key === 'amount'
+                                ? sort.dir === 'asc'
+                                  ? '▲'
+                                  : '▼'
+                                : '↕'}
+                            </span>
+                          </button>
+                        </th>
                         <th className="px-2 py-2 text-left hidden md:table-cell">태그</th>
                         <th className="px-2 py-2 text-left hidden md:table-cell">파일</th>
                         <th className="px-2 py-2 text-left hidden md:table-cell">메모</th>
@@ -2688,16 +3427,13 @@ export default function Home() {
                                     : '';
 
                                   return (
-                                    <tr
-                                      key={trade.id}
-                                      className={baseRowClass + selectedRowClass}
-                                    >
+                                    <tr key={trade.id} className={baseRowClass + selectedRowClass}>
                                       {/* 날짜 */}
                                       <td className="px-2 py-1.5 whitespace-nowrap">
                                         {trade.date}
                                       </td>
 
-                                      {/* 종목: 너무 길면 ... + 전체는 title */}
+                                      {/* 종목: 클릭 가능 + 너무 길면 ... 처리 */}
                                       <td className="px-2 py-1.5 max-w-[120px]">
                                         <button
                                           type="button"
@@ -2790,7 +3526,7 @@ export default function Home() {
                                         )}
                                       </td>
 
-                                      {/* 메모: 두 줄까지만 + ... + 전체는 title, md 이상에서만 */}
+                                      {/* 메모 */}
                                       <td className="px-2 py-1.5 max-w-[220px] hidden md:table-cell">
                                         <span
                                           className="block text-[11px] leading-snug line-clamp-2 break-words"
@@ -2800,7 +3536,7 @@ export default function Home() {
                                         </span>
                                       </td>
 
-                                      {/* 수정 버튼: md 이상 */}
+                                      {/* 수정 버튼 */}
                                       <td className="px-2 py-1.5 text-center hidden md:table-cell">
                                         <button
                                           type="button"
@@ -2811,7 +3547,7 @@ export default function Home() {
                                         </button>
                                       </td>
 
-                                      {/* 삭제 버튼: md 이상 */}
+                                      {/* 삭제 버튼 */}
                                       <td className="px-2 py-1.5 text-center hidden md:table-cell">
                                         <button
                                           type="button"
@@ -2846,6 +3582,102 @@ export default function Home() {
                 </p>
               ) : (
                 <>
+                  {/* 실현손익 그래프 */}
+                  {pnlChartPoints.length > 0 && (
+                    <div
+                      className={
+                        'border rounded-lg p-3 md:p-4 mb-3 ' +
+                        (darkMode
+                          ? 'border-slate-700 bg-slate-900/70'
+                          : 'border-slate-200 bg-white')
+                      }
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold md:text-base">
+                            실현 손익 그래프
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-slate-500">
+                            {pnlChartMode === 'daily'
+                              ? '일별 실현 손익 (매도 거래 기준, FIFO 계산)'
+                              : '월별 실현 손익 (매도 거래 기준, FIFO 계산)'}
+                          </p>
+                        </div>
+                        <div className="flex gap-1 text-[11px]">
+                          <button
+                            type="button"
+                            onClick={() => setPnlChartMode('daily')}
+                            className={
+                              'px-2 py-0.5 rounded-full border ' +
+                              (pnlChartMode === 'daily'
+                                ? 'bg-blue-600 text-white border-blue-600'
+                                : darkMode
+                                ? 'border-slate-600 text-slate-200'
+                                : 'border-slate-300 text-slate-600')
+                            }
+                          >
+                            일별
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPnlChartMode('monthly')}
+                            className={
+                              'px-2 py-0.5 rounded-full border ' +
+                              (pnlChartMode === 'monthly'
+                                ? 'bg-blue-600 text-white border-blue-600'
+                                : darkMode
+                                ? 'border-slate-600 text-slate-200'
+                                : 'border-slate-300 text-slate-600')
+                            }
+                          >
+                            월별
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 막대 그래프 */}
+                      {maxAbsPnL === 0 ? (
+                        <p className="mt-3 text-[11px] text-slate-500">
+                          실현 손익이 없거나 계산할 수 없는 거래만 있습니다.
+                          <br />
+                          ※ 매도(SELL) 거래를 입력해야 실현 손익 막대가 생깁니다.
+                        </p>
+                      ) : (
+                        <div className="mt-3 h-40 md:h-48 flex items-end gap-[6px] overflow-x-auto px-1">
+                          {pnlChartPoints.map(point => {
+                            const v = Number(point.value ?? 0);
+                            const ratio = Math.abs(v) / maxAbsPnL;
+                            const heightPct = Math.max(5, ratio * 100);
+
+                            return (
+                              <div
+                                key={point.key}
+                                className="flex h-full min-w-[20px] flex-1 flex-col items-center justify-end"
+                              >
+                                <div
+                                  className={
+                                    'w-full rounded-t-sm ' +
+                                    (v > 0
+                                      ? 'bg-rose-400'
+                                      : v < 0
+                                      ? 'bg-blue-500'
+                                      : 'bg-slate-300')
+                                  }
+                                  style={{ height: `${heightPct}%` }}
+                                  title={`${point.label}: ${formatNumber(v)}원`}
+                                />
+                                <div className="mt-1 text-[9px] text-slate-500 whitespace-nowrap">
+                                  {pnlChartMode === 'daily'
+                                    ? point.label.slice(5)
+                                    : point.label.replace(' ', '')}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {/* 계좌 요약 */}
                   <div
                     className={
@@ -2968,26 +3800,259 @@ export default function Home() {
                       <table className="w-full text-xs md:text-sm min-w-[720px]">
                         <thead className={tableHeaderBg}>
                           <tr>
-                            <th className="px-2 py-2 text-left">종목</th>
-                            <th className="px-2 py-2 text-right min-w-[40px]">수량</th>
-                            <th className="px-2 py-2 text-right">평단가</th>
-                            <th className="px-2 py-2 text-right">총 매수</th>
-                            <th className="px-2 py-2 text-right">총 매도</th>
+                            {/* 종목 */}
+                            <th className="px-2 py-2 text-left">
+                              <button
+                                type="button"
+                                onClick={() => handleSymbolStatsSort('symbol')}
+                                className="flex items-center gap-1"
+                              >
+                                <span>종목</span>
+                                <span
+                                  className={
+                                    'text-[10px] ' +
+                                    (symbolSort.key === 'symbol'
+                                      ? 'text-blue-500'
+                                      : 'text-slate-400')
+                                  }
+                                >
+                                  {symbolSort.key === 'symbol'
+                                    ? symbolSort.dir === 'asc'
+                                      ? '▲'
+                                      : '▼'
+                                    : '↕'}
+                                </span>
+                              </button>
+                            </th>
+
+                            {/* 수량 */}
+                            <th className="px-2 py-2 text-right min-w-[40px]">
+                              <button
+                                type="button"
+                                onClick={() => handleSymbolStatsSort('positionQty')}
+                                className="inline-flex items-center gap-1 justify-end w-full"
+                              >
+                                <span>수량</span>
+                                <span
+                                  className={
+                                    'text-[10px] ' +
+                                    (symbolSort.key === 'positionQty'
+                                      ? 'text-blue-500'
+                                      : 'text-slate-400')
+                                  }
+                                >
+                                  {symbolSort.key === 'positionQty'
+                                    ? symbolSort.dir === 'asc'
+                                      ? '▲'
+                                      : '▼'
+                                    : '↕'}
+                                </span>
+                              </button>
+                            </th>
+
+                            {/* 평단가 */}
+                            <th className="px-2 py-2 text-right">
+                              <button
+                                type="button"
+                                onClick={() => handleSymbolStatsSort('avgCost')}
+                                className="inline-flex items-center gap-1 justify-end w-full"
+                              >
+                                <span>평단가</span>
+                                <span
+                                  className={
+                                    'text-[10px] ' +
+                                    (symbolSort.key === 'avgCost'
+                                      ? 'text-blue-500'
+                                      : 'text-slate-400')
+                                  }
+                                >
+                                  {symbolSort.key === 'avgCost'
+                                    ? symbolSort.dir === 'asc'
+                                      ? '▲'
+                                      : '▼'
+                                    : '↕'}
+                                </span>
+                              </button>
+                            </th>
+
+                            {/* 총 매수 */}
+                            <th className="px-2 py-2 text-right">
+                              <button
+                                type="button"
+                                onClick={() => handleSymbolStatsSort('totalBuyAmount')}
+                                className="inline-flex items-center gap-1 justify-end w-full"
+                              >
+                                <span>총 매수</span>
+                                <span
+                                  className={
+                                    'text-[10px] ' +
+                                    (symbolSort.key === 'totalBuyAmount'
+                                      ? 'text-blue-500'
+                                      : 'text-slate-400')
+                                  }
+                                >
+                                  {symbolSort.key === 'totalBuyAmount'
+                                    ? symbolSort.dir === 'asc'
+                                      ? '▲'
+                                      : '▼'
+                                    : '↕'}
+                                </span>
+                              </button>
+                            </th>
+
+                            {/* 총 매도 */}
+                            <th className="px-2 py-2 text-right">
+                              <button
+                                type="button"
+                                onClick={() => handleSymbolStatsSort('totalSellAmount')}
+                                className="inline-flex items-center gap-1 justify-end w-full"
+                              >
+                                <span>총 매도</span>
+                                <span
+                                  className={
+                                    'text-[10px] ' +
+                                    (symbolSort.key === 'totalSellAmount'
+                                      ? 'text-blue-500'
+                                      : 'text-slate-400')
+                                  }
+                                >
+                                  {symbolSort.key === 'totalSellAmount'
+                                    ? symbolSort.dir === 'asc'
+                                      ? '▲'
+                                      : '▼'
+                                    : '↕'}
+                                </span>
+                              </button>
+                            </th>
+
+                            {/* 실현손익 */}
                             <th className="px-2 py-2 text-right min-w-[60px]">
-                              실현손익
+                              <button
+                                type="button"
+                                onClick={() => handleSymbolStatsSort('realizedPnL')}
+                                className="inline-flex items-center gap-1 justify-end w-full"
+                              >
+                                <span>실현손익</span>
+                                <span
+                                  className={
+                                    'text-[10px] ' +
+                                    (symbolSort.key === 'realizedPnL'
+                                      ? 'text-blue-500'
+                                      : 'text-slate-400')
+                                  }
+                                >
+                                  {symbolSort.key === 'realizedPnL'
+                                    ? symbolSort.dir === 'asc'
+                                      ? '▲'
+                                      : '▼'
+                                    : '↕'}
+                                </span>
+                              </button>
                             </th>
-                            <th className="px-2 py-2 text-right">현재가</th>
+
+                            {/* 현재가 */}
                             <th className="px-2 py-2 text-right">
-                              평가금액
+                              <button
+                                type="button"
+                                onClick={() => handleSymbolStatsSort('currentPrice')}
+                                className="inline-flex items-center gap-1 justify-end w-full"
+                              >
+                                <span>현재가</span>
+                                <span
+                                  className={
+                                    'text-[10px] ' +
+                                    (symbolSort.key === 'currentPrice'
+                                      ? 'text-blue-500'
+                                      : 'text-slate-400')
+                                  }
+                                >
+                                  {symbolSort.key === 'currentPrice'
+                                    ? symbolSort.dir === 'asc'
+                                      ? '▲'
+                                      : '▼'
+                                    : '↕'}
+                                </span>
+                              </button>
                             </th>
+
+                            {/* 평가금액 */}
                             <th className="px-2 py-2 text-right">
-                              평가손익
+                              <button
+                                type="button"
+                                onClick={() => handleSymbolStatsSort('positionValue')}
+                                className="inline-flex items-center gap-1 justify-end w-full"
+                              >
+                                <span>평가금액</span>
+                                <span
+                                  className={
+                                    'text-[10px] ' +
+                                    (symbolSort.key === 'positionValue'
+                                      ? 'text-blue-500'
+                                      : 'text-slate-400')
+                                  }
+                                >
+                                  {symbolSort.key === 'positionValue'
+                                    ? symbolSort.dir === 'asc'
+                                      ? '▲'
+                                      : '▼'
+                                    : '↕'}
+                                </span>
+                              </button>
                             </th>
-                            <th className="px-2 py-2 text-right">승률</th>
+
+                            {/* 평가손익 */}
+                            <th className="px-2 py-2 text-right">
+                              <button
+                                type="button"
+                                onClick={() => handleSymbolStatsSort('unrealizedPnL')}
+                                className="inline-flex items-center gap-1 justify-end w-full"
+                              >
+                                <span>평가손익</span>
+                                <span
+                                  className={
+                                    'text-[10px] ' +
+                                    (symbolSort.key === 'unrealizedPnL'
+                                      ? 'text-blue-500'
+                                      : 'text-slate-400')
+                                  }
+                                >
+                                  {symbolSort.key === 'unrealizedPnL'
+                                    ? symbolSort.dir === 'asc'
+                                      ? '▲'
+                                      : '▼'
+                                    : '↕'}
+                                </span>
+                              </button>
+                            </th>
+
+                            {/* 승률 */}
+                            <th className="px-2 py-2 text-right">
+                              <button
+                                type="button"
+                                onClick={() => handleSymbolStatsSort('winRate')}
+                                className="inline-flex items-center gap-1 justify-end w-full"
+                              >
+                                <span>승률</span>
+                                <span
+                                  className={
+                                    'text-[10px] ' +
+                                    (symbolSort.key === 'winRate'
+                                      ? 'text-blue-500'
+                                      : 'text-slate-400')
+                                  }
+                                >
+                                  {symbolSort.key === 'winRate'
+                                    ? symbolSort.dir === 'asc'
+                                      ? '▲'
+                                      : '▼'
+                                    : '↕'}
+                                </span>
+                              </button>
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
-                          {symbolSummaries.map(s => {
+                          {sortedSymbolSummaries.map(s => {
                             const hasPrice =
                               currentPrices[s.symbol] !== undefined;
                             const currentPrice = hasPrice
@@ -3145,22 +4210,139 @@ export default function Home() {
                         <table className="w-full text-[11px] md:text-xs min-w-[640px]">
                           <thead className={tableHeaderBg}>
                             <tr>
-                              <th className="px-2 py-1.5 text-left">태그</th>
-                              <th className="px-2 py-1.5 text-right">거래 수</th>
+                              {/* 태그 */}
+                              <th className="px-2 py-1.5 text-left">
+                                <button
+                                  type="button"
+                                  onClick={() => handleTagStatsSort('tag')}
+                                  className="flex items-center gap-1 text-[14px]"
+                                >
+                                  <span>태그</span>
+                                  <span
+                                    className={
+                                      'text-[10px] ' +
+                                      (tagSort.key === 'tag'
+                                        ? 'text-blue-500'
+                                        : 'text-slate-400')
+                                    }
+                                  >
+                                    {tagSort.key === 'tag'
+                                      ? tagSort.dir === 'asc'
+                                        ? '▲'
+                                        : '▼'
+                                      : '↕'}
+                                  </span>
+                                </button>
+                              </th>
+
+                              {/* 거래 수 */}
+                              <th className="px-2 py-1.5 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => handleTagStatsSort('tradeCount')}
+                                  className="inline-flex items-center gap-1 text-[14px] justify-end w-full"
+                                >
+                                  <span>거래 수</span>
+                                  <span
+                                    className={
+                                      'text-[10px] ' +
+                                      (tagSort.key === 'tradeCount'
+                                        ? 'text-blue-500'
+                                        : 'text-slate-400')
+                                    }
+                                  >
+                                    {tagSort.key === 'tradeCount'
+                                      ? tagSort.dir === 'asc'
+                                        ? '▲'
+                                        : '▼'
+                                      : '↕'}
+                                  </span>
+                                </button>
+                              </th>
+
+                              {/* 승/패/무 → 정렬은 승률로만 따로 있음 */}
                               <th className="px-2 py-1.5 text-right">
                                 승/패/무
                               </th>
-                              <th className="px-2 py-1.5 text-right">승률</th>
+
+                              {/* 승률 */}
                               <th className="px-2 py-1.5 text-right">
-                                실현손익 합계
+                                <button
+                                  type="button"
+                                  onClick={() => handleTagStatsSort('winRate')}
+                                  className="inline-flex items-center gap-1 text-[14px] justify-end w-full"
+                                >
+                                  <span>승률</span>
+                                  <span
+                                    className={
+                                      'text-[10px] ' +
+                                      (tagSort.key === 'winRate'
+                                        ? 'text-blue-500'
+                                        : 'text-slate-400')
+                                    }
+                                  >
+                                    {tagSort.key === 'winRate'
+                                      ? tagSort.dir === 'asc'
+                                        ? '▲'
+                                        : '▼'
+                                      : '↕'}
+                                  </span>
+                                </button>
                               </th>
+
+                              {/* 실현손익 합계 */}
                               <th className="px-2 py-1.5 text-right">
-                                거래당 평균 손익
+                                <button
+                                  type="button"
+                                  onClick={() => handleTagStatsSort('realizedPnL')}
+                                  className="inline-flex items-center gap-1 text-[14px] justify-end w-full"
+                                >
+                                  <span>실현손익 합계</span>
+                                  <span
+                                    className={
+                                      'text-[10px] ' +
+                                      (tagSort.key === 'realizedPnL'
+                                        ? 'text-blue-500'
+                                        : 'text-slate-400')
+                                    }
+                                  >
+                                    {tagSort.key === 'realizedPnL'
+                                      ? tagSort.dir === 'asc'
+                                        ? '▲'
+                                        : '▼'
+                                      : '↕'}
+                                  </span>
+                                </button>
+                              </th>
+
+                              {/* 거래당 평균 손익 */}
+                              <th className="px-2 py-1.5 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => handleTagStatsSort('avgPnLPerTrade')}
+                                  className="inline-flex items-center gap-1 text-[14px] justify-end w-full"
+                                >
+                                  <span>거래당 평균 손익</span>
+                                  <span
+                                    className={
+                                      'text-[10px] ' +
+                                      (tagSort.key === 'avgPnLPerTrade'
+                                        ? 'text-blue-500'
+                                        : 'text-slate-400')
+                                    }
+                                  >
+                                    {tagSort.key === 'avgPnLPerTrade'
+                                      ? tagSort.dir === 'asc'
+                                        ? '▲'
+                                        : '▼'
+                                      : '↕'}
+                                  </span>
+                                </button>
                               </th>
                             </tr>
                           </thead>
                           <tbody>
-                            {tagStats.map(tp => (
+                            {sortedTagStats.map(tp => (
                               <tr
                                 key={tp.tag}
                                 className={
@@ -3333,7 +4515,12 @@ export default function Home() {
         <button
           type="button"
           onClick={() => {
-            addFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (activeTab !== 'journal') {
+              setActiveTab('journal');
+              setTimeout(scrollToAddForm, 50);
+            } else {
+              scrollToAddForm();
+            }
           }}
           className={
             'fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full shadow-lg px-4 py-2 text-xs font-semibold transition ' +
