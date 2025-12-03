@@ -2034,6 +2034,16 @@ const [sort, setSort] = useState<SortState>({
     localStorage.removeItem(GUEST_TRADES_KEY);
     showNotify('success', '게스트 모드 매매 기록을 모두 삭제했습니다.');
   };
+  
+  const scrollToAddForm = () => {
+    const headerHeight = 210; // sticky header + tabs 대략적 높이
+    const y =
+      addFormRef.current!.getBoundingClientRect().top +
+      window.scrollY -
+      headerHeight;
+
+    window.scrollTo({ top: y, behavior: 'smooth' });
+  };
 
   // 🚩 1단계: 로그인 상태 확인
   if (authLoading) {
@@ -4505,7 +4515,12 @@ const [sort, setSort] = useState<SortState>({
         <button
           type="button"
           onClick={() => {
-            addFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (activeTab !== 'journal') {
+              setActiveTab('journal');
+              setTimeout(scrollToAddForm, 50);
+            } else {
+              scrollToAddForm();
+            }
           }}
           className={
             'fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full shadow-lg px-4 py-2 text-xs font-semibold transition ' +
