@@ -257,6 +257,9 @@ const [sort, setSort] = useState<SortState>({
   // 기록 추가 폼 위치
   const addFormRef = useRef<HTMLDivElement | null>(null);
 
+  // 상태 값 추가
+  const [showAdvancedInputs, setShowAdvancedInputs] = useState(false);
+
   // 상태 & 핸들러 추가
   const [symbolSuggestions, setSymbolSuggestions] = useState<string[]>([]);
   const [showSymbolSuggestions, setShowSymbolSuggestions] = useState(false);
@@ -2501,13 +2504,11 @@ const [sort, setSort] = useState<SortState>({
                       </select>
                     </div>
                   </div>
-
-                  {/* 2줄: 가격, 수량, 태그 */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {/* 2줄: 가격, 수량 (필수값만) */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {/* 가격 */}
                     <div className="flex flex-col gap-1">
-                      <label className="text-[11px] text-slate-500">
-                        가격
-                      </label>
+                      <label className="text-[11px] text-slate-500">가격</label>
                       <input
                         type="number"
                         inputMode="numeric"
@@ -2521,10 +2522,10 @@ const [sort, setSort] = useState<SortState>({
                         }
                       />
                     </div>
+
+                    {/* 수량 */}
                     <div className="flex flex-col gap-1">
-                      <label className="text-[11px] text-slate-500">
-                        수량
-                      </label>
+                      <label className="text-[11px] text-slate-500">수량</label>
                       <input
                         type="number"
                         inputMode="numeric"
@@ -2538,140 +2539,159 @@ const [sort, setSort] = useState<SortState>({
                         }
                       />
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[11px] text-slate-500">
-                        태그 (쉼표로 구분, 예: 단타, 스윙)
-                      </label>
-                      <input
-                        type="text"
-                        name="tags"
-                        value={form.tags}
-                        onChange={handleChange}
-                        className={
-                          'border rounded px-2 py-1 text-xs bg-transparent ' +
-                          (darkMode ? 'border-slate-600' : '')
-                        }
-                      />
-                      {/* 자주 쓰는 태그 버튼 (입력용) */}
-                      {allTags.length > 0 && (
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          <span className="text-[10px] text-slate-400 mr-1">
-                            자주 쓰는 태그:
-                          </span>
-                          {topTags.slice(0, 5).map(tag => {
-                            const current = parseTagString(form.tags);
-                            const selected = current
-                              .map(t => t.toLowerCase())
-                              .includes(tag.toLowerCase());
-
-                            return (
-                              <button
-                                key={tag}
-                                type="button"
-                                onClick={() => toggleFormTag(tag)}
-                                className={
-                                  'px-2 py-0.5 rounded-full border text-[10px] ' +
-                                  (selected
-                                    ? 'bg-blue-600 text-white border-blue-600'
-                                    : darkMode
-                                    ? 'border-slate-600 text-slate-200 hover:bg-slate-800'
-                                    : 'border-slate-300 text-slate-600 hover:bg-slate-100')
-                                }
-                              >
-                                #{tag}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
                   </div>
+                  {/* 고급 옵션(메모 · 태그 · 이미지) 토글 */}
+                  <div className="mt-2 pt-2 border-t border-dashed border-slate-200 dark:border-slate-700">
+                    <button
+                      type="button"
+                      onClick={() => setShowAdvancedInputs(prev => !prev)}
+                      className={
+                        'inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] border ' +
+                        (darkMode
+                          ? 'border-slate-600 text-slate-200 hover:bg-slate-800'
+                          : 'border-slate-300 text-slate-600 hover:bg-slate-50')
+                      }
+                    >
+                      <span>{showAdvancedInputs ? '▲ 숨기기' : '▼ 메모 · 태그 · 이미지 추가'}</span>
+                    </button>
 
-                  {/* 메모 + 이미지 파일 라인 */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {/* 메모 */}
-                    <div className="flex flex-col gap-1 md:col-span-2">
-                      <label className="text-[11px] text-slate-500">
-                        메모 (선택)
-                      </label>
-                      <textarea
-                        name="memo"
-                        value={form.memo}
-                        onChange={handleChange}
-                        className={
-                          'border rounded px-2 py-1 text-xs bg-transparent resize-none ' +
-                          (darkMode ? 'border-slate-600' : '')
-                        }
-                        rows={2}
-                      />
-                    </div>
-
-                    {/* 이미지 파일 (선택) */}
-                    <div className="flex flex-col gap-1 md:col-span-1">
-                      <label className="text-[11px] text-slate-500">
-                        이미지 파일 (선택)
-                      </label>
-
-                      <input
-                        ref={chartInputRef}
-                        id="chart-file-input"
-                        type="file"
-                        accept="image/*"
-                        onChange={handleChartFileChange}
-                        className="hidden"
-                      />
-
-                      <button
-                        type="button"
-                        onClick={() => chartInputRef.current?.click()}
-                        className={
-                          'w-full flex items-center justify-center gap-2 rounded-md border px-2 py-2 text-[11px] ' +
-                          (darkMode
-                            ? 'border-slate-600 bg-slate-900 hover:bg-slate-800'
-                            : 'border-slate-300 bg-white hover:bg-slate-50')
-                        }
-                      >
-                        <span className="font-medium">파일 선택하기</span>
-                      </button>
-
-                      {chartPreview && (
-                        <div className="mt-2 flex items-center gap-2">
-                          <div
+                    {showAdvancedInputs && (
+                      <div className="mt-2 space-y-2">
+                        {/* 태그 입력 */}
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[11px] text-slate-500">
+                            태그 (쉼표로 구분, 예: 단타, 스윙)
+                          </label>
+                          <input
+                            type="text"
+                            name="tags"
+                            value={form.tags}
+                            onChange={handleChange}
                             className={
-                              'w-12 h-12 rounded border overflow-hidden flex items-center justify-center ' +
-                              (darkMode
-                                ? 'border-slate-600 bg-slate-900'
-                                : 'border-slate-300')
+                              'border rounded px-2 py-1 text-xs bg-transparent ' +
+                              (darkMode ? 'border-slate-600' : '')
                             }
-                          >
-                            <img
-                              src={chartPreview}
-                              alt="선택된 파일"
-                              className="max-w-full max-h-full object-contain"
+                          />
+                          {allTags.length > 0 && (
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              <span className="text-[10px] text-slate-400 mr-1">
+                                자주 쓰는 태그:
+                              </span>
+                              {topTags.slice(0, 5).map(tag => {
+                                const current = parseTagString(form.tags);
+                                const selected = current
+                                  .map(t => t.toLowerCase())
+                                  .includes(tag.toLowerCase());
+
+                                return (
+                                  <button
+                                    key={tag}
+                                    type="button"
+                                    onClick={() => toggleFormTag(tag)}
+                                    className={
+                                      'px-2 py-0.5 rounded-full border text-[10px] ' +
+                                      (selected
+                                        ? 'bg-blue-600 text-white border-blue-600'
+                                        : darkMode
+                                        ? 'border-slate-600 text-slate-200 hover:bg-slate-800'
+                                        : 'border-slate-300 text-slate-600 hover:bg-slate-100')
+                                    }
+                                  >
+                                    #{tag}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 메모 + 이미지 파일 라인 */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          {/* 메모 */}
+                          <div className="flex flex-col gap-1 md:col-span-2">
+                            <label className="text-[11px] text-slate-500">
+                              메모 (선택)
+                            </label>
+                            <textarea
+                              name="memo"
+                              value={form.memo}
+                              onChange={handleChange}
+                              className={
+                                'border rounded px-2 py-1 text-xs bg-transparent resize-none ' +
+                                (darkMode ? 'border-slate-600' : '')
+                              }
+                              rows={2}
                             />
                           </div>
-                          <div className="flex flex-col">
-                            <span className="text-[11px] text-slate-600">
-                              선택된 파일 미리보기
-                            </span>
-                            <span className="text-[10px] text-emerald-500">
-                              {currentUser
-                                ? '기록 저장 시 계정(DB)에 업로드됩니다.'
-                                : '게스트 모드에서는 이 브라우저에 저장됩니다.'}
-                            </span>
+
+                          {/* 이미지 파일 (선택) */}
+                          <div className="flex flex-col gap-1 md:col-span-1">
+                            <label className="text-[11px] text-slate-500">
+                              이미지 파일 (선택)
+                            </label>
+
+                            <input
+                              ref={chartInputRef}
+                              id="chart-file-input"
+                              type="file"
+                              accept="image/*"
+                              onChange={handleChartFileChange}
+                              className="hidden"
+                            />
+
+                            <button
+                              type="button"
+                              onClick={() => chartInputRef.current?.click()}
+                              className={
+                                'w-full flex items-center justify-center gap-2 rounded-md border px-2 py-2 text-[11px] ' +
+                                (darkMode
+                                  ? 'border-slate-600 bg-slate-900 hover:bg-slate-800'
+                                  : 'border-slate-300 bg-white hover:bg-slate-50')
+                              }
+                            >
+                              <span className="font-medium">파일 선택하기</span>
+                            </button>
+
+                            {chartPreview && (
+                              <div className="mt-2 flex items-center gap-2">
+                                <div
+                                  className={
+                                    'w-12 h-12 rounded border overflow-hidden flex items-center justify-center ' +
+                                    (darkMode
+                                      ? 'border-slate-600 bg-slate-900'
+                                      : 'border-slate-300')
+                                  }
+                                >
+                                  <img
+                                    src={chartPreview}
+                                    alt="선택된 파일"
+                                    className="max-w-full max-h-full object-contain"
+                                  />
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className="text-[11px] text-slate-600">
+                                    선택된 파일 미리보기
+                                  </span>
+                                  <span className="text-[10px] text-emerald-500">
+                                    {currentUser
+                                      ? '기록 저장 시 계정(DB)에 업로드됩니다.'
+                                      : '게스트 모드에서는 이 브라우저에 저장됩니다.'}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+
+                            {!chartPreview && (
+                              <p className="text-[10px] text-slate-400 mt-1">
+                                당시 보던 차트 화면을 캡처해서 올려두면 복기할 때
+                                도움이 됩니다. (예: 500KB 이하의 작은 캡처 이미지)
+                              </p>
+                            )}
                           </div>
                         </div>
-                      )}
-
-                      {!chartPreview && (
-                        <p className="text-[10px] text-slate-400 mt-1">
-                          당시 보던 차트 화면을 캡처해서 올려두면 복기할 때
-                          도움이 됩니다. (예: 500KB 이하의 작은 캡처 이미지)
-                        </p>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
-
                   {/* 기록 추가 버튼 라인 */}
                   <div
                     className={
@@ -4190,7 +4210,7 @@ const [sort, setSort] = useState<SortState>({
                         태그별 사용 현황
                       </span>
                       <span className="text-[11px] text-slate-400">
-                        전략 / 계좌 / 심리 상태 등을 태그로 관리해보세요.
+                        전략 / 계좌 / 계정별 구분 등을 태그로 관리해보세요.
                       </span>
                     </div>
                                         {tagStats.length === 0 ? (
