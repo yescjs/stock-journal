@@ -1,13 +1,15 @@
-export type TradeLog = {
-  id: string;
-  date: string;   // 'YYYY-MM-DD'
+export type TradeSide = 'BUY' | 'SELL';
+
+export interface Trade {
+  id: string;            // Supabase uuid or guest-... string
+  date: string;          // YYYY-MM-DD
   symbol: string;
-  side: 'BUY' | 'SELL';
+  side: TradeSide;
   price: number;
   quantity: number;
-  memo?: string;
-  image_url?: string | null;
+  memo: string;
+  tags?: string[];
+  image?: string;        // URL or data URL
+  user_id?: string;      // Optional, for DB compatibility
   created_at?: string;
-  tags?: string;
-  user_id?: string;
-};
+}
