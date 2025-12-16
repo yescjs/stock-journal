@@ -31,7 +31,7 @@ export function TagManagerModal({
                         <h2 className="text-lg font-bold">태그 색상 관리</h2>
                         <p className="text-xs text-slate-500">전략별로 태그 색상을 지정하여 가시성을 높이세요.</p>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition">
+                    <button onClick={onClose} className={'p-2 rounded-full transition ' + (darkMode ? 'hover:bg-slate-800' : 'hover:bg-slate-200')}>
                         <X size={20} />
                     </button>
                 </div>
@@ -42,9 +42,9 @@ export function TagManagerModal({
                     ) : (
                         <div className="grid grid-cols-1 gap-4">
                             {allTags.map(tag => (
-                                <div key={tag} className="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+                                <div key={tag} className={'flex items-center justify-between p-3 rounded-lg border ' + (darkMode ? 'border-slate-800 bg-slate-800/50' : 'border-slate-200 bg-slate-50')}>
                                     <div className="flex items-center gap-3">
-                                        <div 
+                                        <div
                                             className="w-4 h-4 rounded-full shadow-sm"
                                             style={{ backgroundColor: tagColors[tag] || '#64748b' }}
                                         />
@@ -55,7 +55,7 @@ export function TagManagerModal({
                                             <button
                                                 key={color}
                                                 onClick={() => setTagColor(tag, color)}
-                                                className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 ${tagColors[tag] === color ? 'border-black dark:border-white' : 'border-transparent'}`}
+                                                className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 ${tagColors[tag] === color ? (darkMode ? 'border-white' : 'border-black') : 'border-transparent'}`}
                                                 style={{ backgroundColor: color }}
                                                 title={color}
                                             />
@@ -68,9 +68,9 @@ export function TagManagerModal({
                 </div>
 
                 <div className="mt-6 flex justify-end">
-                    <button 
+                    <button
                         onClick={onClose}
-                        className="px-4 py-2 bg-slate-200 dark:bg-slate-700 rounded-lg text-sm font-medium hover:brightness-95 transition"
+                        className={'px-4 py-2 rounded-lg text-sm font-medium hover:brightness-95 transition ' + (darkMode ? 'bg-slate-700' : 'bg-slate-200')}
                     >
                         닫기
                     </button>

@@ -1,11 +1,15 @@
+'use client';
+
 import React, { useState, FormEvent } from 'react';
 import { supabase } from '@/app/lib/supabaseClient';
+import { Mail, Lock, ArrowRight, KeyRound, UserPlus, LogIn } from 'lucide-react';
 
 interface LoginFormProps {
     onDone?: () => void;
+    darkMode?: boolean;
 }
 
-export function LoginForm({ onDone }: LoginFormProps) {
+export function LoginForm({ onDone, darkMode = false }: LoginFormProps) {
     type Mode = 'login' | 'signup' | 'resetPassword';
 
     const [mode, setMode] = useState<Mode>('login');
@@ -36,24 +40,23 @@ export function LoginForm({ onDone }: LoginFormProps) {
         const trimmedPassword = password.trim();
         const trimmedConfirm = confirmPassword.trim();
 
-        // Common email validation
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
             setMsgType('error');
-            setMsg('Please enter a valid email address.');
+            setMsg('유효한 이메일 주소를 입력해주세요.');
             return;
         }
 
         if (mode !== 'resetPassword') {
             if (!trimmedPassword || trimmedPassword.length < 6) {
                 setMsgType('error');
-                setMsg('Password must be at least 6 characters.');
+                setMsg('비밀번호는 6자 이상이어야 합니다.');
                 return;
             }
 
             if (mode === 'signup' && trimmedPassword !== trimmedConfirm) {
                 setMsgType('error');
-                setMsg('Passwords do not match.');
+                setMsg('비밀번호가 일치하지 않습니다.');
                 return;
             }
         }
@@ -68,239 +71,231 @@ export function LoginForm({ onDone }: LoginFormProps) {
                 });
 
                 if (error) {
-                    console.warn('login error:', error);
                     setMsgType('error');
                     if (error.message.toLowerCase().includes('invalid login credentials')) {
-                        setMsg('Invalid email or password.');
+                        setMsg('이메일 또는 비밀번호가 올바르지 않습니다.');
                     } else {
-                        setMsg(`Login failed: ${error.message}`);
+                        setMsg(`로그인 실패: ${error.message}`);
                     }
                     return;
                 }
 
-                setMsgType('success');
-                setMsg('Logged in successfully.');
-                onDone?.();
-                return;
-            }
-
-            if (mode === 'signup') {
+                if (data.user) {
+                    setMsgType('success');
+                    setMsg('로그인 성공!');
+                    setTimeout(() => {
+                        onDone?.();
+                    }, 800);
+                }
+            } else if (mode === 'signup') {
                 const { data, error } = await supabase.auth.signUp({
                     email: trimmedEmail,
                     password: trimmedPassword,
                 });
 
                 if (error) {
-                    console.warn('signup error:', error);
                     setMsgType('error');
-
-                    if (error.message.toLowerCase().includes('password should be at least 6 characters')) {
-                        setMsg('Password must be at least 6 characters.');
-                    } else if (
-                        error.message.toLowerCase().includes('email address') &&
-                        error.message.toLowerCase().includes('is invalid')
-                    ) {
-                        setMsg('Invalid email format.');
-                    } else if (
-                        error.message.toLowerCase().includes('already registered') ||
-                        error.message.toLowerCase().includes('user already registered')
-                    ) {
-                        setMsg('Email already registered. Please login.');
-                    } else {
-                        setMsg(`Signup failed: ${error.message}`);
-                    }
+                    setMsg(`회원가입 실패: ${error.message}`);
                     return;
                 }
 
-                setMsgType('success');
-
-                if (data?.session) {
-                    setMsg('Signup successful! Logging you in...');
-                    onDone?.();
-                } else {
-                    setMsg('Signup successful! Please check your email to confirm.');
-                    setMode('login');
+                if (data.user) {
+                    setMsgType('success');
+                    setMsg('회원가입 완료! 이메일을 확인해주세요.');
                 }
-
-                setPassword('');
-                setConfirmPassword('');
-                return;
-            }
-
-            if (mode === 'resetPassword') {
-                const redirectTo =
-                    typeof window !== 'undefined'
-                        ? `${window.location.origin}/reset-password`
-                        : undefined;
-
+            } else if (mode === 'resetPassword') {
                 const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
-                    redirectTo,
+                    redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/reset-password` : undefined,
                 });
 
                 if (error) {
-                    console.warn('reset password error:', error);
                     setMsgType('error');
-                    setMsg(`Failed to send reset email: ${error.message}`);
+                    setMsg(`오류: ${error.message}`);
                     return;
                 }
 
                 setMsgType('success');
-                setMsg('Reset email sent. Please check your inbox (and spam folder).');
-                return;
+                setMsg('비밀번호 재설정 이메일을 발송했습니다.');
             }
         } catch (err: any) {
-            console.warn('auth unknown error:', err);
             setMsgType('error');
-            setMsg('An unknown error occurred.');
+            setMsg(`오류가 발생했습니다: ${err.message || '알 수 없는 오류'}`);
         } finally {
             setSending(false);
         }
     };
 
+    const inputClass = `w-full pl-11 pr-4 py-3.5 text-sm font-medium rounded-xl outline-none transition-all ${darkMode
+            ? 'bg-slate-800/80 text-white placeholder-slate-500 border border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+            : 'bg-slate-50 text-slate-900 placeholder-slate-400 border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+        }`;
+
+    const iconClass = `absolute left-4 top-1/2 -translate-y-1/2 ${darkMode ? 'text-slate-500' : 'text-slate-400'
+        }`;
+
     return (
-        <div className="max-w-md w-full mx-auto">
+        <div className="w-full max-w-sm mx-auto animate-scale-in">
             {/* Tab Switcher */}
-            <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl mb-6">
-                <button
-                    type="button"
-                    onClick={() => {
-                        setMode('login');
-                        resetForm();
-                    }}
-                    className={
-                        'flex-1 py-2 text-sm font-semibold rounded-lg transition-all ' +
-                        (mode === 'login'
-                            ? 'bg-white text-slate-800 shadow-sm dark:bg-slate-700 dark:text-white'
-                            : 'text-slate-500 hover:text-slate-700 dark:text-slate-400')
-                    }
-                >
-                    로그인
-                </button>
-                <button
-                    type="button"
-                    onClick={() => {
-                        setMode('signup');
-                        resetForm();
-                    }}
-                    className={
-                        'flex-1 py-2 text-sm font-semibold rounded-lg transition-all ' +
-                        (mode === 'signup'
-                            ? 'bg-white text-slate-800 shadow-sm dark:bg-slate-700 dark:text-white'
-                            : 'text-slate-500 hover:text-slate-700 dark:text-slate-400')
-                    }
-                >
-                    회원가입
-                </button>
-            </div>
+            {mode !== 'resetPassword' && (
+                <div className={`p-1.5 rounded-2xl mb-8 ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
+                    <div className="grid grid-cols-2 gap-1">
+                        <button
+                            type="button"
+                            onClick={() => { setMode('login'); resetForm(); }}
+                            className={`flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all ${mode === 'login'
+                                    ? darkMode
+                                        ? 'bg-slate-700 text-white shadow-lg'
+                                        : 'bg-white text-slate-900 shadow-md'
+                                    : darkMode
+                                        ? 'text-slate-400 hover:text-white'
+                                        : 'text-slate-500 hover:text-slate-900'
+                                }`}
+                        >
+                            <LogIn size={16} />
+                            로그인
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => { setMode('signup'); resetForm(); }}
+                            className={`flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all ${mode === 'signup'
+                                    ? darkMode
+                                        ? 'bg-slate-700 text-white shadow-lg'
+                                        : 'bg-white text-slate-900 shadow-md'
+                                    : darkMode
+                                        ? 'text-slate-400 hover:text-white'
+                                        : 'text-slate-500 hover:text-slate-900'
+                                }`}
+                        >
+                            <UserPlus size={16} />
+                            회원가입
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {mode === 'resetPassword' && (
-                <div className="text-center mb-4">
-                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">비밀번호 초기화</h3>
-                    <p className="text-xs text-slate-500">이메일로 비밀번호 초기화 이메일을 보내드립니다.</p>
+                <div className="text-center mb-8">
+                    <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center ${darkMode ? 'bg-slate-800' : 'bg-slate-100'
+                        }`}>
+                        <KeyRound size={28} className={darkMode ? 'text-blue-400' : 'text-blue-600'} />
+                    </div>
+                    <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                        비밀번호 재설정
+                    </h3>
+                    <p className={`text-sm mt-2 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                        가입한 이메일로 재설정 링크를 보내드립니다.
+                    </p>
                 </div>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 ml-1">이메일</label>
+                {/* Email */}
+                <div className="relative">
+                    <Mail size={18} className={iconClass} />
                     <input
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder="name@example.com"
-                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none"
+                        placeholder="이메일 주소"
+                        className={inputClass}
                     />
                 </div>
 
+                {/* Password */}
                 {mode !== 'resetPassword' && (
-                    <div className="space-y-3">
-                        <div className="space-y-1">
-                            <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 ml-1">비밀번호</label>
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                placeholder="6자 이상"
-                                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none"
-                            />
-                        </div>
-
-                        {mode === 'signup' && (
-                            <div className="space-y-1">
-                                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 ml-1">
-                                    비밀번호 확인
-                                </label>
-                                <input
-                                    type="password"
-                                    value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                    placeholder="비밀번호 확인"
-                                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none"
-                                />
-                            </div>
-                        )}
+                    <div className="relative">
+                        <Lock size={18} className={iconClass} />
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="비밀번호 (6자 이상)"
+                            className={inputClass}
+                        />
                     </div>
                 )}
 
+                {/* Confirm Password */}
+                {mode === 'signup' && (
+                    <div className="relative">
+                        <Lock size={18} className={iconClass} />
+                        <input
+                            type="password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            placeholder="비밀번호 확인"
+                            className={inputClass}
+                        />
+                    </div>
+                )}
+
+                {/* Message */}
                 {msg && (
-                    <div
-                        className={
-                            'p-3 rounded-lg text-sm font-medium flex items-start gap-2 ' +
-                            (msgType === 'error'
-                                ? 'bg-rose-50 text-rose-600 dark:bg-rose-900/20 dark:text-rose-400'
-                                : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400')
-                        }
-                    >
-                        <span>{msgType === 'error' ? '⚠️' : '✅'}</span>
-                        <p className="flex-1">{msg}</p>
+                    <div className={`p-4 rounded-xl text-sm font-medium flex items-start gap-3 animate-scale-in ${msgType === 'error'
+                            ? darkMode
+                                ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                                : 'bg-rose-50 text-rose-600 border border-rose-100'
+                            : darkMode
+                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                : 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                        }`}>
+                        <span className="text-lg">{msgType === 'error' ? '⚠️' : '✅'}</span>
+                        <p className="flex-1 leading-relaxed">{msg}</p>
                     </div>
                 )}
 
+                {/* Submit Button */}
                 <button
                     type="submit"
-                    disabled={
-                        sending ||
-                        !email ||
-                        (mode !== 'resetPassword' && !password) ||
-                        (mode === 'signup' && !confirmPassword)
-                    }
-                    className={
-                        'w-full py-3 rounded-xl font-bold text-sm text-white shadow-lg shadow-blue-500/30 transition-all transform active:scale-[0.98] ' +
-                        (sending
-                            ? 'bg-slate-400 cursor-not-allowed shadow-none'
-                            : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500')
-                    }
+                    disabled={sending}
+                    className={`w-full py-4 rounded-xl text-sm font-bold text-white transition-all flex items-center justify-center gap-2 ${sending
+                            ? 'bg-slate-400 cursor-not-allowed'
+                            : 'bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-600/25 hover:shadow-blue-500/35 active:scale-[0.98]'
+                        }`}
                 >
-                    {sending
-                        ? 'Processing...'
-                        : mode === 'login'
-                            ? '로그인'
-                            : mode === 'signup'
-                                ? '회원가입'
-                                : '비밀번호 초기화'}
+                    {sending ? (
+                        <span className="flex items-center gap-2">
+                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            처리 중...
+                        </span>
+                    ) : (
+                        <>
+                            {mode === 'login' && '로그인'}
+                            {mode === 'signup' && '계정 만들기'}
+                            {mode === 'resetPassword' && '재설정 이메일 보내기'}
+                            <ArrowRight size={16} />
+                        </>
+                    )}
                 </button>
+
+                {/* Forgot Password Link */}
+                {mode === 'login' && (
+                    <button
+                        type="button"
+                        onClick={() => { setMode('resetPassword'); resetMsg(); }}
+                        className={`w-full text-center text-sm font-medium py-2 transition-colors ${darkMode
+                                ? 'text-slate-400 hover:text-white'
+                                : 'text-slate-500 hover:text-slate-900'
+                            }`}
+                    >
+                        비밀번호를 잊으셨나요?
+                    </button>
+                )}
+
+                {/* Back to Login */}
+                {mode === 'resetPassword' && (
+                    <button
+                        type="button"
+                        onClick={() => { setMode('login'); resetForm(); }}
+                        className={`w-full text-center text-sm font-medium py-2 transition-colors ${darkMode
+                                ? 'text-slate-400 hover:text-white'
+                                : 'text-slate-500 hover:text-slate-900'
+                            }`}
+                    >
+                        ← 로그인으로 돌아가기
+                    </button>
+                )}
             </form>
-
-            <div className="mt-6 flex flex-col items-center gap-2">
-                <button
-                    type="button"
-                    onClick={() => {
-                        setMode('resetPassword');
-                        setPassword('');
-                        setConfirmPassword('');
-                        resetMsg();
-                    }}
-                    className="text-xs text-slate-500 hover:text-blue-600 transition-colors"
-                >
-                    비밀번호 찾기
-                </button>
-
-                <p className="text-[10px] text-slate-400 text-center max-w-xs mx-auto mt-4 px-4 border-t border-slate-100 dark:border-slate-800 pt-4">
-                    로그인 하시면 이용약관에 동의한 것으로 간주됩니다.
-                    <br />
-                    세션은 7일간 유효합니다.
-                </p>
-            </div>
         </div>
     );
 }

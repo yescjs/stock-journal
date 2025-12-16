@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { 
-  format, 
-  startOfMonth, 
-  endOfMonth, 
-  eachDayOfInterval, 
-  isSameMonth, 
-  isSameDay, 
-  addMonths, 
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  isSameMonth,
+  isSameDay,
+  addMonths,
   subMonths,
   getDay,
   startOfWeek,
@@ -32,15 +32,15 @@ interface CalendarViewProps {
   darkMode: boolean;
 }
 
-export function CalendarView({ 
-  currentDate, 
-  onDateChange, 
+export function CalendarView({
+  currentDate,
+  onDateChange,
   dailyData,
   onSelectDate,
   selectedDateStr,
   darkMode
 }: CalendarViewProps) {
-  
+
   // 1. Data Map
   const dataMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -62,12 +62,12 @@ export function CalendarView({
 
   const getHeatmapColor = (pnl: number) => {
     if (pnl === 0) return darkMode ? 'bg-slate-800' : 'bg-slate-100';
-    
+
     // Simple thresholds 
     // TODO: Dynamic scaling based on max PnL? 
     // For now, hardcoded tiers for simplicity
     const abs = Math.abs(pnl);
-    
+
     if (pnl > 0) {
       if (abs > 1000000) return 'bg-emerald-600 text-white'; // > 100k (Example: 1M won)
       if (abs > 300000) return 'bg-emerald-500 text-white';
@@ -82,23 +82,23 @@ export function CalendarView({
   };
 
   const formatMoney = (val: number) => {
-     return Math.abs(val).toLocaleString();
+    return Math.abs(val).toLocaleString();
   }
 
   return (
-    <div className={cn("p-4 rounded-xl border shadow-sm transition-all", 
+    <div className={cn("p-4 rounded-xl border shadow-sm transition-all",
       darkMode ? "bg-slate-900 border-slate-700" : "bg-white border-slate-200"
     )}>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold">
+        <h2 className={'text-lg font-bold ' + (darkMode ? 'text-white' : 'text-slate-900')}>
           {format(currentDate, 'yyyy년 M월', { locale: ko })}
         </h2>
         <div className="flex gap-1">
-          <button onClick={prevMonth} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition">
+          <button onClick={prevMonth} className={'p-1.5 rounded-lg transition-colors ' + (darkMode ? 'text-slate-300 hover:bg-slate-700 hover:text-white' : 'text-slate-600 hover:bg-slate-200')}>
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <button onClick={nextMonth} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition">
+          <button onClick={nextMonth} className={'p-1.5 rounded-lg transition-colors ' + (darkMode ? 'text-slate-300 hover:bg-slate-700 hover:text-white' : 'text-slate-600 hover:bg-slate-200')}>
             <ChevronRight className="w-5 h-5" />
           </button>
         </div>
@@ -123,7 +123,7 @@ export function CalendarView({
           const isToday = isSameDay(day, new Date());
 
           return (
-            <div 
+            <div
               key={dateKey}
               onClick={() => onSelectDate(dateKey)}
               className={cn(
@@ -133,16 +133,16 @@ export function CalendarView({
                 // Opacity for non-current month
                 !isCurrentMonth && "opacity-30 grayscale",
                 // Borders
-                isSelected 
-                  ? "ring-2 ring-blue-500 z-10" 
+                isSelected
+                  ? "ring-2 ring-blue-500 z-10"
                   : (darkMode ? "border-slate-800" : "border-slate-100"),
-                 // Today indicator (dot or subtle border)
-                 isToday && !isSelected && "ring-1 ring-slate-400"
+                // Today indicator (dot or subtle border)
+                isToday && !isSelected && "ring-1 ring-slate-400"
               )}
             >
               <div className="flex justify-between items-start">
                 <span className={cn(
-                  "text-xs font-semibold", 
+                  "text-xs font-semibold",
                   // If background is dark (emerald-500+), text is white. 
                   // If background is light (emerald-200), text is emerald-900.
                   // Default (bg-slate-100) is text-slate-500.
@@ -155,9 +155,9 @@ export function CalendarView({
               <div className="flex-1 flex items-center justify-center">
                 {pnl !== 0 && (
                   <div className="text-center">
-                     <div className="text-xs md:text-sm font-bold text-slate-700 dark:text-slate-200">
-                        {pnl > 0 ? '+' : '-'}{formatMoney(pnl)} <span className="text-[10px] font-normal text-slate-500">원</span>
-                     </div>
+                    <div className="text-xs md:text-sm font-bold text-slate-700 dark:text-slate-200">
+                      {pnl > 0 ? '+' : '-'}{formatMoney(pnl)} <span className="text-[10px] font-normal text-slate-500">원</span>
+                    </div>
                   </div>
                 )}
               </div>

@@ -187,16 +187,24 @@ export function TradeForm({
             ? 'bg-slate-800 text-white placeholder-slate-500 focus:bg-slate-700 focus:ring-1 focus:ring-slate-600'
             : 'bg-slate-100 text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-blue-100 focus:text-slate-900');
 
-    const labelClass = 'block mb-1 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider';
+    const labelClass = 'block mb-1 text-[11px] font-bold uppercase tracking-wider ' + (darkMode ? 'text-slate-300' : 'text-slate-600');
 
     return (
-        <div className={!isCompact ? 'rounded-2xl border shadow-sm p-6 mb-8 ' + (darkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200') : ''}>
+        <div className={!isCompact ? 'rounded-2xl border shadow-sm p-6 ' + (darkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200') : ''}>
             {!isCompact && (
-                <div className="flex items-center justify-between mb-6">
-                    <div>
-                        <h2 className="text-lg font-bold flex items-center gap-2">
-                            <span className="text-blue-500">＋</span> 매매 일지 작성
-                        </h2>
+                <div className="mb-6">
+                    <div className="flex items-center gap-3 mb-1">
+                        <div className={'w-10 h-10 rounded-xl flex items-center justify-center ' + (darkMode ? 'bg-blue-500/20' : 'bg-blue-50')}>
+                            <span className="text-lg">📝</span>
+                        </div>
+                        <div>
+                            <h2 className={'text-base font-bold ' + (darkMode ? 'text-white' : 'text-slate-900')}>
+                                새 기록 추가
+                            </h2>
+                            <p className={'text-xs ' + (darkMode ? 'text-slate-500' : 'text-slate-400')}>
+                                매매 내역을 기록하세요
+                            </p>
+                        </div>
                     </div>
                 </div>
             )}
@@ -215,18 +223,18 @@ export function TradeForm({
                         />
                     </div>
                     <div className="col-span-5">
-                         <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex h-[38px]"> {/* Match input height approx */}
+                        <div className={(darkMode ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200') + ' border p-1 rounded-xl flex h-[38px]'}>
                             <button
                                 type="button"
                                 onClick={() => setForm(prev => ({ ...prev, side: 'BUY' }))}
-                                className={'flex-1 rounded-lg text-xs font-bold transition-all ' + (form.side === 'BUY' ? 'bg-rose-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300')}
+                                className={'flex-1 rounded-lg text-xs font-bold transition-all ' + (form.side === 'BUY' ? 'bg-rose-500 text-white shadow-sm' : (darkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-50'))}
                             >
                                 매수
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setForm(prev => ({ ...prev, side: 'SELL' }))}
-                                className={'flex-1 rounded-lg text-xs font-bold transition-all ' + (form.side === 'SELL' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300')}
+                                className={'flex-1 rounded-lg text-xs font-bold transition-all ' + (form.side === 'SELL' ? 'bg-blue-500 text-white shadow-sm' : (darkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-50'))}
                             >
                                 매도
                             </button>
@@ -235,7 +243,7 @@ export function TradeForm({
                 </div>
 
                 {/* Row 2: Symbol */}
-                 <div className="relative">
+                <div className="relative">
                     <label className={labelClass}>종목명</label>
                     <input
                         type="text"
@@ -246,8 +254,8 @@ export function TradeForm({
                         className={inputBaseClass + ' uppercase font-bold tracking-wide'}
                         autoComplete="off"
                     />
-                     {showSymbolSuggestions && symbolSuggestions.length > 0 && (
-                        <div className="absolute z-20 top-full left-0 mt-1 w-full p-1.5 rounded-xl shadow-xl border bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700">
+                    {showSymbolSuggestions && symbolSuggestions.length > 0 && (
+                        <div className={'absolute z-20 top-full left-0 mt-1 w-full p-1.5 rounded-xl shadow-xl border ' + (darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-100')}>
                             <div className="flex flex-wrap gap-1">
                                 {symbolSuggestions.map((sym) => (
                                     <button
@@ -258,7 +266,7 @@ export function TradeForm({
                                             setSymbolSuggestions([]);
                                             setShowSymbolSuggestions(false);
                                         }}
-                                        className="px-2 py-1 text-xs font-bold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 transition-colors"
+                                        className={'px-2 py-1 text-xs font-bold rounded-lg transition-colors ' + (darkMode ? 'bg-slate-700 hover:bg-slate-600 text-slate-200' : 'bg-slate-100 hover:bg-slate-200 text-slate-700')}
                                     >
                                         {sym}
                                     </button>
@@ -298,7 +306,7 @@ export function TradeForm({
 
                 {/* Row 4: Tags */}
                 <div>
-                     <label className={labelClass}>태그</label>
+                    <label className={labelClass}>태그</label>
                     <input
                         type="text"
                         name="tags"
@@ -310,9 +318,9 @@ export function TradeForm({
                 </div>
 
                 {/* Row 5: Memo & Image */}
-                 <div className="grid grid-cols-12 gap-2">
+                <div className="grid grid-cols-12 gap-2">
                     <div className="col-span-9">
-                         <label className={labelClass}>메모</label>
+                        <label className={labelClass}>메모</label>
                         <textarea
                             name="memo"
                             placeholder="메모를 입력하세요..."
@@ -331,7 +339,7 @@ export function TradeForm({
                             onChange={handleChartFileChange}
                             className="hidden"
                         />
-                         {!chartPreview ? (
+                        {!chartPreview ? (
                             <button
                                 type="button"
                                 onClick={() => chartInputRef.current?.click()}
@@ -340,7 +348,7 @@ export function TradeForm({
                                 <span className="text-lg">📷</span>
                             </button>
                         ) : (
-                             <div className="relative w-full h-[42px] rounded-xl overflow-hidden group">
+                            <div className="relative w-full h-[42px] rounded-xl overflow-hidden group">
                                 <img src={chartPreview} alt="Preview" className="w-full h-full object-cover" />
                                 <button
                                     type="button"
@@ -363,10 +371,12 @@ export function TradeForm({
                         type="submit"
                         disabled={isSubmitting}
                         className={
-                            'w-full py-2.5 rounded-xl font-bold text-sm text-white shadow-lg transition-all transform active:scale-[0.98] ' +
+                            'w-full py-2.5 rounded-xl font-bold text-sm text-white transition-all transform active:scale-[0.98] ' +
                             (isSubmitting
-                                ? 'bg-slate-400 shadow-none cursor-not-allowed'
-                                : 'bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-500 shadow-slate-200 dark:shadow-blue-900/20')
+                                ? 'bg-slate-400 cursor-not-allowed'
+                                : darkMode
+                                    ? 'bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-600/30'
+                                    : 'bg-slate-900 hover:bg-slate-800 shadow-lg shadow-slate-300')
                         }
                     >
                         {isSubmitting ? '저장 중...' : '기록 추가하기'}

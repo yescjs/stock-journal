@@ -172,7 +172,7 @@ export function StatsDashboard({
 
     if (symbolSummaries.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center py-20 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+            <div className={'flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed ' + (darkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-slate-50 border-slate-200')}>
                 <p className="text-slate-500 font-medium">데이터가 없습니다.</p>
                 <p className="text-slate-400 text-sm mt-1">
                     매매 일지를 작성하면 통계가 표시됩니다.
@@ -195,22 +195,35 @@ export function StatsDashboard({
 
     return (
         <div className="space-y-6">
-            {/* 1. Overall Stats Cards */}
+            {/* 1. Hero KPI Section */}
             <div className={cardBaseClass}>
-                <div className="flex items-center justify-between mb-6">
-                    <h2 className={sectionTitleClass}>포트폴리오 요약</h2>
-                    <span className={'px-2 py-1 rounded-md text-[10px] font-bold tracking-wide uppercase ' + (currentUser ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400')}>
-                        {currentUser ? 'Cloud Sync' : 'Guest Data'}
+                <div className="flex items-center justify-between mb-8">
+                    <div>
+                        <h2 className={sectionTitleClass}>내 포트폴리오</h2>
+                        <p className={'text-xs -mt-2 ' + (darkMode ? 'text-slate-500' : 'text-slate-400')}>전체 성과 요약</p>
+                    </div>
+                    <span className={'px-3 py-1.5 rounded-full text-[10px] font-bold tracking-wide uppercase ' + (currentUser ? (darkMode ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'bg-indigo-100 text-indigo-700') : (darkMode ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-amber-100 text-amber-700'))}>
+                        {currentUser ? '☁ Cloud Sync' : '💾 Local'}
                     </span>
                 </div>
 
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-y-8 gap-x-4">
+                {/* Main KPI - Total PnL */}
+                <div className={'rounded-2xl p-6 mb-6 text-center ' + (darkMode ? 'bg-gradient-to-br from-slate-800 to-slate-800/50' : 'bg-gradient-to-br from-slate-50 to-white')}>
+                    <div className={'text-xs font-semibold uppercase tracking-wider mb-2 ' + (darkMode ? 'text-slate-500' : 'text-slate-400')}>총 손익</div>
+                    <div className={'text-4xl font-black tracking-tight ' + (overallStats.totalPnL > 0 ? 'text-emerald-500' : overallStats.totalPnL < 0 ? 'text-rose-500' : (darkMode ? 'text-white' : 'text-slate-900'))}>
+                        {overallStats.totalPnL > 0 ? '+' : ''}{formatNumber(overallStats.totalPnL)}
+                    </div>
+                    <div className={'text-sm font-medium mt-1 ' + (overallStats.holdingReturnRate > 0 ? 'text-emerald-500' : overallStats.holdingReturnRate < 0 ? 'text-rose-500' : 'text-slate-500')}>
+                        {overallStats.holdingReturnRate > 0 ? '+' : ''}{overallStats.holdingReturnRate.toFixed(2)}%
+                    </div>
+                </div>
+
+                {/* Sub KPIs */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <StatItem label="총 매수금" value={overallStats.totalBuyAmount} darkMode={darkMode} />
                     <StatItem label="총 매도금" value={overallStats.totalSellAmount} darkMode={darkMode} />
                     <StatItem label="실현손익" value={overallStats.totalRealizedPnL} colorize darkMode={darkMode} />
                     <StatItem label="평가손익" value={overallStats.evalPnL} colorize darkMode={darkMode} />
-                    <StatItem label="총 손익" value={overallStats.totalPnL} colorize darkMode={darkMode} />
-                    <StatItem label="수익률" value={overallStats.holdingReturnRate} suffix="%" colorize darkMode={darkMode} />
                 </div>
             </div>
 
@@ -222,7 +235,7 @@ export function StatsDashboard({
                             <h2 className={sectionTitleClass}>자산 추이</h2>
                             <p className="text-xs text-slate-500 -mt-2">누적 실현 손익 그래프</p>
                         </div>
-                         <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
+                        <div className={'flex rounded-lg p-1 ' + (darkMode ? 'bg-slate-800' : 'bg-slate-100')}>
                             {(['daily', 'monthly'] as PnLChartMode[]).map((mode) => (
                                 <button
                                     key={mode}
@@ -230,8 +243,8 @@ export function StatsDashboard({
                                     className={
                                         'px-4 py-1.5 text-xs font-bold rounded-md transition-all ' +
                                         (pnlChartMode === mode
-                                            ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                                            : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300')
+                                            ? (darkMode ? 'bg-slate-700 text-blue-400 shadow-sm' : 'bg-white text-blue-600 shadow-sm')
+                                            : (darkMode ? 'text-slate-500 hover:text-slate-300' : 'text-slate-500 hover:text-slate-700'))
                                     }
                                 >
                                     {mode === 'daily' ? '일별' : '월별'}
@@ -241,20 +254,20 @@ export function StatsDashboard({
                     </div>
 
                     <div className="h-72 w-full">
-                       <PnLChart 
-                         data={
-                             // Calculate cumulative
-                             pnlChartPoints.reduce<{date: string, cumulativePnL: number}[]>((acc, curr, idx) => {
-                                 const prev = idx > 0 ? acc[idx - 1].cumulativePnL : 0;
-                                 acc.push({
-                                     date: curr.label,
-                                     cumulativePnL: prev + curr.value
-                                 });
-                                 return acc;
-                             }, [])
-                         } 
-                         darkMode={darkMode} 
-                       />
+                        <PnLChart
+                            data={
+                                // Calculate cumulative
+                                pnlChartPoints.reduce<{ date: string, cumulativePnL: number }[]>((acc, curr, idx) => {
+                                    const prev = idx > 0 ? acc[idx - 1].cumulativePnL : 0;
+                                    acc.push({
+                                        date: curr.label,
+                                        cumulativePnL: prev + curr.value
+                                    });
+                                    return acc;
+                                }, [])
+                            }
+                            darkMode={darkMode}
+                        />
                     </div>
                 </div>
             )}
@@ -263,7 +276,7 @@ export function StatsDashboard({
             <div className={cardBaseClass}>
                 <div className="flex items-center justify-between mb-4">
                     <h2 className={sectionTitleClass}>종목별 성과</h2>
-                    <span className="text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">
+                    <span className={'text-[10px] text-slate-400 px-2 py-1 rounded ' + (darkMode ? 'bg-slate-800' : 'bg-slate-100')}>
                         Tip: 현재가를 입력하면 평가손익이 계산됩니다.
                     </span>
                 </div>
@@ -287,7 +300,7 @@ export function StatsDashboard({
                                     <th
                                         key={h.k}
                                         onClick={() => handleSymbolStatsSort(h.k as SymbolSortKey)}
-                                        className={tableHeaderClass + ' cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors select-none'}
+                                        className={tableHeaderClass + ' cursor-pointer transition-colors select-none ' + (darkMode ? 'hover:bg-slate-700/50' : 'hover:bg-slate-100')}
                                     >
                                         <div className="flex items-center gap-1">
                                             {h.l}
@@ -307,7 +320,7 @@ export function StatsDashboard({
                                 const unrealizedPnL = (s.positionQty > 0 && hasPrice) ? (currentPrice - s.avgCost) * s.positionQty : 0;
 
                                 return (
-                                    <tr key={s.symbol} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                                    <tr key={s.symbol} className={'transition-colors ' + (darkMode ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50')}>
                                         <td className={tableCellClass + ' font-bold'}>{s.symbol}</td>
                                         <td className={tableCellClass}>{formatNumber(s.positionQty)}</td>
                                         <td className={tableCellClass}>{s.positionQty > 0 ? formatNumber(s.avgCost, 0) : '-'}</td>
@@ -338,7 +351,7 @@ export function StatsDashboard({
                                         </td>
                                         <td className={tableCellClass}>
                                             {s.tradeCount > 0 ? (
-                                                <span className={'px-1.5 py-0.5 rounded text-[10px] font-bold ' + (s.winRate >= 50 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400')}>
+                                                <span className={'px-1.5 py-0.5 rounded text-[10px] font-bold ' + (s.winRate >= 50 ? (darkMode ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-100 text-emerald-700') : (darkMode ? 'bg-rose-900/30 text-rose-400' : 'bg-rose-100 text-rose-700'))}>
                                                     {s.winRate.toFixed(0)}%
                                                 </span>
                                             ) : '-'}
@@ -368,7 +381,7 @@ export function StatsDashboard({
                                     <th
                                         key={h.k}
                                         onClick={() => handleTagStatsSort(h.k as TagSortKey)}
-                                        className={tableHeaderClass + ' cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors select-none'}
+                                        className={tableHeaderClass + ' cursor-pointer transition-colors select-none ' + (darkMode ? 'hover:bg-slate-700/50' : 'hover:bg-slate-100')}
                                     >
                                         <div className="flex items-center gap-1">
                                             {h.l}
@@ -382,11 +395,11 @@ export function StatsDashboard({
                         </thead>
                         <tbody>
                             {sortedTagStats.map(t => (
-                                <tr key={t.tag} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                                <tr key={t.tag} className={'transition-colors ' + (darkMode ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50')}>
                                     <td className={tableCellClass}>
-                                        <span 
-                                          className="px-2 py-1 rounded-md text-xs font-medium text-white shadow-sm"
-                                          style={{ backgroundColor: tagColors[t.tag] || '#64748b' }}
+                                        <span
+                                            className="px-2 py-1 rounded-md text-xs font-medium text-white shadow-sm"
+                                            style={{ backgroundColor: tagColors[t.tag] || '#64748b' }}
                                         >
                                             #{t.tag}
                                         </span>
@@ -394,7 +407,7 @@ export function StatsDashboard({
                                     <td className={tableCellClass}>{t.tradeCount}</td>
                                     <td className={tableCellClass}>
                                         <div className="flex items-center gap-2">
-                                            <div className="w-16 h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                                            <div className={'w-16 h-1.5 rounded-full overflow-hidden ' + (darkMode ? 'bg-slate-800' : 'bg-slate-200')}>
                                                 <div className={'h-full rounded-full ' + (t.winRate >= 50 ? 'bg-emerald-500' : 'bg-rose-500')} style={{ width: `${t.winRate}%` }}></div>
                                             </div>
                                             <span className="text-xs font-medium">{t.winRate.toFixed(0)}%</span>
@@ -421,15 +434,15 @@ function StatItem({ label, value, colorize = false, isLarge = false, suffix = ''
     const isPositive = value > 0;
     const isNegative = value < 0;
 
-    let colorClass = darkMode ? 'text-slate-100' : 'text-slate-900';
+    let colorClass = darkMode ? 'text-white' : 'text-slate-900';
     if (colorize && isPositive) colorClass = 'text-emerald-500';
     if (colorize && isNegative) colorClass = 'text-rose-500';
 
     return (
-        <div className="flex flex-col">
-            <span className="text-[11px] uppercase tracking-wider font-semibold text-slate-500 mb-1">{label}</span>
-            <span className={'font-bold tracking-tight ' + (isLarge ? 'text-2xl ' : 'text-xl ') + colorClass}>
-                {formatNumber(value)}{suffix}
+        <div className={'flex flex-col p-4 rounded-xl ' + (darkMode ? 'bg-slate-800/50' : 'bg-slate-50')}>
+            <span className={'text-[10px] uppercase tracking-wider font-bold mb-2 ' + (darkMode ? 'text-slate-500' : 'text-slate-400')}>{label}</span>
+            <span className={'font-bold tracking-tight ' + (isLarge ? 'text-2xl ' : 'text-lg ') + colorClass}>
+                {colorize && isPositive ? '+' : ''}{formatNumber(value)}{suffix}
             </span>
         </div>
     );
