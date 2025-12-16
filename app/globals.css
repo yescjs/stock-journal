@@ -1,26 +1,194 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-noto-sans-kr), var(--font-geist-sans), sans-serif;
   --font-mono: var(--font-geist-mono);
+}
+
+:root {
+  /* Slate-50 for light mode background - softer than pure white */
+  --background: #f8fafc;
+  /* Slate-950 for text - higher contrast */
+  --foreground: #020617;
+}
+
+::selection {
+  background-color: #6366f1;
+  /* Indigo-500 */
+  color: white;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Slate-950 for dark mode background - deeper than gray */
+    --background: #020617;
+    /* Slate-100 for text */
+    --foreground: #f1f5f9;
   }
+}
+
+/* Manual Dark Mode Toggle Support */
+.dark {
+  /* Slate-950 for dark mode background */
+  --background: #020617;
+  /* Slate-100 for text */
+  --foreground: #f1f5f9;
+  color-scheme: dark;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  @apply antialiased selection:bg-blue-500/30;
+}
+
+/* Custom Scrollbar for Webkit */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 dark:bg-slate-700 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-400 dark:bg-slate-600;
+}
+
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+
+  .animate-slide-in-right {
+    animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .animate-slide-out-right {
+    animation: slideOutRight 0.2s ease-in;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+:root {
+  color-scheme: light dark;
+  /* Fix native UI dark mode */
+}
+
+/* Fix Autofill Background in Edge/Chrome */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: var(--foreground);
+  transition: background-color 5000s ease-in-out 0s;
+  box-shadow: inset 0 0 20px 20px #f1f5f9;
+  /* Match bg-slate-100 */
+}
+
+/* Dark Mode Autofill - Use .dark class instead of media query to sync with App state */
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover,
+.dark input:-webkit-autofill:focus,
+.dark input:-webkit-autofill:active {
+  -webkit-text-fill-color: #f1f5f9;
+  box-shadow: inset 0 0 20px 20px #1e293b;
+  /* Match bg-slate-800 */
+}
+
+/* Date Picker Visual Fixes */
+::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.6;
+  filter: invert(0.5);
+}
+
+.dark ::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
+
+/* Enforce Date Input Styling to match Text Inputs */
+input[type="date"] {
+  appearance: none;
+  /* Removed background-color override to let Tailwind classes work */
+  font-family: inherit;
+  /* min-height removed to allow padding/height classes to control it exactly */
+  display: block;
 }
