@@ -6,7 +6,12 @@ import {
     PnLPoint,
     OverallStats,
     PnLChartMode,
+    InsightData,
 } from '@/app/types/stats';
+import { PnLChart } from './charts/PnLChart';
+import { WinLossChart } from './charts/WinLossChart';
+import { MonthlyBarChart } from './charts/MonthlyBarChart';
+import { InsightsWidget } from './InsightsWidget';
 import { SymbolSortKey, TagSortKey } from '@/app/types/ui';
 import { formatNumber } from '@/app/utils/format';
 
@@ -20,6 +25,8 @@ interface StatsDashboardProps {
     monthlyRealizedPoints: PnLPoint[];
     currentPrices: Record<string, number>;
     onCurrentPriceChange: (symbol: string, value: string) => void;
+    tagColors?: Record<string, string>;
+    insights?: InsightData;
 }
 
 export function StatsDashboard({
@@ -32,6 +39,8 @@ export function StatsDashboard({
     monthlyRealizedPoints,
     currentPrices,
     onCurrentPriceChange,
+    tagColors = {},
+    insights,
 }: StatsDashboardProps) {
     const [pnlChartMode, setPnlChartMode] = useState<PnLChartMode>('daily');
 
@@ -164,9 +173,9 @@ export function StatsDashboard({
     if (symbolSummaries.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center py-20 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
-                <p className="text-slate-500 font-medium">No trading data available yet.</p>
+                <p className="text-slate-500 font-medium">데이터가 없습니다.</p>
                 <p className="text-slate-400 text-sm mt-1">
-                    Add your first trade in the Journal tab to see statistics.
+                    매매 일지를 작성하면 통계가 표시됩니다.
                 </p>
             </div>
         );
@@ -185,35 +194,35 @@ export function StatsDashboard({
     const tableCellClass = 'py-3 px-4 text-sm border-t ' + (darkMode ? 'border-slate-800' : 'border-slate-100');
 
     return (
-        <div className="space-y-6 animate-fade-in">
+        <div className="space-y-6">
             {/* 1. Overall Stats Cards */}
             <div className={cardBaseClass}>
                 <div className="flex items-center justify-between mb-6">
-                    <h2 className={sectionTitleClass}>Portfolio Summary</h2>
+                    <h2 className={sectionTitleClass}>포트폴리오 요약</h2>
                     <span className={'px-2 py-1 rounded-md text-[10px] font-bold tracking-wide uppercase ' + (currentUser ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400')}>
                         {currentUser ? 'Cloud Sync' : 'Guest Data'}
                     </span>
                 </div>
 
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-y-8 gap-x-4">
-                    <StatItem label="Total Buy" value={overallStats.totalBuyAmount} darkMode={darkMode} />
-                    <StatItem label="Total Sell" value={overallStats.totalSellAmount} darkMode={darkMode} />
-                    <StatItem label="Realized PnL" value={overallStats.totalRealizedPnL} colorize darkMode={darkMode} />
-                    <StatItem label="Unrealized PnL" value={overallStats.evalPnL} colorize darkMode={darkMode} />
-                    <StatItem label="Total PnL" value={overallStats.totalPnL} colorize isLarge darkMode={darkMode} />
-                    <StatItem label="Return Rate" value={overallStats.holdingReturnRate} suffix="%" colorize darkMode={darkMode} />
+                    <StatItem label="총 매수금" value={overallStats.totalBuyAmount} darkMode={darkMode} />
+                    <StatItem label="총 매도금" value={overallStats.totalSellAmount} darkMode={darkMode} />
+                    <StatItem label="실현손익" value={overallStats.totalRealizedPnL} colorize darkMode={darkMode} />
+                    <StatItem label="평가손익" value={overallStats.evalPnL} colorize darkMode={darkMode} />
+                    <StatItem label="총 손익" value={overallStats.totalPnL} colorize darkMode={darkMode} />
+                    <StatItem label="수익률" value={overallStats.holdingReturnRate} suffix="%" colorize darkMode={darkMode} />
                 </div>
             </div>
 
-            {/* 2. PnL Chart */}
+            {/* 2. PnL Charts */}
             {pnlChartPoints.length > 0 && (
                 <div className={cardBaseClass}>
                     <div className="flex items-center justify-between mb-6">
                         <div>
-                            <h2 className={sectionTitleClass}>Realized PnL History</h2>
-                            <p className="text-xs text-slate-500 -mt-2">Based on closed trades (SELL)</p>
+                            <h2 className={sectionTitleClass}>자산 추이</h2>
+                            <p className="text-xs text-slate-500 -mt-2">누적 실현 손익 그래프</p>
                         </div>
-                        <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
+                         <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
                             {(['daily', 'monthly'] as PnLChartMode[]).map((mode) => (
                                 <button
                                     key={mode}
@@ -225,44 +234,27 @@ export function StatsDashboard({
                                             : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300')
                                     }
                                 >
-                                    {mode === 'daily' ? 'Daily' : 'Monthly'}
+                                    {mode === 'daily' ? '일별' : '월별'}
                                 </button>
                             ))}
                         </div>
                     </div>
 
-                    <div className="h-64 flex items-end gap-2 overflow-x-auto pb-2 px-2 scrollbar-thin">
-                        {pnlChartPoints.map((point) => {
-                            const v = Number(point.value ?? 0);
-                            const ratio = maxAbsPnL > 0 ? Math.abs(v) / maxAbsPnL : 0;
-                            const heightPct = Math.max(4, ratio * 100);
-
-                            return (
-                                <div
-                                    key={point.key}
-                                    className="flex h-full min-w-[32px] flex-1 flex-col items-center justify-end group relative"
-                                >
-                                    <div
-                                        className={
-                                            'w-full rounded-t-md transition-all duration-300 ' +
-                                            (v > 0
-                                                ? 'bg-emerald-400 dark:bg-emerald-500/80 group-hover:bg-emerald-500'
-                                                : v < 0
-                                                    ? 'bg-rose-400 dark:bg-rose-500/80 group-hover:bg-rose-500'
-                                                    : 'bg-slate-200 dark:bg-slate-700')
-                                        }
-                                        style={{ height: `${heightPct}%` }}
-                                    />
-                                    {/* Tooltip */}
-                                    <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 bg-slate-900 text-white text-[10px] px-2 py-1 rounded pointer-events-none whitespace-nowrap z-10 transition-opacity">
-                                        {point.label}: {formatNumber(v)}
-                                    </div>
-                                    <div className="mt-2 text-[10px] font-medium text-slate-400 transform -rotate-45 origin-top-left translate-x-1">
-                                        {pnlChartMode === 'daily' ? point.label.slice(5) : point.label}
-                                    </div>
-                                </div>
-                            );
-                        })}
+                    <div className="h-72 w-full">
+                       <PnLChart 
+                         data={
+                             // Calculate cumulative
+                             pnlChartPoints.reduce<{date: string, cumulativePnL: number}[]>((acc, curr, idx) => {
+                                 const prev = idx > 0 ? acc[idx - 1].cumulativePnL : 0;
+                                 acc.push({
+                                     date: curr.label,
+                                     cumulativePnL: prev + curr.value
+                                 });
+                                 return acc;
+                             }, [])
+                         } 
+                         darkMode={darkMode} 
+                       />
                     </div>
                 </div>
             )}
@@ -270,9 +262,9 @@ export function StatsDashboard({
             {/* 3. Symbol Table */}
             <div className={cardBaseClass}>
                 <div className="flex items-center justify-between mb-4">
-                    <h2 className={sectionTitleClass}>Symbol Performance</h2>
+                    <h2 className={sectionTitleClass}>종목별 성과</h2>
                     <span className="text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">
-                        Tip: Enter current price to see evaluation
+                        Tip: 현재가를 입력하면 평가손익이 계산됩니다.
                     </span>
                 </div>
 
@@ -281,16 +273,16 @@ export function StatsDashboard({
                         <thead>
                             <tr>
                                 {[
-                                    { k: 'symbol', l: 'Symbol' },
-                                    { k: 'positionQty', l: 'Qty' },
-                                    { k: 'avgCost', l: 'Avg Cost' },
-                                    { k: 'totalBuyAmount', l: 'Total Buy' },
-                                    { k: 'totalSellAmount', l: 'Total Sell' },
-                                    { k: 'realizedPnL', l: 'Realized PnL' },
-                                    { k: 'currentPrice', l: 'Cur. Price' },
-                                    { k: 'positionValue', l: 'Eval Value' },
-                                    { k: 'unrealizedPnL', l: 'Eval PnL' },
-                                    { k: 'winRate', l: 'Win Rate' },
+                                    { k: 'symbol', l: '종목명' },
+                                    { k: 'positionQty', l: '보유수량' },
+                                    { k: 'avgCost', l: '평단가' },
+                                    { k: 'totalBuyAmount', l: '총매수' },
+                                    { k: 'totalSellAmount', l: '총매도' },
+                                    { k: 'realizedPnL', l: '실현손익' },
+                                    { k: 'currentPrice', l: '현재가' },
+                                    { k: 'positionValue', l: '평가금액' },
+                                    { k: 'unrealizedPnL', l: '평가손익' },
+                                    { k: 'winRate', l: '승률' },
                                 ].map((h) => (
                                     <th
                                         key={h.k}
@@ -361,17 +353,17 @@ export function StatsDashboard({
 
             {/* 4. Tag Table */}
             <div className={cardBaseClass}>
-                <h2 className={sectionTitleClass}>Strategy / Tag Analysis</h2>
+                <h2 className={sectionTitleClass}>전략/태그 분석</h2>
                 <div className={tableWrapperClass}>
                     <table className="w-full text-left min-w-[600px]">
                         <thead>
                             <tr>
                                 {[
-                                    { k: 'tag', l: 'Tag' },
-                                    { k: 'tradeCount', l: 'Trades' },
-                                    { k: 'winRate', l: 'Win Rate' },
-                                    { k: 'realizedPnL', l: 'Realized PnL' },
-                                    { k: 'avgPnLPerTrade', l: 'Avg PnL / Trade' },
+                                    { k: 'tag', l: '태그명' },
+                                    { k: 'tradeCount', l: '매매횟수' },
+                                    { k: 'winRate', l: '승률' },
+                                    { k: 'realizedPnL', l: '실현손익' },
+                                    { k: 'avgPnLPerTrade', l: '거래당 평균 손익' },
                                 ].map((h) => (
                                     <th
                                         key={h.k}
@@ -392,7 +384,10 @@ export function StatsDashboard({
                             {sortedTagStats.map(t => (
                                 <tr key={t.tag} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                                     <td className={tableCellClass}>
-                                        <span className="px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-xs font-medium text-slate-600 dark:text-slate-300">
+                                        <span 
+                                          className="px-2 py-1 rounded-md text-xs font-medium text-white shadow-sm"
+                                          style={{ backgroundColor: tagColors[t.tag] || '#64748b' }}
+                                        >
                                             #{t.tag}
                                         </span>
                                     </td>
@@ -432,7 +427,7 @@ function StatItem({ label, value, colorize = false, isLarge = false, suffix = ''
 
     return (
         <div className="flex flex-col">
-            <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 mb-1">{label}</span>
+            <span className="text-[11px] uppercase tracking-wider font-semibold text-slate-500 mb-1">{label}</span>
             <span className={'font-bold tracking-tight ' + (isLarge ? 'text-2xl ' : 'text-xl ') + colorClass}>
                 {formatNumber(value)}{suffix}
             </span>

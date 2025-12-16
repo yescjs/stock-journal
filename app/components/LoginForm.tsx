@@ -174,7 +174,7 @@ export function LoginForm({ onDone }: LoginFormProps) {
                             : 'text-slate-500 hover:text-slate-700 dark:text-slate-400')
                     }
                 >
-                    Login
+                    로그인
                 </button>
                 <button
                     type="button"
@@ -189,20 +189,20 @@ export function LoginForm({ onDone }: LoginFormProps) {
                             : 'text-slate-500 hover:text-slate-700 dark:text-slate-400')
                     }
                 >
-                    Sign Up
+                    회원가입
                 </button>
             </div>
 
             {mode === 'resetPassword' && (
                 <div className="text-center mb-4">
-                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">Reset Password</h3>
-                    <p className="text-xs text-slate-500">We'll send you an email to reset your password.</p>
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">비밀번호 초기화</h3>
+                    <p className="text-xs text-slate-500">이메일로 비밀번호 초기화 이메일을 보내드립니다.</p>
                 </div>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 ml-1">Email</label>
+                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 ml-1">이메일</label>
                     <input
                         type="email"
                         value={email}
@@ -215,12 +215,12 @@ export function LoginForm({ onDone }: LoginFormProps) {
                 {mode !== 'resetPassword' && (
                     <div className="space-y-3">
                         <div className="space-y-1">
-                            <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 ml-1">Password</label>
+                            <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 ml-1">비밀번호</label>
                             <input
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                placeholder="Min. 6 characters"
+                                placeholder="6자 이상"
                                 className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none"
                             />
                         </div>
@@ -228,13 +228,13 @@ export function LoginForm({ onDone }: LoginFormProps) {
                         {mode === 'signup' && (
                             <div className="space-y-1">
                                 <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 ml-1">
-                                    Confirm Password
+                                    비밀번호 확인
                                 </label>
                                 <input
                                     type="password"
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
-                                    placeholder="Enter password again"
+                                    placeholder="비밀번호 확인"
                                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none"
                                 />
                             </div>
@@ -274,10 +274,10 @@ export function LoginForm({ onDone }: LoginFormProps) {
                     {sending
                         ? 'Processing...'
                         : mode === 'login'
-                            ? 'Login'
+                            ? '로그인'
                             : mode === 'signup'
-                                ? 'Create Account'
-                                : 'Send Reset Link'}
+                                ? '회원가입'
+                                : '비밀번호 초기화'}
                 </button>
             </form>
 
@@ -292,11 +292,13 @@ export function LoginForm({ onDone }: LoginFormProps) {
                     }}
                     className="text-xs text-slate-500 hover:text-blue-600 transition-colors"
                 >
-                    Forgot your password?
+                    비밀번호 찾기
                 </button>
 
                 <p className="text-[10px] text-slate-400 text-center max-w-xs mx-auto mt-4 px-4 border-t border-slate-100 dark:border-slate-800 pt-4">
-                    By logging in, you agree to our Terms of Service. sessions are valid for 7 days.
+                    로그인 하시면 이용약관에 동의한 것으로 간주됩니다.
+                    <br />
+                    세션은 7일간 유효합니다.
                 </p>
             </div>
         </div>

@@ -32,6 +32,16 @@ export type PnLPoint = {
     key: string;   // YYYY-MM-DD or YYYY-MM
     label: string; // Display label
     value: number; // Realized PnL
+    todayPnL?: number; // Optional daily pnl
+};
+
+export interface InsightData {
+    bestDay: string;
+    bestTag: string;
+    longWinRate: number;
+    shortWinRate: number;
+    maxWin: number;
+    maxLoss: number;
 };
 
 export interface OverallStats {

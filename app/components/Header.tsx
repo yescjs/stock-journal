@@ -22,9 +22,9 @@ export function Header({
     setActiveTab,
 }: HeaderProps) {
     const tabs: { id: ActiveTab; label: string }[] = [
-        { id: 'journal', label: 'Journal' },
-        { id: 'stats', label: 'Stats' },
-        { id: 'settings', label: 'Settings' },
+        { id: 'journal', label: '매매일지' },
+        { id: 'stats', label: '통계' },
+        { id: 'settings', label: '설정' },
     ];
 
     return (
@@ -55,7 +55,7 @@ export function Header({
                                         ● {currentUser.email?.split('@')[0]}
                                     </span>
                                 ) : (
-                                    <span className="text-amber-500">● Guest Mode</span>
+                                    <span className="text-amber-500">● 게스트 모드</span>
                                 )}
                             </p>
                         </div>
@@ -78,14 +78,14 @@ export function Header({
                                     onClick={onLogout}
                                     className="text-xs font-medium text-slate-500 hover:text-rose-500 transition-colors"
                                 >
-                                    Log out
+                                    로그아웃
                                 </button>
                             ) : (
                                 <button
                                     onClick={onShowLogin}
                                     className="px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-sm shadow-blue-500/20"
                                 >
-                                    Log in
+                                    로그인
                                 </button>
                             )}
                         </div>
@@ -148,14 +148,14 @@ export function Header({
                                         : 'border-slate-200 text-slate-600 hover:text-rose-600 hover:bg-rose-50')
                                 }
                             >
-                                Log out
+                                로그아웃
                             </button>
                         ) : (
                             <button
                                 onClick={onShowLogin}
                                 className="px-4 py-2 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-lg shadow-blue-500/20"
                             >
-                                Log in
+                                로그인
                             </button>
                         )}
                     </div>

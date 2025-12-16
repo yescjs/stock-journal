@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Trade } from '@/app/types/trade';
-import { SymbolSummary, TagPerf, PnLPoint } from '@/app/types/stats';
-import { formatMonthLabel } from '@/app/utils/format';
+import { SymbolSummary, TagPerf, PnLPoint, InsightData } from '@/app/types/stats';
+import { formatMonthLabel, getKoreanWeekdayLabel } from '@/app/utils/format';
 
 export function useStats(trades: Trade[], currentPrices: Record<string, number> = {}) {
 
@@ -284,6 +284,105 @@ export function useStats(trades: Trade[], currentPrices: Record<string, number> 
             holdingReturnRate,
         };
     }, [symbolSummaries, currentPrices]);
+    
+    // 6. Insights
+    const insights = useMemo<InsightData>(() => {
+        if (trades.length === 0) return { bestDay: '', bestTag: '', longWinRate: 0, shortWinRate: 0, maxWin: 0, maxLoss: 0 };
+
+        // Day Performance
+        const dayPerf: Record<string, number> = {};
+        
+        let longWinCount = 0, longTotalCount = 0;
+        let shortWinCount = 0, shortTotalCount = 0;
+        let maxWin = 0;
+        let maxLoss = 0;
+
+        // Re-run PnL calculation Loop for Insights
+        // (Similar to Daily PnL loop)
+        const sortedTrades = [...trades].sort((a, b) => a.date.localeCompare(b.date));
+        type PosState = { positionQty: number; costBasis: number; };
+        const posMap = new Map<string, PosState>();
+
+        for (const t of sortedTrades) {
+             const amount = t.price * t.quantity;
+             let pos = posMap.get(t.symbol);
+             if (!pos) {
+                 pos = { positionQty: 0, costBasis: 0 };
+                 posMap.set(t.symbol, pos);
+             }
+
+             if (t.side === 'BUY') {
+                 pos.positionQty += t.quantity;
+                 pos.costBasis += amount;
+             } else {
+                 const prevQty = pos.positionQty;
+                 const prevCostBasis = pos.costBasis;
+                 const prevAvgCost = prevQty !== 0 ? prevCostBasis / prevQty : 0;
+                 const realizedThis = (t.price - prevAvgCost) * t.quantity;
+
+                 // Update Position
+                 pos.positionQty = prevQty - t.quantity;
+                 pos.costBasis = prevCostBasis - prevAvgCost * t.quantity;
+
+                 // --- Collect Stats ---
+                 
+                 // 1. Max Win/Loss
+                 if (realizedThis > maxWin) maxWin = realizedThis;
+                 if (realizedThis < maxLoss) maxLoss = realizedThis;
+
+                 // 2. Day of Week Stats
+                 const dayLabel = getKoreanWeekdayLabel(t.date); // "Mon", "Tue" etc.
+                 dayPerf[dayLabel] = (dayPerf[dayLabel] || 0) + realizedThis;
+
+                 // 3. Long/Short Stats (Assume Long for now as 'BUY' opens, 'SELL' closes)
+                 // Wait, `TradeList` logic: side=BUY/SELL.
+                 // In simple journal, BUY=Long Open, SELL=Long Close (usually).
+                 // If we support Shorting, SELL=Short Open.
+                 // Current logic assumes FIFO Long only (Buy then Sell).
+                 // So all realized PnL comes from "Long" trades?
+                 // Or does the user enter "Short Selling"?
+                 // The app doesn't seem to have "Position Side" (Long/Short).
+                 // It just has BUY/SELL Side.
+                 // Assuming Long-only strategy for now (Buy Low, Sell High).
+                 longTotalCount++;
+                 if (realizedThis > 0) longWinCount++;
+             }
+        }
+
+        // Best Day
+        let bestDay = '-';
+        let maxDayPnL = -Infinity;
+        for (const [day, pnl] of Object.entries(dayPerf)) {
+            if (pnl > maxDayPnL) {
+                maxDayPnL = pnl;
+                bestDay = day;
+            }
+        }
+        if (maxDayPnL === -Infinity) bestDay = '-';
+
+        // Best Tag
+        let bestTag = '-';
+        if (tagStats.length > 0) {
+            const sortedTags = [...tagStats].sort((a,b) => b.realizedPnL - a.realizedPnL);
+            if (sortedTags[0].realizedPnL > 0) bestTag = sortedTags[0].tag;
+        }
+
+        return {
+            bestDay,
+            bestTag,
+            longWinRate: longTotalCount > 0 ? (longWinCount / longTotalCount) * 100 : 0,
+            shortWinRate: 0, 
+            maxWin,
+            maxLoss 
+        };
+    }, [trades, tagStats]);
+    
+    // RE-WRITE: Integrating into the main loop (TagStats or DailyRealized) is better.
+    // Let's modify the DailyRealized loop (Step 3) to also capture "Win/Loss" per trade if possible?
+    // DailyRealized aggregates by DAY.
+    // If we want "Best Day of Week", we can use `dailyRealizedPoints`.
+    // Identify which weekday has highest TOTAL PnL? Or highest Win Rate?
+    // Total PnL is easiest.
 
     return {
         symbolSummaries,
@@ -291,5 +390,6 @@ export function useStats(trades: Trade[], currentPrices: Record<string, number> 
         dailyRealizedPoints,
         monthlyRealizedPoints,
         overallStats,
+        insights
     };
 }

@@ -2,6 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { Trade } from '@/app/types/trade';
 import { User } from '@supabase/supabase-js';
 import { formatMonthLabel, formatNumber, getKoreanWeekdayLabel } from '@/app/utils/format';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface TradeListProps {
     trades: Trade[];
@@ -11,6 +13,8 @@ interface TradeListProps {
     openMonths: Record<string, boolean>;
     toggleMonth: (key: string) => void;
     darkMode: boolean;
+    tagColors?: Record<string, string>;
+    onSymbolClick?: (symbol: string) => void;
 }
 
 export function TradeList({
@@ -21,6 +25,8 @@ export function TradeList({
     openMonths,
     toggleMonth,
     darkMode,
+    tagColors = {},
+    onSymbolClick,
 }: TradeListProps) {
     // Group by Month
     const monthGroups = useMemo(() => {
@@ -56,7 +62,7 @@ export function TradeList({
                 <div className="bg-slate-100 dark:bg-slate-800 p-4 rounded-full mb-3">
                     <span className="text-2xl">📝</span>
                 </div>
-                <p className="text-slate-500 font-medium">No trades recorded yet.</p>
+                <p className="text-slate-500 font-medium">아직 작성된 매매 일지가 없습니다.</p>
             </div>
         );
     }
@@ -91,7 +97,7 @@ export function TradeList({
                                     {group.label}
                                 </h3>
                                 <span className={'px-2 py-0.5 rounded-full text-[10px] font-semibold ' + (darkMode ? 'bg-slate-800 text-slate-400' : 'bg-white border border-slate-200 text-slate-500')}>
-                                    {group.count} Trades
+                                    {group.count}건
                                 </span>
                             </div>
                             <div className={'transition-transform duration-200 ' + (isOpen ? 'rotate-180' : 'rotate-0')}>
@@ -105,59 +111,72 @@ export function TradeList({
                             <div>
                                 {/* Desktop Table View */}
                                 <div className="hidden md:block overflow-x-auto">
-                                    <table className="w-full text-left text-sm">
-                                        <thead className={'text-xs uppercase font-semibold text-slate-500 ' + (darkMode ? 'bg-slate-900/50 border-b border-slate-800' : 'bg-slate-50 border-b border-slate-100')}>
+                                    <table className="w-full text-sm text-left table-fixed">
+                                        <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 dark:bg-slate-800/50 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
                                             <tr>
-                                                <th className="px-5 py-3 w-32">Date</th>
-                                                <th className="px-4 py-3">Symbol</th>
-                                                <th className="px-4 py-3">Side</th>
-                                                <th className="px-4 py-3 text-right">Price</th>
-                                                <th className="px-4 py-3 text-right">Qty</th>
-                                                <th className="px-4 py-3 text-right">Amount</th>
-                                                <th className="px-4 py-3">Tags & Memo</th>
-                                                <th className="px-4 py-3 w-24 text-right">Actions</th>
+                                                <th scope="col" className="px-5 py-3 w-36 font-bold">날짜</th>
+                                                <th scope="col" className="px-4 py-3 w-20 font-bold">구분</th>
+                                                <th scope="col" className="px-4 py-3 font-bold">종목</th>
+                                                <th scope="col" className="px-4 py-3 text-right w-28 font-bold">단가</th>
+                                                <th scope="col" className="px-4 py-3 text-right w-20 font-bold">수량</th>
+                                                <th scope="col" className="px-4 py-3 text-right w-28 font-bold">총액</th>
+                                                <th scope="col" className="px-4 py-3 w-auto min-w-[150px] font-bold">태그</th>
+                                                <th scope="col" className="px-4 py-3 text-center w-20 font-bold">편집</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                        <tbody>
                                             {group.trades.map((t) => {
-                                                const amount = t.price * t.quantity;
-                                                const dayOfWeek = getKoreanWeekdayLabel(t.date);
-
+                                                const dateObj = new Date(t.date);
+                                                const dayOfWeek = isNaN(dateObj.getTime()) ? '' : new Intl.DateTimeFormat('ko-KR', { weekday: 'short' }).format(dateObj);
+                                                
                                                 return (
-                                                    <tr key={t.id} className="group hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                                                        <td className="px-5 py-3">
-                                                            <div className="font-medium text-slate-700 dark:text-slate-300">{t.date.slice(5)}</div>
-                                                            <div className="text-xs text-slate-400">{dayOfWeek}</div>
+                                                    <tr key={t.id} className="group hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors border-b border-slate-100 dark:border-slate-800/50 last:border-0">
+                                                        <td className="px-5 py-4 whitespace-nowrap">
+                                                            <div className="font-bold text-slate-900 dark:text-slate-100 font-mono tracking-tight text-[13px]">{t.date}</div>
+                                                            <div className="text-[11px] text-slate-500 font-medium mt-0.5">{dayOfWeek}</div>
                                                         </td>
-                                                        <td className="px-4 py-3 font-bold text-slate-800 dark:text-slate-200">
-                                                            {t.symbol}
-                                                        </td>
-                                                        <td className="px-4 py-3">
-                                                            <span className={'px-2 py-1 rounded text-[10px] font-bold tracking-wide uppercase border ' + (t.side === 'BUY' ? 'bg-rose-50 border-rose-100 text-rose-600 dark:bg-rose-900/20 dark:border-rose-900/30 dark:text-rose-400' : 'bg-blue-50 border-blue-100 text-blue-600 dark:bg-blue-900/20 dark:border-blue-900/30 dark:text-blue-400')}>
-                                                                {t.side}
+                                                        <td className="px-4 py-4 whitespace-nowrap">
+                                                            <span className={'px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide uppercase border ' + (t.side === 'BUY' ? 'bg-rose-50 border-rose-100 text-rose-700 dark:bg-rose-900/20 dark:border-rose-900/30 dark:text-rose-400' : 'bg-blue-50 border-blue-100 text-blue-700 dark:bg-blue-900/20 dark:border-blue-900/30 dark:text-blue-400')}>
+                                                                {t.side === 'BUY' ? '매수' : '매도'}
                                                             </span>
                                                         </td>
-                                                        <td className="px-4 py-3 text-right font-mono text-slate-600 dark:text-slate-300">
+                                                        <td className="px-4 py-4 font-bold text-slate-900 dark:text-slate-100">
+                                                            <button 
+                                                                onClick={(e) => { e.stopPropagation(); onSymbolClick?.(t.symbol); }}
+                                                                className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-left font-display"
+                                                            >
+                                                                {t.symbol}
+                                                            </button>
+                                                        </td>
+                                                        <td className="px-4 py-4 text-right font-mono text-slate-600 dark:text-slate-300">
                                                             {formatNumber(t.price)}
                                                         </td>
-                                                        <td className="px-4 py-3 text-right font-mono text-slate-600 dark:text-slate-300">
+                                                        <td className="px-4 py-4 text-right font-mono text-slate-600 dark:text-slate-300">
                                                             {formatNumber(t.quantity)}
                                                         </td>
-                                                        <td className="px-4 py-3 text-right font-mono font-medium text-slate-800 dark:text-slate-200">
-                                                            {formatNumber(amount)}
+                                                        <td className="px-4 py-4 text-right font-mono font-medium text-slate-800 dark:text-slate-200">
+                                                            {formatNumber(t.price * t.quantity)}
                                                         </td>
-                                                        <td className="px-4 py-3 max-w-[200px]">
+                                                        <td className="px-4 py-4 max-w-[200px]">
                                                             <div className="flex flex-col gap-1">
                                                                 {t.tags && t.tags.length > 0 && (
                                                                     <div className="flex flex-wrap gap-1">
                                                                         {t.tags.map((tag) => (
-                                                                            <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded border border-slate-200 dark:border-slate-700">
+                                                                            <span 
+                                                                                key={tag} 
+                                                                                className="text-[10px] px-1.5 py-0.5 rounded border border-transparent text-white shadow-sm font-medium"
+                                                                                style={{ backgroundColor: tagColors[tag] || '#64748b' }}
+                                                                            >
                                                                                 #{tag}
                                                                             </span>
                                                                         ))}
                                                                     </div>
                                                                 )}
-                                                                {t.memo && <div className="text-xs text-slate-400 truncate" title={t.memo}>{t.memo}</div>}
+                                                                {t.memo && (
+                                                                    <div className="text-xs text-slate-500 markdown-preview line-clamp-2">
+                                                                        {t.memo}
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         </td>
                                                         <td className="px-4 py-3 text-right">
@@ -196,11 +215,16 @@ export function TradeList({
                                                 <div className="flex items-start justify-between">
                                                     <div className="flex items-center gap-3">
                                                         <span className={'w-10 h-10 flex items-center justify-center rounded-xl text-xs font-bold border shadow-sm ' + (t.side === 'BUY' ? 'bg-rose-50 border-rose-100 text-rose-600 dark:bg-rose-900/20 dark:border-rose-800 dark:text-rose-400' : 'bg-blue-50 border-blue-100 text-blue-600 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400')}>
-                                                            {t.side === 'BUY' ? 'B' : 'S'}
+                                                            {t.side === 'BUY' ? '매수' : '매도'}
                                                         </span>
                                                         <div>
                                                             <div className="font-bold text-base flex items-center gap-2">
-                                                                {t.symbol}
+                                                                <button 
+                                                                    onClick={(e) => { e.stopPropagation(); onSymbolClick?.(t.symbol); }}
+                                                                    className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                                                >
+                                                                    {t.symbol}
+                                                                </button>
                                                                 {t.image && <span className="text-[10px] opacity-70">📷</span>}
                                                             </div>
                                                             <div className="text-xs text-slate-400">{t.date} · {dayOfWeek}</div>
@@ -217,11 +241,23 @@ export function TradeList({
                                                         {t.tags && t.tags.length > 0 && (
                                                             <div className="flex flex-wrap gap-1">
                                                                 {t.tags.map((tag) => (
-                                                                    <span key={tag} className="text-[10px] font-medium text-slate-500">#{tag}</span>
+                                                                    <span 
+                                                                        key={tag} 
+                                                                        className="text-[10px] font-medium px-1.5 py-0.5 rounded text-white shadow-sm"
+                                                                        style={{ backgroundColor: tagColors[tag] || '#64748b' }}
+                                                                    >
+                                                                        #{tag}
+                                                                    </span>
                                                                 ))}
                                                             </div>
                                                         )}
-                                                        {t.memo && <div className="leading-relaxed">{t.memo}</div>}
+                                                        {t.memo && (
+                                                            <div className="prose prose-sm dark:prose-invert max-w-none text-xs leading-relaxed">
+                                                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                                                    {t.memo}
+                                                                </ReactMarkdown>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 ) : null}
 
@@ -230,13 +266,13 @@ export function TradeList({
                                                         onClick={() => onEdit(t)}
                                                         className="flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 px-2 py-1"
                                                     >
-                                                        Edit
+                                                        수정
                                                     </button>
                                                     <button
                                                         onClick={() => onDelete(t.id)}
                                                         className="flex items-center gap-1 text-xs font-medium text-rose-500 hover:text-rose-600 px-2 py-1"
                                                     >
-                                                        Delete
+                                                        삭제
                                                     </button>
                                                 </div>
                                             </div>

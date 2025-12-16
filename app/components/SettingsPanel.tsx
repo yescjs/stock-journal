@@ -1,5 +1,6 @@
 import React from 'react';
 import { User } from '@supabase/supabase-js';
+import { User as UserIcon } from 'lucide-react';
 
 interface SettingsPanelProps {
     darkMode: boolean;
@@ -29,70 +30,96 @@ export function SettingsPanel({
                     : 'border-slate-200 bg-white shadow-slate-200/50')
             }
         >
-            <div className="flex items-center justify-between mb-4">
-                <h3 className={'text-lg font-bold ' + (darkMode ? 'text-slate-100' : 'text-slate-800')}>
-                    Data Management
-                </h3>
-                <span className={'text-xs px-2 py-1 rounded-full ' + (currentUser ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400')}>
-                    {currentUser ? 'Cloud Mode (Supabase)' : 'Guest Mode (Local Only)'}
-                </span>
-            </div>
+            <h2 className="text-xl font-bold mb-6">설정</h2>
+            
+            <div className="space-y-8">
+                {/* Data Management */}
+                <section>
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-4">데이터 관리</h3>
+                    
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
+                            <div>
+                                <div className="font-medium">CSV 내보내기</div>
+                                <div className="text-xs text-slate-500">모든 매매 기록을 엑셀로 저장합니다.</div>
+                            </div>
+                            <button 
+                                onClick={onExportCsv}
+                                className="px-4 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm hover:bg-slate-50 dark:hover:bg-slate-600 transition"
+                            >
+                                내보내기
+                            </button>
+                        </div>
 
-            <p className="text-sm text-slate-500 mb-6">
-                Manage your trading data. You can export your logs to CSV for analysis or backup your data as JSON.
-                {currentUser ? ' Your data is safely stored in the cloud.' : ' Warning: Data is only stored in your browser. Clear cache will lose data.'}
-            </p>
+                        <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
+                            <div>
+                                <div className="font-medium">백업 파일 저장</div>
+                                <div className="text-xs text-slate-500">데이터를 JSON 파일로 다운로드합니다.</div>
+                            </div>
+                            <button 
+                                onClick={onExportBackup}
+                                className="px-4 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm hover:bg-slate-50 dark:hover:bg-slate-600 transition"
+                            >
+                                백업
+                            </button>
+                        </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div className="space-y-3">
-                    <h4 className="text-xs font-semibold uppercase text-slate-400 tracking-wider">Export & Backup</h4>
-                    <div className="flex flex-col gap-2">
-                        <button
-                            type="button"
-                            onClick={onExportCsv}
-                            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors"
-                        >
-                            <span>📊</span> Download CSV
-                        </button>
-                        <button
-                            type="button"
-                            onClick={onExportBackup}
-                            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors"
-                        >
-                            <span>💾</span> Download JSON Backup
-                        </button>
+                        <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
+                             <div>
+                                <div className="font-medium">백업 파일 복원</div>
+                                <div className="text-xs text-slate-500">JSON 파일을 불러와 데이터를 복구합니다.</div>
+                                {backupMessage && <div className="text-xs text-blue-500 mt-1">{backupMessage}</div>}
+                            </div>
+                            <button 
+                                onClick={onImportBackup}
+                                className="px-4 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm hover:bg-slate-50 dark:hover:bg-slate-600 transition"
+                            >
+                                복원 (불러오기)
+                            </button>
+                        </div>
+
+                        <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-rose-100 dark:border-rose-900/30">
+                            <div>
+                                <div className="font-medium text-rose-600">데이터 초기화</div>
+                                <div className="text-xs text-rose-400">모든 매매 기록이 영구적으로 삭제됩니다.</div>
+                            </div>
+                            <button 
+                                onClick={onClearAll}
+                                className="px-4 py-2 bg-white dark:bg-slate-700 border border-rose-200 dark:border-rose-800 text-rose-500 rounded-lg text-sm hover:bg-rose-50 dark:hover:bg-rose-900/20 transition"
+                            >
+                                초기화
+                            </button>
+                        </div>
                     </div>
-                </div>
+                </section>
 
-                <div className="space-y-3">
-                    <h4 className="text-xs font-semibold uppercase text-slate-400 tracking-wider">Danger Zone</h4>
-                    <div className="flex flex-col gap-2">
-                        <button
-                            type="button"
-                            onClick={onImportBackup}
-                            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors"
-                        >
-                            <span>📂</span> Restore from Backup
-                        </button>
-                        <button
-                            type="button"
-                            onClick={onClearAll}
-                            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 dark:border-rose-900/30 dark:bg-rose-900/20 dark:text-rose-400 dark:hover:bg-rose-900/40 transition-colors"
-                        >
-                            <span>⚠️</span> Clear All Data
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {backupMessage && (
-                <div className="mb-4 p-3 rounded-lg bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 text-sm border border-blue-100 dark:border-blue-900/30">
-                    {backupMessage}
-                </div>
-            )}
-
-            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 text-xs text-slate-400 leading-relaxed border border-slate-100 dark:border-slate-800">
-                <strong>Note:</strong> JSON backups include current view filters and price data. Use regular backups to prevent data loss in Guest Mode.
+                {/* Account Info */}
+                <section>
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-4">계정 정보</h3>
+                     <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
+                        {currentUser ? (
+                             <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-lg">
+                                    {currentUser.email?.charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                    <div className="font-medium text-sm">{currentUser.email}</div>
+                                    <div className="text-xs text-emerald-500">로그인됨 (Supabase)</div>
+                                </div>
+                             </div>
+                        ) : (
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center">
+                                    <UserIcon size={20} />
+                                </div>
+                                <div>
+                                    <div className="font-medium text-sm">게스트 모드</div>
+                                    <div className="text-xs text-slate-500">로컬 브라우저에 데이터가 저장됩니다.</div>
+                                </div>
+                            </div>
+                        )}
+                     </div>
+                </section>
             </div>
         </div>
     );
