@@ -7,48 +7,122 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* ===== Minimal Pro Design System ===== */
+
 :root {
-  /* Slate-50 for light mode background - softer than pure white */
+  /* Light Mode Colors */
   --background: #f8fafc;
-  /* Slate-950 for text - higher contrast */
-  --foreground: #020617;
+  --foreground: #0f172a;
+
+  /* Accent Colors - Indigo */
+  --accent-50: #eef2ff;
+  --accent-100: #e0e7ff;
+  --accent-200: #c7d2fe;
+  --accent-400: #818cf8;
+  --accent-500: #6366f1;
+  --accent-600: #4f46e5;
+  --accent-700: #4338ca;
+
+  /* Surface Colors */
+  --surface-0: #ffffff;
+  --surface-50: #f8fafc;
+  --surface-100: #f1f5f9;
+  --surface-200: #e2e8f0;
+  --surface-300: #cbd5e1;
+
+  /* Text Colors */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+
+  /* Status Colors */
+  --success: #10b981;
+  --success-bg: #ecfdf5;
+  --danger: #ef4444;
+  --danger-bg: #fef2f2;
+  --warning: #f59e0b;
+  --warning-bg: #fffbeb;
+
+  /* Buy/Sell Colors */
+  --buy-color: #dc2626;
+  --buy-bg: #fef2f2;
+  --buy-border: #fecaca;
+  --sell-color: #2563eb;
+  --sell-bg: #eff6ff;
+  --sell-border: #bfdbfe;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.04);
+  --shadow-card-hover: 0 12px 24px -4px rgb(99 102 241 / 0.15), 0 4px 8px -2px rgb(0 0 0 / 0.08);
+
+  color-scheme: light dark;
 }
 
-::selection {
-  background-color: #6366f1;
-  /* Indigo-500 */
-  color: white;
-}
-
+/* ===== Dark Mode ===== */
 @media (prefers-color-scheme: dark) {
   :root {
-    /* Slate-950 for dark mode background - deeper than gray */
-    --background: #020617;
-    /* Slate-100 for text */
+    --background: #0f172a;
     --foreground: #f1f5f9;
+
+    --surface-0: #1e293b;
+    --surface-50: #1e293b;
+    --surface-100: #334155;
+    --surface-200: #475569;
+    --surface-300: #64748b;
+
+    --text-primary: #f1f5f9;
+    --text-secondary: #cbd5e1;
+    --text-muted: #64748b;
+
+    --buy-bg: rgba(220, 38, 38, 0.15);
+    --buy-border: rgba(220, 38, 38, 0.3);
+    --sell-bg: rgba(37, 99, 235, 0.15);
+    --sell-border: rgba(37, 99, 235, 0.3);
   }
 }
 
-/* Manual Dark Mode Toggle Support */
 .dark {
-  /* Slate-950 for dark mode background */
-  --background: #020617;
-  /* Slate-100 for text */
+  --background: #0f172a;
   --foreground: #f1f5f9;
+
+  --surface-0: #1e293b;
+  --surface-50: #1e293b;
+  --surface-100: #334155;
+  --surface-200: #475569;
+  --surface-300: #64748b;
+
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #64748b;
+
+  --buy-bg: rgba(220, 38, 38, 0.15);
+  --buy-border: rgba(220, 38, 38, 0.3);
+  --sell-bg: rgba(37, 99, 235, 0.15);
+  --sell-border: rgba(37, 99, 235, 0.3);
+
   color-scheme: dark;
+}
+
+/* ===== Base Styles ===== */
+::selection {
+  background-color: var(--accent-500);
+  color: white;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
-  @apply antialiased selection:bg-blue-500/30;
+  @apply antialiased;
 }
 
-/* Custom Scrollbar for Webkit */
+/* ===== Custom Scrollbar ===== */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -56,17 +130,18 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-slate-300 dark:bg-slate-700 rounded-full;
+  @apply bg-slate-200 dark:bg-slate-700 rounded-full;
+  transition: background-color 0.2s;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-slate-400 dark:bg-slate-600;
+  @apply bg-slate-300 dark:bg-slate-600;
 }
 
-
+/* ===== Animation Utilities ===== */
 @layer utilities {
   .animate-fade-in {
-    animation: fadeIn 0.3s ease-in-out;
+    animation: fadeIn 0.3s ease-out;
   }
 
   .animate-slide-in-right {
@@ -74,7 +149,7 @@ body {
   }
 
   .animate-slide-out-right {
-    animation: slideOutRight 0.2s ease-in;
+    animation: slideOutRight 0.2s ease-in forwards;
   }
 
   .animate-slide-up {
@@ -84,12 +159,32 @@ body {
   .animate-scale-in {
     animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   }
+
+  /* Card Hover Effect */
+  .card-hover {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  /* Button Press Effect */
+  .btn-press:active {
+    transform: scale(0.98);
+  }
+
+  /* Smooth Color Transition */
+  .transition-colors-smooth {
+    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+  }
 }
 
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(5px);
+    transform: translateY(8px);
   }
 
   to {
@@ -125,7 +220,7 @@ body {
 @keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateY(100%);
+    transform: translateY(16px);
   }
 
   to {
@@ -146,12 +241,7 @@ body {
   }
 }
 
-:root {
-  color-scheme: light dark;
-  /* Fix native UI dark mode */
-}
-
-/* Fix Autofill Background in Edge/Chrome */
+/* ===== Form Input Fixes ===== */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
@@ -159,36 +249,75 @@ input:-webkit-autofill:active {
   -webkit-background-clip: text;
   -webkit-text-fill-color: var(--foreground);
   transition: background-color 5000s ease-in-out 0s;
-  box-shadow: inset 0 0 20px 20px #f1f5f9;
-  /* Match bg-slate-100 */
+  box-shadow: inset 0 0 20px 20px var(--surface-100);
 }
 
-/* Dark Mode Autofill - Use .dark class instead of media query to sync with App state */
 .dark input:-webkit-autofill,
 .dark input:-webkit-autofill:hover,
 .dark input:-webkit-autofill:focus,
 .dark input:-webkit-autofill:active {
   -webkit-text-fill-color: #f1f5f9;
   box-shadow: inset 0 0 20px 20px #1e293b;
-  /* Match bg-slate-800 */
 }
 
-/* Date Picker Visual Fixes */
+/* Date Picker Fixes */
 ::-webkit-calendar-picker-indicator {
   cursor: pointer;
   opacity: 0.6;
-  filter: invert(0.5);
+  filter: invert(0.4);
+  transition: opacity 0.15s;
+}
+
+::-webkit-calendar-picker-indicator:hover {
+  opacity: 0.8;
 }
 
 .dark ::-webkit-calendar-picker-indicator {
   filter: invert(1);
 }
 
-/* Enforce Date Input Styling to match Text Inputs */
 input[type="date"] {
   appearance: none;
-  /* Removed background-color override to let Tailwind classes work */
   font-family: inherit;
-  /* min-height removed to allow padding/height classes to control it exactly */
   display: block;
+}
+
+/* ===== Focus States ===== */
+input:focus,
+select:focus,
+textarea:focus,
+button:focus-visible {
+  outline: 2px solid var(--accent-500);
+  outline-offset: 2px;
+}
+
+/* ===== Card Base Styles ===== */
+.card {
+  background: var(--surface-0);
+  border: 1px solid var(--surface-200);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.dark .card {
+  background: var(--surface-50);
+  border-color: var(--surface-100);
+}
+
+/* ===== Badge Styles ===== */
+.badge-buy {
+  background-color: var(--buy-bg);
+  color: var(--buy-color);
+  border: 1px solid var(--buy-border);
+}
+
+.badge-sell {
+  background-color: var(--sell-bg);
+  color: var(--sell-color);
+  border: 1px solid var(--sell-border);
 }

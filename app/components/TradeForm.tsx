@@ -2,7 +2,7 @@ import React, { useState, useRef, ChangeEvent, FormEvent } from 'react';
 import { User } from '@supabase/supabase-js';
 import { TradeSide } from '@/app/types/trade';
 import { getKoreanWeekdayLabel, parseTagString } from '@/app/utils/format';
-import { STATIC_SYMBOLS } from '@/app/utils/constants';
+import { StockSymbolInput } from '@/app/components/StockSymbolInput';
 
 interface TradeFormProps {
     darkMode: boolean;
@@ -12,6 +12,7 @@ interface TradeFormProps {
         data: {
             date: string;
             symbol: string;
+            symbol_name?: string;
             side: TradeSide;
             price: number;
             quantity: number;
@@ -35,15 +36,13 @@ export function TradeForm({
     const [form, setForm] = useState({
         date: new Date().toISOString().slice(0, 10),
         symbol: '',
+        symbol_name: '',
         side: 'BUY' as TradeSide,
         price: '',
         quantity: '',
         memo: '',
         tags: '',
     });
-
-    const [symbolSuggestions, setSymbolSuggestions] = useState<string[]>([]);
-    const [showSymbolSuggestions, setShowSymbolSuggestions] = useState(false);
     const [chartFile, setChartFile] = useState<File | null>(null);
     const [chartPreview, setChartPreview] = useState<string | null>(null);
     const chartInputRef = useRef<HTMLInputElement | null>(null);
@@ -61,32 +60,12 @@ export function TradeForm({
         }));
     };
 
-    const handleSymbolChange = (e: ChangeEvent<HTMLInputElement>) => {
-        const { value } = e.target;
-        setForm((prev) => ({ ...prev, symbol: value }));
-
-        const trimmed = value.trim().toLowerCase();
-        if (!trimmed) {
-            setSymbolSuggestions([]);
-            setShowSymbolSuggestions(false);
-            return;
-        }
-
-        const fromTrades = Array.from(
-            new Set(
-                baseTrades
-                    .map((t) => t.symbol)
-                    .filter((sym) => sym && sym.toLowerCase().includes(trimmed))
-            )
-        );
-
-        const fromStatic = STATIC_SYMBOLS.filter((sym) =>
-            sym.toLowerCase().includes(trimmed)
-        );
-
-        const uniq = Array.from(new Set([...fromTrades, ...fromStatic])).slice(0, 5);
-        setSymbolSuggestions(uniq);
-        setShowSymbolSuggestions(uniq.length > 0);
+    const handleSymbolChange = (symbol: string, symbolName?: string) => {
+        setForm((prev) => ({
+            ...prev,
+            symbol: symbol,
+            symbol_name: symbolName || ''
+        }));
     };
 
     const handleChartFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -152,6 +131,7 @@ export function TradeForm({
                 {
                     date: form.date,
                     symbol: form.symbol.toUpperCase().trim(),
+                    symbol_name: form.symbol_name || undefined,
                     side: form.side,
                     price,
                     quantity,
@@ -242,38 +222,15 @@ export function TradeForm({
                     </div>
                 </div>
 
-                {/* Row 2: Symbol */}
-                <div className="relative">
+                {/* Row 2: Symbol with Autocomplete */}
+                <div>
                     <label className={labelClass}>종목명</label>
-                    <input
-                        type="text"
-                        name="symbol"
-                        placeholder="예: AAPL"
+                    <StockSymbolInput
                         value={form.symbol}
                         onChange={handleSymbolChange}
-                        className={inputBaseClass + ' uppercase font-bold tracking-wide'}
-                        autoComplete="off"
+                        darkMode={darkMode}
+                        disabled={isSubmitting}
                     />
-                    {showSymbolSuggestions && symbolSuggestions.length > 0 && (
-                        <div className={'absolute z-20 top-full left-0 mt-1 w-full p-1.5 rounded-xl shadow-xl border ' + (darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-100')}>
-                            <div className="flex flex-wrap gap-1">
-                                {symbolSuggestions.map((sym) => (
-                                    <button
-                                        key={sym}
-                                        type="button"
-                                        onClick={() => {
-                                            setForm((prev) => ({ ...prev, symbol: sym }));
-                                            setSymbolSuggestions([]);
-                                            setShowSymbolSuggestions(false);
-                                        }}
-                                        className={'px-2 py-1 text-xs font-bold rounded-lg transition-colors ' + (darkMode ? 'bg-slate-700 hover:bg-slate-600 text-slate-200' : 'bg-slate-100 hover:bg-slate-200 text-slate-700')}
-                                    >
-                                        {sym}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
                 </div>
 
                 {/* Row 3: Price & Quantity */}

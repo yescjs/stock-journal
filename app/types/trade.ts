@@ -4,6 +4,7 @@ export interface Trade {
   id: string;            // Supabase uuid or guest-... string
   date: string;          // YYYY-MM-DD
   symbol: string;
+  symbol_name?: string;  // Display name (e.g., "Samsung Electronics Co., Ltd.")
   side: TradeSide;
   price: number;
   quantity: number;

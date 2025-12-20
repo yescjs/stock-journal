@@ -1,5 +1,6 @@
 export interface SymbolSummary {
     symbol: string;
+    symbol_name?: string;  // Korean/English stock name
     totalBuyQty: number;
     totalBuyAmount: number;
     totalSellQty: number;

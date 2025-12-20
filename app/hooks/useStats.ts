@@ -21,6 +21,7 @@ export function useStats(trades: Trade[], currentPrices: Record<string, number> 
             if (!s) {
                 s = {
                     symbol: t.symbol,
+                    symbol_name: t.symbol_name,  // Include stock name from trade
                     totalBuyQty: 0,
                     totalBuyAmount: 0,
                     totalSellQty: 0,
@@ -36,6 +37,9 @@ export function useStats(trades: Trade[], currentPrices: Record<string, number> 
                     winRate: 0,
                 };
                 map.set(t.symbol, s);
+            } else if (t.symbol_name && !s.symbol_name) {
+                // Update symbol_name if we encounter a trade with a name for an existing summary
+                s.symbol_name = t.symbol_name;
             }
 
             const amount = t.price * t.quantity;

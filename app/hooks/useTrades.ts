@@ -72,6 +72,7 @@ export function useTrades(user: User | null) {
         data: {
             date: string;
             symbol: string;
+            symbol_name?: string;
             side: TradeSide;
             price: number;
             quantity: number;
@@ -81,7 +82,7 @@ export function useTrades(user: User | null) {
         imageFile: File | null
     ) => {
         let imageUrl: string | null = null;
-        const { date, symbol, side, price, quantity, memo, tags } = data;
+        const { date, symbol, symbol_name, side, price, quantity, memo, tags } = data;
 
         try {
             // 1. Image Upload / Processing
@@ -124,6 +125,7 @@ export function useTrades(user: User | null) {
                             user_id: user.id,
                             date,
                             symbol,
+                            symbol_name: symbol_name || null,
                             side,
                             price,
                             quantity,
@@ -143,6 +145,7 @@ export function useTrades(user: User | null) {
                     id: `guest-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
                     date,
                     symbol,
+                    symbol_name: symbol_name || undefined,
                     side,
                     price,
                     quantity,
@@ -196,6 +199,7 @@ export function useTrades(user: User | null) {
                     .update({
                         date: trade.date,
                         symbol: trade.symbol,
+                        symbol_name: trade.symbol_name || null,
                         side: trade.side,
                         price: trade.price,
                         quantity: trade.quantity,

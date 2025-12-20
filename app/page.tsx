@@ -619,29 +619,36 @@ export default function Home() {
             </div>
 
             {/* RIGHT: Sidebar - Compact & Unified */}
-            <div className="hidden lg:block w-80 xl:w-96 flex-none h-full overflow-hidden pl-4 pb-4">
-              <div className="space-y-3 h-full overflow-y-auto pr-2 scrollbar-thin">
+            <div className="hidden lg:block w-80 xl:w-96 flex-none overflow-hidden pl-4 pb-4">
+              <div className="space-y-4 pr-2">
 
-                {/* 1. Summary Cards - Compact */}
+                {/* 1. Summary Cards - Enhanced */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className={'rounded-2xl p-3 border ' + (darkMode ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200 shadow-sm')}>
-                    <div className={'text-[11px] font-bold mb-0.5 ' + (darkMode ? 'text-slate-400' : 'text-slate-600')}>매수 합계</div>
-                    <div className={'text-base font-black tracking-tight ' + (darkMode ? 'text-slate-100' : 'text-slate-900')}>
-                      {journalStats.buy.toLocaleString()} <span className="text-[10px] font-medium text-slate-400">원</span>
+                  <div className={'rounded-2xl p-4 border transition-all duration-200 card-hover ' + (darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm')}>
+                    <div className={'flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider mb-2 ' + (darkMode ? 'text-slate-500' : 'text-slate-400')}>
+                      <span className={darkMode ? 'text-indigo-400' : 'text-indigo-500'}>📈</span>
+                      매수 합계
+                    </div>
+                    <div className={'text-lg font-black tracking-tight ' + (darkMode ? 'text-slate-100' : 'text-slate-900')}>
+                      {journalStats.buy.toLocaleString()}
                     </div>
                   </div>
 
-                  <div className={'rounded-2xl p-3 border ' + (darkMode ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200 shadow-sm')}>
-                    <div className={'text-[11px] font-bold mb-0.5 ' + (darkMode ? 'text-slate-400' : 'text-slate-600')}>순손익</div>
-                    <div className={'text-base font-black tracking-tight ' + (journalNetCash > 0 ? 'text-emerald-500' : journalNetCash < 0 ? 'text-rose-500' : (darkMode ? 'text-slate-100' : 'text-slate-900'))}>
-                      {journalNetCash.toLocaleString()} <span className="text-[10px] font-medium text-slate-400">원</span>
+                  <div className={'rounded-2xl p-4 border transition-all duration-200 card-hover ' + (darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm')}>
+                    <div className={'flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider mb-2 ' + (darkMode ? 'text-slate-500' : 'text-slate-400')}>
+                      <span className={journalNetCash >= 0 ? 'text-emerald-500' : 'text-rose-500'}>{journalNetCash >= 0 ? '💰' : '📉'}</span>
+                      순손익
+                    </div>
+                    <div className={'text-lg font-black tracking-tight ' + (journalNetCash > 0 ? 'text-emerald-500' : journalNetCash < 0 ? 'text-rose-500' : (darkMode ? 'text-slate-100' : 'text-slate-900'))}>
+                      {journalNetCash >= 0 ? '+' : ''}{journalNetCash.toLocaleString()}
                     </div>
                   </div>
                 </div>
 
-                {/* 2. Trade Form - Unified & Compact */}
-                <div ref={addFormRef} className={'rounded-2xl border overflow-hidden ' + (darkMode ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200 shadow-sm')}>
-                  <div className={'px-4 py-2.5 border-b ' + (darkMode ? 'border-slate-800 bg-slate-800/30' : 'border-slate-100 bg-slate-50/50')}>
+                {/* 2. Trade Form - Enhanced */}
+                <div ref={addFormRef} className={'rounded-2xl border overflow-hidden transition-all duration-200 ' + (darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm')}>
+                  <div className={'px-4 py-3 border-b flex items-center gap-2 ' + (darkMode ? 'border-slate-800 bg-gradient-to-r from-slate-800/50 to-slate-900' : 'border-slate-100 bg-gradient-to-r from-indigo-50/50 to-white')}>
+                    <span className={darkMode ? 'text-indigo-400' : 'text-indigo-500'}>✍️</span>
                     <h3 className={'text-xs font-bold ' + (darkMode ? 'text-slate-100' : 'text-slate-900')}>
                       매매 기록 작성
                     </h3>
@@ -658,45 +665,46 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* 3. Filters - Unified & Compact */}
-                <div className={'rounded-2xl border overflow-hidden ' + (darkMode ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200 shadow-sm')}>
-                  <div className={'px-4 py-2.5 border-b ' + (darkMode ? 'border-slate-800 bg-slate-800/30' : 'border-slate-100 bg-slate-50/50')}>
-                    <div className="flex items-center justify-between">
-                      <h3 className={'text-xs font-bold flex items-center gap-2 ' + (darkMode ? 'text-slate-100' : 'text-slate-900')}>
-                        검색 필터
-                      </h3>
+                {/* 3. Filters - Enhanced */}
+                <div className={'rounded-2xl border overflow-hidden transition-all duration-200 ' + (darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm')}>
+                  <div className={'px-4 py-3 border-b flex items-center gap-2 ' + (darkMode ? 'border-slate-800 bg-gradient-to-r from-slate-800/50 to-slate-900' : 'border-slate-100 bg-gradient-to-r from-indigo-50/50 to-white')}>
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center gap-2">
+                        <Search size={14} className={darkMode ? 'text-indigo-400' : 'text-indigo-500'} />
+                        <h3 className={'text-xs font-bold ' + (darkMode ? 'text-slate-100' : 'text-slate-900')}>
+                          검색 필터
+                        </h3>
+                      </div>
                       <button
                         onClick={resetFilters}
-                        className={'text-[10px] font-bold px-3 py-1 rounded border shadow-sm transition-colors ' + (darkMode ? 'bg-slate-900 border-slate-700 text-slate-200 hover:text-slate-100' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50')}
+                        className={'text-[10px] font-bold px-3 py-1.5 rounded-lg border transition-all btn-press ' + (darkMode ? 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white hover:bg-slate-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200')}
                       >
                         초기화
                       </button>
                     </div>
                   </div>
-                  <div className="p-4 space-y-2.5">
+                  <div className="p-4 space-y-3">
                     <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <input type="text" placeholder="종목명" value={filterSymbol} onChange={e => setFilterSymbol(e.target.value)}
-                          className={'w-full rounded-xl px-3 py-2 text-xs font-medium outline-none transition-all ' + (darkMode ? 'bg-slate-800 text-white placeholder-slate-500 focus:ring-1 focus:ring-slate-600' : 'bg-slate-100 text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-blue-100')}
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <input type="text" placeholder="태그" value={filterTag} onChange={e => setFilterTag(e.target.value)}
-                          className={'w-full rounded-xl px-3 py-2 text-xs font-medium outline-none transition-all ' + (darkMode ? 'bg-slate-800 text-white placeholder-slate-500 focus:ring-1 focus:ring-slate-600' : 'bg-slate-100 text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-blue-100')}
-                        />
-                      </div>
+                      <input type="text" placeholder="종목명" value={filterSymbol} onChange={e => setFilterSymbol(e.target.value)}
+                        className={'w-full rounded-xl px-3 py-2.5 text-xs font-medium outline-none transition-all border ' + (darkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100')}
+                      />
+                      <input type="text" placeholder="태그" value={filterTag} onChange={e => setFilterTag(e.target.value)}
+                        className={'w-full rounded-xl px-3 py-2.5 text-xs font-medium outline-none transition-all border ' + (darkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100')}
+                      />
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
-                      <div className="relative">
-                        <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={'w-full rounded-xl px-2 py-2 text-[11px] font-medium outline-none transition-all text-center tracking-tighter ' + (darkMode ? 'bg-slate-800 text-white focus:ring-1 focus:ring-slate-600' : 'bg-slate-100 text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-100')} />
-                      </div>
-                      <div className="relative">
-                        <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={'w-full rounded-xl px-2 py-2 text-[11px] font-medium outline-none transition-all text-center tracking-tighter ' + (darkMode ? 'bg-slate-800 text-white focus:ring-1 focus:ring-slate-600' : 'bg-slate-100 text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-100')} />
-                      </div>
+                      <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                        className={'w-full rounded-xl px-2 py-2.5 text-[11px] font-medium outline-none transition-all text-center tracking-tight border ' + (darkMode ? 'bg-slate-800 border-slate-700 text-white focus:border-indigo-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:bg-white focus:border-indigo-400')}
+                      />
+                      <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                        className={'w-full rounded-xl px-2 py-2.5 text-[11px] font-medium outline-none transition-all text-center tracking-tight border ' + (darkMode ? 'bg-slate-800 border-slate-700 text-white focus:border-indigo-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:bg-white focus:border-indigo-400')}
+                      />
                     </div>
 
-                    <select value={tagFilterMode} onChange={e => setTagFilterMode(e.target.value as TagFilterMode)} className={'w-full rounded-xl px-3 py-2 text-xs font-medium appearance-none outline-none transition-all ' + (darkMode ? 'bg-slate-800 text-white focus:ring-1 focus:ring-slate-600' : 'bg-slate-100 text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-100')}>
+                    <select value={tagFilterMode} onChange={e => setTagFilterMode(e.target.value as TagFilterMode)}
+                      className={'w-full rounded-xl px-3 py-2.5 text-xs font-medium appearance-none outline-none transition-all border cursor-pointer ' + (darkMode ? 'bg-slate-800 border-slate-700 text-white focus:border-indigo-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:bg-white focus:border-indigo-400')}
+                    >
                       <option value="OR">태그 하나라도 포함 (OR)</option>
                       <option value="AND">태그 모두 포함 (AND)</option>
                     </select>
