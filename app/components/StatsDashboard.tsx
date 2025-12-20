@@ -13,8 +13,9 @@ import { WinLossChart } from './charts/WinLossChart';
 import { MonthlyBarChart } from './charts/MonthlyBarChart';
 import { InsightsWidget } from './InsightsWidget';
 import { SymbolSortKey, TagSortKey } from '@/app/types/ui';
-import { formatNumber } from '@/app/utils/format';
-import { TrendingUp, TrendingDown, Wallet, Target, ArrowUpRight, ArrowDownRight, Cloud, HardDrive, ChevronUp, ChevronDown } from 'lucide-react';
+import { formatNumber, formatQuantity } from '@/app/utils/format';
+import { TrendingUp, TrendingDown, Wallet, Target, ArrowUpRight, ArrowDownRight, Cloud, HardDrive, ChevronUp, ChevronDown, RefreshCw, Loader2, Download, Trophy, AlertTriangle } from 'lucide-react';
+import { fetchStockChart } from '@/app/utils/stockApi';
 
 interface StatsDashboardProps {
     darkMode: boolean;
@@ -26,6 +27,7 @@ interface StatsDashboardProps {
     monthlyRealizedPoints: PnLPoint[];
     currentPrices: Record<string, number>;
     onCurrentPriceChange: (symbol: string, value: string) => void;
+    onSymbolClick?: (symbol: string) => void;
     tagColors?: Record<string, string>;
     insights?: InsightData;
 }
@@ -40,17 +42,20 @@ export function StatsDashboard({
     monthlyRealizedPoints,
     currentPrices,
     onCurrentPriceChange,
+    onSymbolClick,
     tagColors = {},
     insights,
 }: StatsDashboardProps) {
     const [pnlChartMode, setPnlChartMode] = useState<PnLChartMode>('daily');
+    const [loadingPrices, setLoadingPrices] = useState<Record<string, boolean>>({});
+    const [loadingAllPrices, setLoadingAllPrices] = useState(false);
 
     const [symbolSort, setSymbolSort] = useState<{
         key: SymbolSortKey;
         dir: 'asc' | 'desc';
     }>({
-        key: 'symbol',
-        dir: 'asc',
+        key: 'realizedPnL',
+        dir: 'desc',
     });
 
     const [tagSort, setTagSort] = useState<{
@@ -64,51 +69,119 @@ export function StatsDashboard({
     const pnlChartPoints =
         pnlChartMode === 'daily' ? dailyRealizedPoints : monthlyRealizedPoints;
 
-    const maxAbsPnLRaw = pnlChartPoints.reduce((max, p) => {
-        const v = Number(p.value ?? 0);
-        if (!Number.isFinite(v)) return max;
-        return Math.max(max, Math.abs(v));
-    }, 0);
-    const maxAbsPnL = Number.isFinite(maxAbsPnLRaw) ? maxAbsPnLRaw : 0;
+    // 손익 Top 5 계산
+    const topProfits = useMemo(() => {
+        return [...symbolSummaries]
+            .sort((a, b) => b.realizedPnL - a.realizedPnL)
+            .slice(0, 5)
+            .filter(s => s.realizedPnL > 0);
+    }, [symbolSummaries]);
+
+    const topLosses = useMemo(() => {
+        return [...symbolSummaries]
+            .sort((a, b) => a.realizedPnL - b.realizedPnL)
+            .slice(0, 5)
+            .filter(s => s.realizedPnL < 0);
+    }, [symbolSummaries]);
+
+    // 현재가 자동 조회 함수
+    const fetchCurrentPrice = async (symbol: string) => {
+        setLoadingPrices(prev => ({ ...prev, [symbol]: true }));
+        try {
+            const data = await fetchStockChart(symbol, '1d');
+            if (data.prices && data.prices.length > 0) {
+                const lastPrice = data.prices[data.prices.length - 1];
+                onCurrentPriceChange(symbol, lastPrice.close.toString());
+            }
+        } catch (error) {
+            console.error(`Failed to fetch price for ${symbol}:`, error);
+        } finally {
+            setLoadingPrices(prev => ({ ...prev, [symbol]: false }));
+        }
+    };
+
+    // 전체 현재가 조회
+    const fetchAllCurrentPrices = async () => {
+        const holdingSymbols = symbolSummaries.filter(s => s.positionQty > 0).map(s => s.symbol);
+        if (holdingSymbols.length === 0) return;
+
+        setLoadingAllPrices(true);
+        try {
+            await Promise.all(holdingSymbols.map(symbol => fetchCurrentPrice(symbol)));
+        } finally {
+            setLoadingAllPrices(false);
+        }
+    };
+
+    // CSV 내보내기
+    const exportToCSV = () => {
+        const headers = ['종목명', '종목코드', '보유수량', '평단가', '현재가', '실현손익', '평가손익', '수익률', '승률'];
+        const rows = symbolSummaries.map(s => {
+            const currentPrice = currentPrices[s.symbol];
+            const hasPrice = currentPrice !== undefined;
+            const unrealizedPnL = (s.positionQty > 0 && hasPrice) ? (currentPrice - s.avgCost) * s.positionQty : 0;
+            const returnRate = (s.positionQty > 0 && hasPrice && s.avgCost > 0) ? ((currentPrice - s.avgCost) / s.avgCost) * 100 : 0;
+
+            return [
+                s.symbol_name || s.symbol,
+                s.symbol,
+                s.positionQty,
+                s.avgCost,
+                currentPrice || '',
+                s.realizedPnL,
+                hasPrice ? unrealizedPnL : '',
+                hasPrice ? returnRate.toFixed(2) + '%' : '',
+                s.winRate.toFixed(0) + '%'
+            ].join(',');
+        });
+
+        const csv = [headers.join(','), ...rows].join('\n');
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `stock_stats_${new Date().toISOString().split('T')[0]}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+    };
 
     const handleSymbolStatsSort = (key: SymbolSortKey) => {
         setSymbolSort((prev) => {
             if (prev.key === key) {
                 return { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' };
             }
-            return { key, dir: 'asc' };
+            return { key, dir: 'desc' };
         });
     };
 
     const sortedSymbolSummaries = useMemo(() => {
-        const list = [...symbolSummaries];
         const getMetric = (s: SymbolSummary): number | string => {
             switch (symbolSort.key) {
                 case 'symbol':
-                    return s.symbol;
+                    return s.symbol_name || s.symbol;
                 case 'positionQty':
                     return s.positionQty;
                 case 'avgCost':
-                    return s.avgCost;
+                    return s.avgCost ?? 0;
                 case 'totalBuyAmount':
-                    return s.totalBuyAmount;
+                    return s.totalBuyAmount ?? 0;
                 case 'totalSellAmount':
-                    return s.totalSellAmount;
+                    return s.totalSellAmount ?? 0;
                 case 'realizedPnL':
-                    return s.realizedPnL;
+                    return s.realizedPnL ?? 0;
                 case 'currentPrice':
                     return currentPrices[s.symbol] ?? 0;
                 case 'positionValue':
-                    return (currentPrices[s.symbol] ?? 0) * s.positionQty;
+                    return s.positionQty * (currentPrices[s.symbol] ?? 0);
                 case 'unrealizedPnL':
-                    return ((currentPrices[s.symbol] ?? 0) - s.avgCost) * s.positionQty;
+                    return s.positionQty > 0 ? ((currentPrices[s.symbol] ?? 0) - (s.avgCost ?? 0)) * s.positionQty : 0;
                 case 'winRate':
-                    return s.winRate;
+                    return s.winRate ?? 0;
                 default:
-                    return s.symbol;
+                    return 0;
             }
         };
-
+        const list = [...symbolSummaries];
         list.sort((a, b) => {
             const va = getMetric(a);
             const vb = getMetric(b);
@@ -131,12 +204,11 @@ export function StatsDashboard({
             if (prev.key === key) {
                 return { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' };
             }
-            return { key, dir: 'desc' };
+            return { key, dir: 'asc' };
         });
     };
 
     const sortedTagStats = useMemo(() => {
-        const list = [...tagStats];
         const getMetric = (t: TagPerf): number | string => {
             switch (tagSort.key) {
                 case 'tag':
@@ -150,10 +222,10 @@ export function StatsDashboard({
                 case 'avgPnLPerTrade':
                     return t.avgPnLPerTrade;
                 default:
-                    return t.tag;
+                    return 0;
             }
         };
-
+        const list = [...tagStats];
         list.sort((a, b) => {
             const va = getMetric(a);
             const vb = getMetric(b);
@@ -209,15 +281,29 @@ export function StatsDashboard({
                         </h2>
                         <p className={'text-xs mt-1 ' + (darkMode ? 'text-slate-500' : 'text-slate-400')}>전체 성과 요약</p>
                     </div>
-                    <span className={
-                        'flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold tracking-wide uppercase ' +
-                        (currentUser
-                            ? (darkMode ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'bg-indigo-100 text-indigo-700')
-                            : (darkMode ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-amber-100 text-amber-700'))
-                    }>
-                        {currentUser ? <Cloud size={12} /> : <HardDrive size={12} />}
-                        {currentUser ? 'Cloud Sync' : 'Local'}
-                    </span>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={exportToCSV}
+                            className={
+                                'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all btn-press ' +
+                                (darkMode
+                                    ? 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'
+                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200')
+                            }
+                        >
+                            <Download size={12} />
+                            CSV
+                        </button>
+                        <span className={
+                            'flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold tracking-wide uppercase ' +
+                            (currentUser
+                                ? (darkMode ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'bg-indigo-100 text-indigo-700')
+                                : (darkMode ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-amber-100 text-amber-700'))
+                        }>
+                            {currentUser ? <Cloud size={12} /> : <HardDrive size={12} />}
+                            {currentUser ? 'Cloud Sync' : 'Local'}
+                        </span>
+                    </div>
                 </div>
 
                 {/* Main KPI - Total PnL */}
@@ -240,15 +326,96 @@ export function StatsDashboard({
                 </div>
 
                 {/* Sub KPIs */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <StatItem label="총 매수금" value={overallStats.totalBuyAmount} icon={<TrendingUp size={14} />} darkMode={darkMode} />
-                    <StatItem label="총 매도금" value={overallStats.totalSellAmount} icon={<TrendingDown size={14} />} darkMode={darkMode} />
+                <div className="grid grid-cols-2 gap-4">
                     <StatItem label="실현손익" value={overallStats.totalRealizedPnL} icon={<Target size={14} />} colorize darkMode={darkMode} />
                     <StatItem label="평가손익" value={overallStats.evalPnL} icon={<Wallet size={14} />} colorize darkMode={darkMode} />
                 </div>
             </div>
 
-            {/* 2. PnL Charts */}
+            {/* 2. Top Performers Section */}
+            {(topProfits.length > 0 || topLosses.length > 0) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Top Profits */}
+                    <div className={cardBaseClass + ' p-5'}>
+                        <h3 className={'text-sm font-bold flex items-center gap-2 mb-4 ' + (darkMode ? 'text-emerald-400' : 'text-emerald-600')}>
+                            <Trophy size={16} />
+                            수익 Top 5
+                        </h3>
+                        {topProfits.length > 0 ? (
+                            <div className="space-y-2">
+                                {topProfits.map((s, idx) => (
+                                    <div
+                                        key={s.symbol}
+                                        className={
+                                            'flex items-center justify-between p-3 rounded-xl transition-all ' +
+                                            (onSymbolClick ? 'cursor-pointer hover:scale-[1.02] ' : '') +
+                                            (darkMode ? 'bg-emerald-500/10 hover:bg-emerald-500/20' : 'bg-emerald-50 hover:bg-emerald-100')
+                                        }
+                                        onClick={() => onSymbolClick?.(s.symbol)}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <span className={'w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ' + (darkMode ? 'bg-emerald-500/30 text-emerald-400' : 'bg-emerald-200 text-emerald-700')}>
+                                                {idx + 1}
+                                            </span>
+                                            <span className={'font-bold text-sm ' + (darkMode ? 'text-slate-200' : 'text-slate-700')}>
+                                                {s.symbol_name || s.symbol}
+                                            </span>
+                                        </div>
+                                        <span className="font-bold text-emerald-500 tabular-nums">
+                                            +{formatNumber(s.realizedPnL)}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className={'text-sm text-center py-4 ' + (darkMode ? 'text-slate-500' : 'text-slate-400')}>
+                                수익 종목이 없습니다
+                            </p>
+                        )}
+                    </div>
+
+                    {/* Top Losses */}
+                    <div className={cardBaseClass + ' p-5'}>
+                        <h3 className={'text-sm font-bold flex items-center gap-2 mb-4 ' + (darkMode ? 'text-rose-400' : 'text-rose-600')}>
+                            <AlertTriangle size={16} />
+                            손실 Top 5
+                        </h3>
+                        {topLosses.length > 0 ? (
+                            <div className="space-y-2">
+                                {topLosses.map((s, idx) => (
+                                    <div
+                                        key={s.symbol}
+                                        className={
+                                            'flex items-center justify-between p-3 rounded-xl transition-all ' +
+                                            (onSymbolClick ? 'cursor-pointer hover:scale-[1.02] ' : '') +
+                                            (darkMode ? 'bg-rose-500/10 hover:bg-rose-500/20' : 'bg-rose-50 hover:bg-rose-100')
+                                        }
+                                        onClick={() => onSymbolClick?.(s.symbol)}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <span className={'w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ' + (darkMode ? 'bg-rose-500/30 text-rose-400' : 'bg-rose-200 text-rose-700')}>
+                                                {idx + 1}
+                                            </span>
+                                            <span className={'font-bold text-sm ' + (darkMode ? 'text-slate-200' : 'text-slate-700')}>
+                                                {s.symbol_name || s.symbol}
+                                            </span>
+                                        </div>
+                                        <span className="font-bold text-rose-500 tabular-nums">
+                                            {formatNumber(s.realizedPnL)}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className={'text-sm text-center py-4 ' + (darkMode ? 'text-slate-500' : 'text-slate-400')}>
+                                손실 종목이 없습니다
+                            </p>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* 3. PnL Charts */}
             {pnlChartPoints.length > 0 && (
                 <div className={cardBaseClass + ' p-6'}>
                     <div className="flex items-center justify-between mb-6">
@@ -295,31 +462,39 @@ export function StatsDashboard({
                 </div>
             )}
 
-            {/* 3. Symbol Table */}
+            {/* 4. Symbol Table */}
             <div className={cardBaseClass + ' p-6'}>
                 <div className="flex items-center justify-between mb-4">
                     <h2 className={sectionTitleClass}>
                         📈 종목별 성과
                     </h2>
-                    <span className={'text-[10px] font-medium px-3 py-1.5 rounded-lg ' + (darkMode ? 'bg-slate-800 text-slate-400' : 'bg-indigo-50 text-indigo-600')}>
-                        💡 현재가를 입력하면 평가손익이 계산됩니다
-                    </span>
+                    <button
+                        onClick={fetchAllCurrentPrices}
+                        disabled={loadingAllPrices}
+                        className={
+                            'flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all btn-press ' +
+                            (darkMode
+                                ? 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30 border border-indigo-500/30'
+                                : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200')
+                        }
+                    >
+                        {loadingAllPrices ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                        현재가 조회
+                    </button>
                 </div>
 
                 <div className={tableWrapperClass}>
-                    <table className="w-full text-left min-w-[800px]">
+                    <table className="w-full text-left min-w-[700px]">
                         <thead>
                             <tr>
                                 {[
                                     { k: 'symbol', l: '종목명' },
                                     { k: 'positionQty', l: '보유수량' },
                                     { k: 'avgCost', l: '평단가' },
-                                    { k: 'totalBuyAmount', l: '총매수' },
-                                    { k: 'totalSellAmount', l: '총매도' },
-                                    { k: 'realizedPnL', l: '실현손익' },
                                     { k: 'currentPrice', l: '현재가' },
-                                    { k: 'positionValue', l: '평가금액' },
+                                    { k: 'realizedPnL', l: '실현손익' },
                                     { k: 'unrealizedPnL', l: '평가손익' },
+                                    { k: 'returnRate', l: '수익률' },
                                     { k: 'winRate', l: '승률' },
                                 ].map((h) => (
                                     <th
@@ -341,11 +516,21 @@ export function StatsDashboard({
                             {sortedSymbolSummaries.map((s) => {
                                 const currentPrice = currentPrices[s.symbol];
                                 const hasPrice = currentPrice !== undefined;
-                                const positionValue = (s.positionQty > 0 && hasPrice) ? s.positionQty * currentPrice : 0;
                                 const unrealizedPnL = (s.positionQty > 0 && hasPrice) ? (currentPrice - s.avgCost) * s.positionQty : 0;
+                                const returnRate = (s.positionQty > 0 && hasPrice && s.avgCost > 0) ? ((currentPrice - s.avgCost) / s.avgCost) * 100 : 0;
+                                const isLoading = loadingPrices[s.symbol];
+                                const isKorean = s.symbol.includes('.KS') || s.symbol.includes('.KQ') || /^\d+$/.test(s.symbol);
 
                                 return (
-                                    <tr key={s.symbol} className={'transition-colors ' + (darkMode ? 'hover:bg-slate-800/30' : 'hover:bg-indigo-50/30')}>
+                                    <tr
+                                        key={s.symbol}
+                                        className={
+                                            'transition-colors ' +
+                                            (onSymbolClick ? 'cursor-pointer ' : '') +
+                                            (darkMode ? 'hover:bg-slate-800/30' : 'hover:bg-indigo-50/30')
+                                        }
+                                        onClick={() => onSymbolClick?.(s.symbol)}
+                                    >
                                         <td className={tableCellClass + ' font-bold'}>
                                             <div>
                                                 <div className={darkMode ? 'text-slate-100' : 'text-slate-900'}>{s.symbol_name || s.symbol}</div>
@@ -356,32 +541,50 @@ export function StatsDashboard({
                                                 )}
                                             </div>
                                         </td>
-                                        <td className={tableCellClass + ' font-mono tabular-nums'}>{formatNumber(s.positionQty)}</td>
+                                        <td className={tableCellClass + ' font-mono tabular-nums'}>{formatQuantity(s.positionQty, s.symbol)}</td>
                                         <td className={tableCellClass + ' font-mono tabular-nums'}>{s.positionQty > 0 ? formatNumber(s.avgCost, 0) : '-'}</td>
-                                        <td className={tableCellClass + ' font-mono tabular-nums ' + (darkMode ? 'text-slate-400' : 'text-slate-500')}>{formatNumber(s.totalBuyAmount)}</td>
-                                        <td className={tableCellClass + ' font-mono tabular-nums ' + (darkMode ? 'text-slate-400' : 'text-slate-500')}>{formatNumber(s.totalSellAmount)}</td>
+                                        <td className={tableCellClass}>
+                                            <div className="flex items-center gap-2">
+                                                {isLoading ? (
+                                                    <Loader2 size={14} className="animate-spin text-indigo-400" />
+                                                ) : hasPrice ? (
+                                                    <span className="font-mono tabular-nums">
+                                                        <span className="text-slate-400 text-xs mr-1">{isKorean ? '₩' : '$'}</span>
+                                                        {formatNumber(currentPrice, isKorean ? 0 : 2)}
+                                                    </span>
+                                                ) : (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            fetchCurrentPrice(s.symbol);
+                                                        }}
+                                                        className={
+                                                            'px-2 py-1 rounded text-[10px] font-bold transition-all ' +
+                                                            (darkMode ? 'bg-slate-800 text-slate-400 hover:bg-slate-700' : 'bg-slate-100 text-slate-500 hover:bg-slate-200')
+                                                        }
+                                                    >
+                                                        조회
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
                                         <td className={tableCellClass}>
                                             <PnLText value={s.realizedPnL} />
                                         </td>
                                         <td className={tableCellClass}>
-                                            {s.positionQty > 0 ? (
-                                                <input
-                                                    type="number"
-                                                    className={
-                                                        'w-24 px-3 py-1.5 text-right text-xs font-mono rounded-lg border transition-all ' +
-                                                        (darkMode ? 'bg-slate-800 border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30' : 'bg-white border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100')
-                                                    }
-                                                    value={currentPrice ?? ''}
-                                                    onChange={(e) => onCurrentPriceChange(s.symbol, e.target.value)}
-                                                    placeholder="가격"
-                                                />
-                                            ) : <span className="text-slate-400">-</span>}
-                                        </td>
-                                        <td className={tableCellClass + ' font-mono tabular-nums'}>
-                                            {s.positionQty > 0 ? formatNumber(positionValue) : <span className="text-slate-400">-</span>}
+                                            {s.positionQty > 0 && hasPrice ? <PnLText value={unrealizedPnL} /> : <span className="text-slate-400">-</span>}
                                         </td>
                                         <td className={tableCellClass}>
-                                            {s.positionQty > 0 ? <PnLText value={unrealizedPnL} /> : <span className="text-slate-400">-</span>}
+                                            {s.positionQty > 0 && hasPrice ? (
+                                                <span className={
+                                                    'px-2 py-1 rounded-lg text-[11px] font-bold ' +
+                                                    (returnRate >= 0
+                                                        ? (darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700')
+                                                        : (darkMode ? 'bg-rose-500/20 text-rose-400' : 'bg-rose-100 text-rose-700'))
+                                                }>
+                                                    {returnRate >= 0 ? '+' : ''}{returnRate.toFixed(2)}%
+                                                </span>
+                                            ) : <span className="text-slate-400">-</span>}
                                         </td>
                                         <td className={tableCellClass}>
                                             {s.tradeCount > 0 ? (
@@ -403,7 +606,7 @@ export function StatsDashboard({
                 </div>
             </div>
 
-            {/* 4. Tag Table */}
+            {/* 5. Tag Table */}
             <div className={cardBaseClass + ' p-6'}>
                 <h2 className={sectionTitleClass + ' mb-4'}>
                     🏷️ 전략/태그 분석
@@ -435,31 +638,26 @@ export function StatsDashboard({
                             </tr>
                         </thead>
                         <tbody>
-                            {sortedTagStats.map(t => (
+                            {sortedTagStats.map((t) => (
                                 <tr key={t.tag} className={'transition-colors ' + (darkMode ? 'hover:bg-slate-800/30' : 'hover:bg-indigo-50/30')}>
-                                    <td className={tableCellClass}>
-                                        <span
-                                            className="px-2.5 py-1 rounded-lg text-xs font-semibold text-white shadow-sm"
-                                            style={{ backgroundColor: tagColors[t.tag] || '#6366f1' }}
-                                        >
-                                            #{t.tag}
+                                    <td className={tableCellClass + ' font-bold'}>
+                                        <span className={'px-2 py-1 rounded-lg text-xs font-medium ' + (darkMode ? 'bg-slate-800' : 'bg-slate-100')} style={{ color: tagColors[t.tag] }}>
+                                            {t.tag}
                                         </span>
                                     </td>
-                                    <td className={tableCellClass + ' font-mono tabular-nums font-semibold'}>{t.tradeCount}</td>
+                                    <td className={tableCellClass + ' font-mono tabular-nums'}>{t.tradeCount}</td>
                                     <td className={tableCellClass}>
-                                        <div className="flex items-center gap-3">
-                                            <div className={'w-20 h-2 rounded-full overflow-hidden ' + (darkMode ? 'bg-slate-800' : 'bg-slate-200')}>
-                                                <div className={'h-full rounded-full transition-all ' + (t.winRate >= 50 ? 'bg-emerald-500' : 'bg-rose-500')} style={{ width: `${t.winRate}%` }}></div>
-                                            </div>
-                                            <span className={'text-xs font-bold ' + (t.winRate >= 50 ? 'text-emerald-500' : 'text-rose-500')}>{t.winRate.toFixed(0)}%</span>
-                                        </div>
+                                        <span className={
+                                            'px-2 py-1 rounded-lg text-[11px] font-bold ' +
+                                            (t.winRate >= 50
+                                                ? (darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700')
+                                                : (darkMode ? 'bg-rose-500/20 text-rose-400' : 'bg-rose-100 text-rose-700'))
+                                        }>
+                                            {t.winRate.toFixed(0)}%
+                                        </span>
                                     </td>
-                                    <td className={tableCellClass}>
-                                        <PnLText value={t.realizedPnL} />
-                                    </td>
-                                    <td className={tableCellClass}>
-                                        <PnLText value={t.avgPnLPerTrade} />
-                                    </td>
+                                    <td className={tableCellClass}><PnLText value={t.realizedPnL} /></td>
+                                    <td className={tableCellClass}><PnLText value={t.avgPnLPerTrade} /></td>
                                 </tr>
                             ))}
                         </tbody>
@@ -474,29 +672,35 @@ export function StatsDashboard({
 function StatItem({ label, value, colorize = false, icon, darkMode }: { label: string; value: number; colorize?: boolean; icon?: React.ReactNode; darkMode: boolean }) {
     const isPositive = value > 0;
     const isNegative = value < 0;
-
-    let colorClass = darkMode ? 'text-white' : 'text-slate-900';
-    if (colorize && isPositive) colorClass = 'text-emerald-500';
-    if (colorize && isNegative) colorClass = 'text-rose-500';
-
+    const colorClass = colorize
+        ? isPositive
+            ? 'text-emerald-500'
+            : isNegative
+                ? 'text-rose-500'
+                : darkMode ? 'text-white' : 'text-slate-900'
+        : darkMode ? 'text-white' : 'text-slate-900';
+    const bgClass = darkMode ? 'bg-slate-800/50' : 'bg-slate-50';
     return (
-        <div className={'flex flex-col p-4 rounded-xl transition-all duration-200 hover:scale-105 ' + (darkMode ? 'bg-slate-800/50 hover:bg-slate-800' : 'bg-slate-50 hover:bg-slate-100')}>
-            <div className={'flex items-center gap-2 text-[10px] uppercase tracking-wider font-bold mb-2 ' + (darkMode ? 'text-slate-500' : 'text-slate-400')}>
-                {icon && <span className={darkMode ? 'text-indigo-400' : 'text-indigo-500'}>{icon}</span>}
+        <div className={`rounded-xl p-4 ${bgClass}`}>
+            <div className={'flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider mb-2 ' + (darkMode ? 'text-slate-500' : 'text-slate-400')}>
+                {icon}
                 {label}
             </div>
-            <span className={'font-bold tracking-tight text-lg ' + colorClass}>
-                {colorize && isPositive ? '+' : ''}{formatNumber(Math.abs(value))}
-            </span>
+            <div className={`text-xl font-black tabular-nums ${colorClass}`}>
+                {colorize && isPositive && '+'}
+                {formatNumber(value)}
+            </div>
         </div>
     );
 }
 
 function PnLText({ value }: { value: number }) {
-    if (value === 0) return <span className="text-slate-400 font-medium">-</span>;
+    const color =
+        value > 0 ? 'text-emerald-500' : value < 0 ? 'text-rose-500' : 'text-slate-500';
     return (
-        <span className={'font-bold font-mono tabular-nums ' + (value > 0 ? 'text-emerald-500' : 'text-rose-500')}>
-            {value > 0 ? '+' : ''}{formatNumber(Math.abs(value))}
+        <span className={`font-bold tabular-nums ${color}`}>
+            {value > 0 && '+'}
+            {formatNumber(value)}
         </span>
     );
 }

@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Trade } from '@/app/types/trade';
-import { formatNumber } from '@/app/utils/format';
+import { formatNumber, formatQuantity } from '@/app/utils/format';
 import { TrendingUp, TrendingDown, DollarSign, Activity, X } from 'lucide-react';
 import { StockChart } from '@/app/components/charts/StockChart';
 
@@ -12,7 +12,14 @@ interface SymbolDetailCardProps {
     darkMode: boolean;
 }
 
-export function SymbolDetailCard({ symbol, trades, currentPrice, onClose, darkMode }: SymbolDetailCardProps) {
+export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, onClose, darkMode }: SymbolDetailCardProps) {
+    const [dynamicPrice, setDynamicPrice] = useState<number | undefined>(initialPrice);
+
+    // initialPrice가 변경되면 업데이트
+    useEffect(() => {
+        if (initialPrice) setDynamicPrice(initialPrice);
+    }, [initialPrice]);
+
     const stockTrades = useMemo(() => {
         return trades.filter(t => t.symbol === symbol);
     }, [symbol, trades]);
@@ -38,7 +45,7 @@ export function SymbolDetailCard({ symbol, trades, currentPrice, onClose, darkMo
         const avgCost = totalBuyQty > 0 ? totalBuyAmt / totalBuyQty : 0;
         const avgSellPrice = totalSellQty > 0 ? totalSellAmt / totalSellQty : 0;
         const realizedPnL = totalSellQty * (avgSellPrice - avgCost);
-        const unrealizedPnL = positionQty * ((currentPrice || avgCost) - avgCost);
+        const unrealizedPnL = positionQty * ((dynamicPrice || avgCost) - avgCost);
 
         return {
             positionQty,
@@ -46,7 +53,7 @@ export function SymbolDetailCard({ symbol, trades, currentPrice, onClose, darkMo
             realizedPnL,
             unrealizedPnL,
         };
-    }, [stockTrades, currentPrice]);
+    }, [stockTrades, dynamicPrice]);
 
     // Get stock name from trades (use first trade's symbol_name if available)
     const stockName = useMemo(() => {
@@ -76,9 +83,9 @@ export function SymbolDetailCard({ symbol, trades, currentPrice, onClose, darkMo
                         <span className={`px-2 py-1 rounded text-xs font-semibold ${darkMode ? 'bg-slate-700 text-slate-300' : 'bg-slate-100 text-slate-600'}`}>
                             {stockTrades.length} Trades
                         </span>
-                        {currentPrice && (
-                            <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 text-xs font-bold">
-                                Now {formatNumber(currentPrice)}
+                        {dynamicPrice && (
+                            <span className={`px-2 py-0.5 rounded text-xs font-bold ${darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700'}`}>
+                                현재가 {formatNumber(dynamicPrice)}
                             </span>
                         )}
                     </div>
@@ -93,7 +100,7 @@ export function SymbolDetailCard({ symbol, trades, currentPrice, onClose, darkMo
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <StatItem
                         label="보유 수량"
-                        value={formatNumber(stats.positionQty)}
+                        value={formatQuantity(stats.positionQty, symbol)}
                         icon={<Activity size={14} />}
                         darkMode={darkMode}
                     />
@@ -126,6 +133,7 @@ export function SymbolDetailCard({ symbol, trades, currentPrice, onClose, darkMo
                 darkMode={darkMode}
                 trades={trades}
                 compact={true}
+                onCurrentPriceLoad={(price) => setDynamicPrice(price)}
             />
         </div>
     );

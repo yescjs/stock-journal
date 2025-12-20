@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Trade } from '@/app/types/trade';
 import { User } from '@supabase/supabase-js';
-import { formatMonthLabel, formatNumber, getKoreanWeekdayLabel } from '@/app/utils/format';
+import { formatMonthLabel, formatNumber, formatQuantity, getKoreanWeekdayLabel } from '@/app/utils/format';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Pencil, Trash2, Camera, ChevronDown } from 'lucide-react';
@@ -122,19 +122,20 @@ export function TradeList({
                                 {/* Desktop Table View */}
                                 <div className="hidden md:block overflow-x-auto">
                                     <table className="w-full text-sm text-left table-fixed">
+                                        <colgroup><col className="w-[100px]" /><col className="w-[70px]" /><col className="w-auto" /><col className="w-[80px]" /><col className="w-[50px]" /><col className="w-[90px]" /><col className="w-auto" /><col className="w-[70px]" /></colgroup>
                                         <thead className={
                                             'text-xs uppercase border-b ' +
                                             (darkMode ? 'bg-slate-800/50 text-slate-400 border-slate-800' : 'bg-indigo-50/80 text-indigo-600 border-indigo-100')
                                         }>
                                             <tr>
-                                                <th scope="col" className="px-5 py-3.5 w-32 font-bold">날짜</th>
-                                                <th scope="col" className="px-4 py-3.5 w-24 font-bold text-center">구분</th>
-                                                <th scope="col" className="px-4 py-3.5 font-bold">종목</th>
-                                                <th scope="col" className="px-4 py-3.5 text-right w-28 font-bold">단가</th>
-                                                <th scope="col" className="px-4 py-3.5 text-right w-20 font-bold">수량</th>
-                                                <th scope="col" className="px-4 py-3.5 text-right w-32 font-bold">총액</th>
-                                                <th scope="col" className="px-4 py-3.5 w-auto min-w-[150px] font-bold">태그/메모</th>
-                                                <th scope="col" className="px-4 py-3.5 text-center w-24 font-bold">관리</th>
+                                                <th scope="col" className="px-3 py-3 font-bold">날짜</th>
+                                                <th scope="col" className="px-2 py-3 font-bold text-center">구분</th>
+                                                <th scope="col" className="px-3 py-3 font-bold">종목</th>
+                                                <th scope="col" className="px-2 py-3 text-right font-bold">단가</th>
+                                                <th scope="col" className="px-2 py-3 text-right font-bold">수량</th>
+                                                <th scope="col" className="px-2 py-3 text-right font-bold">총액</th>
+                                                <th scope="col" className="px-2 py-3 font-bold">메모</th>
+                                                <th scope="col" className="px-2 py-3 text-center font-bold">관리</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -148,14 +149,14 @@ export function TradeList({
                                                         onClick={() => onSymbolClick?.(t.symbol)}
                                                         className={'group transition-all duration-200 border-b last:border-0 cursor-pointer ' + (darkMode ? 'hover:bg-slate-800/50 border-slate-800/50' : 'hover:bg-indigo-50/30 border-slate-100')}
                                                     >
-                                                        <td className="px-5 py-4 whitespace-nowrap">
+                                                        <td className="px-3 py-3 whitespace-nowrap">
                                                             <div className={'font-bold font-mono tracking-tight text-[13px] ' + (darkMode ? 'text-slate-100' : 'text-slate-900')}>{t.date}</div>
                                                             <div className="text-[11px] text-slate-500 font-medium mt-0.5">{dayOfWeek}</div>
                                                         </td>
-                                                        <td className="px-4 py-4">
-                                                            <div className="flex flex-col items-center gap-1.5">
+                                                        <td className="px-2 py-3">
+                                                            <div className="flex flex-col items-center gap-1">
                                                                 <span className={
-                                                                    'px-3 py-1.5 rounded-lg text-[11px] font-bold tracking-wide uppercase border ' +
+                                                                    'px-2 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap border ' +
                                                                     (t.side === 'BUY'
                                                                         ? (darkMode ? 'bg-rose-500/15 border-rose-500/30 text-rose-400' : 'bg-rose-50 border-rose-200 text-rose-600')
                                                                         : (darkMode ? 'bg-blue-500/15 border-blue-500/30 text-blue-400' : 'bg-blue-50 border-blue-200 text-blue-600'))
@@ -173,19 +174,19 @@ export function TradeList({
                                                                 )}
                                                             </div>
                                                         </td>
-                                                        <td className={'px-4 py-4 font-bold ' + (darkMode ? 'text-slate-100' : 'text-slate-900')}>
+                                                        <td className={'px-3 py-3 font-bold ' + (darkMode ? 'text-slate-100' : 'text-slate-900')}>
                                                             {t.symbol_name || t.symbol}
                                                         </td>
-                                                        <td className={'px-4 py-4 text-right font-mono tabular-nums ' + (darkMode ? 'text-slate-300' : 'text-slate-600')}>
+                                                        <td className={'px-3 py-3 text-right font-mono tabular-nums ' + (darkMode ? 'text-slate-300' : 'text-slate-600')}>
                                                             {formatNumber(t.price)}
                                                         </td>
-                                                        <td className={'px-4 py-4 text-right font-mono tabular-nums ' + (darkMode ? 'text-slate-300' : 'text-slate-600')}>
-                                                            {formatNumber(t.quantity)}
+                                                        <td className={'px-3 py-3 text-right font-mono tabular-nums ' + (darkMode ? 'text-slate-300' : 'text-slate-600')}>
+                                                            {formatQuantity(t.quantity, t.symbol)}
                                                         </td>
-                                                        <td className={'px-4 py-4 text-right font-mono tabular-nums font-semibold ' + (darkMode ? 'text-slate-100' : 'text-slate-800')}>
+                                                        <td className={'px-3 py-3 text-right font-mono tabular-nums font-semibold ' + (darkMode ? 'text-slate-100' : 'text-slate-800')}>
                                                             {formatNumber(t.price * t.quantity)}
                                                         </td>
-                                                        <td className="px-4 py-4 max-w-[200px]">
+                                                        <td className="px-3 py-3 max-w-[180px]">
                                                             <div className="flex flex-col gap-1.5">
                                                                 {t.tags && t.tags.length > 0 && (
                                                                     <div className="flex flex-wrap gap-1">
@@ -207,7 +208,7 @@ export function TradeList({
                                                                 )}
                                                             </div>
                                                         </td>
-                                                        <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                                                        <td className="px-3 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                                                             <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                                 <button
                                                                     onClick={(e) => { e.stopPropagation(); onEdit(t); }}
@@ -274,7 +275,7 @@ export function TradeList({
                                                     </div>
                                                     <div className="text-right">
                                                         <div className={'font-bold text-sm ' + (darkMode ? 'text-slate-100' : 'text-slate-900')}>{formatNumber(amount)}</div>
-                                                        <div className={'text-xs font-medium ' + (darkMode ? 'text-slate-500' : 'text-slate-400')}>{formatNumber(t.price)} × {t.quantity}</div>
+                                                        <div className={'text-xs font-medium ' + (darkMode ? 'text-slate-500' : 'text-slate-400')}>{formatNumber(t.price)} × {formatQuantity(t.quantity, t.symbol)}</div>
                                                     </div>
                                                 </div>
 

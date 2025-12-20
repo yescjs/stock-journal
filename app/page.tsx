@@ -26,7 +26,7 @@ import { StatsDashboard } from '@/app/components/StatsDashboard';
 import { SettingsPanel } from '@/app/components/SettingsPanel';
 import { CalendarView } from '@/app/components/CalendarView';
 import { TagManagerModal } from '@/app/components/TagManagerModal';
-import { LayoutGrid, List as ListIcon, Tag as TagIcon, X, Plus, Filter, Search } from 'lucide-react';
+import { LayoutGrid, List as ListIcon, Tag as TagIcon, X, Plus, Filter, Search, Activity } from 'lucide-react';
 import { MotionWrapper } from '@/app/components/MotionWrapper';
 import { SymbolDetailCard } from '@/app/components/SymbolDetailCard';
 
@@ -105,6 +105,13 @@ export default function Home() {
       }
     }
   }, []);
+
+  // Reset selectedSymbol when switching to stats tab (show all stats)
+  useEffect(() => {
+    if (activeTab === 'stats') {
+      setSelectedSymbol('');
+    }
+  }, [activeTab]);
 
   // Theme Sync
   useEffect(() => {
@@ -571,18 +578,39 @@ export default function Home() {
                         onClose={() => setSelectedSymbol('')}
                         darkMode={darkMode}
                       />
-                      <TradeList
-                        trades={trades.filter(t => t.symbol === selectedSymbol)} // Filtered list
-                        currentUser={currentUser}
-                        onDelete={handleDelete}
-                        onEdit={setEditingTrade}
-                        openMonths={openMonths}
-                        toggleMonth={toggleMonth}
-                        darkMode={darkMode}
-                        tagColors={tagColors}
-                        onSymbolClick={(sym) => setSelectedSymbol(sym)}
-                        onImagePreview={setPreviewImage}
-                      />
+                      {viewMode === 'calendar' ? (
+                        // Calendar View for selected symbol
+                        <div className={`mt-4 rounded-2xl p-4 border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+                          <CalendarView
+                            currentDate={calendarDate}
+                            onDateChange={setCalendarDate}
+                            dailyData={trades.filter(t => t.symbol === selectedSymbol).map(t => ({
+                              key: t.date,
+                              value: (t.side === 'SELL' ? 1 : -1) * t.price * t.quantity
+                            }))}
+                            onSelectDate={(date) => {
+                              setDateFrom(date);
+                              setDateTo(date);
+                            }}
+                            selectedDateStr={dateFrom === dateTo ? dateFrom : undefined}
+                            darkMode={darkMode}
+                          />
+                        </div>
+                      ) : (
+                        // List View for selected symbol
+                        <TradeList
+                          trades={trades.filter(t => t.symbol === selectedSymbol)}
+                          currentUser={currentUser}
+                          onDelete={handleDelete}
+                          onEdit={setEditingTrade}
+                          openMonths={openMonths}
+                          toggleMonth={toggleMonth}
+                          darkMode={darkMode}
+                          tagColors={tagColors}
+                          onSymbolClick={(sym) => setSelectedSymbol(sym)}
+                          onImagePreview={setPreviewImage}
+                        />
+                      )}
                     </div>
                   ) : (
                     // Standard Mode
@@ -619,41 +647,40 @@ export default function Home() {
             </div>
 
             {/* RIGHT: Sidebar - Compact & Unified */}
-            <div className="hidden lg:block w-80 xl:w-96 flex-none overflow-hidden pl-4 pb-4">
-              <div className="space-y-4 pr-2">
+            <div className="hidden lg:block w-80 xl:w-96 flex-none pl-4 pb-4">
+              <div className="space-y-3 pr-2">
 
-                {/* 1. Summary Cards - Enhanced */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className={'rounded-2xl p-4 border transition-all duration-200 card-hover ' + (darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm')}>
-                    <div className={'flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider mb-2 ' + (darkMode ? 'text-slate-500' : 'text-slate-400')}>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className={'rounded-xl p-3 border transition-all duration-200 card-hover ' + (darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm')}>
+                    <div className={'flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider mb-1 ' + (darkMode ? 'text-slate-500' : 'text-slate-400')}>
                       <span className={darkMode ? 'text-indigo-400' : 'text-indigo-500'}>📈</span>
                       매수 합계
                     </div>
-                    <div className={'text-lg font-black tracking-tight ' + (darkMode ? 'text-slate-100' : 'text-slate-900')}>
+                    <div className={'text-base font-black tracking-tight ' + (darkMode ? 'text-slate-100' : 'text-slate-900')}>
                       {journalStats.buy.toLocaleString()}
                     </div>
                   </div>
 
-                  <div className={'rounded-2xl p-4 border transition-all duration-200 card-hover ' + (darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm')}>
-                    <div className={'flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider mb-2 ' + (darkMode ? 'text-slate-500' : 'text-slate-400')}>
+                  <div className={'rounded-xl p-3 border transition-all duration-200 card-hover ' + (darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm')}>
+                    <div className={'flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider mb-1 ' + (darkMode ? 'text-slate-500' : 'text-slate-400')}>
                       <span className={journalNetCash >= 0 ? 'text-emerald-500' : 'text-rose-500'}>{journalNetCash >= 0 ? '💰' : '📉'}</span>
                       순손익
                     </div>
-                    <div className={'text-lg font-black tracking-tight ' + (journalNetCash > 0 ? 'text-emerald-500' : journalNetCash < 0 ? 'text-rose-500' : (darkMode ? 'text-slate-100' : 'text-slate-900'))}>
+                    <div className={'text-base font-black tracking-tight ' + (journalNetCash > 0 ? 'text-emerald-500' : journalNetCash < 0 ? 'text-rose-500' : (darkMode ? 'text-slate-100' : 'text-slate-900'))}>
                       {journalNetCash >= 0 ? '+' : ''}{journalNetCash.toLocaleString()}
                     </div>
                   </div>
                 </div>
 
-                {/* 2. Trade Form - Enhanced */}
-                <div ref={addFormRef} className={'rounded-2xl border overflow-hidden transition-all duration-200 ' + (darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm')}>
-                  <div className={'px-4 py-3 border-b flex items-center gap-2 ' + (darkMode ? 'border-slate-800 bg-gradient-to-r from-slate-800/50 to-slate-900' : 'border-slate-100 bg-gradient-to-r from-indigo-50/50 to-white')}>
+                {/* 2. Trade Form - Compact */}
+                <div ref={addFormRef} className={'rounded-xl border overflow-hidden transition-all duration-200 ' + (darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm')}>
+                  <div className={'px-3 py-2 border-b flex items-center gap-2 ' + (darkMode ? 'border-slate-800 bg-gradient-to-r from-slate-800/50 to-slate-900' : 'border-slate-100 bg-gradient-to-r from-indigo-50/50 to-white')}>
                     <span className={darkMode ? 'text-indigo-400' : 'text-indigo-500'}>✍️</span>
                     <h3 className={'text-xs font-bold ' + (darkMode ? 'text-slate-100' : 'text-slate-900')}>
                       매매 기록 작성
                     </h3>
                   </div>
-                  <div className="p-4">
+                  <div className="p-3">
                     <TradeForm
                       darkMode={darkMode}
                       currentUser={currentUser}
@@ -665,51 +692,95 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* 3. Filters - Enhanced */}
-                <div className={'rounded-2xl border overflow-hidden transition-all duration-200 ' + (darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm')}>
-                  <div className={'px-4 py-3 border-b flex items-center gap-2 ' + (darkMode ? 'border-slate-800 bg-gradient-to-r from-slate-800/50 to-slate-900' : 'border-slate-100 bg-gradient-to-r from-indigo-50/50 to-white')}>
-                    <div className="flex items-center justify-between w-full">
-                      <div className="flex items-center gap-2">
-                        <Search size={14} className={darkMode ? 'text-indigo-400' : 'text-indigo-500'} />
-                        <h3 className={'text-xs font-bold ' + (darkMode ? 'text-slate-100' : 'text-slate-900')}>
-                          검색 필터
-                        </h3>
+                {/* 3. Filters / Symbol Info - Enhanced */}
+                {selectedSymbol ? (
+                  // 종목 상세 모드 - 종목 정보 및 돌아가기 버튼
+                  <div className={'rounded-2xl border overflow-hidden transition-all duration-200 ' + (darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm')}>
+                    <div className={'px-4 py-3 border-b flex items-center gap-2 ' + (darkMode ? 'border-slate-800 bg-gradient-to-r from-slate-800/50 to-slate-900' : 'border-slate-100 bg-gradient-to-r from-indigo-50/50 to-white')}>
+                      <Activity size={14} className={darkMode ? 'text-indigo-400' : 'text-indigo-500'} />
+                      <h3 className={'text-xs font-bold ' + (darkMode ? 'text-slate-100' : 'text-slate-900')}>
+                        선택된 종목
+                      </h3>
+                    </div>
+                    <div className="p-4 space-y-3">
+                      <div className={'p-3 rounded-xl border ' + (darkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-indigo-50/50 border-indigo-100')}>
+                        <div className={'text-sm font-bold mb-1 ' + (darkMode ? 'text-slate-100' : 'text-slate-900')}>
+                          {trades.find(t => t.symbol === selectedSymbol)?.symbol_name || selectedSymbol}
+                        </div>
+                        <div className={'text-xs font-mono ' + (darkMode ? 'text-slate-400' : 'text-slate-500')}>
+                          {selectedSymbol}
+                        </div>
                       </div>
                       <button
-                        onClick={resetFilters}
-                        className={'text-[10px] font-bold px-3 py-1.5 rounded-lg border transition-all btn-press ' + (darkMode ? 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white hover:bg-slate-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200')}
+                        onClick={() => setSelectedSymbol('')}
+                        className={'w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all btn-press border ' + (darkMode ? 'bg-slate-800 border-slate-700 text-slate-100 hover:bg-slate-700' : 'bg-white border-slate-200 text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200')}
                       >
-                        초기화
+                        ← 전체 목록으로 돌아가기
                       </button>
                     </div>
                   </div>
-                  <div className="p-4 space-y-3">
-                    <div className="grid grid-cols-2 gap-2">
-                      <input type="text" placeholder="종목명" value={filterSymbol} onChange={e => setFilterSymbol(e.target.value)}
-                        className={'w-full rounded-xl px-3 py-2.5 text-xs font-medium outline-none transition-all border ' + (darkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100')}
-                      />
-                      <input type="text" placeholder="태그" value={filterTag} onChange={e => setFilterTag(e.target.value)}
-                        className={'w-full rounded-xl px-3 py-2.5 text-xs font-medium outline-none transition-all border ' + (darkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100')}
-                      />
+                ) : (
+                  // 일반 모드 - 검색 필터
+                  <div className={'rounded-xl border overflow-hidden transition-all duration-200 ' + (darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm')}>
+                    <div className={'px-3 py-2 border-b flex items-center gap-2 ' + (darkMode ? 'border-slate-800 bg-gradient-to-r from-slate-800/50 to-slate-900' : 'border-slate-100 bg-gradient-to-r from-indigo-50/50 to-white')}>
+                      <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-2">
+                          <Search size={14} className={darkMode ? 'text-indigo-400' : 'text-indigo-500'} />
+                          <h3 className={'text-xs font-bold ' + (darkMode ? 'text-slate-100' : 'text-slate-900')}>
+                            검색 필터
+                          </h3>
+                        </div>
+                        <button
+                          onClick={resetFilters}
+                          className={'text-[10px] font-bold px-2 py-1 rounded-lg transition-all btn-press ' + (darkMode ? 'bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900')}
+                        >
+                          초기화
+                        </button>
+                      </div>
                     </div>
+                    <div className="p-3 space-y-2">
+                      {/* 종목명/태그 */}
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <div>
+                          <label className={'block mb-0.5 text-[10px] font-bold uppercase tracking-wider ' + (darkMode ? 'text-slate-400' : 'text-slate-500')}>종목</label>
+                          <input type="text" placeholder="검색..." value={filterSymbol} onChange={e => setFilterSymbol(e.target.value)}
+                            className={'w-full px-2.5 py-1.5 text-xs font-medium rounded-lg outline-none transition-all ' + (darkMode ? 'bg-slate-800 text-white placeholder-slate-500 focus:bg-slate-700 focus:ring-1 focus:ring-slate-600' : 'bg-slate-100 text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-blue-100')}
+                          />
+                        </div>
+                        <div>
+                          <label className={'block mb-0.5 text-[10px] font-bold uppercase tracking-wider ' + (darkMode ? 'text-slate-400' : 'text-slate-500')}>태그</label>
+                          <input type="text" placeholder="검색..." value={filterTag} onChange={e => setFilterTag(e.target.value)}
+                            className={'w-full px-2.5 py-1.5 text-xs font-medium rounded-lg outline-none transition-all ' + (darkMode ? 'bg-slate-800 text-white placeholder-slate-500 focus:bg-slate-700 focus:ring-1 focus:ring-slate-600' : 'bg-slate-100 text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-blue-100')}
+                          />
+                        </div>
+                      </div>
 
-                    <div className="grid grid-cols-2 gap-2">
-                      <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-                        className={'w-full rounded-xl px-2 py-2.5 text-[11px] font-medium outline-none transition-all text-center tracking-tight border ' + (darkMode ? 'bg-slate-800 border-slate-700 text-white focus:border-indigo-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:bg-white focus:border-indigo-400')}
-                      />
-                      <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-                        className={'w-full rounded-xl px-2 py-2.5 text-[11px] font-medium outline-none transition-all text-center tracking-tight border ' + (darkMode ? 'bg-slate-800 border-slate-700 text-white focus:border-indigo-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:bg-white focus:border-indigo-400')}
-                      />
+                      {/* 기간 */}
+                      <div>
+                        <label className={'block mb-0.5 text-[10px] font-bold uppercase tracking-wider ' + (darkMode ? 'text-slate-400' : 'text-slate-500')}>기간</label>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                            className={'w-full px-2 py-1.5 text-xs font-medium rounded-lg outline-none transition-all text-center ' + (darkMode ? 'bg-slate-800 text-white focus:bg-slate-700 focus:ring-1 focus:ring-slate-600' : 'bg-slate-100 text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-100')}
+                          />
+                          <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                            className={'w-full px-2 py-1.5 text-xs font-medium rounded-lg outline-none transition-all text-center ' + (darkMode ? 'bg-slate-800 text-white focus:bg-slate-700 focus:ring-1 focus:ring-slate-600' : 'bg-slate-100 text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-100')}
+                          />
+                        </div>
+                      </div>
+
+                      {/* 태그 필터 모드 */}
+                      <div>
+                        <label className={'block mb-0.5 text-[10px] font-bold uppercase tracking-wider ' + (darkMode ? 'text-slate-400' : 'text-slate-500')}>태그 조건</label>
+                        <select value={tagFilterMode} onChange={e => setTagFilterMode(e.target.value as TagFilterMode)}
+                          className={'w-full px-2.5 py-1.5 text-xs font-medium rounded-lg outline-none transition-all appearance-none cursor-pointer ' + (darkMode ? 'bg-slate-800 text-white focus:bg-slate-700 focus:ring-1 focus:ring-slate-600' : 'bg-slate-100 text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-100')}
+                        >
+                          <option value="OR">하나라도 포함 (OR)</option>
+                          <option value="AND">모두 포함 (AND)</option>
+                        </select>
+                      </div>
                     </div>
-
-                    <select value={tagFilterMode} onChange={e => setTagFilterMode(e.target.value as TagFilterMode)}
-                      className={'w-full rounded-xl px-3 py-2.5 text-xs font-medium appearance-none outline-none transition-all border cursor-pointer ' + (darkMode ? 'bg-slate-800 border-slate-700 text-white focus:border-indigo-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:bg-white focus:border-indigo-400')}
-                    >
-                      <option value="OR">태그 하나라도 포함 (OR)</option>
-                      <option value="AND">태그 모두 포함 (AND)</option>
-                    </select>
                   </div>
-                </div>
+                )}
 
                 {/* Migration Alert */}
                 {currentUser && hasGuestData && !hideGuestAlert && (
@@ -742,6 +813,10 @@ export default function Home() {
                 monthlyRealizedPoints={monthlyRealizedPoints}
                 currentPrices={currentPrices}
                 onCurrentPriceChange={handleCurrentPriceChange}
+                onSymbolClick={(symbol) => {
+                  setSelectedSymbol(symbol);
+                  setActiveTab('journal');
+                }}
                 tagColors={tagColors}
                 insights={insights}
               />

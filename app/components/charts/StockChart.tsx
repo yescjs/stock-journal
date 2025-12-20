@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
+import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine, Scatter } from 'recharts';
 import { StockChartData, ChartPeriod } from '@/app/types/stock';
 import { Trade } from '@/app/types/trade';
 import { fetchStockChart } from '@/app/utils/stockApi';
+import { formatNumber } from '@/app/utils/format';
 import { TrendingUp, Loader2, Activity } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -13,6 +14,7 @@ interface StockChartProps {
     darkMode: boolean;
     trades?: Trade[];
     compact?: boolean;
+    onCurrentPriceLoad?: (price: number) => void;
 }
 
 const PERIOD_OPTIONS: Array<{ label: string; value: ChartPeriod }> = [
@@ -32,7 +34,7 @@ function calculateMA(data: StockChartData[], period: number): (number | null)[] 
     });
 }
 
-export function StockChart({ symbol, darkMode, trades = [], compact = false }: StockChartProps) {
+export function StockChart({ symbol, darkMode, trades = [], compact = false, onCurrentPriceLoad }: StockChartProps) {
     const [period, setPeriod] = useState<ChartPeriod>('1y');
     const [chartData, setChartData] = useState<StockChartData[]>([]);
     const [loading, setLoading] = useState(true);
@@ -43,7 +45,7 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false }: S
         loadChartData();
     }, [symbol, period]);
 
-    // 이동평균선과 범위 데이터가 포함된 차트 데이터
+    // 이동평균선과 범위 데이터, 마커가 포함된 차트 데이터
     const chartDataWithMA = useMemo(() => {
         if (chartData.length === 0) return [];
 
@@ -51,15 +53,40 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false }: S
         const ma20 = calculateMA(chartData, 20);
         const ma60 = calculateMA(chartData, 60);
 
-        return chartData.map((d, i) => ({
-            ...d,
-            ma5: ma5[i],
-            ma20: ma20[i],
-            ma60: ma60[i],
-            // Range for candlestick wick (low to high)
-            priceRange: [d.low, d.high] as [number, number],
-        }));
-    }, [chartData]);
+        // 매수/매도 마커 데이터 준비
+        const symbolTrades = trades.filter(t => t.symbol === symbol);
+        const tradesByDate = new Map<number, { side: string; price: number; quantity: number }>();
+
+        symbolTrades.forEach(trade => {
+            const tradeTimestamp = new Date(trade.date).getTime();
+            // 가장 가까운 차트 데이터 포인트 찾기
+            const closestDataPoint = chartData.reduce((prev, curr) => {
+                return Math.abs(curr.date - tradeTimestamp) < Math.abs(prev.date - tradeTimestamp) ? curr : prev;
+            });
+            // 날짜별로 마지막 거래만 저장 (또는 병합 가능)
+            tradesByDate.set(closestDataPoint.date, {
+                side: trade.side,
+                price: trade.price,
+                quantity: trade.quantity,
+            });
+        });
+
+        return chartData.map((d, i) => {
+            const marker = tradesByDate.get(d.date);
+            return {
+                ...d,
+                ma5: ma5[i],
+                ma20: ma20[i],
+                ma60: ma60[i],
+                // Range for candlestick wick (low to high)
+                priceRange: [d.low, d.high] as [number, number],
+                // 매수/매도 마커 데이터
+                markerPrice: marker?.price,
+                markerSide: marker?.side,
+                markerQty: marker?.quantity,
+            };
+        });
+    }, [chartData, trades, symbol]);
 
     // Calculate average buy price
     const averageBuyPrice = useMemo(() => {
@@ -80,6 +107,12 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false }: S
 
             const response = await fetchStockChart(symbol, period);
             setChartData(response.prices);
+
+            // 마지막 종가를 현재가로 전달
+            if (response.prices.length > 0 && onCurrentPriceLoad) {
+                const latestPrice = response.prices[response.prices.length - 1].close;
+                onCurrentPriceLoad(latestPrice);
+            }
 
         } catch (err: any) {
             console.error('Chart loading error:', err);
@@ -148,102 +181,69 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false }: S
         );
     };
 
+    // 매수/매도 마커 커스텀 셰이프
+    const TradeMarker = (props: any) => {
+        const { cx, cy, payload } = props;
+        if (!payload || !payload.markerSide || !payload.markerPrice) return null;
+
+        const isBuy = payload.markerSide === 'BUY';
+        const color = isBuy ? '#ef4444' : '#3b82f6';  // 빨간색: 매수, 파랑: 매도
+        const size = compact ? 6 : 8;
+
+        if (isBuy) {
+            // 위쪽 삼각형 (매수)
+            const points = `${cx},${cy - size} ${cx - size},${cy + size} ${cx + size},${cy + size}`;
+            return <polygon points={points} fill={color} stroke="white" strokeWidth={1} />;
+        } else {
+            // 아래쪽 삼각형 (매도)
+            const points = `${cx},${cy + size} ${cx - size},${cy - size} ${cx + size},${cy - size}`;
+            return <polygon points={points} fill={color} stroke="white" strokeWidth={1} />;
+        }
+    };
+
     // Custom Tooltip
     const CustomTooltip = ({ active, payload }: any) => {
         if (!active || !payload || !payload[0]) return null;
 
         const data = payload[0].payload;
-
-        if (data.side) {
-            const { date, price, side, quantity } = data;
-            return (
-                <div className={`rounded-lg p-3 shadow-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
-                    <div className={`text-xs font-bold mb-2 ${side === 'BUY' ? 'text-emerald-500' : 'text-rose-500'}`}>
-                        {side === 'BUY' ? '매수 ▲' : '매도 ▼'}
-                    </div>
-                    <div className="space-y-1 text-xs">
-                        <div className="flex justify-between gap-4">
-                            <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>날짜:</span>
-                            <span className={`font-bold ${darkMode ? 'text-slate-200' : 'text-slate-900'}`}>
-                                {format(new Date(date), 'yyyy-MM-dd')}
-                            </span>
-                        </div>
-                        <div className="flex justify-between gap-4">
-                            <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>수량:</span>
-                            <span className={`font-bold ${darkMode ? 'text-slate-200' : 'text-slate-900'}`}>
-                                {quantity.toLocaleString()}
-                            </span>
-                        </div>
-                        <div className="flex justify-between gap-4">
-                            <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>가격:</span>
-                            <span className={`font-bold ${darkMode ? 'text-slate-200' : 'text-slate-900'}`}>
-                                {price.toLocaleString()}원
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            );
-        }
-
-        const { date, open, high, low, close, volume, ma5, ma20, ma60 } = data;
+        const { date, open, high, low, close, markerSide, markerPrice, markerQty } = data;
 
         return (
-            <div className={`rounded-lg p-3 shadow-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
-                <div className={`text-xs font-bold mb-2 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-                    {format(new Date(date), 'yyyy-MM-dd HH:mm')}
+            <div className={`rounded-lg p-2 shadow-xl border text-[11px] ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+                {/* 날짜 헤더 */}
+                <div className={`font-bold mb-1.5 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                    {format(new Date(date), 'yyyy-MM-dd')}
                 </div>
-                <div className="space-y-1 text-xs">
-                    <div className="flex justify-between gap-4">
-                        <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>시가:</span>
-                        <span className={`font-bold ${darkMode ? 'text-slate-200' : 'text-slate-900'}`}>
-                            {open?.toLocaleString()}
-                        </span>
+
+                {/* OHLC 2x2 그리드 */}
+                <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                    <div className="flex justify-between">
+                        <span className={darkMode ? 'text-slate-500' : 'text-slate-400'}>시</span>
+                        <span className={darkMode ? 'text-slate-200' : 'text-slate-900'}>{formatNumber(open)}</span>
                     </div>
-                    <div className="flex justify-between gap-4">
-                        <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>고가:</span>
-                        <span className="font-bold text-emerald-500">{high?.toLocaleString()}</span>
+                    <div className="flex justify-between">
+                        <span className={darkMode ? 'text-slate-500' : 'text-slate-400'}>고</span>
+                        <span className="text-emerald-500">{formatNumber(high)}</span>
                     </div>
-                    <div className="flex justify-between gap-4">
-                        <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>저가:</span>
-                        <span className="font-bold text-rose-500">{low?.toLocaleString()}</span>
+                    <div className="flex justify-between">
+                        <span className={darkMode ? 'text-slate-500' : 'text-slate-400'}>저</span>
+                        <span className="text-rose-500">{formatNumber(low)}</span>
                     </div>
-                    <div className="flex justify-between gap-4">
-                        <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>종가:</span>
-                        <span className={`font-bold ${darkMode ? 'text-slate-200' : 'text-slate-900'}`}>
-                            {close?.toLocaleString()}
-                        </span>
+                    <div className="flex justify-between">
+                        <span className={darkMode ? 'text-slate-500' : 'text-slate-400'}>종</span>
+                        <span className={darkMode ? 'text-slate-200' : 'text-slate-900'}>{formatNumber(close)}</span>
                     </div>
-                    {volume && (
-                        <div className="flex justify-between gap-4 pt-1 border-t border-slate-700/50">
-                            <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>거래량:</span>
-                            <span className={`font-bold ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>
-                                {(volume / 1000).toFixed(0)}K
-                            </span>
-                        </div>
-                    )}
-                    {(ma5 || ma20 || ma60) && (
-                        <div className="pt-1 border-t border-slate-700/50 space-y-0.5">
-                            {ma5 && showMA.ma5 && (
-                                <div className="flex justify-between gap-4">
-                                    <span className="text-blue-400">MA5:</span>
-                                    <span className="font-bold text-blue-400">{ma5.toLocaleString()}</span>
-                                </div>
-                            )}
-                            {ma20 && showMA.ma20 && (
-                                <div className="flex justify-between gap-4">
-                                    <span className="text-orange-400">MA20:</span>
-                                    <span className="font-bold text-orange-400">{ma20.toLocaleString()}</span>
-                                </div>
-                            )}
-                            {ma60 && showMA.ma60 && (
-                                <div className="flex justify-between gap-4">
-                                    <span className="text-purple-400">MA60:</span>
-                                    <span className="font-bold text-purple-400">{ma60.toLocaleString()}</span>
-                                </div>
-                            )}
-                        </div>
-                    )}
                 </div>
+
+                {/* 매수/매도 거래 정보 */}
+                {markerSide && (
+                    <div className={`mt-1.5 pt-1.5 border-t ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+                        <div className={`font-bold ${markerSide === 'BUY' ? 'text-rose-500' : 'text-blue-500'}`}>
+                            {markerSide === 'BUY' ? '▲ 매수' : '▼ 매도'} {formatNumber(markerPrice)}원
+                            {markerQty && <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}> ({markerQty}주)</span>}
+                        </div>
+                    </div>
+                )}
             </div>
         );
     };
@@ -388,7 +388,7 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false }: S
                     </h3>
                     {averageBuyPrice && (
                         <span className={`text-xs px-2 py-0.5 rounded-full ${darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600'}`}>
-                            평균단가 {averageBuyPrice.toLocaleString()}
+                            평균단가 {formatNumber(averageBuyPrice)}
                         </span>
                     )}
                 </div>
@@ -528,6 +528,13 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false }: S
                                 isAnimationActive={false}
                             />
                         )}
+
+                        {/* 매수/매도 마커 */}
+                        <Scatter
+                            dataKey="markerPrice"
+                            shape={<TradeMarker />}
+                            isAnimationActive={false}
+                        />
                     </ComposedChart>
                 </ResponsiveContainer>
             </div>

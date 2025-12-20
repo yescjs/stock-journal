@@ -2,7 +2,7 @@
 import React, { useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trade } from '@/app/types/trade';
-import { formatNumber } from '@/app/utils/format';
+import { formatNumber, formatQuantity } from '@/app/utils/format';
 import { X, TrendingUp, TrendingDown, DollarSign, Activity } from 'lucide-react';
 
 interface StockInsightDrawerProps {
@@ -14,7 +14,7 @@ interface StockInsightDrawerProps {
 }
 
 export function StockInsightDrawer({ symbol, trades, currentPrice, onClose, darkMode }: StockInsightDrawerProps) {
-    
+
     const stockTrades = useMemo(() => {
         if (!symbol) return [];
         return trades.filter(t => t.symbol === symbol).sort((a, b) => b.date.localeCompare(a.date));
@@ -35,7 +35,7 @@ export function StockInsightDrawer({ symbol, trades, currentPrice, onClose, dark
         // Here we just approximate from 'Realized' logic if we had it per trade.
         // But `Trade` type doesn't store realized Pnl per trade.
         // So we will just show aggregated stats.
-        
+
         // Let's use weighted avg for cost.
         stockTrades.forEach(t => {
             const amt = t.price * t.quantity;
@@ -50,7 +50,7 @@ export function StockInsightDrawer({ symbol, trades, currentPrice, onClose, dark
 
         const positionQty = totalBuyQty - totalSellQty;
         const avgCost = totalBuyQty > 0 ? totalBuyAmt / totalBuyQty : 0;
-        
+
         // PnL logic for "Realized" is complex without explicit matching.
         // Simplified Realized PnL = (AvgSellPrice - AvgBuyPrice) * SoldQty
         const avgSellPrice = totalSellQty > 0 ? totalSellAmt / totalSellQty : 0;
@@ -58,7 +58,7 @@ export function StockInsightDrawer({ symbol, trades, currentPrice, onClose, dark
 
         // Unrealized
         const unrealizedPnL = positionQty * ((currentPrice || avgCost) - avgCost);
-        
+
         return {
             positionQty,
             avgCost,
@@ -110,7 +110,7 @@ export function StockInsightDrawer({ symbol, trades, currentPrice, onClose, dark
                                     )}
                                 </div>
                             </div>
-                            <button 
+                            <button
                                 onClick={onClose}
                                 className={`p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}
                             >
@@ -120,32 +120,32 @@ export function StockInsightDrawer({ symbol, trades, currentPrice, onClose, dark
 
                         {/* Content Scrollable */}
                         <div className="flex-1 overflow-y-auto p-6 space-y-8">
-                            
+
                             {/* Stats Grid */}
                             {stats && (
                                 <div className="grid grid-cols-2 gap-4">
-                                    <StatBox 
-                                        label="보유 수량" 
-                                        value={formatNumber(stats.positionQty)} 
+                                    <StatBox
+                                        label="보유 수량"
+                                        value={formatQuantity(stats.positionQty, symbol || '')}
                                         icon={<Activity size={16} />}
                                         darkMode={darkMode}
                                     />
-                                    <StatBox 
-                                        label="평균 단가" 
-                                        value={formatNumber(stats.avgCost)} 
+                                    <StatBox
+                                        label="평균 단가"
+                                        value={formatNumber(stats.avgCost)}
                                         icon={<DollarSign size={16} />}
                                         darkMode={darkMode}
                                     />
-                                    <StatBox 
-                                        label="실현 손익 (추정)" 
-                                        value={formatNumber(stats.realizedPnL)} 
+                                    <StatBox
+                                        label="실현 손익 (추정)"
+                                        value={formatNumber(stats.realizedPnL)}
                                         valueClass={stats.realizedPnL > 0 ? 'text-emerald-500' : stats.realizedPnL < 0 ? 'text-rose-500' : ''}
                                         icon={<TrendingUp size={16} />}
                                         darkMode={darkMode}
                                     />
-                                    <StatBox 
-                                        label="평가 손익" 
-                                        value={formatNumber(stats.unrealizedPnL)} 
+                                    <StatBox
+                                        label="평가 손익"
+                                        value={formatNumber(stats.unrealizedPnL)}
                                         valueClass={stats.unrealizedPnL > 0 ? 'text-emerald-500' : stats.unrealizedPnL < 0 ? 'text-rose-500' : ''}
                                         icon={stats.unrealizedPnL >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
                                         darkMode={darkMode}
@@ -160,8 +160,8 @@ export function StockInsightDrawer({ symbol, trades, currentPrice, onClose, dark
                                 </h3>
                                 <div className="space-y-3">
                                     {stockTrades.map(trade => (
-                                        <div 
-                                            key={trade.id} 
+                                        <div
+                                            key={trade.id}
                                             className={`p-3 rounded-lg border flex items-center justify-between ${darkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}
                                         >
                                             <div className="flex items-center gap-3">
@@ -173,7 +173,7 @@ export function StockInsightDrawer({ symbol, trades, currentPrice, onClose, dark
                                                         {trade.date}
                                                     </div>
                                                     <div className="text-xs text-slate-400">
-                                                        {formatNumber(trade.quantity)}주 @ {formatNumber(trade.price)}
+                                                        {formatQuantity(trade.quantity, trade.symbol)}주 @ {formatNumber(trade.price)}
                                                     </div>
                                                 </div>
                                             </div>
