@@ -23,7 +23,7 @@ export function useTrades(user: User | null) {
                 // Load User Trades from Supabase
                 const { data, error } = await supabase
                     .from('trades')
-                    .select('*')
+                    .select('*, strategies (name)')
                     .eq('user_id', user.id)
                     .order('date', { ascending: false });
 
@@ -31,7 +31,15 @@ export function useTrades(user: User | null) {
                     console.error('Error fetching trades:', error);
                     if (mounted) setError('매매 기록을 불러오는데 실패했습니다.');
                 } else {
-                    if (mounted) setTrades((data as Trade[]) || []);
+                    if (mounted) {
+                        const strategiesData = data as any[];
+                        const mappedTrades = strategiesData.map(t => ({
+                            ...t,
+                            strategy_name: t.strategies?.name,
+                            strategies: undefined // Clean up
+                        }));
+                        setTrades(mappedTrades as Trade[]);
+                    }
                 }
             } else {
                 // Load Guest Trades from LocalStorage
@@ -78,11 +86,16 @@ export function useTrades(user: User | null) {
             quantity: number;
             memo: string;
             tags: string[];
+            strategy_id?: string;
+            strategy_name?: string;
+            entry_reason?: string;
+            exit_reason?: string;
+            emotion_tag?: string;
         },
         imageFile: File | null
     ) => {
         let imageUrl: string | null = null;
-        const { date, symbol, symbol_name, side, price, quantity, memo, tags } = data;
+        const { date, symbol, symbol_name, side, price, quantity, memo, tags, strategy_id, strategy_name, entry_reason, exit_reason, emotion_tag } = data;
 
         try {
             // 1. Image Upload / Processing
@@ -132,13 +145,22 @@ export function useTrades(user: User | null) {
                             memo,
                             tags: tags, // Supabase handles array correctly if column is text[] or jsonb
                             image: imageUrl,
+                            // Strategy ID Validation: Supabase expects UUID.
+                            // If strategy_id is "default-..." or "guest-...", it's a local/guest ID and cannot be saved to DB as UUID.
+                            // We should set it to null for DB insert.
+                            strategy_id: (strategy_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(strategy_id)) ? strategy_id : null,
+                            entry_reason: entry_reason || null,
+                            exit_reason: exit_reason || null,
+                            emotion_tag: emotion_tag || null,
                         },
                     ])
                     .select()
                     .single();
 
                 if (insertError) throw insertError;
-                setTrades((prev) => [newTrade as Trade, ...prev]);
+                // Add strategy_name to the returned trade for UI display
+                const tradeWithStrategyName = { ...newTrade, strategy_name } as Trade;
+                setTrades((prev) => [tradeWithStrategyName, ...prev]);
             } else {
                 // Guest Local Insert
                 const newTrade: Trade = {
@@ -152,6 +174,11 @@ export function useTrades(user: User | null) {
                     memo,
                     tags,
                     image: imageUrl ?? undefined,
+                    strategy_id: strategy_id || undefined,
+                    strategy_name: strategy_name || undefined,
+                    entry_reason: entry_reason || undefined,
+                    exit_reason: exit_reason || undefined,
+                    emotion_tag: emotion_tag || undefined,
                 };
                 setTrades((prev) => [newTrade, ...prev]);
             }
@@ -160,6 +187,7 @@ export function useTrades(user: User | null) {
             throw err;
         }
     };
+
 
     const removeTrade = async (id: string) => {
         if (user) {
@@ -206,6 +234,10 @@ export function useTrades(user: User | null) {
                         memo: trade.memo,
                         tags: trade.tags,
                         image: trade.image,
+                        strategy_id: (trade.strategy_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trade.strategy_id)) ? trade.strategy_id : null,
+                        entry_reason: trade.entry_reason || null,
+                        exit_reason: trade.exit_reason || null,
+                        emotion_tag: trade.emotion_tag || null,
                     })
                     .eq('id', trade.id)
                     .eq('user_id', user.id);

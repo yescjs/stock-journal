@@ -1,8 +1,11 @@
 import React, { useState, useRef, ChangeEvent, FormEvent } from 'react';
 import { User } from '@supabase/supabase-js';
 import { TradeSide } from '@/app/types/trade';
-import { getKoreanWeekdayLabel, parseTagString } from '@/app/utils/format';
+import { Strategy, EmotionTag, EMOTION_TAG_LABELS, EMOTION_TAG_COLORS } from '@/app/types/strategies';
+import { getKoreanWeekdayLabel, parseTagString, getCurrencySymbol } from '@/app/utils/format';
 import { StockSymbolInput } from '@/app/components/StockSymbolInput';
+import { Zap, ChevronDown } from 'lucide-react';
+
 
 interface TradeFormProps {
     darkMode: boolean;
@@ -18,10 +21,16 @@ interface TradeFormProps {
             quantity: number;
             memo: string;
             tags: string[];
+            strategy_id?: string;
+            strategy_name?: string;
+            entry_reason?: string;
+            exit_reason?: string;
+            emotion_tag?: string;
         },
         imageFile: File | null
     ) => Promise<void>;
     allTags: string[];
+    strategies?: Strategy[];
     isCompact?: boolean;
 }
 
@@ -31,6 +40,7 @@ export function TradeForm({
     baseTrades,
     onAddTrade,
     allTags,
+    strategies = [],
     isCompact = false,
 }: TradeFormProps) {
     const [form, setForm] = useState({
@@ -42,13 +52,19 @@ export function TradeForm({
         quantity: '',
         memo: '',
         tags: '',
+        strategy_id: '',
+        entry_reason: '',
+        exit_reason: '',
+        emotion_tag: '' as EmotionTag | '',
     });
     const [chartFile, setChartFile] = useState<File | null>(null);
     const [chartPreview, setChartPreview] = useState<string | null>(null);
     const chartInputRef = useRef<HTMLInputElement | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showAdvanced, setShowAdvanced] = useState(false);
 
     const weekdayLabel = getKoreanWeekdayLabel(form.date);
+    const selectedStrategy = strategies.find(s => s.id === form.strategy_id);
 
     const handleChange = (
         e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -137,6 +153,11 @@ export function TradeForm({
                     quantity,
                     memo: form.memo,
                     tags: uniqueTags,
+                    strategy_id: form.strategy_id || undefined,
+                    strategy_name: selectedStrategy?.name || undefined,
+                    entry_reason: form.entry_reason || undefined,
+                    exit_reason: form.exit_reason || undefined,
+                    emotion_tag: form.emotion_tag || undefined,
                 },
                 chartFile
             );
@@ -148,6 +169,10 @@ export function TradeForm({
                 quantity: '',
                 memo: '',
                 tags: '',
+                strategy_id: '',
+                entry_reason: '',
+                exit_reason: '',
+                emotion_tag: '' as EmotionTag | '',
             }));
             setChartFile(null);
             setChartPreview(null);
@@ -236,16 +261,32 @@ export function TradeForm({
                 {/* Row 3: Price & Quantity */}
                 <div className="grid grid-cols-2 gap-2">
                     <div>
-                        <label className={labelClass}>단가</label>
-                        <input
-                            type="number"
-                            inputMode="decimal"
-                            name="price"
-                            placeholder="0"
-                            value={form.price}
-                            onChange={handleChange}
-                            className={inputBaseClass + ' text-right font-mono'}
-                        />
+                        <label className={labelClass}>
+                            단가 {form.symbol && <span className={darkMode ? 'text-indigo-400' : 'text-indigo-600'}>({getCurrencySymbol(form.symbol)})</span>}
+                        </label>
+                        <div className="relative">
+                            {/* 미국 주식: $ 앞에 표시 */}
+                            {form.symbol && getCurrencySymbol(form.symbol) === '$' && (
+                                <span className={'absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold ' + (darkMode ? 'text-indigo-400' : 'text-indigo-500')}>
+                                    $
+                                </span>
+                            )}
+                            <input
+                                type="number"
+                                inputMode="decimal"
+                                name="price"
+                                placeholder="0"
+                                value={form.price}
+                                onChange={handleChange}
+                                className={inputBaseClass + ' font-mono text-right ' + (form.symbol && getCurrencySymbol(form.symbol) === '$' ? 'pl-10' : '') + (form.symbol && getCurrencySymbol(form.symbol) === '원' ? ' pr-14' : '')}
+                            />
+                            {/* 한국 주식: 원 뒤에 표시 */}
+                            {form.symbol && getCurrencySymbol(form.symbol) === '원' && (
+                                <span className={'absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold ' + (darkMode ? 'text-indigo-400' : 'text-indigo-500')}>
+                                    원
+                                </span>
+                            )}
+                        </div>
                     </div>
                     <div>
                         <label className={labelClass}>수량</label>
@@ -273,6 +314,88 @@ export function TradeForm({
                         className={inputBaseClass}
                     />
                 </div>
+
+                {/* Row 4.5: Strategy Selection */}
+                {strategies.length > 0 && (
+                    <div className="grid grid-cols-2 gap-2">
+                        <div>
+                            <label className={labelClass}>
+                                <Zap size={10} className="inline mr-1" />
+                                전략
+                            </label>
+                            <select
+                                name="strategy_id"
+                                value={form.strategy_id}
+                                onChange={handleChange}
+                                className={inputBaseClass + ' cursor-pointer'}
+                            >
+                                <option value="">선택 (선택사항)</option>
+                                {strategies.map((s) => (
+                                    <option key={s.id} value={s.id}>
+                                        {s.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className={labelClass}>심리 상태</label>
+                            <select
+                                name="emotion_tag"
+                                value={form.emotion_tag}
+                                onChange={handleChange}
+                                className={inputBaseClass + ' cursor-pointer'}
+                            >
+                                <option value="">선택 (선택사항)</option>
+                                {Object.entries(EMOTION_TAG_LABELS).map(([key, label]) => (
+                                    <option key={key} value={key}>
+                                        {label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                )}
+
+                {/* Advanced Options Toggle */}
+                {strategies.length > 0 && (
+                    <button
+                        type="button"
+                        onClick={() => setShowAdvanced(!showAdvanced)}
+                        className={'flex items-center gap-1.5 text-xs font-medium transition-colors ' + (darkMode ? 'text-slate-400 hover:text-slate-300' : 'text-slate-500 hover:text-slate-700')}
+                    >
+                        <ChevronDown size={14} className={`transform transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+                        {showAdvanced ? '간단히 보기' : '복기 메모 추가'}
+                    </button>
+                )}
+
+                {/* Advanced Options */}
+                {showAdvanced && (
+                    <div className="space-y-2 pt-1">
+                        <div>
+                            <label className={labelClass}>진입 이유</label>
+                            <textarea
+                                name="entry_reason"
+                                placeholder="왜 이 시점에 진입했는가?"
+                                value={form.entry_reason}
+                                onChange={handleChange}
+                                className={inputBaseClass + ' min-h-[60px] resize-none leading-relaxed'}
+                                rows={2}
+                            />
+                        </div>
+                        <div>
+                            <label className={labelClass}>청산 이유</label>
+                            <textarea
+                                name="exit_reason"
+                                placeholder="왜 이 시점에 청산했는가? (매도 시 기록)"
+                                value={form.exit_reason}
+                                onChange={handleChange}
+                                className={inputBaseClass + ' min-h-[60px] resize-none leading-relaxed'}
+                                rows={2}
+                            />
+                        </div>
+                    </div>
+                )}
+
 
                 {/* Row 5: Memo & Image */}
                 <div className="grid grid-cols-12 gap-2">

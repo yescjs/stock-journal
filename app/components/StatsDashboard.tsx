@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
 import {
     SymbolSummary,
@@ -7,14 +7,27 @@ import {
     OverallStats,
     PnLChartMode,
     InsightData,
+    StrategyPerf,
+    EquityPoint,
+    WeekdayStats,
+    HoldingPeriodStats,
+    MonthlyGoal,
+    AccountBalance,
+    PositionRisk,
+    RiskSettings,
 } from '@/app/types/stats';
-import { PnLChart } from './charts/PnLChart';
+
 import { WinLossChart } from './charts/WinLossChart';
 import { MonthlyBarChart } from './charts/MonthlyBarChart';
+import { EquityCurve } from './charts/EquityCurve';
+import { WeekdayStatsChart } from './charts/WeekdayStatsChart';
+import { HoldingPeriodChart } from './charts/HoldingPeriodChart';
+import { MonthlyGoalsWidget } from './MonthlyGoalsWidget';
+import { RiskManagementWidget } from './RiskManagementWidget';
 import { InsightsWidget } from './InsightsWidget';
 import { SymbolSortKey, TagSortKey } from '@/app/types/ui';
 import { formatNumber, formatQuantity } from '@/app/utils/format';
-import { TrendingUp, TrendingDown, Wallet, Target, ArrowUpRight, ArrowDownRight, Cloud, HardDrive, ChevronUp, ChevronDown, RefreshCw, Loader2, Download, Trophy, AlertTriangle } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, Target, ArrowUpRight, ArrowDownRight, Cloud, HardDrive, ChevronUp, ChevronDown, RefreshCw, Loader2, Download, Trophy, AlertTriangle, Zap, Activity } from 'lucide-react';
 import { fetchStockChart } from '@/app/utils/stockApi';
 
 interface StatsDashboardProps {
@@ -22,14 +35,35 @@ interface StatsDashboardProps {
     currentUser: User | null;
     symbolSummaries: SymbolSummary[];
     tagStats: TagPerf[];
+    strategyStats?: StrategyPerf[];
     overallStats: OverallStats;
     dailyRealizedPoints: PnLPoint[];
     monthlyRealizedPoints: PnLPoint[];
+    equityPoints?: EquityPoint[];
+    monthlyEquityPoints?: EquityPoint[];
+    weekdayStats?: WeekdayStats[];
+    holdingPeriodStats?: HoldingPeriodStats[];
+    monthlyGoals?: MonthlyGoal[];
+    onSetMonthlyGoal?: (goal: Omit<MonthlyGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<void>;
+    onRemoveMonthlyGoal?: (id: string) => Promise<void>;
+    // Risk Management
+    accountBalance?: number;
+    balanceHistory?: AccountBalance[];
+    positionRisks?: PositionRisk[];
+    highRiskPositions?: PositionRisk[];
+    dailyLossAlert?: { type: 'percent' | 'amount'; value: number; limit: number; message: string } | null;
+    riskSettings?: RiskSettings;
+    dailyPnL?: number;
+    onUpdateBalance?: (balance: number, deposit?: number, withdrawal?: number, notes?: string) => Promise<void>;
+    onUpdateRiskSettings?: (settings: Partial<RiskSettings>) => Promise<void>;
     currentPrices: Record<string, number>;
     onCurrentPriceChange: (symbol: string, value: string) => void;
     onSymbolClick?: (symbol: string) => void;
     tagColors?: Record<string, string>;
     insights?: InsightData;
+    // Currency
+    exchangeRate: number;
+    onExchangeRateChange: (rate: number) => void;
 }
 
 export function StatsDashboard({
@@ -37,18 +71,55 @@ export function StatsDashboard({
     currentUser,
     symbolSummaries,
     tagStats,
+    strategyStats = [],
     overallStats,
     dailyRealizedPoints,
     monthlyRealizedPoints,
+    equityPoints = [],
+    monthlyEquityPoints = [],
+    weekdayStats = [],
+    holdingPeriodStats = [],
+    monthlyGoals = [],
+    onSetMonthlyGoal,
+    onRemoveMonthlyGoal,
+    // Risk management
+    accountBalance = 0,
+    balanceHistory = [],
+    positionRisks = [],
+    highRiskPositions = [],
+    dailyLossAlert,
+    riskSettings,
+    dailyPnL = 0,
+    onUpdateBalance,
+    onUpdateRiskSettings,
     currentPrices,
     onCurrentPriceChange,
     onSymbolClick,
     tagColors = {},
     insights,
+    exchangeRate,
+    onExchangeRateChange,
 }: StatsDashboardProps) {
     const [pnlChartMode, setPnlChartMode] = useState<PnLChartMode>('daily');
     const [loadingPrices, setLoadingPrices] = useState<Record<string, boolean>>({});
     const [loadingAllPrices, setLoadingAllPrices] = useState(false);
+
+    // Sticky Navigation with simpler logic (relying on scroll-margin-top in CSS)
+    const scrollToSection = (id: string) => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth' });
+        }
+    };
+
+    const NAV_ITEMS = [
+        { id: 'section-summary', label: '요약' },
+        { id: 'section-monthly', label: '월별/일별' },
+        { id: 'section-equity', label: '수익 곡선' },
+        { id: 'section-insights', label: '인사이트' },
+        { id: 'section-strategies', label: '전략' },
+        { id: 'section-symbols', label: '종목' },
+    ];
 
     const [symbolSort, setSymbolSort] = useState<{
         key: SymbolSortKey;
@@ -68,6 +139,24 @@ export function StatsDashboard({
 
     const pnlChartPoints =
         pnlChartMode === 'daily' ? dailyRealizedPoints : monthlyRealizedPoints;
+
+    // Exchange Rate Fetching
+    useEffect(() => {
+        const fetchExchangeRate = async () => {
+            try {
+                const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+                const data = await res.json();
+                if (data && data.rates && data.rates.KRW) {
+                    onExchangeRateChange(data.rates.KRW);
+                }
+            } catch (error) {
+                console.error("Failed to fetch exchange rate:", error);
+            }
+        };
+
+        // Fetch on mount
+        fetchExchangeRate();
+    }, []);
 
     // 손익 Top 5 계산
     const topProfits = useMemo(() => {
@@ -270,71 +359,177 @@ export function StatsDashboard({
     const tableCellClass = 'py-3.5 px-4 text-sm border-t ' + (darkMode ? 'border-slate-800' : 'border-slate-100');
 
     return (
-        <div className="space-y-6">
-            {/* 1. Hero KPI Section */}
-            <div className={cardBaseClass + ' p-6'}>
-                <div className="flex items-center justify-between mb-6">
-                    <div>
-                        <h2 className={sectionTitleClass}>
-                            <Wallet size={20} className={darkMode ? 'text-indigo-400' : 'text-indigo-600'} />
-                            내 포트폴리오
-                        </h2>
-                        <p className={'text-xs mt-1 ' + (darkMode ? 'text-slate-500' : 'text-slate-400')}>전체 성과 요약</p>
+        <div className="space-y-8 pb-20">
+            {/* 1. Sticky Navigation & Controls (Floating Glass Design) */}
+            <div className="sticky top-4 z-40 flex justify-center mb-10 pointer-events-none">
+                <div className={`pointer-events-auto flex items-center gap-3 p-2 rounded-2xl border shadow-2xl backdrop-blur-xl transition-all ${darkMode
+                    ? 'bg-slate-950/90 border-slate-700/50 shadow-black/50'
+                    : 'bg-white/90 border-white/50 shadow-slate-200/50'
+                    }`}>
+                    {/* Navigation Links */}
+                    <div className="flex items-center gap-1">
+                        {NAV_ITEMS.map((item) => (
+                            <button
+                                key={item.id}
+                                onClick={() => scrollToSection(item.id)}
+                                className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${darkMode
+                                    ? 'text-slate-400 hover:text-white hover:bg-slate-800/80 active:bg-slate-800'
+                                    : 'text-slate-500 hover:text-indigo-600 hover:bg-slate-100 active:bg-slate-200'
+                                    }`}
+                            >
+                                {item.label}
+                            </button>
+                        ))}
                     </div>
-                    <div className="flex items-center gap-2">
+
+                    {/* Divider */}
+                    <div className={`w-px h-8 mx-1 ${darkMode ? 'bg-slate-800' : 'bg-slate-200'}`} />
+
+                    {/* Controls: Export & Exchange Rate */}
+                    <div className="flex items-center gap-3 pr-2">
+                        {/* Exchange Rate Input - Enhanced Visibility */}
+                        <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border-2 transition-all ${darkMode
+                            ? 'bg-indigo-950/30 border-indigo-500/30 hover:border-indigo-500/50'
+                            : 'bg-indigo-50 border-indigo-100 hover:border-indigo-200'
+                            }`}>
+                            <span className={`text-xs font-bold ${darkMode ? 'text-indigo-300' : 'text-indigo-500'}`}>$1USD</span>
+                            <span className={darkMode ? 'text-slate-500' : 'text-slate-300'}>=</span>
+                            <div className="flex items-center">
+                                <input
+                                    type="number"
+                                    value={exchangeRate}
+                                    onChange={(e) => onExchangeRateChange(Number(e.target.value))}
+                                    className={`w-24 text-base font-extrabold bg-transparent text-right outline-none ${darkMode ? 'text-indigo-400' : 'text-indigo-600'}`}
+                                />
+                                <span className={`text-sm ml-1 font-bold ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>원</span>
+                            </div>
+                        </div>
+
+                        {/* Export Button */}
                         <button
                             onClick={exportToCSV}
-                            className={
-                                'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all btn-press ' +
-                                (darkMode
-                                    ? 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'
-                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200')
-                            }
+                            className={`p-2.5 rounded-xl transition-all border ${darkMode
+                                ? 'border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-white hover:border-slate-700'
+                                : 'border-slate-200 text-slate-400 hover:bg-white hover:text-slate-600 hover:shadow-sm'
+                                }`}
+                            title="CSV 내보내기"
                         >
-                            <Download size={12} />
-                            CSV
+                            <Download size={18} />
                         </button>
-                        <span className={
-                            'flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold tracking-wide uppercase ' +
-                            (currentUser
-                                ? (darkMode ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'bg-indigo-100 text-indigo-700')
-                                : (darkMode ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-amber-100 text-amber-700'))
-                        }>
-                            {currentUser ? <Cloud size={12} /> : <HardDrive size={12} />}
-                            {currentUser ? 'Cloud Sync' : 'Local'}
-                        </span>
                     </div>
-                </div>
-
-                {/* Main KPI - Total PnL */}
-                <div className={
-                    'rounded-2xl p-8 mb-6 text-center relative overflow-hidden ' +
-                    (darkMode
-                        ? 'bg-gradient-to-br from-slate-800 to-slate-900'
-                        : 'bg-gradient-to-br from-indigo-50 to-white border border-indigo-100')
-                }>
-                    <div className={'text-xs font-bold uppercase tracking-widest mb-3 ' + (darkMode ? 'text-slate-500' : 'text-indigo-400')}>
-                        총 손익
-                    </div>
-                    <div className={'text-5xl font-black tracking-tight flex items-center justify-center gap-3 ' + (overallStats.totalPnL > 0 ? 'text-emerald-500' : overallStats.totalPnL < 0 ? 'text-rose-500' : (darkMode ? 'text-white' : 'text-slate-900'))}>
-                        {overallStats.totalPnL > 0 ? <ArrowUpRight size={32} className="text-emerald-500" /> : overallStats.totalPnL < 0 ? <ArrowDownRight size={32} className="text-rose-500" /> : null}
-                        <span>{formatNumber(Math.abs(overallStats.totalPnL))}</span>
-                    </div>
-                    <div className={'text-sm font-semibold mt-2 ' + (overallStats.holdingReturnRate > 0 ? 'text-emerald-500' : overallStats.holdingReturnRate < 0 ? 'text-rose-500' : 'text-slate-500')}>
-                        {overallStats.holdingReturnRate > 0 ? '+' : ''}{overallStats.holdingReturnRate.toFixed(2)}%
-                    </div>
-                </div>
-
-                {/* Sub KPIs */}
-                <div className="grid grid-cols-2 gap-4">
-                    <StatItem label="실현손익" value={overallStats.totalRealizedPnL} icon={<Target size={14} />} colorize darkMode={darkMode} />
-                    <StatItem label="평가손익" value={overallStats.evalPnL} icon={<Wallet size={14} />} colorize darkMode={darkMode} />
                 </div>
             </div>
 
-            {/* 2. Top Performers Section */}
+            {/* 2. Compact Summary Section */}
+            <div id="section-summary" className="scroll-mt-48 mb-6">
+                <div className={`rounded-3xl p-8 border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-gradient-to-br from-indigo-50/30 to-white border-indigo-50 shadow-sm'}`}>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
+                        <div className="flex flex-col items-center text-center">
+                            <span className={`text-[10px] font-bold uppercase tracking-widest mb-2 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                                총 손익 (TOTAL PNL)
+                            </span>
+                            <div className={`text-3xl lg:text-4xl font-black tracking-tight ${overallStats.totalPnL > 0 ? 'text-emerald-500' : overallStats.totalPnL < 0 ? 'text-rose-500' : (darkMode ? 'text-slate-200' : 'text-slate-700')}`}>
+                                {overallStats.totalPnL > 0 ? '+' : ''}{formatNumber(overallStats.totalPnL)}
+                                <span className="text-lg font-bold ml-1 opacity-60">원</span>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col items-center text-center">
+                            <span className={`text-[10px] font-bold uppercase tracking-widest mb-2 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                                승률 (WIN RATE)
+                            </span>
+                            <div className={`text-3xl lg:text-4xl font-black tracking-tight ${overallStats.winRate >= 50 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                {overallStats.winRate.toFixed(2)}
+                                <span className="text-lg font-bold ml-1 opacity-60">%</span>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col items-center text-center">
+                            <span className={`text-[10px] font-bold uppercase tracking-widest mb-2 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                                손익비 (PROFIT FACTOR)
+                            </span>
+                            <div className={`text-3xl lg:text-4xl font-black tracking-tight ${overallStats.profitFactor >= 1.5 ? 'text-emerald-500' : overallStats.profitFactor >= 1 ? (darkMode ? 'text-slate-200' : 'text-slate-700') : 'text-rose-500'}`}>
+                                {overallStats.profitFactor.toFixed(2)}
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col items-center text-center">
+                            <span className={`text-[10px] font-bold uppercase tracking-widest mb-2 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                                현재 연승/연패
+                            </span>
+                            <div className={`text-3xl lg:text-4xl font-black tracking-tight ${overallStats.currentStreak > 0 ? 'text-emerald-500' : overallStats.currentStreak < 0 ? 'text-rose-500' : (darkMode ? 'text-slate-200' : 'text-slate-700')}`}>
+                                {Math.abs(overallStats.currentStreak).toFixed(0)}
+                                <span className="text-lg font-bold ml-1 opacity-60">
+                                    {overallStats.currentStreak > 0 ? "연승" : "연패"}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* 3. PnL Chart (Monthly/Daily) - High Priority */}
+            {pnlChartPoints.length > 0 && (
+                <div id="section-monthly" className="scroll-mt-48 mb-6">
+                    <div className={cardBaseClass + ' p-6'}>
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className={sectionTitleClass}>
+                                {pnlChartMode === 'daily' ? <TrendingUp size={20} className={darkMode ? 'text-emerald-400' : 'text-emerald-600'} /> : <Target size={20} className={darkMode ? 'text-emerald-400' : 'text-emerald-600'} />}
+                                {pnlChartMode === 'daily' ? '일별 손익 현황' : '월별 손익 현황'}
+                            </h2>
+                            <div className={'flex p-1 rounded-lg ' + (darkMode ? 'bg-slate-800' : 'bg-slate-100')}>
+                                <button
+                                    onClick={() => setPnlChartMode('daily')}
+                                    className={'px-3 py-1.5 text-xs font-bold rounded-md transition-all ' + (pnlChartMode === 'daily' ? (darkMode ? 'bg-slate-700 text-white shadow' : 'bg-white text-indigo-600 shadow') : (darkMode ? 'text-slate-400 hover:text-slate-300' : 'text-slate-500 hover:text-slate-700'))}
+                                >
+                                    일별
+                                </button>
+                                <button
+                                    onClick={() => setPnlChartMode('monthly')}
+                                    className={'px-3 py-1.5 text-xs font-bold rounded-md transition-all ' + (pnlChartMode === 'monthly' ? (darkMode ? 'bg-slate-700 text-white shadow' : 'bg-white text-indigo-600 shadow') : (darkMode ? 'text-slate-400 hover:text-slate-300' : 'text-slate-500 hover:text-slate-700'))}
+                                >
+                                    월별
+                                </button>
+                            </div>
+                        </div>
+                        {pnlChartMode === 'daily' ? (
+                            <MonthlyBarChart
+                                data={dailyRealizedPoints}
+                                darkMode={darkMode}
+                                title="일별 손익 (Daily PnL)"
+                            />
+                        ) : (
+                            <MonthlyBarChart
+                                data={monthlyRealizedPoints}
+                                darkMode={darkMode}
+                                title="월별 손익 (Monthly PnL)"
+                            />
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* 4. Equity Curve (Combined) - High Priority */}
+            {equityPoints.length > 0 && (
+                <div id="section-equity" className="scroll-mt-48 mb-6">
+                    <EquityCurve
+                        data={equityPoints}
+                        monthlyData={monthlyEquityPoints}
+                        darkMode={darkMode}
+                    />
+                </div>
+            )}
+
+            {/* 5. AI Insights Widget */}
+            {insights && (
+                <div id="section-insights" className="scroll-mt-48 mb-6">
+                    <InsightsWidget insights={insights} darkMode={darkMode} />
+                </div>
+            )}
+
+            {/* 6. Top Performers (Win/Loss) */}
             {(topProfits.length > 0 || topLosses.length > 0) && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     {/* Top Profits */}
                     <div className={cardBaseClass + ' p-5'}>
                         <h3 className={'text-sm font-bold flex items-center gap-2 mb-4 ' + (darkMode ? 'text-emerald-400' : 'text-emerald-600')}>
@@ -415,55 +610,108 @@ export function StatsDashboard({
                 </div>
             )}
 
-            {/* 3. PnL Charts */}
-            {pnlChartPoints.length > 0 && (
-                <div className={cardBaseClass + ' p-6'}>
-                    <div className="flex items-center justify-between mb-6">
-                        <div>
-                            <h2 className={sectionTitleClass}>
-                                <TrendingUp size={20} className={darkMode ? 'text-indigo-400' : 'text-indigo-600'} />
-                                자산 추이
-                            </h2>
-                            <p className={'text-xs mt-1 ' + (darkMode ? 'text-slate-500' : 'text-slate-400')}>누적 실현 손익 그래프</p>
-                        </div>
-                        <div className={'flex rounded-xl p-1 ' + (darkMode ? 'bg-slate-800' : 'bg-slate-100')}>
-                            {(['daily', 'monthly'] as PnLChartMode[]).map((mode) => (
-                                <button
-                                    key={mode}
-                                    onClick={() => setPnlChartMode(mode)}
-                                    className={
-                                        'px-4 py-2 text-xs font-bold rounded-lg transition-all duration-200 btn-press ' +
-                                        (pnlChartMode === mode
-                                            ? (darkMode ? 'bg-indigo-500 text-white shadow-lg' : 'bg-white text-indigo-600 shadow-md')
-                                            : (darkMode ? 'text-slate-500 hover:text-slate-300' : 'text-slate-500 hover:text-slate-700'))
-                                    }
-                                >
-                                    {mode === 'daily' ? '일별' : '월별'}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="h-72 w-full">
-                        <PnLChart
-                            data={
-                                pnlChartPoints.reduce<{ date: string, cumulativePnL: number }[]>((acc, curr, idx) => {
-                                    const prev = idx > 0 ? acc[idx - 1].cumulativePnL : 0;
-                                    acc.push({
-                                        date: curr.label,
-                                        cumulativePnL: prev + curr.value
-                                    });
-                                    return acc;
-                                }, [])
-                            }
-                            darkMode={darkMode}
-                        />
+            {/* 7. Strategy Performance */}
+            {strategyStats.length > 0 && (
+                <div id="section-strategies" className={cardBaseClass + ' p-6 scroll-mt-48 mb-6'}>
+                    <h2 className={sectionTitleClass + ' mb-4'}>
+                        <Zap size={20} className={darkMode ? 'text-purple-400' : 'text-purple-600'} />
+                        전략별 성과
+                    </h2>
+                    <div className={tableWrapperClass}>
+                        <table className="w-full text-left min-w-[700px]">
+                            <thead>
+                                <tr>
+                                    {[
+                                        { l: '전략명' },
+                                        { l: '매매횟수' },
+                                        { l: '승률' },
+                                        { l: '총 손익' },
+                                        { l: '평균 손익' },
+                                        { l: '최대 수익' },
+                                        { l: '최대 손실' },
+                                    ].map((h, i) => (
+                                        <th key={i} className={tableHeaderClass}>
+                                            {h.l}
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {strategyStats.map((s) => (
+                                    <tr key={s.strategyId} className={'transition-colors ' + (darkMode ? 'hover:bg-slate-800/30' : 'hover:bg-indigo-50/30')}>
+                                        <td className={tableCellClass + ' font-bold'}>
+                                            <span className={'px-2 py-1 rounded-lg text-xs font-medium ' + (darkMode ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-100 text-purple-700')}>
+                                                {s.strategyName}
+                                            </span>
+                                        </td>
+                                        <td className={tableCellClass + ' font-mono tabular-nums'}>{s.tradeCount}</td>
+                                        <td className={tableCellClass}>
+                                            <span className={
+                                                'px-2 py-1 rounded-lg text-[11px] font-bold ' +
+                                                (s.winRate >= 50
+                                                    ? (darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700')
+                                                    : (darkMode ? 'bg-rose-500/20 text-rose-400' : 'bg-rose-100 text-rose-700'))
+                                            }>
+                                                {s.winRate.toFixed(0)}%
+                                            </span>
+                                        </td>
+                                        <td className={tableCellClass}><PnLText value={s.totalPnL} /></td>
+                                        <td className={tableCellClass}><PnLText value={s.avgPnLPerTrade} /></td>
+                                        <td className={tableCellClass + ' text-emerald-500 font-bold tabular-nums'}>
+                                            {s.maxWin > 0 ? '+' + formatNumber(s.maxWin) : '-'}
+                                        </td>
+                                        <td className={tableCellClass + ' text-rose-500 font-bold tabular-nums'}>
+                                            {s.maxLoss < 0 ? formatNumber(s.maxLoss) : '-'}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             )}
 
-            {/* 4. Symbol Table */}
-            <div className={cardBaseClass + ' p-6'}>
+            {/* 3.7 Weekday Stats */}
+            {weekdayStats.length > 0 && (
+                <div className="scroll-mt-28">
+                    <WeekdayStatsChart data={weekdayStats} darkMode={darkMode} />
+                </div>
+            )}
+
+            {/* 3.8 Holding Period Stats */}
+            {holdingPeriodStats.length > 0 && (
+                <div className="scroll-mt-28">
+                    <HoldingPeriodChart data={holdingPeriodStats} darkMode={darkMode} />
+                </div>
+            )}
+
+            {/* 3.9 Monthly Goals & 3.10 Risk */}
+            {onSetMonthlyGoal && onRemoveMonthlyGoal && (
+                <MonthlyGoalsWidget
+                    goals={monthlyGoals}
+                    monthlyPnLPoints={monthlyRealizedPoints}
+                    onSetGoal={onSetMonthlyGoal}
+                    onRemoveGoal={onRemoveMonthlyGoal}
+                    darkMode={darkMode}
+                />
+            )}
+
+            {onUpdateBalance && onUpdateRiskSettings && riskSettings && (
+                <RiskManagementWidget
+                    accountBalance={accountBalance}
+                    balanceHistory={balanceHistory}
+                    positionRisks={positionRisks}
+                    highRiskPositions={highRiskPositions}
+                    dailyLossAlert={dailyLossAlert ?? null}
+                    riskSettings={riskSettings}
+                    dailyPnL={dailyPnL}
+                    onUpdateBalance={onUpdateBalance}
+                    onUpdateRiskSettings={onUpdateRiskSettings}
+                    darkMode={darkMode}
+                />
+            )}
+
+            <div id="section-symbols" className={cardBaseClass + ' p-6 scroll-mt-28'}>
                 <div className="flex items-center justify-between mb-4">
                     <h2 className={sectionTitleClass}>
                         📈 종목별 성과
@@ -668,27 +916,42 @@ export function StatsDashboard({
     );
 }
 
-// Sub-components
-function StatItem({ label, value, colorize = false, icon, darkMode }: { label: string; value: number; colorize?: boolean; icon?: React.ReactNode; darkMode: boolean }) {
-    const isPositive = value > 0;
-    const isNegative = value < 0;
-    const colorClass = colorize
-        ? isPositive
-            ? 'text-emerald-500'
-            : isNegative
-                ? 'text-rose-500'
-                : darkMode ? 'text-white' : 'text-slate-900'
-        : darkMode ? 'text-white' : 'text-slate-900';
+interface StatItemProps {
+    label: string;
+    value: number | string;
+    suffix?: string;
+    isCurrency?: boolean;
+    trend?: 'up' | 'down' | 'neutral';
+    icon?: React.ReactNode;
+    darkMode: boolean;
+}
+
+function StatItem({ label, value, suffix, isCurrency, trend, icon, darkMode }: StatItemProps) {
+    const numValue = typeof value === 'number' ? value : parseFloat(String(value));
+
+    // Determine color based on trend or value
+    let colorClass = darkMode ? 'text-white' : 'text-slate-900';
+    if (trend) {
+        if (trend === 'up') colorClass = 'text-emerald-500';
+        else if (trend === 'down') colorClass = 'text-rose-500';
+        else colorClass = darkMode ? 'text-slate-400' : 'text-slate-500';
+    } else if (isCurrency) {
+        if (numValue > 0) colorClass = 'text-emerald-500';
+        else if (numValue < 0) colorClass = 'text-rose-500';
+    }
+
     const bgClass = darkMode ? 'bg-slate-800/50' : 'bg-slate-50';
+
     return (
-        <div className={`rounded-xl p-4 ${bgClass}`}>
+        <div className={`rounded-xl p-4 ${bgClass} flex flex-col justify-between`}>
             <div className={'flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider mb-2 ' + (darkMode ? 'text-slate-500' : 'text-slate-400')}>
                 {icon}
                 {label}
             </div>
-            <div className={`text-xl font-black tabular-nums ${colorClass}`}>
-                {colorize && isPositive && '+'}
-                {formatNumber(value)}
+            <div className={`text-lg lg:text-xl font-black tabular-nums flex items-baseline gap-1 ${colorClass}`}>
+                {isCurrency && numValue > 0 && '+'}
+                {typeof value === 'number' ? formatNumber(Math.abs(value)) : value}
+                {suffix && <span className="text-xs font-medium opacity-70">{suffix}</span>}
             </div>
         </div>
     );

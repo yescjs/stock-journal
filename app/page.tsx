@@ -9,12 +9,17 @@ import { ActiveTab, NotifyType, TagFilterMode, SortState } from '@/app/types/ui'
 import { PnLPoint } from '@/app/types/stats';
 
 // Utils
-import { parseTagString, getKoreanWeekdayLabel } from '@/app/utils/format';
+import { parseTagString, getKoreanWeekdayLabel, isKRWSymbol } from '@/app/utils/format';
+
 
 // Hooks
 import { useSupabaseAuth } from '@/app/hooks/useSupabaseAuth';
 import { useTrades } from '@/app/hooks/useTrades';
 import { useStats } from '@/app/hooks/useStats';
+import { useStrategies } from '@/app/hooks/useStrategies';
+import { useMonthlyGoals } from '@/app/hooks/useMonthlyGoals';
+import { useRiskManagement } from '@/app/hooks/useRiskManagement';
+
 
 // Components
 import { Header } from '@/app/components/Header';
@@ -26,9 +31,11 @@ import { StatsDashboard } from '@/app/components/StatsDashboard';
 import { SettingsPanel } from '@/app/components/SettingsPanel';
 import { CalendarView } from '@/app/components/CalendarView';
 import { TagManagerModal } from '@/app/components/TagManagerModal';
+import { StrategyManager } from '@/app/components/StrategyManager';
 import { LayoutGrid, List as ListIcon, Tag as TagIcon, X, Plus, Filter, Search, Activity } from 'lucide-react';
 import { MotionWrapper } from '@/app/components/MotionWrapper';
 import { SymbolDetailCard } from '@/app/components/SymbolDetailCard';
+
 
 // Hooks
 import { useTagColors } from '@/app/hooks/useTagColors';
@@ -42,6 +49,9 @@ export default function Home() {
   // --- 1. Auth & Data Hooks ---
   const { user: currentUser, loading: authLoading, logout } = useSupabaseAuth();
   const { trades, loading: tradesLoading, addTrade, removeTrade, updateTrade, clearAllTrades, setTrades } = useTrades(currentUser);
+  const { strategies, addStrategy, updateStrategy, removeStrategy } = useStrategies(currentUser);
+  const { goals: monthlyGoals, setGoal: setMonthlyGoal, removeGoal: removeMonthlyGoal } = useMonthlyGoals(currentUser);
+
 
   // --- 2. UI State ---
   const [activeTab, setActiveTab] = useState<ActiveTab>('journal');
@@ -86,6 +96,10 @@ export default function Home() {
 
   // Prices state
   const [currentPrices, setCurrentPrices] = useState<Record<string, number>>({});
+
+  // Exchange Rate State (Lifted up for global usage, defaulted to 1430)
+  const [exchangeRate, setExchangeRate] = useState<number>(1476);
+  const [showConverted, setShowConverted] = useState(false); // Toggle for US stocks in KRW
 
   // UI Ref
   const addFormRef = useRef<HTMLDivElement>(null);
@@ -269,6 +283,9 @@ export default function Home() {
   // Actually, standard behavior for "Stats Dashboard" is usually global or filtered.
   // The original code seemed to compute `symbolSummaries` from `baseTrades`. 
   // EXCEPT when `selectedSymbol` logic applies?
+  // Exchange Rate State
+  // Moved to top-level state
+  // const [exchangeRate, setExchangeRate] = useState<number>(1430);
   // Let's stick to original behavior: `useStats` should probably take `trades` (all).
   // I'll pass `trades` to `useStats`.
 
@@ -279,13 +296,42 @@ export default function Home() {
 
   // --- 6. Stats Hook ---
   // Using filteredTrades to ensure stats reflect current filters (Date/Symbol/Tags)
-  const { symbolSummaries, tagStats, overallStats, dailyRealizedPoints, monthlyRealizedPoints, insights } = useStats(filteredTrades, currentPrices);
+  const { symbolSummaries, tagStats, strategyStats, overallStats, dailyRealizedPoints, monthlyRealizedPoints, equityPoints, monthlyEquityPoints, weekdayStats, holdingPeriodStats, insights } = useStats(filteredTrades, currentPrices, exchangeRate);
+
+  // Today's PnL for risk management
+  const todayPnL = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const todayPoint = dailyRealizedPoints.find(p => p.key === today);
+    return todayPoint?.value || 0;
+  }, [dailyRealizedPoints]);
+
+  // --- 7. Risk Management Hook ---
+  const {
+    accountBalance,
+    balanceHistory,
+    riskSettings,
+    positionRisks,
+    highRiskPositions,
+    dailyLossAlert,
+    updateBalance,
+    updateRiskSettings,
+  } = useRiskManagement(currentUser, symbolSummaries, currentPrices, todayPnL);
+
 
   // For Journal Summary (filtered)
   const journalStats = useMemo(() => {
     return filteredTrades.reduce(
+
       (acc, t) => {
-        const amt = t.price * t.quantity;
+        const amtRaw = t.price * t.quantity;
+        // Currency Conversion
+        const isKRW = isKRWSymbol(t.symbol);
+        const multiplier = isKRW ? 1 : exchangeRate;
+
+        const amt = amtRaw * multiplier; // Always calc stats in KRW base for dashboard consistency?
+        // Wait, "Journal Summary" cards usually show TOTAL volume. 
+        // If we mix currencies, it's meaningless. So we MUST convert to KRW.
+
         if (t.side === 'BUY') acc.buy += amt;
         else acc.sell += amt;
         return acc;
@@ -303,8 +349,8 @@ export default function Home() {
     try {
       await addTrade({ ...data }, imageFile);
       showNotify('success', '기록이 저장되었습니다.');
-    } catch (e) {
-      alert('저장 중 오류가 발생했습니다.');
+    } catch (e: any) {
+      alert(`저장 중 오류가 발생했습니다: ${e.message || JSON.stringify(e)}`);
       console.error(e);
     }
   };
@@ -609,6 +655,8 @@ export default function Home() {
                           tagColors={tagColors}
                           onSymbolClick={(sym) => setSelectedSymbol(sym)}
                           onImagePreview={setPreviewImage}
+                          exchangeRate={exchangeRate}
+                          showConverted={showConverted}
                         />
                       )}
                     </div>
@@ -639,6 +687,8 @@ export default function Home() {
                         tagColors={tagColors}
                         onSymbolClick={(sym) => setSelectedSymbol(sym)}
                         onImagePreview={setPreviewImage}
+                        exchangeRate={exchangeRate}
+                        showConverted={showConverted}
                       />
                     )
                   )}
@@ -647,8 +697,42 @@ export default function Home() {
             </div>
 
             {/* RIGHT: Sidebar - Compact & Unified */}
-            <div className="hidden lg:block w-80 xl:w-96 flex-none pl-4 pb-4">
+            <div className="hidden lg:block w-80 xl:w-96 flex-none pl-4 pb-4 h-full overflow-y-auto scrollbar-thin">
               <div className="space-y-3 pr-2">
+
+                {/* Migration Alert - Moved to TOP */}
+                {currentUser && hasGuestData && !hideGuestAlert && (
+                  <div className={'border rounded-xl p-4 relative ' + (darkMode ? 'border-amber-500/60 bg-gradient-to-r from-amber-500/10 to-slate-900' : 'border-amber-400/60 bg-gradient-to-r from-amber-50 to-white')}>
+                    <button
+                      onClick={() => setHideGuestAlert(true)}
+                      className={'absolute top-2 right-2 p-1 rounded-full transition-colors ' + (darkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100')}
+                    >
+                      ✕
+                    </button>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-lg">📦</span>
+                      <span className={'font-bold ' + (darkMode ? 'text-amber-400' : 'text-amber-600')}>게스트 데이터 발견</span>
+                    </div>
+                    <p className={'text-xs mb-3 ' + (darkMode ? 'text-slate-400' : 'text-slate-500')}>
+                      로그인 전 저장된 데이터가 있습니다. 계정으로 가져오거나 삭제할 수 있습니다.
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleMigrateGuestToAccount}
+                        disabled={isMigrating}
+                        className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition disabled:opacity-50"
+                      >
+                        {isMigrating ? '이동 중...' : '📥 계정으로 가져오기'}
+                      </button>
+                      <button
+                        onClick={handleDropGuestData}
+                        className={'py-2 px-3 rounded-lg text-xs font-bold transition ' + (darkMode ? 'bg-slate-800 text-rose-400 hover:bg-rose-500/20 border border-slate-700' : 'bg-white text-rose-500 hover:bg-rose-50 border border-rose-200')}
+                      >
+                        🗑️ 삭제
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-2">
                   <div className={'rounded-xl p-3 border transition-all duration-200 card-hover ' + (darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm')}>
@@ -687,6 +771,7 @@ export default function Home() {
                       baseTrades={trades}
                       onAddTrade={handleAddTrade}
                       allTags={allTags}
+                      strategies={strategies}
                       isCompact={true}
                     />
                   </div>
@@ -778,22 +863,21 @@ export default function Home() {
                           <option value="AND">모두 포함 (AND)</option>
                         </select>
                       </div>
-                    </div>
-                  </div>
-                )}
 
-                {/* Migration Alert */}
-                {currentUser && hasGuestData && !hideGuestAlert && (
-                  <div className={'border rounded-xl p-3 text-sm relative ' + (darkMode ? 'border-amber-500/60 bg-slate-900' : 'border-amber-400/60 bg-amber-50')}>
-                    <button
-                      onClick={() => setHideGuestAlert(true)}
-                      className={'absolute top-2 right-2 transition-colors ' + (darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-400 hover:text-slate-600')}
-                    >
-                      ✕
-                    </button>
-                    <div className="font-semibold mb-2">게스트 데이터 발견</div>
-                    <div className="flex gap-2">
-                      <button onClick={handleMigrateGuestToAccount} disabled={isMigrating} className="flex-1 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition">{isMigrating ? '이동 중...' : '계정으로 가져오기'}</button>
+                      {/* Convert Toggle */}
+                      <div className="flex items-center justify-between pt-2 border-t border-dashed mt-2 user-select-none">
+                        <label className={'text-[10px] font-bold uppercase tracking-wider ' + (darkMode ? 'text-slate-400' : 'text-slate-500')}>
+                          미국 주식 원화 표기
+                        </label>
+                        <button
+                          onClick={() => setShowConverted(!showConverted)}
+                          className={'relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ' + (showConverted ? (darkMode ? 'bg-indigo-500' : 'bg-indigo-600') : (darkMode ? 'bg-slate-700' : 'bg-slate-200'))}
+                        >
+                          <span
+                            className={'inline-block h-3 w-3 transform rounded-full bg-white transition-transform ' + (showConverted ? 'translate-x-5' : 'translate-x-1')}
+                          />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -808,9 +892,26 @@ export default function Home() {
                 currentUser={currentUser}
                 symbolSummaries={symbolSummaries}
                 tagStats={tagStats}
+                strategyStats={strategyStats}
                 overallStats={overallStats}
                 dailyRealizedPoints={dailyRealizedPoints}
                 monthlyRealizedPoints={monthlyRealizedPoints}
+                equityPoints={equityPoints}
+                monthlyEquityPoints={monthlyEquityPoints}
+                weekdayStats={weekdayStats}
+                holdingPeriodStats={holdingPeriodStats}
+                monthlyGoals={monthlyGoals}
+                onSetMonthlyGoal={setMonthlyGoal}
+                onRemoveMonthlyGoal={removeMonthlyGoal}
+                accountBalance={accountBalance}
+                balanceHistory={balanceHistory}
+                positionRisks={positionRisks}
+                highRiskPositions={highRiskPositions}
+                dailyLossAlert={dailyLossAlert}
+                riskSettings={riskSettings}
+                dailyPnL={todayPnL}
+                onUpdateBalance={updateBalance}
+                onUpdateRiskSettings={updateRiskSettings}
                 currentPrices={currentPrices}
                 onCurrentPriceChange={handleCurrentPriceChange}
                 onSymbolClick={(symbol) => {
@@ -819,6 +920,8 @@ export default function Home() {
                 }}
                 tagColors={tagColors}
                 insights={insights}
+                exchangeRate={exchangeRate}
+                onExchangeRateChange={setExchangeRate}
               />
             </MotionWrapper>
           </div>
@@ -836,6 +939,17 @@ export default function Home() {
                     <TagIcon size={16} />
                     태그 색상 변경
                   </button>
+                </div>
+
+                {/* Strategy Manager */}
+                <div className={'p-6 rounded-2xl border shadow-sm ' + (darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200')}>
+                  <StrategyManager
+                    strategies={strategies}
+                    darkMode={darkMode}
+                    onAdd={addStrategy}
+                    onUpdate={updateStrategy}
+                    onRemove={removeStrategy}
+                  />
                 </div>
 
                 <SettingsPanel
@@ -858,6 +972,7 @@ export default function Home() {
           <EditTradeForm
             trade={editingTrade}
             darkMode={darkMode}
+            strategies={strategies}
             onSave={handleEditSubmit}
             onCancel={() => setEditingTrade(null)}
           />
@@ -964,6 +1079,7 @@ export default function Home() {
                   setShowMobileAddForm(false);
                 }}
                 allTags={allTags}
+                strategies={strategies}
               />
             </div>
           </div>

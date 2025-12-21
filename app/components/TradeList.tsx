@@ -1,10 +1,11 @@
 import React, { useMemo } from 'react';
 import { Trade } from '@/app/types/trade';
 import { User } from '@supabase/supabase-js';
-import { formatMonthLabel, formatNumber, formatQuantity, getKoreanWeekdayLabel } from '@/app/utils/format';
+import { formatMonthLabel, formatNumber, formatQuantity, formatPrice, getCurrencySymbol, getKoreanWeekdayLabel } from '@/app/utils/format';
+import { EMOTION_TAG_LABELS, EMOTION_TAG_COLORS } from '@/app/types/strategies';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Pencil, Trash2, Camera, ChevronDown } from 'lucide-react';
+import { Pencil, Trash2, Camera, ChevronDown, Zap } from 'lucide-react';
 
 interface TradeListProps {
     trades: Trade[];
@@ -17,6 +18,8 @@ interface TradeListProps {
     tagColors?: Record<string, string>;
     onSymbolClick?: (symbol: string) => void;
     onImagePreview?: (imageUrl: string) => void;
+    exchangeRate: number;
+    showConverted: boolean;
 }
 
 export function TradeList({
@@ -30,6 +33,8 @@ export function TradeList({
     tagColors = {},
     onSymbolClick,
     onImagePreview,
+    exchangeRate,
+    showConverted,
 }: TradeListProps) {
     // Group by Month
     const monthGroups = useMemo(() => {
@@ -58,6 +63,22 @@ export function TradeList({
             count: map.get(key)!.length,
         }));
     }, [trades]);
+
+    // Format helper that handles conversion
+    const displayPrice = (price: number, symbol: string) => {
+        const isKRW = symbol.includes('.KS') || symbol.includes('.KQ') || /^\d+$/.test(symbol);
+
+        if (isKRW) return formatPrice(price, symbol);
+
+        if (showConverted) {
+            // Convert USD to KRW
+            const converted = price * exchangeRate;
+            return formatPrice(converted, 'KRW'); // Pretend it's KRW for formatting
+        }
+
+        // Show original USD
+        return formatPrice(price, symbol);
+    };
 
     if (trades.length === 0) {
         return (
@@ -122,7 +143,7 @@ export function TradeList({
                                 {/* Desktop Table View */}
                                 <div className="hidden md:block overflow-x-auto">
                                     <table className="w-full text-sm text-left table-fixed">
-                                        <colgroup><col className="w-[100px]" /><col className="w-[70px]" /><col className="w-auto" /><col className="w-[80px]" /><col className="w-[50px]" /><col className="w-[90px]" /><col className="w-auto" /><col className="w-[70px]" /></colgroup>
+                                        <colgroup><col className="w-[100px]" /><col className="w-[70px]" /><col className="w-auto" /><col className="w-[100px]" /><col className="w-[60px]" /><col className="w-[110px]" /><col className="w-auto" /><col className="w-[70px]" /></colgroup>
                                         <thead className={
                                             'text-xs uppercase border-b ' +
                                             (darkMode ? 'bg-slate-800/50 text-slate-400 border-slate-800' : 'bg-indigo-50/80 text-indigo-600 border-indigo-100')
@@ -177,17 +198,36 @@ export function TradeList({
                                                         <td className={'px-3 py-3 font-bold ' + (darkMode ? 'text-slate-100' : 'text-slate-900')}>
                                                             {t.symbol_name || t.symbol}
                                                         </td>
-                                                        <td className={'px-3 py-3 text-right font-mono tabular-nums ' + (darkMode ? 'text-slate-300' : 'text-slate-600')}>
-                                                            {formatNumber(t.price)}
+                                                        <td className={'px-3 py-3 text-right font-mono tabular-nums whitespace-nowrap ' + (darkMode ? 'text-slate-300' : 'text-slate-600')}>
+                                                            {displayPrice(t.price, t.symbol)}
                                                         </td>
                                                         <td className={'px-3 py-3 text-right font-mono tabular-nums ' + (darkMode ? 'text-slate-300' : 'text-slate-600')}>
                                                             {formatQuantity(t.quantity, t.symbol)}
                                                         </td>
-                                                        <td className={'px-3 py-3 text-right font-mono tabular-nums font-semibold ' + (darkMode ? 'text-slate-100' : 'text-slate-800')}>
-                                                            {formatNumber(t.price * t.quantity)}
+                                                        <td className={'px-3 py-3 text-right font-mono tabular-nums font-semibold whitespace-nowrap ' + (darkMode ? 'text-slate-100' : 'text-slate-800')}>
+                                                            {displayPrice(t.price * t.quantity, t.symbol)}
                                                         </td>
                                                         <td className="px-3 py-3 max-w-[180px]">
                                                             <div className="flex flex-col gap-1.5">
+                                                                {/* Strategy & Emotion badges */}
+                                                                {(t.strategy_name || t.emotion_tag) && (
+                                                                    <div className="flex flex-wrap gap-1">
+                                                                        {t.strategy_name && (
+                                                                            <span className={'inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-md font-semibold ' + (darkMode ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-100 text-purple-700')}>
+                                                                                <Zap size={8} />
+                                                                                {t.strategy_name}
+                                                                            </span>
+                                                                        )}
+                                                                        {t.emotion_tag && (
+                                                                            <span
+                                                                                className="text-[10px] px-1.5 py-0.5 rounded-md font-semibold text-white"
+                                                                                style={{ backgroundColor: EMOTION_TAG_COLORS[t.emotion_tag as keyof typeof EMOTION_TAG_COLORS] || '#64748b' }}
+                                                                            >
+                                                                                {EMOTION_TAG_LABELS[t.emotion_tag as keyof typeof EMOTION_TAG_LABELS] || t.emotion_tag}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                )}
                                                                 {t.tags && t.tags.length > 0 && (
                                                                     <div className="flex flex-wrap gap-1">
                                                                         {t.tags.map((tag) => (
@@ -204,6 +244,23 @@ export function TradeList({
                                                                 {t.memo && (
                                                                     <div className={'text-xs line-clamp-2 ' + (darkMode ? 'text-slate-500' : 'text-slate-400')}>
                                                                         {t.memo}
+                                                                    </div>
+                                                                )}
+                                                                {/* Reasons */}
+                                                                {(t.entry_reason || t.exit_reason) && (
+                                                                    <div className={'space-y-1 pt-1 border-t border-dashed ' + (darkMode ? 'border-slate-800' : 'border-slate-200')}>
+                                                                        {t.entry_reason && (
+                                                                            <div className="flex gap-1 items-start">
+                                                                                <span className="text-[10px] font-bold uppercase text-slate-400 shrink-0">IN</span>
+                                                                                <span className={'text-[10px] line-clamp-1 ' + (darkMode ? 'text-slate-400' : 'text-slate-500')}>{t.entry_reason}</span>
+                                                                            </div>
+                                                                        )}
+                                                                        {t.exit_reason && (
+                                                                            <div className="flex gap-1 items-start">
+                                                                                <span className="text-[10px] font-bold uppercase text-slate-400 shrink-0">OUT</span>
+                                                                                <span className={'text-[10px] line-clamp-1 ' + (darkMode ? 'text-slate-400' : 'text-slate-500')}>{t.exit_reason}</span>
+                                                                            </div>
+                                                                        )}
                                                                     </div>
                                                                 )}
                                                             </div>
@@ -274,13 +331,32 @@ export function TradeList({
                                                         </div>
                                                     </div>
                                                     <div className="text-right">
-                                                        <div className={'font-bold text-sm ' + (darkMode ? 'text-slate-100' : 'text-slate-900')}>{formatNumber(amount)}</div>
-                                                        <div className={'text-xs font-medium ' + (darkMode ? 'text-slate-500' : 'text-slate-400')}>{formatNumber(t.price)} × {formatQuantity(t.quantity, t.symbol)}</div>
+                                                        <div className={'font-bold text-sm ' + (darkMode ? 'text-slate-100' : 'text-slate-900')}>{displayPrice(amount, t.symbol)}</div>
+                                                        <div className={'text-xs font-medium ' + (darkMode ? 'text-slate-500' : 'text-slate-400')}>{displayPrice(t.price, t.symbol)} × {formatQuantity(t.quantity, t.symbol)}</div>
                                                     </div>
                                                 </div>
 
-                                                {(t.tags && t.tags.length > 0) || t.memo ? (
+                                                {(t.tags && t.tags.length > 0) || t.memo || t.strategy_name || t.emotion_tag ? (
                                                     <div className={'rounded-xl p-3 text-xs space-y-2 ' + (darkMode ? 'bg-slate-800/50 text-slate-400' : 'bg-slate-50 text-slate-600')}>
+                                                        {/* Strategy & Emotion badges */}
+                                                        {(t.strategy_name || t.emotion_tag) && (
+                                                            <div className="flex flex-wrap gap-1">
+                                                                {t.strategy_name && (
+                                                                    <span className={'inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-md font-semibold ' + (darkMode ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-100 text-purple-700')}>
+                                                                        <Zap size={8} />
+                                                                        {t.strategy_name}
+                                                                    </span>
+                                                                )}
+                                                                {t.emotion_tag && (
+                                                                    <span
+                                                                        className="text-[10px] px-1.5 py-0.5 rounded-md font-semibold text-white"
+                                                                        style={{ backgroundColor: EMOTION_TAG_COLORS[t.emotion_tag as keyof typeof EMOTION_TAG_COLORS] || '#64748b' }}
+                                                                    >
+                                                                        {EMOTION_TAG_LABELS[t.emotion_tag as keyof typeof EMOTION_TAG_LABELS] || t.emotion_tag}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        )}
                                                         {t.tags && t.tags.length > 0 && (
                                                             <div className="flex flex-wrap gap-1">
                                                                 {t.tags.map((tag) => (
@@ -299,6 +375,23 @@ export function TradeList({
                                                                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                                                                     {t.memo}
                                                                 </ReactMarkdown>
+                                                            </div>
+                                                        )}
+                                                        {/* Reasons for Mobile */}
+                                                        {(t.entry_reason || t.exit_reason) && (
+                                                            <div className={'mt-2 pt-2 border-t border-dashed space-y-2 ' + (darkMode ? 'border-slate-700' : 'border-slate-200')}>
+                                                                {t.entry_reason && (
+                                                                    <div>
+                                                                        <div className="text-[10px] font-bold uppercase text-slate-400 mb-0.5">진입 이유</div>
+                                                                        <div className={'text-xs ' + (darkMode ? 'text-slate-300' : 'text-slate-700')}>{t.entry_reason}</div>
+                                                                    </div>
+                                                                )}
+                                                                {t.exit_reason && (
+                                                                    <div>
+                                                                        <div className="text-[10px] font-bold uppercase text-slate-400 mb-0.5">청산 이유</div>
+                                                                        <div className={'text-xs ' + (darkMode ? 'text-slate-300' : 'text-slate-700')}>{t.exit_reason}</div>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         )}
                                                     </div>

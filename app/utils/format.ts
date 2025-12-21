@@ -28,15 +28,17 @@ export const formatNumber = (n: number, forceDigits?: number) => {
 };
 
 // 한국 주식 여부 판단 (심볼에 .KS 또는 .KQ 포함, 또는 숫자로만 구성)
-export const isKoreanStock = (symbol: string): boolean => {
+export const isKRWSymbol = (symbol: string): boolean => {
     if (!symbol) return false;
     return symbol.includes('.KS') || symbol.includes('.KQ') || /^\d+$/.test(symbol);
 };
 
+
 // 수량 포맷팅: 한국 주식은 정수, 미국 주식은 소수점 2자리
 export const formatQuantity = (n: number, symbol?: string) => {
     // 심볼이 있고 한국 주식이면 정수
-    if (symbol && isKoreanStock(symbol)) {
+    if (symbol && isKRWSymbol(symbol)) {
+
         return Math.round(n).toLocaleString('ko-KR');
     }
     // 심볼 없이 호출되면 값으로 판단: 정수면 정수로, 소수면 소수점 2자리
@@ -49,23 +51,24 @@ export const formatQuantity = (n: number, symbol?: string) => {
     return n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
-// 통화 기호 반환
+// 통화 기호 반환 (라벨용)
 export const getCurrencySymbol = (symbol?: string): string => {
     if (!symbol) return '';
-    return isKoreanStock(symbol) ? '₩' : '$';
+    return isKRWSymbol(symbol) ? '원' : '$';
+
 };
 
 // 가격 포맷팅 (통화 기호 포함)
 export const formatPrice = (n: number, symbol?: string): string => {
-    const currencySymbol = getCurrencySymbol(symbol);
-    const isKR = symbol ? isKoreanStock(symbol) : Math.abs(n) >= 1000;
+    const isKR = symbol ? isKRWSymbol(symbol) : false;
+
 
     if (isKR) {
-        // 한국 주식: 정수
-        return `${currencySymbol}${Math.round(n).toLocaleString('ko-KR')}`;
+        // 한국 주식: 숫자 뒤에 "원" (더 자연스러운 한국어 표기)
+        return `${Math.round(n).toLocaleString('ko-KR')}원`;
     } else {
-        // 미국 주식: 소수점 2자리
-        return `${currencySymbol}${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        // 미국 주식: $ 앞에 붙이기
+        return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
 };
 
