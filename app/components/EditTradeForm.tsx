@@ -202,9 +202,9 @@ export function EditTradeForm({
                                     type="text"
                                     value={trade.symbol_name || trade.symbol}
                                     readOnly
-                                    className={inputBaseClass + ' font-bold ' + (darkMode ? 'bg-slate-800/50 text-slate-300 cursor-not-allowed' : 'bg-slate-100/50 text-slate-600 cursor-not-allowed')}
+                                    className={inputBaseClass + ' font-bold pr-24 ' + (darkMode ? 'bg-slate-800/50 text-slate-300 cursor-not-allowed' : 'bg-slate-100/50 text-slate-600 cursor-not-allowed')}
                                 />
-                                <span className={'absolute right-4 top-1/2 -translate-y-1/2 text-xs font-mono ' + (darkMode ? 'text-slate-500' : 'text-slate-400')}>
+                                <span className={'absolute right-4 top-1/2 -translate-y-1/2 text-xs font-mono pointer-events-none ' + (darkMode ? 'text-slate-500' : 'text-slate-400')}>
                                     {trade.symbol}
                                 </span>
                             </div>

@@ -104,7 +104,9 @@ export function StatsDashboard({
     const [loadingPrices, setLoadingPrices] = useState<Record<string, boolean>>({});
     const [loadingAllPrices, setLoadingAllPrices] = useState(false);
 
-    // Sticky Navigation with simpler logic (relying on scroll-margin-top in CSS)
+    const [showDetails, setShowDetails] = useState(false);
+
+    // Sticky Navigation with simpler logic
     const scrollToSection = (id: string) => {
         const element = document.getElementById(id);
         if (element) {
@@ -116,12 +118,8 @@ export function StatsDashboard({
 
     const NAV_ITEMS = [
         { id: 'section-summary', label: '요약' },
-        { id: 'section-monthly', label: '월별/일별' },
-        { id: 'section-equity', label: '수익 곡선' },
-        { id: 'section-insights', label: '인사이트' },
-        { id: 'section-goals', label: '목표' },
-        { id: 'section-risk', label: '리스크' },
-        { id: 'section-symbols', label: '종목' },
+        { id: 'section-monthly', label: '손익 차트' },
+        { id: 'section-details', label: '상세 분석' },
     ];
 
     // ScrollSpy Implementation
@@ -398,17 +396,17 @@ export function StatsDashboard({
                     <div className="flex items-center gap-1">
                         {NAV_ITEMS.map((item) => (
                             <button
-                                    key={item.id}
-                                    onClick={() => scrollToSection(item.id)}
-                                    className={`
+                                key={item.id}
+                                onClick={() => scrollToSection(item.id)}
+                                className={`
                                         whitespace-nowrap px-4 py-2 rounded-xl text-sm font-bold transition-all
                                         ${activeSection === item.id
-                                            ? (darkMode ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30 scale-105' : 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 scale-105')
-                                            : (darkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100')
-                                        }
+                                        ? (darkMode ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30 scale-105' : 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 scale-105')
+                                        : (darkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100')
+                                    }
                                     `}
-                                >
-                                    {item.label}
+                            >
+                                {item.label}
                             </button>
                         ))}
                     </div>
@@ -455,11 +453,10 @@ export function StatsDashboard({
             <div id="section-summary" className="scroll-mt-48 mb-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* Total PnL - Hero Card */}
-                    <div className={`col-span-1 md:col-span-2 row-span-2 rounded-3xl p-8 flex flex-col justify-between relative overflow-hidden transition-all ${
-                        darkMode 
-                        ? 'bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-slate-800' 
+                    <div className={`col-span-1 md:col-span-2 row-span-2 rounded-3xl p-8 flex flex-col justify-between relative overflow-hidden transition-all ${darkMode
+                        ? 'bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-slate-800'
                         : 'bg-white border border-slate-200 shadow-sm'
-                    }`}>
+                        }`}>
                         <div className="absolute top-0 right-0 p-8 opacity-10">
                             <Wallet size={120} />
                         </div>
@@ -472,9 +469,8 @@ export function StatsDashboard({
                             </h3>
                         </div>
                         <div className="mt-8">
-                            <div className={`text-5xl lg:text-6xl font-black tracking-tighter ${
-                                overallStats.totalPnL > 0 ? 'text-emerald-500' : overallStats.totalPnL < 0 ? 'text-rose-500' : (darkMode ? 'text-slate-200' : 'text-slate-700')
-                            }`}>
+                            <div className={`text-5xl lg:text-6xl font-black tracking-tighter ${overallStats.totalPnL > 0 ? 'text-emerald-500' : overallStats.totalPnL < 0 ? 'text-rose-500' : (darkMode ? 'text-slate-200' : 'text-slate-700')
+                                }`}>
                                 {overallStats.totalPnL > 0 ? '+' : ''}{formatNumber(overallStats.totalPnL)}
                                 <span className="text-2xl font-bold ml-2 opacity-50">원</span>
                             </div>
@@ -482,9 +478,8 @@ export function StatsDashboard({
                     </div>
 
                     {/* Win Rate */}
-                    <div className={`rounded-3xl p-6 flex flex-col justify-between border transition-all ${
-                        darkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-800/50' : 'bg-white border-slate-200 hover:shadow-md'
-                    }`}>
+                    <div className={`rounded-3xl p-6 flex flex-col justify-between border transition-all ${darkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-800/50' : 'bg-white border-slate-200 hover:shadow-md'
+                        }`}>
                         <div className="flex items-center justify-between mb-4">
                             <div className={`p-2 rounded-xl ${darkMode ? 'bg-indigo-500/20 text-indigo-400' : 'bg-indigo-50 text-indigo-600'}`}>
                                 <Target size={20} />
@@ -500,19 +495,17 @@ export function StatsDashboard({
                     </div>
 
                     {/* Profit Factor */}
-                    <div className={`rounded-3xl p-6 flex flex-col justify-between border transition-all ${
-                        darkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-800/50' : 'bg-white border-slate-200 hover:shadow-md'
-                    }`}>
+                    <div className={`rounded-3xl p-6 flex flex-col justify-between border transition-all ${darkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-800/50' : 'bg-white border-slate-200 hover:shadow-md'
+                        }`}>
                         <div className="flex items-center justify-between mb-4">
-                             <div className={`p-2 rounded-xl ${darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>
+                            <div className={`p-2 rounded-xl ${darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>
                                 <TrendingUp size={20} />
                             </div>
                             <span className={`text-xs font-bold ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>PF</span>
                         </div>
                         <div>
-                            <div className={`text-3xl font-black ${
-                                overallStats.profitFactor >= 2.0 ? 'text-emerald-500' : overallStats.profitFactor >= 1 ? (darkMode ? 'text-blue-400' : 'text-blue-600') : 'text-rose-500'
-                            }`}>
+                            <div className={`text-3xl font-black ${overallStats.profitFactor >= 2.0 ? 'text-emerald-500' : overallStats.profitFactor >= 1 ? (darkMode ? 'text-blue-400' : 'text-blue-600') : 'text-rose-500'
+                                }`}>
                                 {overallStats.profitFactor.toFixed(2)}
                             </div>
                             <p className={`text-xs mt-1 font-medium ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>손익비</p>
@@ -520,11 +513,10 @@ export function StatsDashboard({
                     </div>
 
                     {/* Streak */}
-                     <div className={`rounded-3xl p-6 flex flex-col justify-between border transition-all ${
-                        darkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-800/50' : 'bg-white border-slate-200 hover:shadow-md'
-                    }`}>
+                    <div className={`rounded-3xl p-6 flex flex-col justify-between border transition-all ${darkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-800/50' : 'bg-white border-slate-200 hover:shadow-md'
+                        }`}>
                         <div className="flex items-center justify-between mb-4">
-                             <div className={`p-2 rounded-xl ${darkMode ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-50 text-purple-600'}`}>
+                            <div className={`p-2 rounded-xl ${darkMode ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-50 text-purple-600'}`}>
                                 <Zap size={20} />
                             </div>
                             <span className={`text-xs font-bold ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>STREAK</span>
@@ -536,25 +528,24 @@ export function StatsDashboard({
                                     {overallStats.currentStreak > 0 ? "연승" : "연패"}
                                 </span>
                             </div>
-                             <p className={`text-xs mt-1 font-medium ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>현재 연속 기록</p>
+                            <p className={`text-xs mt-1 font-medium ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>현재 연속 기록</p>
                         </div>
                     </div>
 
                     {/* Trade Count (New Addition for Bento filler) */}
-                    <div className={`rounded-3xl p-6 flex flex-col justify-between border transition-all ${
-                        darkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-800/50' : 'bg-white border-slate-200 hover:shadow-md'
-                    }`}>
+                    <div className={`rounded-3xl p-6 flex flex-col justify-between border transition-all ${darkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-800/50' : 'bg-white border-slate-200 hover:shadow-md'
+                        }`}>
                         <div className="flex items-center justify-between mb-4">
-                             <div className={`p-2 rounded-xl ${darkMode ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-50 text-amber-600'}`}>
+                            <div className={`p-2 rounded-xl ${darkMode ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-50 text-amber-600'}`}>
                                 <Activity size={20} />
                             </div>
                             <span className={`text-xs font-bold ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>TRADES</span>
                         </div>
                         <div>
-                             <div className={`text-3xl font-black ${darkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                            <div className={`text-3xl font-black ${darkMode ? 'text-slate-200' : 'text-slate-700'}`}>
                                 {overallStats.totalTrades || 0}
                             </div>
-                             <p className={`text-xs mt-1 font-medium ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>총 매매 횟수</p>
+                            <p className={`text-xs mt-1 font-medium ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>총 매매 횟수</p>
                         </div>
                     </div>
                 </div>
@@ -702,111 +693,148 @@ export function StatsDashboard({
                 </div>
             )}
 
-            {/* 7. Strategy Performance */}
-            {strategyStats.length > 0 && (
-                <div id="section-strategies" className={cardBaseClass + ' p-6 scroll-mt-48 mb-6'}>
-                    <h2 className={sectionTitleClass + ' mb-4'}>
-                        <Zap size={20} className={darkMode ? 'text-purple-400' : 'text-purple-600'} />
-                        전략별 성과
-                    </h2>
-                    <div className={tableWrapperClass}>
-                        <table className="w-full text-left min-w-[700px]">
-                            <thead>
-                                <tr>
-                                    {[
-                                        { l: '전략명' },
-                                        { l: '매매횟수' },
-                                        { l: '승률' },
-                                        { l: '총 손익' },
-                                        { l: '평균 손익' },
-                                        { l: '최대 수익' },
-                                        { l: '최대 손실' },
-                                    ].map((h, i) => (
-                                        <th key={i} className={tableHeaderClass}>
-                                            {h.l}
-                                        </th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {strategyStats.map((s) => (
-                                    <tr key={s.strategyId} className={'transition-colors ' + (darkMode ? 'hover:bg-slate-800/30' : 'hover:bg-indigo-50/30')}>
-                                        <td className={tableCellClass + ' font-bold'}>
-                                            <span className={'px-2 py-1 rounded-lg text-xs font-medium ' + (darkMode ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-100 text-purple-700')}>
-                                                {s.strategyName}
-                                            </span>
-                                        </td>
-                                        <td className={tableCellClass + ' font-mono tabular-nums'}>{s.tradeCount}</td>
-                                        <td className={tableCellClass}>
-                                            <span className={
-                                                'px-2 py-1 rounded-lg text-[11px] font-bold ' +
-                                                (s.winRate >= 50
-                                                    ? (darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700')
-                                                    : (darkMode ? 'bg-rose-500/20 text-rose-400' : 'bg-rose-100 text-rose-700'))
-                                            }>
-                                                {s.winRate.toFixed(0)}%
-                                            </span>
-                                        </td>
-                                        <td className={tableCellClass}><PnLText value={s.totalPnL} /></td>
-                                        <td className={tableCellClass}><PnLText value={s.avgPnLPerTrade} /></td>
-                                        <td className={tableCellClass + ' text-emerald-500 font-bold tabular-nums'}>
-                                            {s.maxWin > 0 ? '+' + formatNumber(s.maxWin) : '-'}
-                                        </td>
-                                        <td className={tableCellClass + ' text-rose-500 font-bold tabular-nums'}>
-                                            {s.maxLoss < 0 ? formatNumber(s.maxLoss) : '-'}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+            {/* 7. Detailed Stats Toggle Section */}
+            <div id="section-details" className="scroll-mt-48 mb-6">
+                <div className="flex flex-col items-center">
+                    <button
+                        onClick={() => setShowDetails(!showDetails)}
+                        className={`
+                            group flex items-center gap-2 px-6 py-3 rounded-full font-bold transition-all
+                            ${darkMode
+                                ? 'bg-slate-800 text-slate-300 hover:bg-indigo-600 hover:text-white'
+                                : 'bg-white border border-slate-200 text-slate-600 hover:border-indigo-500 hover:text-indigo-600 shadow-sm'
+                            }
+                        `}
+                    >
+                        <span>{showDetails ? '상세 분석 접기' : '상세 분석 더보기'}</span>
+                        <ChevronDown
+                            size={18}
+                            className={`transition-transform duration-300 ${showDetails ? 'rotate-180' : ''}`}
+                        />
+                    </button>
+                    {!showDetails && (
+                        <p className={`mt-3 text-xs ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                            전략 성과, 요일별 통계, 리스크 관리 등 더 자세한 정보를 확인하세요
+                        </p>
+                    )}
+                </div>
+
+                {/* Collapsible Content */}
+                <div className={`
+                    grid transition-all duration-500 ease-in-out overflow-hidden
+                    ${showDetails ? 'grid-rows-[1fr] opacity-100 mt-8' : 'grid-rows-[0fr] opacity-0'}
+                `}>
+                    <div className="min-h-0 space-y-8">
+
+                        {/* 7.1 Strategy Performance */}
+                        {strategyStats.length > 0 && (
+                            <div className={cardBaseClass + ' p-6'}>
+                                <h2 className={sectionTitleClass + ' mb-4'}>
+                                    <Zap size={20} className={darkMode ? 'text-purple-400' : 'text-purple-600'} />
+                                    전략별 성과
+                                </h2>
+                                <div className={tableWrapperClass}>
+                                    <table className="w-full text-left min-w-[700px]">
+                                        <thead>
+                                            <tr>
+                                                {[
+                                                    { l: '전략명' },
+                                                    { l: '매매횟수' },
+                                                    { l: '승률' },
+                                                    { l: '총 손익' },
+                                                    { l: '평균 손익' },
+                                                    { l: '최대 수익' },
+                                                    { l: '최대 손실' },
+                                                ].map((h, i) => (
+                                                    <th key={i} className={tableHeaderClass}>
+                                                        {h.l}
+                                                    </th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {strategyStats.map((s) => (
+                                                <tr key={s.strategyId} className={'transition-colors ' + (darkMode ? 'hover:bg-slate-800/30' : 'hover:bg-indigo-50/30')}>
+                                                    <td className={tableCellClass + ' font-bold'}>
+                                                        <span className={'px-2 py-1 rounded-lg text-xs font-medium ' + (darkMode ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-100 text-purple-700')}>
+                                                            {s.strategyName}
+                                                        </span>
+                                                    </td>
+                                                    <td className={tableCellClass + ' font-mono tabular-nums'}>{s.tradeCount}</td>
+                                                    <td className={tableCellClass}>
+                                                        <span className={
+                                                            'px-2 py-1 rounded-lg text-[11px] font-bold ' +
+                                                            (s.winRate >= 50
+                                                                ? (darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700')
+                                                                : (darkMode ? 'bg-rose-500/20 text-rose-400' : 'bg-rose-100 text-rose-700'))
+                                                        }>
+                                                            {s.winRate.toFixed(0)}%
+                                                        </span>
+                                                    </td>
+                                                    <td className={tableCellClass}><PnLText value={s.totalPnL} /></td>
+                                                    <td className={tableCellClass}><PnLText value={s.avgPnLPerTrade} /></td>
+                                                    <td className={tableCellClass + ' text-emerald-500 font-bold tabular-nums'}>
+                                                        {s.maxWin > 0 ? '+' + formatNumber(s.maxWin) : '-'}
+                                                    </td>
+                                                    <td className={tableCellClass + ' text-rose-500 font-bold tabular-nums'}>
+                                                        {s.maxLoss < 0 ? formatNumber(s.maxLoss) : '-'}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 7.2 Weekday Stats */}
+                        {weekdayStats.length > 0 && (
+                            <div>
+                                <WeekdayStatsChart data={weekdayStats} darkMode={darkMode} />
+                            </div>
+                        )}
+
+                        {/* 7.3 Holding Period Stats */}
+                        {holdingPeriodStats.length > 0 && (
+                            <div>
+                                <HoldingPeriodChart data={holdingPeriodStats} darkMode={darkMode} />
+                            </div>
+                        )}
+
+                        {/* 7.4 Monthly Goals */}
+                        {onSetMonthlyGoal && onRemoveMonthlyGoal && (
+                            <div>
+                                <MonthlyGoalsWidget
+                                    goals={monthlyGoals}
+                                    monthlyPnLPoints={monthlyRealizedPoints}
+                                    onSetGoal={onSetMonthlyGoal}
+                                    onRemoveGoal={onRemoveMonthlyGoal}
+                                    darkMode={darkMode}
+                                />
+                            </div>
+                        )}
+
+                        {/* 7.5 Risk Management */}
+                        {onUpdateBalance && onUpdateRiskSettings && riskSettings && (
+                            <div>
+                                <RiskManagementWidget
+                                    accountBalance={accountBalance}
+                                    balanceHistory={balanceHistory}
+                                    positionRisks={positionRisks}
+                                    highRiskPositions={highRiskPositions}
+                                    dailyLossAlert={dailyLossAlert ?? null}
+                                    riskSettings={riskSettings}
+                                    dailyPnL={dailyPnL}
+                                    onUpdateBalance={onUpdateBalance}
+                                    onUpdateRiskSettings={onUpdateRiskSettings}
+                                    darkMode={darkMode}
+                                />
+                            </div>
+                        )}
                     </div>
                 </div>
-            )}
+            </div>
 
-            {/* 3.7 Weekday Stats */}
-            {weekdayStats.length > 0 && (
-                <div className="scroll-mt-28">
-                    <WeekdayStatsChart data={weekdayStats} darkMode={darkMode} />
-                </div>
-            )}
-
-            {/* 3.8 Holding Period Stats */}
-            {holdingPeriodStats.length > 0 && (
-                <div className="scroll-mt-28">
-                    <HoldingPeriodChart data={holdingPeriodStats} darkMode={darkMode} />
-                </div>
-            )}
-
-            {/* 3.9 Monthly Goals & 3.10 Risk */}
-            {/* 3.9 Monthly Goals & 3.10 Risk */}
-            {onSetMonthlyGoal && onRemoveMonthlyGoal && (
-                <div id="section-goals" className="scroll-mt-48 mb-6">
-                    <MonthlyGoalsWidget
-                        goals={monthlyGoals}
-                        monthlyPnLPoints={monthlyRealizedPoints}
-                        onSetGoal={onSetMonthlyGoal}
-                        onRemoveGoal={onRemoveMonthlyGoal}
-                        darkMode={darkMode}
-                    />
-                </div>
-            )}
-
-            {onUpdateBalance && onUpdateRiskSettings && riskSettings && (
-                <div id="section-risk" className="scroll-mt-48 mb-6">
-                    <RiskManagementWidget
-                        accountBalance={accountBalance}
-                        balanceHistory={balanceHistory}
-                        positionRisks={positionRisks}
-                        highRiskPositions={highRiskPositions}
-                        dailyLossAlert={dailyLossAlert ?? null}
-                        riskSettings={riskSettings}
-                        dailyPnL={dailyPnL}
-                        onUpdateBalance={onUpdateBalance}
-                        onUpdateRiskSettings={onUpdateRiskSettings}
-                        darkMode={darkMode}
-                    />
-                </div>
-            )}
 
             <div id="section-symbols" className={cardBaseClass + ' p-6 scroll-mt-28'}>
                 <div className="flex items-center justify-between mb-4">
@@ -1009,7 +1037,7 @@ export function StatsDashboard({
                     </table>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
 

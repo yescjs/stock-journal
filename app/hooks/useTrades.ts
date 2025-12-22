@@ -216,35 +216,71 @@ export function useTrades(user: User | null) {
         }
     };
 
-    const updateTrade = async (date: string, trade: Trade) => {
-        // Note: date is passed for sorting if needed, but trade.date is also there.
-        // In this app, we usually update the trade object itself.
+    const updateTrade = async (id: string, data: Partial<Trade>, imageFile: File | null) => {
+        let imageUrl: string | null | undefined = data.image;
 
         try {
+            // 1. Image Upload / Processing
+            if (imageFile) {
+                if (user) {
+                    // Upload to Supabase Storage
+                    const fileExt = imageFile.name.split('.').pop()?.toLowerCase() || 'png';
+                    const fileName = `${Date.now()}.${fileExt}`;
+                    const filePath = `${user.id}/${fileName}`;
+
+                    const { error: uploadError } = await supabase.storage
+                        .from('trade-images')
+                        .upload(filePath, imageFile, {
+                            contentType: imageFile.type,
+                            upsert: false,
+                        });
+
+                    if (uploadError) {
+                        console.error('Image upload failed:', uploadError);
+                        throw new Error('이미지 업로드 실패');
+                    }
+
+                    const { data: publicUrlData } = supabase.storage
+                        .from('trade-images')
+                        .getPublicUrl(filePath);
+                    imageUrl = publicUrlData.publicUrl;
+                } else {
+                    // Guest: Convert to Base64
+                    imageUrl = await fileToDataUrl(imageFile);
+                }
+            }
+
+            // 2. Database Update
             if (user) {
                 const { error } = await supabase
                     .from('trades')
                     .update({
-                        date: trade.date,
-                        symbol: trade.symbol,
-                        symbol_name: trade.symbol_name || null,
-                        side: trade.side,
-                        price: trade.price,
-                        quantity: trade.quantity,
-                        memo: trade.memo,
-                        tags: trade.tags,
-                        image: trade.image,
-                        strategy_id: (trade.strategy_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trade.strategy_id)) ? trade.strategy_id : null,
-                        entry_reason: trade.entry_reason || null,
-                        exit_reason: trade.exit_reason || null,
-                        emotion_tag: trade.emotion_tag || null,
+                        date: data.date,
+                        symbol: data.symbol,
+                        symbol_name: data.symbol_name || null,
+                        side: data.side,
+                        price: data.price,
+                        quantity: data.quantity,
+                        memo: data.memo,
+                        tags: data.tags,
+                        image: imageUrl,
+                        strategy_id: (data.strategy_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.strategy_id)) ? data.strategy_id : null,
+                        entry_reason: data.entry_reason || null,
+                        exit_reason: data.exit_reason || null,
+                        emotion_tag: data.emotion_tag || null,
                     })
-                    .eq('id', trade.id)
+                    .eq('id', id)
                     .eq('user_id', user.id);
                 if (error) throw error;
             }
 
-            setTrades(prev => prev.map(t => (t.id === trade.id ? trade : t)));
+            // 3. Local State Update
+            setTrades(prev => prev.map(t => {
+                if (t.id === id) {
+                    return { ...t, ...data, image: imageUrl ?? undefined, id }; // Ensure ID is preserved
+                }
+                return t;
+            }));
         } catch (err) {
             console.error('Failed to update trade:', err);
             throw err;

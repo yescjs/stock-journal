@@ -201,7 +201,7 @@ export function TradeForm({
     // Glassmorphism Styles
     const inputBaseClass = `
         w-full ${isCompact ? 'px-3 py-2' : 'px-4 py-3'} text-sm font-bold rounded-xl outline-none transition-all
-        ${darkMode 
+        ${darkMode
             ? 'bg-slate-800/40 text-white placeholder-slate-500 border border-slate-700/50 focus:bg-slate-800 focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20'
             : 'bg-white/50 text-slate-900 placeholder-slate-400 border border-indigo-50/50 focus:bg-white focus:border-indigo-200 focus:ring-2 focus:ring-indigo-100 shadow-sm'}
     `;
@@ -311,151 +311,153 @@ export function TradeForm({
                     </div>
                 </div>
 
-                {/* Row 4: Tags */}
-                <div>
-                    <label className={labelClass}>태그 (쉼표로 구분)</label>
-                    <input
-                        type="text"
-                        name="tags"
-                        placeholder="예: #뇌동매매, #불타기"
-                        value={form.tags}
-                        onChange={handleChange}
-                        className={inputBaseClass}
-                    />
-                </div>
-
-                {/* Row 4.5: Strategy Selection */}
-                {strategies.length > 0 && (
-                    <div className="grid grid-cols-2 gap-3">
-                        <div>
-                            <label className={labelClass}>
-                                <Zap size={10} className="inline mr-1" /> 전략
-                            </label>
-                            <select
-                                name="strategy_id"
-                                value={form.strategy_id}
-                                onChange={handleChange}
-                                className={inputBaseClass + ' cursor-pointer appearance-none'}
-                            >
-                                <option value="">선택 안함</option>
-                                {strategies.map((s) => (
-                                    <option key={s.id} value={s.id}>
-                                        {s.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className={labelClass}>심리 상태</label>
-                            <select
-                                name="emotion_tag"
-                                value={form.emotion_tag}
-                                onChange={handleChange}
-                                className={inputBaseClass + ' cursor-pointer appearance-none'}
-                            >
-                                <option value="">선택 안함</option>
-                                {Object.entries(EMOTION_TAG_LABELS).map(([key, label]) => (
-                                    <option key={key} value={key}>
-                                        {label}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-                )}
-
                 {/* Advanced Options Toggle */}
-                {strategies.length > 0 && (
+                <div className="pt-2">
                     <button
                         type="button"
                         onClick={() => setShowAdvanced(!showAdvanced)}
-                        className={`w-full py-2 flex items-center justify-center gap-2 text-xs font-bold transition-all rounded-xl ${darkMode ? 'text-slate-500 hover:bg-slate-800' : 'text-slate-400 hover:bg-slate-100'}`}
+                        className={`w-full py-2.5 flex items-center justify-center gap-2 text-xs font-bold transition-all rounded-xl border ${darkMode ? 'bg-slate-900/40 border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-indigo-400' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200'}`}
                     >
                         <ChevronDown size={14} className={`transform transition-transform duration-300 ${showAdvanced ? 'rotate-180' : ''}`} />
-                        {showAdvanced ? '상세 입력 접기' : '복기 내용 추가하기 (진입/청산 사유)'}
+                        {showAdvanced ? '간단히 보기' : '태그/전략/메모 입력하기'}
                     </button>
-                )}
+                </div>
 
-                {/* Advanced Options */}
+                {/* Advanced Fields Section */}
                 {showAdvanced && (
-                    <div className="space-y-3 animate-fade-in p-1">
+                    <div className="space-y-4 animate-fade-in pt-1">
+                        {/* Tags */}
                         <div>
-                            <label className={labelClass}>진입 근거</label>
-                            <textarea
-                                name="entry_reason"
-                                placeholder="진입 시점의 판단 근거를 기록하세요."
-                                value={form.entry_reason}
+                            <label className={labelClass}>태그 (쉼표로 구분)</label>
+                            <input
+                                type="text"
+                                name="tags"
+                                placeholder="예: #뇌동매매, #불타기"
+                                value={form.tags}
                                 onChange={handleChange}
-                                className={inputBaseClass + ' min-h-[80px] resize-none leading-relaxed'}
-                                rows={2}
+                                className={inputBaseClass}
                             />
                         </div>
-                        <div>
-                            <label className={labelClass}>청산 근거</label>
-                            <textarea
-                                name="exit_reason"
-                                placeholder="청산 시점의 판단 또는 계획을 기록하세요."
-                                value={form.exit_reason}
-                                onChange={handleChange}
-                                className={inputBaseClass + ' min-h-[80px] resize-none leading-relaxed'}
-                                rows={2}
-                            />
-                        </div>
-                    </div>
-                )}
 
-
-                {/* Row 5: Memo & Image */}
-                <div className="grid grid-cols-12 gap-3">
-                    <div className="col-span-9">
-                        <label className={labelClass}>간단 메모</label>
-                        <textarea
-                            name="memo"
-                            placeholder="특이사항 메모..."
-                            value={form.memo}
-                            onChange={handleChange}
-                            className={inputBaseClass + ' min-h-[46px] resize-none leading-relaxed py-3'}
-                            rows={1}
-                        />
-                    </div>
-                    <div className="col-span-3">
-                        <label className={labelClass}>차트</label>
-                        <input
-                            ref={chartInputRef}
-                            type="file"
-                            accept="image/*"
-                            onChange={handleChartFileChange}
-                            className="hidden"
-                        />
-                        {!chartPreview ? (
-                            <button
-                                type="button"
-                                onClick={() => chartInputRef.current?.click()}
-                                className={`w-full h-[46px] rounded-xl flex items-center justify-center transition-all border border-dashed ${darkMode ? 'bg-slate-800/40 border-slate-700 hover:bg-slate-800 hover:border-slate-500 text-slate-500' : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-indigo-300 text-slate-400'}`}
-                            >
-                                <Camera size={18} />
-                            </button>
-                        ) : (
-                            <div className="relative w-full h-[46px] rounded-xl overflow-hidden group shadow-md cursor-pointer" onClick={() => chartInputRef.current?.click()}>
-                                <img src={chartPreview} alt="Preview" className="w-full h-full object-cover" />
-                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button
-                                        type="button"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setChartFile(null);
-                                            setChartPreview(null);
-                                            if (chartInputRef.current) chartInputRef.current.value = '';
-                                        }}
-                                        className="text-white text-[10px] font-bold uppercase tracking-wider bg-rose-500 px-2 py-1 rounded"
+                        {/* Strategy & Emotion */}
+                        {strategies.length > 0 && (
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className={labelClass}>
+                                        <Zap size={10} className="inline mr-1" /> 전략
+                                    </label>
+                                    <select
+                                        name="strategy_id"
+                                        value={form.strategy_id}
+                                        onChange={handleChange}
+                                        className={inputBaseClass + ' cursor-pointer appearance-none'}
                                     >
-                                        삭제
-                                    </button>
+                                        <option value="">선택 안함</option>
+                                        {strategies.map((s) => (
+                                            <option key={s.id} value={s.id}>
+                                                {s.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className={labelClass}>심리 상태</label>
+                                    <select
+                                        name="emotion_tag"
+                                        value={form.emotion_tag}
+                                        onChange={handleChange}
+                                        className={inputBaseClass + ' cursor-pointer appearance-none'}
+                                    >
+                                        <option value="">선택 안함</option>
+                                        {Object.entries(EMOTION_TAG_LABELS).map(([key, label]) => (
+                                            <option key={key} value={key}>
+                                                {label}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
                             </div>
                         )}
+
+                        {/* Reasons */}
+                        <div className="space-y-3">
+                            <div>
+                                <label className={labelClass}>진입 근거</label>
+                                <textarea
+                                    name="entry_reason"
+                                    placeholder="진입 시점의 판단 근거를 기록하세요."
+                                    value={form.entry_reason}
+                                    onChange={handleChange}
+                                    className={inputBaseClass + ' min-h-[60px] resize-none leading-relaxed'}
+                                    rows={2}
+                                />
+                            </div>
+                            <div>
+                                <label className={labelClass}>청산 근거</label>
+                                <textarea
+                                    name="exit_reason"
+                                    placeholder="청산 시점의 판단 또는 계획을 기록하세요."
+                                    value={form.exit_reason}
+                                    onChange={handleChange}
+                                    className={inputBaseClass + ' min-h-[60px] resize-none leading-relaxed'}
+                                    rows={2}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Memo & Image */}
+                        <div className="grid grid-cols-12 gap-3">
+                            <div className="col-span-9">
+                                <label className={labelClass}>간단 메모</label>
+                                <textarea
+                                    name="memo"
+                                    placeholder="특이사항 메모..."
+                                    value={form.memo}
+                                    onChange={handleChange}
+                                    className={inputBaseClass + ' min-h-[46px] resize-none leading-relaxed py-3'}
+                                    rows={1}
+                                />
+                            </div>
+                            <div className="col-span-3">
+                                <label className={labelClass}>차트</label>
+                                <input
+                                    ref={chartInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleChartFileChange}
+                                    className="hidden"
+                                />
+                                {!chartPreview ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => chartInputRef.current?.click()}
+                                        className={`w-full h-[46px] rounded-xl flex items-center justify-center transition-all border border-dashed ${darkMode ? 'bg-slate-800/40 border-slate-700 hover:bg-slate-800 hover:border-slate-500 text-slate-500' : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-indigo-300 text-slate-400'}`}
+                                    >
+                                        <Camera size={18} />
+                                    </button>
+                                ) : (
+                                    <div className="relative w-full h-[46px] rounded-xl overflow-hidden group shadow-md cursor-pointer" onClick={() => chartInputRef.current?.click()}>
+                                        <img src={chartPreview} alt="Preview" className="w-full h-full object-cover" />
+                                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setChartFile(null);
+                                                    setChartPreview(null);
+                                                    if (chartInputRef.current) chartInputRef.current.value = '';
+                                                }}
+                                                className="text-white text-[10px] font-bold uppercase tracking-wider bg-rose-500 px-2 py-1 rounded"
+                                            >
+                                                삭제
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
-                </div>
+                )}
 
                 <div className="pt-2">
                     <button
@@ -471,14 +473,14 @@ export function TradeForm({
                             `
                         }
                     >
-                                {isSubmitting ? (
-                                    <>저장 중...</>
-                                ) : (
-                                    <>
-                                        <Save size={18} strokeWidth={2.5} />
-                                        {initialData ? '수정 완료' : '기록 저장하기'}
-                                    </>
-                                )}
+                        {isSubmitting ? (
+                            <>저장 중...</>
+                        ) : (
+                            <>
+                                <Save size={18} strokeWidth={2.5} />
+                                {initialData ? '수정 완료' : '기록 저장하기'}
+                            </>
+                        )}
                     </button>
                 </div>
             </form>

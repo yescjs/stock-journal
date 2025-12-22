@@ -30,7 +30,7 @@ export const formatNumber = (n: number, forceDigits?: number) => {
 // 한국 주식 여부 판단 (심볼에 .KS 또는 .KQ 포함, 또는 숫자로만 구성)
 export const isKRWSymbol = (symbol: string): boolean => {
     if (!symbol) return false;
-    return symbol.includes('.KS') || symbol.includes('.KQ') || /^\d+$/.test(symbol);
+    return symbol === 'KRW' || symbol.includes('.KS') || symbol.includes('.KQ') || /^\d+$/.test(symbol);
 };
 
 

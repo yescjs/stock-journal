@@ -99,8 +99,8 @@ export function TradeList({
                         key={group.key}
                         className={`
                             rounded-3xl border overflow-hidden transition-all duration-300 glass-card
-                            ${darkMode 
-                                ? 'bg-slate-900/40 border-slate-700/50 hover:bg-slate-900/50' 
+                            ${darkMode
+                                ? 'bg-slate-900/40 border-slate-700/50 hover:bg-slate-900/50'
                                 : 'bg-white/60 border-white/60 shadow-sm hover:shadow-lg hover:bg-white/80'}
                         `}
                     >
@@ -182,17 +182,17 @@ export function TradeList({
 
                                                         {/* Symbol & Position & Tags */}
                                                         <td className="px-4 py-3">
-                                                            <div className="flex items-center gap-2 mb-1">
+                                                            <div className="flex items-start gap-2 mb-1">
                                                                 {/* Position Badge (Merged) */}
                                                                 <span className={`
-                                                                    px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wide border shadow-sm
+                                                                    mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wide border shadow-sm whitespace-nowrap shrink-0
                                                                     ${t.side === 'BUY'
                                                                         ? (darkMode ? 'bg-rose-500/10 border-rose-500/20 text-rose-400' : 'bg-white border-rose-100 text-rose-600')
                                                                         : (darkMode ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : 'bg-white border-blue-100 text-blue-600')}
                                                                 `}>
                                                                     {t.side === 'BUY' ? '매수' : '매도'}
                                                                 </span>
-                                                                
+
                                                                 <div className={`font-bold text-sm ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
                                                                     {t.symbol_name || t.symbol}
                                                                 </div>
@@ -214,8 +214,8 @@ export function TradeList({
                                                                     </span>
                                                                 )}
                                                                 {t.tags?.slice(0, 2).map(tag => (
-                                                                    <span 
-                                                                        key={tag} 
+                                                                    <span
+                                                                        key={tag}
                                                                         className="text-[9px] px-1.5 py-0.5 rounded font-bold text-white opacity-90"
                                                                         style={{ backgroundColor: tagColors[tag] || '#94a3b8' }}
                                                                     >
@@ -337,9 +337,9 @@ export function TradeList({
                                                                 </span>
                                                             ))}
                                                         </div>
-                                                        
+
                                                         {(t.entry_reason || t.exit_reason) && (
-                                                             <div className="flex flex-col gap-2 pt-1">
+                                                            <div className="flex flex-col gap-2 pt-1">
                                                                 {t.entry_reason && (
                                                                     <div className="flex gap-2">
                                                                         <span className="text-[10px] font-black text-slate-400 min-w-[30px] uppercase mt-0.5">In</span>
@@ -352,7 +352,7 @@ export function TradeList({
                                                                         <span className={`text-xs ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>{t.exit_reason}</span>
                                                                     </div>
                                                                 )}
-                                                             </div>
+                                                            </div>
                                                         )}
                                                     </div>
                                                 ) : null}
@@ -360,7 +360,7 @@ export function TradeList({
                                                 {/* Actions */}
                                                 <div className={`flex items-center justify-end gap-3 pt-2 border-t ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
                                                     {t.image && (
-                                                         <button
+                                                        <button
                                                             onClick={(e) => { e.stopPropagation(); onImagePreview?.(t.image!); }}
                                                             className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl transition-all ${darkMode ? 'bg-slate-700 text-slate-300' : 'bg-white border border-slate-200 text-slate-600'}`}
                                                         >
