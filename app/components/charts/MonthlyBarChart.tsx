@@ -11,57 +11,60 @@ interface MonthlyBarChartProps {
 }
 
 export function MonthlyBarChart({ data, darkMode, title }: MonthlyBarChartProps) {
+    // Custom Tooltip Component for Glassmorphism
+    const CustomTooltip = ({ active, payload, label }: any) => {
+        if (active && payload && payload.length) {
+            return (
+                <div className={`p-4 rounded-xl border backdrop-blur-md shadow-xl ${
+                    darkMode 
+                    ? 'bg-slate-900/80 border-slate-700 text-white' 
+                    : 'bg-white/80 border-white/50 text-slate-900'
+                }`}>
+                    <p className={`text-xs font-bold mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{label}</p>
+                    <p className={`text-sm font-black ${payload[0].value >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                        {payload[0].value >= 0 ? '+' : ''}{payload[0].value.toLocaleString()} 원
+                    </p>
+                </div>
+            );
+        }
+        return null;
+    };
+
     return (
         <div className="w-full h-[300px]">
-            <h3 className={`text-sm font-bold mb-4 ${darkMode ? 'text-slate-200' : 'text-slate-700'}`}>
-                {title || '월별 순손익 (Monthly Net Profit)'}
-            </h3>
+            {title && (
+                <h3 className={`text-sm font-bold mb-4 ${darkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                    {title}
+                </h3>
+            )}
             <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={darkMode ? '#334155' : '#e2e8f0'} />
+                <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={darkMode ? '#334155' : '#e2e8f0'} opacity={0.5} />
                     <XAxis
                         dataKey="label"
                         stroke={darkMode ? '#94a3b8' : '#64748b'}
-                        tick={{ fontSize: 12 }}
+                        tick={{ fontSize: 11, fontWeight: 600 }}
                         tickLine={false}
                         axisLine={false}
+                        dy={10}
                     />
                     <YAxis
                         stroke={darkMode ? '#94a3b8' : '#64748b'}
-                        tick={{ fontSize: 12 }}
+                        tick={{ fontSize: 11, fontWeight: 600 }}
                         tickLine={false}
                         axisLine={false}
-                        tickFormatter={(val) => `${val / 1000}k`}
+                        tickFormatter={(val) => `${(val / 10000).toFixed(0)}만`}
                     />
-                    <Tooltip
-                        cursor={{ fill: darkMode ? '#ffffff10' : '#00000005' }}
-                        contentStyle={{
-                            backgroundColor: darkMode ? '#1e293b' : '#fff',
-                            borderColor: darkMode ? '#334155' : '#e2e8f0',
-                            borderRadius: '12px',
-                            color: darkMode ? '#fff' : '#000',
-                            padding: '12px 16px',
-                            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)'
-                        }}
-                        itemStyle={{
-                            fontSize: '14px',
-                            fontWeight: 'bold',
-                            padding: 0
-                        }}
-                        labelStyle={{
-                            fontSize: '12px',
-                            color: darkMode ? '#94a3b8' : '#64748b',
-                            marginBottom: '4px'
-                        }}
-                        formatter={(val: number | undefined) => [
-                            (val ?? 0).toLocaleString() + ' 원',
-                            '손익'
-                        ]}
-                        labelFormatter={(label) => `${label}`}
-                    />
-                    <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                    <Tooltip content={<CustomTooltip />} cursor={{ fill: darkMode ? '#ffffff05' : '#00000005', radius: 4 }} />
+                    <Bar dataKey="value" radius={[6, 6, 6, 6]}>
                         {data.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.value >= 0 ? '#22c55e' : '#ef4444'} />
+                            <Cell 
+                                key={`cell-${index}`} 
+                                fill={entry.value >= 0 ? '#10b981' : '#f43f5e'} 
+                                fillOpacity={0.8}
+                                stroke={entry.value >= 0 ? '#059669' : '#e11d48'}
+                                strokeWidth={2}
+                            />
                         ))}
                     </Bar>
                 </BarChart>

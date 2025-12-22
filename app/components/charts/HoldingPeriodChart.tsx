@@ -57,7 +57,7 @@ export function HoldingPeriodChart({ data, darkMode }: HoldingPeriodChartProps) 
             </div>
 
             {/* Periods Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                 {data.map((period) => {
                     const isBest = bestPeriod && period.period === bestPeriod.period && period.winRate > 50;
                     const isPositive = period.totalPnL >= 0;
@@ -66,69 +66,50 @@ export function HoldingPeriodChart({ data, darkMode }: HoldingPeriodChartProps) 
                         <div
                             key={period.periodKey}
                             className={
-                                'rounded-xl p-4 transition-all ' +
+                                'rounded-xl p-2.5 transition-all ' +
                                 (isBest
-                                    ? (darkMode ? 'bg-emerald-500/20 ring-2 ring-emerald-500/50' : 'bg-emerald-50 ring-2 ring-emerald-300')
+                                    ? (darkMode ? 'bg-emerald-500/20 ring-1 ring-emerald-500/50' : 'bg-emerald-50 ring-1 ring-emerald-300')
                                     : (darkMode ? 'bg-slate-800/50 hover:bg-slate-800' : 'bg-slate-50 hover:bg-slate-100'))
                             }
                         >
                             {/* Period Name */}
-                            <div className={'text-sm font-black mb-3 ' + (darkMode ? 'text-slate-100' : 'text-slate-900')}>
+                            <div className={'text-xs font-black mb-2 text-center ' + (darkMode ? 'text-slate-100' : 'text-slate-900')}>
                                 {period.period}
                             </div>
 
                             {/* Stats */}
-                            <div className="space-y-2">
+                            <div className="space-y-1.5">
                                 <div className="flex justify-between items-center">
-                                    <span className={labelClass}>거래 수</span>
-                                    <span className={'text-sm font-bold ' + (darkMode ? 'text-slate-200' : 'text-slate-700')}>
+                                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">거래</span>
+                                    <span className={'text-xs font-bold ' + (darkMode ? 'text-slate-200' : 'text-slate-700')}>
                                         {period.tradeCount}
                                     </span>
                                 </div>
 
                                 <div className="flex justify-between items-center">
-                                    <span className={labelClass}>승률</span>
-                                    <span className={`text-sm font-bold ${period.winRate >= 50 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">승률</span>
+                                    <span className={`text-xs font-bold ${period.winRate >= 50 ? 'text-emerald-500' : 'text-rose-500'}`}>
                                         {period.winRate.toFixed(0)}%
                                     </span>
                                 </div>
 
                                 {/* Win Rate Bar */}
-                                <div className="h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                                <div className="h-1 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
                                     <div
                                         className={`h-full rounded-full transition-all ${period.winRate >= 50 ? 'bg-emerald-500' : 'bg-rose-500'}`}
                                         style={{ width: `${Math.min(100, period.winRate)}%` }}
                                     />
                                 </div>
 
-                                <div className="flex justify-between items-center pt-2 border-t border-slate-200 dark:border-slate-700">
-                                    <span className={labelClass}>총 손익</span>
+                                <div className="flex justify-between items-center pt-1.5 border-t border-slate-200 dark:border-slate-700">
+                                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">손익</span>
                                     <span className={
-                                        'text-sm font-bold tabular-nums ' +
+                                        'text-[10px] font-bold tabular-nums ' +
                                         (isPositive ? 'text-emerald-500' : 'text-rose-500')
                                     }>
                                         {isPositive ? '+' : ''}{formatNumber(period.totalPnL)}
                                     </span>
                                 </div>
-
-                                <div className="flex justify-between items-center">
-                                    <span className={labelClass}>평균 손익</span>
-                                    <span className={
-                                        'text-xs font-semibold tabular-nums ' +
-                                        (period.avgPnL >= 0 ? 'text-emerald-500' : 'text-rose-500')
-                                    }>
-                                        {period.avgPnL >= 0 ? '+' : ''}{formatNumber(period.avgPnL)}
-                                    </span>
-                                </div>
-
-                                {period.avgHoldingDays > 0 && (
-                                    <div className="flex justify-between items-center">
-                                        <span className={labelClass}>평균 보유</span>
-                                        <span className={'text-xs font-semibold ' + (darkMode ? 'text-slate-300' : 'text-slate-600')}>
-                                            {period.avgHoldingDays.toFixed(1)}일
-                                        </span>
-                                    </div>
-                                )}
                             </div>
                         </div>
                     );

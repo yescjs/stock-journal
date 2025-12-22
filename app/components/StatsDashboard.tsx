@@ -112,14 +112,42 @@ export function StatsDashboard({
         }
     };
 
+    const [activeSection, setActiveSection] = useState<string>('section-summary');
+
     const NAV_ITEMS = [
         { id: 'section-summary', label: '요약' },
         { id: 'section-monthly', label: '월별/일별' },
         { id: 'section-equity', label: '수익 곡선' },
         { id: 'section-insights', label: '인사이트' },
-        { id: 'section-strategies', label: '전략' },
+        { id: 'section-goals', label: '목표' },
+        { id: 'section-risk', label: '리스크' },
         { id: 'section-symbols', label: '종목' },
     ];
+
+    // ScrollSpy Implementation
+    useEffect(() => {
+        const observerOptions = {
+            root: null,
+            rootMargin: '-100px 0px -70% 0px', // Adjust trigger point
+            threshold: 0
+        };
+
+        const observerCallback = (entries: IntersectionObserverEntry[]) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    setActiveSection(entry.target.id);
+                }
+            });
+        };
+
+        const observer = new IntersectionObserver(observerCallback, observerOptions);
+        NAV_ITEMS.forEach(item => {
+            const element = document.getElementById(item.id);
+            if (element) observer.observe(element);
+        });
+
+        return () => observer.disconnect();
+    }, []);
 
     const [symbolSort, setSymbolSort] = useState<{
         key: SymbolSortKey;
@@ -370,14 +398,17 @@ export function StatsDashboard({
                     <div className="flex items-center gap-1">
                         {NAV_ITEMS.map((item) => (
                             <button
-                                key={item.id}
-                                onClick={() => scrollToSection(item.id)}
-                                className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${darkMode
-                                    ? 'text-slate-400 hover:text-white hover:bg-slate-800/80 active:bg-slate-800'
-                                    : 'text-slate-500 hover:text-indigo-600 hover:bg-slate-100 active:bg-slate-200'
-                                    }`}
-                            >
-                                {item.label}
+                                    key={item.id}
+                                    onClick={() => scrollToSection(item.id)}
+                                    className={`
+                                        whitespace-nowrap px-4 py-2 rounded-xl text-sm font-bold transition-all
+                                        ${activeSection === item.id
+                                            ? (darkMode ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30 scale-105' : 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 scale-105')
+                                            : (darkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100')
+                                        }
+                                    `}
+                                >
+                                    {item.label}
                             </button>
                         ))}
                     </div>
@@ -420,49 +451,110 @@ export function StatsDashboard({
                 </div>
             </div>
 
-            {/* 2. Compact Summary Section */}
+            {/* 2. Compact Summary Section (Bento Grid Redesign) */}
             <div id="section-summary" className="scroll-mt-48 mb-6">
-                <div className={`rounded-3xl p-8 border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-gradient-to-br from-indigo-50/30 to-white border-indigo-50 shadow-sm'}`}>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
-                        <div className="flex flex-col items-center text-center">
-                            <span className={`text-[10px] font-bold uppercase tracking-widest mb-2 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                                총 손익 (TOTAL PNL)
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* Total PnL - Hero Card */}
+                    <div className={`col-span-1 md:col-span-2 row-span-2 rounded-3xl p-8 flex flex-col justify-between relative overflow-hidden transition-all ${
+                        darkMode 
+                        ? 'bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-slate-800' 
+                        : 'bg-white border border-slate-200 shadow-sm'
+                    }`}>
+                        <div className="absolute top-0 right-0 p-8 opacity-10">
+                            <Wallet size={120} />
+                        </div>
+                        <div>
+                            <span className={`text-xs font-black uppercase tracking-widest ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                                TOTAL PNL
                             </span>
-                            <div className={`text-3xl lg:text-4xl font-black tracking-tight ${overallStats.totalPnL > 0 ? 'text-emerald-500' : overallStats.totalPnL < 0 ? 'text-rose-500' : (darkMode ? 'text-slate-200' : 'text-slate-700')}`}>
+                            <h3 className={`text-lg font-bold mt-1 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                                총 실현 손익
+                            </h3>
+                        </div>
+                        <div className="mt-8">
+                            <div className={`text-5xl lg:text-6xl font-black tracking-tighter ${
+                                overallStats.totalPnL > 0 ? 'text-emerald-500' : overallStats.totalPnL < 0 ? 'text-rose-500' : (darkMode ? 'text-slate-200' : 'text-slate-700')
+                            }`}>
                                 {overallStats.totalPnL > 0 ? '+' : ''}{formatNumber(overallStats.totalPnL)}
-                                <span className="text-lg font-bold ml-1 opacity-60">원</span>
+                                <span className="text-2xl font-bold ml-2 opacity-50">원</span>
                             </div>
                         </div>
+                    </div>
 
-                        <div className="flex flex-col items-center text-center">
-                            <span className={`text-[10px] font-bold uppercase tracking-widest mb-2 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                                승률 (WIN RATE)
-                            </span>
-                            <div className={`text-3xl lg:text-4xl font-black tracking-tight ${overallStats.winRate >= 50 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                {overallStats.winRate.toFixed(2)}
-                                <span className="text-lg font-bold ml-1 opacity-60">%</span>
+                    {/* Win Rate */}
+                    <div className={`rounded-3xl p-6 flex flex-col justify-between border transition-all ${
+                        darkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-800/50' : 'bg-white border-slate-200 hover:shadow-md'
+                    }`}>
+                        <div className="flex items-center justify-between mb-4">
+                            <div className={`p-2 rounded-xl ${darkMode ? 'bg-indigo-500/20 text-indigo-400' : 'bg-indigo-50 text-indigo-600'}`}>
+                                <Target size={20} />
                             </div>
+                            <span className={`text-xs font-bold ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>WIN RATE</span>
                         </div>
+                        <div>
+                            <div className={`text-3xl font-black ${overallStats.winRate >= 50 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                {overallStats.winRate.toFixed(1)}%
+                            </div>
+                            <p className={`text-xs mt-1 font-medium ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>승률</p>
+                        </div>
+                    </div>
 
-                        <div className="flex flex-col items-center text-center">
-                            <span className={`text-[10px] font-bold uppercase tracking-widest mb-2 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                                손익비 (PROFIT FACTOR)
-                            </span>
-                            <div className={`text-3xl lg:text-4xl font-black tracking-tight ${overallStats.profitFactor >= 1.5 ? 'text-emerald-500' : overallStats.profitFactor >= 1 ? (darkMode ? 'text-slate-200' : 'text-slate-700') : 'text-rose-500'}`}>
+                    {/* Profit Factor */}
+                    <div className={`rounded-3xl p-6 flex flex-col justify-between border transition-all ${
+                        darkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-800/50' : 'bg-white border-slate-200 hover:shadow-md'
+                    }`}>
+                        <div className="flex items-center justify-between mb-4">
+                             <div className={`p-2 rounded-xl ${darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>
+                                <TrendingUp size={20} />
+                            </div>
+                            <span className={`text-xs font-bold ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>PF</span>
+                        </div>
+                        <div>
+                            <div className={`text-3xl font-black ${
+                                overallStats.profitFactor >= 2.0 ? 'text-emerald-500' : overallStats.profitFactor >= 1 ? (darkMode ? 'text-blue-400' : 'text-blue-600') : 'text-rose-500'
+                            }`}>
                                 {overallStats.profitFactor.toFixed(2)}
                             </div>
+                            <p className={`text-xs mt-1 font-medium ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>손익비</p>
                         </div>
+                    </div>
 
-                        <div className="flex flex-col items-center text-center">
-                            <span className={`text-[10px] font-bold uppercase tracking-widest mb-2 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                                현재 연승/연패
-                            </span>
-                            <div className={`text-3xl lg:text-4xl font-black tracking-tight ${overallStats.currentStreak > 0 ? 'text-emerald-500' : overallStats.currentStreak < 0 ? 'text-rose-500' : (darkMode ? 'text-slate-200' : 'text-slate-700')}`}>
-                                {Math.abs(overallStats.currentStreak).toFixed(0)}
-                                <span className="text-lg font-bold ml-1 opacity-60">
+                    {/* Streak */}
+                     <div className={`rounded-3xl p-6 flex flex-col justify-between border transition-all ${
+                        darkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-800/50' : 'bg-white border-slate-200 hover:shadow-md'
+                    }`}>
+                        <div className="flex items-center justify-between mb-4">
+                             <div className={`p-2 rounded-xl ${darkMode ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-50 text-purple-600'}`}>
+                                <Zap size={20} />
+                            </div>
+                            <span className={`text-xs font-bold ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>STREAK</span>
+                        </div>
+                        <div>
+                            <div className={`text-3xl font-black ${overallStats.currentStreak > 0 ? 'text-emerald-500' : overallStats.currentStreak < 0 ? 'text-rose-500' : (darkMode ? 'text-slate-400' : 'text-slate-600')}`}>
+                                {Math.abs(overallStats.currentStreak)}
+                                <span className="text-sm font-bold ml-1 text-slate-500">
                                     {overallStats.currentStreak > 0 ? "연승" : "연패"}
                                 </span>
                             </div>
+                             <p className={`text-xs mt-1 font-medium ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>현재 연속 기록</p>
+                        </div>
+                    </div>
+
+                    {/* Trade Count (New Addition for Bento filler) */}
+                    <div className={`rounded-3xl p-6 flex flex-col justify-between border transition-all ${
+                        darkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-800/50' : 'bg-white border-slate-200 hover:shadow-md'
+                    }`}>
+                        <div className="flex items-center justify-between mb-4">
+                             <div className={`p-2 rounded-xl ${darkMode ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-50 text-amber-600'}`}>
+                                <Activity size={20} />
+                            </div>
+                            <span className={`text-xs font-bold ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>TRADES</span>
+                        </div>
+                        <div>
+                             <div className={`text-3xl font-black ${darkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                                {overallStats.totalTrades || 0}
+                            </div>
+                             <p className={`text-xs mt-1 font-medium ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>총 매매 횟수</p>
                         </div>
                     </div>
                 </div>
@@ -686,29 +778,34 @@ export function StatsDashboard({
             )}
 
             {/* 3.9 Monthly Goals & 3.10 Risk */}
+            {/* 3.9 Monthly Goals & 3.10 Risk */}
             {onSetMonthlyGoal && onRemoveMonthlyGoal && (
-                <MonthlyGoalsWidget
-                    goals={monthlyGoals}
-                    monthlyPnLPoints={monthlyRealizedPoints}
-                    onSetGoal={onSetMonthlyGoal}
-                    onRemoveGoal={onRemoveMonthlyGoal}
-                    darkMode={darkMode}
-                />
+                <div id="section-goals" className="scroll-mt-48 mb-6">
+                    <MonthlyGoalsWidget
+                        goals={monthlyGoals}
+                        monthlyPnLPoints={monthlyRealizedPoints}
+                        onSetGoal={onSetMonthlyGoal}
+                        onRemoveGoal={onRemoveMonthlyGoal}
+                        darkMode={darkMode}
+                    />
+                </div>
             )}
 
             {onUpdateBalance && onUpdateRiskSettings && riskSettings && (
-                <RiskManagementWidget
-                    accountBalance={accountBalance}
-                    balanceHistory={balanceHistory}
-                    positionRisks={positionRisks}
-                    highRiskPositions={highRiskPositions}
-                    dailyLossAlert={dailyLossAlert ?? null}
-                    riskSettings={riskSettings}
-                    dailyPnL={dailyPnL}
-                    onUpdateBalance={onUpdateBalance}
-                    onUpdateRiskSettings={onUpdateRiskSettings}
-                    darkMode={darkMode}
-                />
+                <div id="section-risk" className="scroll-mt-48 mb-6">
+                    <RiskManagementWidget
+                        accountBalance={accountBalance}
+                        balanceHistory={balanceHistory}
+                        positionRisks={positionRisks}
+                        highRiskPositions={highRiskPositions}
+                        dailyLossAlert={dailyLossAlert ?? null}
+                        riskSettings={riskSettings}
+                        dailyPnL={dailyPnL}
+                        onUpdateBalance={onUpdateBalance}
+                        onUpdateRiskSettings={onUpdateRiskSettings}
+                        darkMode={darkMode}
+                    />
+                </div>
             )}
 
             <div id="section-symbols" className={cardBaseClass + ' p-6 scroll-mt-28'}>

@@ -7,6 +7,7 @@ import { Search, Loader2, TrendingUp } from 'lucide-react';
 
 interface StockSymbolInputProps {
     value: string;
+    initialDisplayName?: string;
     onChange: (symbol: string, symbolName?: string) => void;
     darkMode: boolean;
     placeholder?: string;
@@ -15,28 +16,39 @@ interface StockSymbolInputProps {
 
 export function StockSymbolInput({
     value,
+    initialDisplayName,
     onChange,
     darkMode,
     placeholder = '종목명 또는 코드 검색 (예: 삼성전자, AAPL)',
     disabled = false
 }: StockSymbolInputProps) {
-    const [query, setQuery] = useState(value);
+    const [query, setQuery] = useState(initialDisplayName || value);
     const [results, setResults] = useState<StockSearchResult[]>([]);
     const [isOpen, setIsOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(-1);
-    const [isSelected, setIsSelected] = useState(false); // 종목 선택 완료 여부
+    const [isSelected, setIsSelected] = useState(!!initialDisplayName); // 이름이 있으면 선택된 것으로 간주
 
     const wrapperRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
     const debouncedQuery = useDebounce(query, 300);
 
+    // Update query if initialDisplayName changes (e.g. when loading data)
+    useEffect(() => {
+        if (initialDisplayName) {
+            setQuery(initialDisplayName);
+            setIsSelected(true);
+        } else if (value && !query) {
+             setQuery(value);
+        }
+    }, [initialDisplayName, value]);
+
     // Search API call - combines local Korean search + Yahoo Finance API
     useEffect(() => {
         const searchStocks = async () => {
-            // 선택 완료 상태면 검색 건너뛰기
-            if (isSelected) {
+            // 선택 완료 상태거나 비활성화 상태면 검색 건너뛰기
+            if (isSelected || disabled) {
                 return;
             }
 
@@ -163,7 +175,7 @@ export function StockSymbolInput({
             <div className="relative">
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
                     {loading ? (
-                        <Loader2 className={`w-4 h-4 animate-spin ${darkMode ? 'text-slate-400' : 'text-slate-500'}`} />
+                        <Loader2 className={`w-4 h-4 animate-spin ${darkMode ? 'text-indigo-400' : 'text-indigo-500'}`} />
                     ) : (
                         <Search className={`w-4 h-4 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`} />
                     )}
@@ -179,10 +191,11 @@ export function StockSymbolInput({
                     }}
                     placeholder={placeholder}
                     disabled={disabled}
-                    className={`w-full pl-10 pr-3 py-2 rounded-xl text-sm font-medium outline-none transition-all ${darkMode
-                        ? 'bg-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500'
-                        : 'bg-slate-100 text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-indigo-500'
-                        } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className={`w-full ${disabled ? 'px-3 py-2 bg-slate-100 text-slate-500 cursor-not-allowed' : 'pl-10 pr-3 py-3'} text-sm font-bold rounded-xl outline-none transition-all border ${
+                        darkMode
+                        ? (disabled ? 'bg-slate-800/50 text-slate-500 border-slate-700/50' : 'bg-slate-800/40 text-white placeholder-slate-500 border-slate-700/50 focus:bg-slate-800 focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20')
+                        : (disabled ? 'bg-slate-100 text-slate-500 border-slate-200' : 'bg-white/50 text-slate-900 placeholder-slate-400 border-indigo-50/50 focus:bg-white focus:border-indigo-200 focus:ring-2 focus:ring-indigo-100 shadow-sm')
+                    }`}
                     aria-label="종목 검색"
                     aria-autocomplete="list"
                     aria-controls="stock-search-results"
@@ -195,10 +208,13 @@ export function StockSymbolInput({
                 <div
                     id="stock-search-results"
                     role="listbox"
-                    className={`absolute z-50 w-full mt-2 rounded-xl border shadow-xl max-h-64 overflow-y-auto ${darkMode
-                        ? 'bg-slate-800 border-slate-700'
-                        : 'bg-white border-slate-200'
-                        }`}
+                    className={`
+                        absolute z-50 w-full mt-2 rounded-xl shadow-xl max-h-64 overflow-y-auto border backdrop-blur-md animate-in fade-in zoom-in-95 duration-200
+                        ${darkMode
+                            ? 'bg-slate-900/90 border-slate-700'
+                            : 'bg-white/90 border-slate-200'
+                        }
+                    `}
                 >
                     {results.map((result, index) => (
                         <button
@@ -207,27 +223,27 @@ export function StockSymbolInput({
                             aria-selected={index === selectedIndex}
                             onClick={() => selectResult(result)}
                             onMouseEnter={() => setSelectedIndex(index)}
-                            className={`w-full px-4 py-3 text-left flex items-center gap-3 transition-colors ${index === selectedIndex
-                                ? darkMode
-                                    ? 'bg-indigo-600/20 text-white'
-                                    : 'bg-indigo-50 text-indigo-900'
-                                : darkMode
-                                    ? 'text-slate-200 hover:bg-slate-700/50'
-                                    : 'text-slate-900 hover:bg-slate-50'
-                                } ${index !== results.length - 1 ? 'border-b border-slate-700/50' : ''}`}
+                            className={`
+                                w-full px-4 py-3 text-left flex items-center gap-3 transition-colors
+                                ${index === selectedIndex
+                                    ? darkMode
+                                        ? 'bg-indigo-600/20 text-white'
+                                        : 'bg-indigo-50 text-indigo-900'
+                                    : darkMode
+                                        ? 'text-slate-200 hover:bg-slate-800/50'
+                                        : 'text-slate-900 hover:bg-slate-50'
+                                }
+                                ${index !== results.length - 1 ? (darkMode ? 'border-b border-slate-800' : 'border-b border-slate-100') : ''}
+                            `}
                         >
-                            <TrendingUp className={`w-4 h-4 flex-shrink-0 ${index === selectedIndex
-                                ? 'text-indigo-500'
-                                : darkMode
-                                    ? 'text-slate-400'
-                                    : 'text-slate-500'
-                                }`} />
+                            <div className={`p-1.5 rounded-lg ${index === selectedIndex ? 'bg-indigo-500/20 text-indigo-500' : (darkMode ? 'bg-slate-800 text-slate-500' : 'bg-slate-100 text-slate-400')}`}>
+                                <TrendingUp size={14} />
+                            </div>
                             <div className="flex-1 min-w-0">
                                 <div className="font-bold text-sm truncate">
                                     {result.name}
                                 </div>
-                                <div className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'
-                                    }`}>
+                                <div className="text-xs opacity-60 font-medium">
                                     {result.symbol} · {result.exchange}
                                 </div>
                             </div>
@@ -239,14 +255,19 @@ export function StockSymbolInput({
             {/* No Results */}
             {isOpen && !loading && results.length === 0 && debouncedQuery && (
                 <div
-                    className={`absolute z-50 w-full mt-2 rounded-xl border shadow-xl p-4 text-center ${darkMode
-                        ? 'bg-slate-800 border-slate-700 text-slate-400'
-                        : 'bg-white border-slate-200 text-slate-500'
-                        }`}
+                    className={`
+                        absolute z-50 w-full mt-2 rounded-xl border shadow-xl p-6 text-center backdrop-blur-md
+                        ${darkMode
+                            ? 'bg-slate-900/90 border-slate-700 text-slate-400'
+                            : 'bg-white/90 border-slate-200 text-slate-500'
+                        }
+                    `}
                 >
-                    <Search className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">'{debouncedQuery}'에 대한 검색 결과가 없습니다</p>
-                    <p className="text-xs mt-1">종목명 또는 종목 코드를 입력해주세요</p>
+                    <div className="w-12 h-12 mx-auto mb-2 rounded-xl flex items-center justify-center bg-slate-100 dark:bg-slate-800">
+                        <Search className="w-6 h-6 opacity-50" />
+                    </div>
+                    <p className="text-sm font-bold">'{debouncedQuery}' 검색 결과 없음</p>
+                    <p className="text-xs mt-1 opacity-70">종목명 또는 종목 코드를 다시 확인해주세요</p>
                 </div>
             )}
         </div>

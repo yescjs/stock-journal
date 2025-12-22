@@ -1,7 +1,7 @@
 import React from 'react';
 import { User } from '@supabase/supabase-js';
 import { ActiveTab } from '@/app/types/ui';
-import { Sun, Moon, LogOut, LogIn } from 'lucide-react';
+import { Sun, Moon, LogOut, LogIn, TrendingUp } from 'lucide-react';
 
 interface HeaderProps {
     darkMode: boolean;
@@ -24,160 +24,129 @@ export function Header({
 }: HeaderProps) {
     const tabs: { id: ActiveTab; label: string; icon: string }[] = [
         { id: 'journal', label: '매매일지', icon: '📝' },
+        { id: 'diary', label: '시장복기', icon: '📖' },
         { id: 'stats', label: '통계', icon: '📊' },
         { id: 'settings', label: '설정', icon: '⚙️' },
     ];
 
     return (
-        <div className="sticky top-0 z-30 pb-4">
-            <header
-                className={
-                    'rounded-2xl border backdrop-blur-xl px-5 py-4 transition-all duration-300 ' +
-                    (darkMode
-                        ? 'bg-slate-900/90 border-slate-800 shadow-lg shadow-slate-900/20'
-                        : 'bg-white/90 border-slate-200 shadow-lg shadow-slate-200/50')
-                }
-            >
+        <div className="sticky top-4 z-40 mb-6">
+            <header className={`rounded-2xl glass-panel px-6 py-4 transition-all duration-300 ${darkMode ? 'bg-slate-900/80 border-slate-700/50' : 'bg-white/80 border-white/50'}`}>
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    {/* Brand & User Status */}
+                    
+                    {/* Brand & Identity */}
                     <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            {/* Logo Icon */}
-                            <div className={
-                                'w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white shadow-lg ' +
-                                'bg-gradient-to-br from-indigo-500 to-indigo-600'
-                            }>
-                                <span className="text-lg">📈</span>
+                        <div className="flex items-center gap-4 group cursor-default">
+                            {/* Logo Icon with Gradient & Glow */}
+                            <div className="relative">
+                                <div className="absolute inset-0 bg-indigo-500 blur-lg opacity-20 group-hover:opacity-40 transition-opacity rounded-full"></div>
+                                <div className="relative w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-white shadow-xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-600 transform group-hover:scale-105 transition-transform duration-300">
+                                    <TrendingUp size={24} strokeWidth={2.5} />
+                                </div>
                             </div>
+                            
                             <div>
-                                <h1 className="text-lg md:text-xl font-extrabold tracking-tight flex items-center gap-1.5">
-                                    <span className={darkMode ? 'text-indigo-400' : 'text-indigo-600'}>
+                                <h1 className="text-xl md:text-2xl font-black tracking-tight flex items-center gap-1.5 font-sans">
+                                    <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-indigo-600 dark:from-indigo-400 dark:to-indigo-300">
                                         Stock
                                     </span>
                                     <span className={darkMode ? 'text-slate-100' : 'text-slate-900'}>
                                         Journal
                                     </span>
                                 </h1>
-                                <p className="text-[10px] md:text-xs font-medium mt-0.5">
+                                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5 mt-0.5">
                                     {currentUser ? (
-                                        <span className="flex items-center gap-1.5 text-emerald-500">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                            {currentUser.email?.split('@')[0]}
-                                        </span>
+                                        <>
+                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"></span>
+                                            PRO TRADER
+                                        </>
                                     ) : (
-                                        <span className="flex items-center gap-1.5 text-amber-500">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                                            게스트 모드
-                                        </span>
+                                        <>
+                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"></span>
+                                            GUEST MODE
+                                        </>
                                     )}
                                 </p>
                             </div>
                         </div>
 
-                        {/* Mobile: Controls */}
+                        {/* Mobile Controls */}
                         <div className="flex md:hidden items-center gap-2">
-                            <button
+                             <button
                                 onClick={() => setDarkMode(!darkMode)}
-                                className={
-                                    'p-2.5 rounded-xl transition-all duration-200 btn-press ' +
-                                    (darkMode
-                                        ? 'bg-slate-800 hover:bg-slate-700 text-yellow-400'
-                                        : 'bg-slate-100 hover:bg-slate-200 text-slate-600')
-                                }
+                                className={`p-2.5 rounded-xl transition-all active:scale-95 ${
+                                    darkMode ? 'bg-slate-800 text-yellow-400' : 'bg-slate-100 text-slate-600'
+                                }`}
                             >
                                 {darkMode ? <Sun size={18} /> : <Moon size={18} />}
                             </button>
-                            {currentUser ? (
-                                <button
-                                    onClick={onLogout}
-                                    className={
-                                        'p-2.5 rounded-xl transition-all duration-200 btn-press ' +
-                                        (darkMode
-                                            ? 'text-slate-400 hover:text-rose-400 hover:bg-rose-500/10'
-                                            : 'text-slate-500 hover:text-rose-500 hover:bg-rose-50')
-                                    }
-                                >
-                                    <LogOut size={18} />
-                                </button>
-                            ) : (
-                                <button
-                                    onClick={onShowLogin}
-                                    className="px-4 py-2 text-xs font-bold bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl hover:from-indigo-600 hover:to-indigo-700 transition-all shadow-lg shadow-indigo-500/25 btn-press"
-                                >
-                                    로그인
-                                </button>
-                            )}
                         </div>
                     </div>
 
-                    {/* Navigation Tabs */}
-                    <nav className="flex items-center justify-center">
-                        <div
-                            className={
-                                'flex p-1.5 rounded-2xl w-full md:w-auto gap-1 ' +
-                                (darkMode ? 'bg-slate-800/60' : 'bg-slate-100/80')
-                            }
-                        >
+                    {/* Navigation Tabs - Floating Island Style */}
+                    <nav className="flex-1 max-w-lg mx-auto md:mx-0">
+                        <div className={`flex p-1.5 rounded-2xl w-full gap-1 shadow-inner ${darkMode ? 'bg-slate-950/50' : 'bg-slate-100/80'}`}>
                             {tabs.map((tab) => {
                                 const isActive = activeTab === tab.id;
                                 return (
                                     <button
                                         key={tab.id}
                                         onClick={() => setActiveTab(tab.id)}
-                                        className={
-                                            'flex-1 md:flex-none flex items-center justify-center gap-2 px-5 md:px-6 py-2.5 text-xs md:text-sm font-bold rounded-xl transition-all duration-200 btn-press ' +
-                                            (isActive
-                                                ? darkMode
-                                                    ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-lg shadow-indigo-500/30'
-                                                    : 'bg-white text-indigo-600 shadow-md'
-                                                : darkMode
-                                                    ? 'text-slate-400 hover:text-white hover:bg-slate-700/50'
-                                                    : 'text-slate-500 hover:text-slate-900 hover:bg-white/50')
-                                        }
+                                        className={`
+                                            relative flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-xs md:text-sm font-bold rounded-xl transition-all duration-300
+                                            ${isActive 
+                                                ? (darkMode 
+                                                    ? 'bg-slate-800 text-white shadow-lg shadow-black/20 ring-1 ring-white/10' 
+                                                    : 'bg-white text-indigo-600 shadow-md ring-1 ring-black/5') 
+                                                : (darkMode
+                                                    ? 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
+                                                    : 'text-slate-500 hover:text-slate-800 hover:bg-black/5')}
+                                        `}
                                     >
-                                        <span className="text-sm">{tab.icon}</span>
-                                        <span>{tab.label}</span>
+                                        <span className={`text-base transition-transform duration-300 ${isActive ? 'scale-110' : 'scale-100 grayscale opacity-70'}`}>{tab.icon}</span>
+                                        <span className="hidden sm:inline">{tab.label}</span>
                                     </button>
                                 );
                             })}
                         </div>
                     </nav>
 
-                    {/* Desktop: Controls */}
+                    {/* Right Action Area */}
                     <div className="hidden md:flex items-center gap-3">
+                        <div className={`h-8 w-px mx-2 ${darkMode ? 'bg-slate-800' : 'bg-slate-200'}`}></div>
+                        
                         <button
                             onClick={() => setDarkMode(!darkMode)}
-                            className={
-                                'p-2.5 rounded-xl border transition-all duration-200 btn-press ' +
-                                (darkMode
-                                    ? 'border-slate-700 bg-slate-800 text-yellow-400 hover:bg-slate-700 hover:border-slate-600'
-                                    : 'border-slate-200 bg-white text-slate-500 hover:text-indigo-600 hover:bg-slate-50 hover:border-indigo-200')
-                            }
-                            title="Toggle Dark Mode"
+                            className={`
+                                p-3 rounded-2xl border transition-all duration-200 active:scale-95
+                                ${darkMode
+                                    ? 'border-slate-800 bg-slate-900/50 text-yellow-400 hover:bg-slate-800 hover:border-slate-700'
+                                    : 'border-slate-200 bg-white/50 text-slate-500 hover:text-indigo-600 hover:bg-white hover:border-slate-300 shadow-sm'}
+                            `}
                         >
-                            {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+                            {darkMode ? <Sun size={18} strokeWidth={2.5} /> : <Moon size={18} strokeWidth={2.5} />}
                         </button>
 
                         {currentUser ? (
                             <button
                                 onClick={onLogout}
-                                className={
-                                    'flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl border transition-all duration-200 btn-press ' +
-                                    (darkMode
-                                        ? 'border-slate-700 text-slate-400 hover:text-rose-400 hover:border-rose-900/30 hover:bg-rose-500/10'
-                                        : 'border-slate-200 text-slate-600 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-200')
-                                }
+                                className={`
+                                    group flex items-center gap-2 px-5 py-3 text-xs font-bold rounded-2xl border transition-all duration-200 active:scale-95
+                                    ${darkMode
+                                        ? 'border-slate-800 bg-slate-900/50 text-slate-400 hover:text-rose-400 hover:border-rose-900/50 hover:bg-rose-900/10'
+                                        : 'border-slate-200 bg-white/50 text-slate-600 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-200 shadow-sm'}
+                                `}
                             >
-                                <LogOut size={14} />
-                                로그아웃
+                                <LogOut size={16} strokeWidth={2.5} className="group-hover:-translate-x-0.5 transition-transform" />
+                                <span>로그아웃</span>
                             </button>
                         ) : (
                             <button
                                 onClick={onShowLogin}
-                                className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl hover:from-indigo-600 hover:to-indigo-700 transition-all shadow-lg shadow-indigo-500/25 btn-press"
+                                className="flex items-center gap-2 px-6 py-3 text-xs font-bold bg-gradient-to-r from-indigo-500 to-violet-600 text-white rounded-2xl hover:shadow-lg hover:shadow-indigo-500/30 hover:-translate-y-0.5 transition-all active:scale-95 active:translate-y-0"
                             >
-                                <LogIn size={14} />
-                                로그인
+                                <LogIn size={16} strokeWidth={2.5} />
+                                <span>로그인</span>
                             </button>
                         )}
                     </div>

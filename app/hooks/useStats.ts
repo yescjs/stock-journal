@@ -446,6 +446,8 @@ export function useStats(
                 currentStreak: 0,
                 longestWinStreak: 0,
                 longestLossStreak: 0,
+                winCount: 0,
+                lossCount: 0,
             };
         }
 
@@ -528,6 +530,8 @@ export function useStats(
             currentStreak,
             longestWinStreak,
             longestLossStreak,
+            winCount,
+            lossCount,
         };
     }, [trades, exchangeRate]);
 

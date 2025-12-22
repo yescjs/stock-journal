@@ -1,323 +1,192 @@
 @import "tailwindcss";
 
-@theme inline {
+@theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-noto-sans-kr), var(--font-geist-sans), sans-serif;
-  --font-mono: var(--font-geist-mono);
+  
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  
+  --radius: 1rem;
 }
 
-/* ===== Minimal Pro Design System ===== */
-
+/* Base Variables */
 :root {
-  /* Light Mode Colors */
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: hsl(210 40% 98%);
+  --foreground: hsl(222 47% 11%);
 
-  /* Accent Colors - Indigo */
-  --accent-50: #eef2ff;
-  --accent-100: #e0e7ff;
-  --accent-200: #c7d2fe;
-  --accent-400: #818cf8;
-  --accent-500: #6366f1;
-  --accent-600: #4f46e5;
-  --accent-700: #4338ca;
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(222 47% 11%);
 
-  /* Surface Colors */
-  --surface-0: #ffffff;
-  --surface-50: #f8fafc;
-  --surface-100: #f1f5f9;
-  --surface-200: #e2e8f0;
-  --surface-300: #cbd5e1;
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(222 47% 11%);
 
-  /* Text Colors */
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
+  --primary: hsl(243 75% 59%);
+  --primary-foreground: hsl(210 40% 98%);
 
-  /* Status Colors */
-  --success: #10b981;
-  --success-bg: #ecfdf5;
-  --danger: #ef4444;
-  --danger-bg: #fef2f2;
-  --warning: #f59e0b;
-  --warning-bg: #fffbeb;
+  --secondary: hsl(210 40% 96.1%);
+  --secondary-foreground: hsl(222 47% 11%);
 
-  /* Buy/Sell Colors */
-  --buy-color: #dc2626;
-  --buy-bg: #fef2f2;
-  --buy-border: #fecaca;
-  --sell-color: #2563eb;
-  --sell-bg: #eff6ff;
-  --sell-border: #bfdbfe;
+  --muted: hsl(210 40% 96.1%);
+  --muted-foreground: hsl(215 16% 47%);
 
-  /* Shadows */
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.05);
-  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.04);
-  --shadow-card-hover: 0 12px 24px -4px rgb(99 102 241 / 0.15), 0 4px 8px -2px rgb(0 0 0 / 0.08);
+  --accent: hsl(210 40% 96.1%);
+  --accent-foreground: hsl(222 47% 11%);
 
-  color-scheme: light dark;
-}
+  --destructive: hsl(0 84.2% 60.2%);
+  --destructive-foreground: hsl(210 40% 98%);
 
-/* ===== Dark Mode ===== */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0f172a;
-    --foreground: #f1f5f9;
+  --border: hsl(214 32% 91%);
+  --input: hsl(214 32% 91%);
+  --ring: hsl(243 75% 59%);
 
-    --surface-0: #1e293b;
-    --surface-50: #1e293b;
-    --surface-100: #334155;
-    --surface-200: #475569;
-    --surface-300: #64748b;
-
-    --text-primary: #f1f5f9;
-    --text-secondary: #cbd5e1;
-    --text-muted: #64748b;
-
-    --buy-bg: rgba(220, 38, 38, 0.15);
-    --buy-border: rgba(220, 38, 38, 0.3);
-    --sell-bg: rgba(37, 99, 235, 0.15);
-    --sell-border: rgba(37, 99, 235, 0.3);
-  }
+  --radius: 1rem;
+  
+  /* Modern Glassmorphism Variables */
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.5);
+  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
 }
 
 .dark {
-  --background: #0f172a;
-  --foreground: #f1f5f9;
+  --background: hsl(222 47% 11%);
+  --foreground: hsl(210 40% 98%);
 
-  --surface-0: #1e293b;
-  --surface-50: #1e293b;
-  --surface-100: #334155;
-  --surface-200: #475569;
-  --surface-300: #64748b;
+  --card: hsl(222 47% 11%);
+  --card-foreground: hsl(210 40% 98%);
 
-  --text-primary: #f1f5f9;
-  --text-secondary: #cbd5e1;
-  --text-muted: #64748b;
+  --popover: hsl(222 47% 11%);
+  --popover-foreground: hsl(210 40% 98%);
 
-  --buy-bg: rgba(220, 38, 38, 0.15);
-  --buy-border: rgba(220, 38, 38, 0.3);
-  --sell-bg: rgba(37, 99, 235, 0.15);
-  --sell-border: rgba(37, 99, 235, 0.3);
+  --primary: hsl(243 75% 59%);
+  --primary-foreground: hsl(210 40% 98%);
 
-  color-scheme: dark;
+  --secondary: hsl(217 32% 17%);
+  --secondary-foreground: hsl(210 40% 98%);
+
+  --muted: hsl(217 32% 17%);
+  --muted-foreground: hsl(215 20% 65%);
+
+  --accent: hsl(217 32% 17%);
+  --accent-foreground: hsl(210 40% 98%);
+
+  --destructive: hsl(0 62.8% 30.6%);
+  --destructive-foreground: hsl(210 40% 98%);
+
+  --border: hsl(217 32% 17%);
+  --input: hsl(217 32% 17%);
+  --ring: hsl(243 75% 59%);
+  
+  /* Dark Glassmorphism Variables */
+  --glass-bg: rgba(15, 23, 42, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.05);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
 }
 
-/* ===== Base Styles ===== */
-::selection {
-  background-color: var(--accent-500);
-  color: white;
+/* Global Reset */
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
-  @apply antialiased;
+/* Custom Utilities (Tailwind v4 handles custom classes via normal CSS if not in @utility block) */
+
+/* Custom Scrollbar */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 dark:bg-slate-700 rounded-full hover:bg-slate-400 dark:hover:bg-slate-600;
 }
 
-/* ===== Custom Scrollbar ===== */
-::-webkit-scrollbar {
+/* Glassmorphism Utilities */
+.glass-panel {
+    @apply backdrop-blur-xl border shadow-lg transition-all duration-300;
+    background: var(--glass-bg);
+    border-color: var(--glass-border);
+    box-shadow: var(--glass-shadow);
+}
+
+.glass-card {
+    @apply backdrop-blur-lg border transition-all duration-200;
+    background: rgba(255, 255, 255, 0.5);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.dark .glass-card {
+    background: rgba(30, 41, 59, 0.4);
+    border-color: rgba(255, 255, 255, 0.05);
+}
+
+.hover-glass:hover {
+    @apply transform -translate-y-0.5 shadow-xl;
+    border-color: var(--ring);
+}
+
+/* Button Press Effect */
+.btn-press:active {
+    @apply transform scale-95 opacity-80;
+}
+
+/* Animations */
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-5px); }
+    100% { transform: translateY(0px); }
+}
+
+.animate-float {
+    animation: float 3s ease-in-out infinite;
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
-::-webkit-scrollbar-track {
+.custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
 
-::-webkit-scrollbar-thumb {
-  @apply bg-slate-200 dark:bg-slate-700 rounded-full;
-  transition: background-color 0.2s;
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 dark:bg-slate-700 rounded-full hover:bg-slate-400 dark:hover:bg-slate-600;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-slate-300 dark:bg-slate-600;
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.2);
 }
 
-/* ===== Animation Utilities ===== */
-@layer utilities {
-  .animate-fade-in {
-    animation: fadeIn 0.3s ease-out;
-  }
-
-  .animate-slide-in-right {
-    animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  .animate-slide-out-right {
-    animation: slideOutRight 0.2s ease-in forwards;
-  }
-
-  .animate-slide-up {
-    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  .animate-scale-in {
-    animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  /* Card Hover Effect */
-  .card-hover {
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-  }
-
-  .card-hover:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-card-hover);
-  }
-
-  /* Button Press Effect */
-  .btn-press:active {
-    transform: scale(0.98);
-  }
-
-  /* Smooth Color Transition */
-  .transition-colors-smooth {
-    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
-  }
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(100%);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes slideOutRight {
-  from {
-    opacity: 1;
-    transform: translateX(0);
-  }
-
-  to {
-    opacity: 0;
-    transform: translateX(100%);
-  }
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes scaleIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-/* ===== Form Input Fixes ===== */
-input:-webkit-autofill,
-input:-webkit-autofill:hover,
-input:-webkit-autofill:focus,
-input:-webkit-autofill:active {
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: var(--foreground);
-  transition: background-color 5000s ease-in-out 0s;
-  box-shadow: inset 0 0 20px 20px var(--surface-100);
-}
-
-.dark input:-webkit-autofill,
-.dark input:-webkit-autofill:hover,
-.dark input:-webkit-autofill:focus,
-.dark input:-webkit-autofill:active {
-  -webkit-text-fill-color: #f1f5f9;
-  box-shadow: inset 0 0 20px 20px #1e293b;
-}
-
-/* Date Picker Fixes */
-::-webkit-calendar-picker-indicator {
-  cursor: pointer;
-  opacity: 0.6;
-  filter: invert(0.4);
-  transition: opacity 0.15s;
-}
-
-::-webkit-calendar-picker-indicator:hover {
-  opacity: 0.8;
-}
-
-.dark ::-webkit-calendar-picker-indicator {
-  filter: invert(1);
-}
-
-input[type="date"] {
-  appearance: none;
-  font-family: inherit;
-  display: block;
-}
-
-/* ===== Focus States ===== */
-input:focus,
-select:focus,
-textarea:focus,
-button:focus-visible {
-  outline: 2px solid var(--accent-500);
-  outline-offset: 2px;
-}
-
-/* ===== Card Base Styles ===== */
-.card {
-  background: var(--surface-0);
-  border: 1px solid var(--surface-200);
-  border-radius: 1rem;
-  box-shadow: var(--shadow-sm);
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
-}
-
-.card:hover {
-  box-shadow: var(--shadow-md);
-}
-
-.dark .card {
-  background: var(--surface-50);
-  border-color: var(--surface-100);
-}
-
-/* ===== Badge Styles ===== */
-.badge-buy {
-  background-color: var(--buy-bg);
-  color: var(--buy-color);
-  border: 1px solid var(--buy-border);
-}
-
-.badge-sell {
-  background-color: var(--sell-bg);
-  color: var(--sell-color);
-  border: 1px solid var(--sell-border);
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(148, 163, 184, 0.4);
 }

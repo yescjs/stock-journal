@@ -143,6 +143,8 @@ export interface OverallStats {
     currentStreak: number;
     longestWinStreak: number;
     longestLossStreak: number;
+    winCount: number;
+    lossCount: number;
 }
 
 // 계좌 자산 추적

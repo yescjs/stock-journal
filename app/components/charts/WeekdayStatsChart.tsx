@@ -67,7 +67,7 @@ export function WeekdayStatsChart({ data, darkMode }: WeekdayStatsChartProps) {
             </div>
 
             {/* Weekday Bars */}
-            <div className="grid grid-cols-7 gap-2">
+            <div className="grid grid-cols-7 gap-1 md:gap-2">
                 {data.map((day) => {
                     const pnlPercent = maxPnL > 0 ? Math.abs(day.totalPnL) / maxPnL * 100 : 0;
                     const isPositive = day.totalPnL >= 0;
@@ -78,44 +78,44 @@ export function WeekdayStatsChart({ data, darkMode }: WeekdayStatsChartProps) {
                         <div
                             key={day.dayIndex}
                             className={
-                                'rounded-xl p-3 text-center transition-all ' +
+                                'rounded-xl p-2 text-center transition-all ' +
                                 (isBest
-                                    ? (darkMode ? 'bg-emerald-500/20 ring-2 ring-emerald-500/50' : 'bg-emerald-50 ring-2 ring-emerald-300')
+                                    ? (darkMode ? 'bg-emerald-500/20 ring-1 ring-emerald-500/50' : 'bg-emerald-50 ring-1 ring-emerald-300')
                                     : isWorst
-                                        ? (darkMode ? 'bg-rose-500/20 ring-2 ring-rose-500/50' : 'bg-rose-50 ring-2 ring-rose-300')
+                                        ? (darkMode ? 'bg-rose-500/20 ring-1 ring-rose-500/50' : 'bg-rose-50 ring-1 ring-rose-300')
                                         : (darkMode ? 'bg-slate-800/50 hover:bg-slate-800' : 'bg-slate-50 hover:bg-slate-100'))
                             }
                         >
                             {/* Weekday Name */}
                             <div className={
-                                'text-sm font-black mb-2 ' +
+                                'text-xs font-black mb-1 ' +
                                 (day.dayIndex === 0 ? 'text-rose-500' : day.dayIndex === 6 ? 'text-blue-500' : (darkMode ? 'text-slate-300' : 'text-slate-700'))
                             }>
                                 {WEEKDAY_NAMES[day.dayIndex]}
                             </div>
 
                             {/* Trade count */}
-                            <div className={labelClass}>거래</div>
-                            <div className={'text-lg font-bold mb-2 ' + (darkMode ? 'text-slate-100' : 'text-slate-900')}>
+                            <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">거래</div>
+                            <div className={'text-sm font-bold mb-1.5 ' + (darkMode ? 'text-slate-100' : 'text-slate-900')}>
                                 {day.tradeCount}
                             </div>
 
                             {/* Win Rate Bar */}
-                            <div className="h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 mb-2 overflow-hidden">
+                            <div className="h-1 rounded-full bg-slate-200 dark:bg-slate-700 mb-1 overflow-hidden">
                                 <div
                                     className={`h-full rounded-full transition-all ${day.winRate >= 50 ? 'bg-emerald-500' : 'bg-rose-500'}`}
                                     style={{ width: `${day.winRate}%` }}
                                 />
                             </div>
-                            <div className={`text-xs font-bold ${day.winRate >= 50 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                            <div className={`text-[9px] font-bold ${day.winRate >= 50 ? 'text-emerald-500' : 'text-rose-500'}`}>
                                 {day.winRate.toFixed(0)}%
                             </div>
 
                             {/* PnL */}
-                            <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
-                                <div className={labelClass}>손익</div>
+                            <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                                <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">손익</div>
                                 <div className={
-                                    'text-sm font-bold tabular-nums ' +
+                                    'text-[10px] sm:text-xs font-bold tabular-nums tracking-tight ' +
                                     (isPositive ? 'text-emerald-500' : 'text-rose-500')
                                 }>
                                     {isPositive ? '+' : ''}{formatNumber(day.totalPnL)}
