@@ -23,15 +23,24 @@ export function useTrades(user: User | null) {
                 // Load User Trades from Supabase
                 const { data, error } = await supabase
                     .from('trades')
-                    .select('*')
+                    .select('*, strategies (name)')
                     .eq('user_id', user.id)
                     .order('date', { ascending: false });
 
                 if (error) {
                     console.error('Error fetching trades:', error);
-                    if (mounted) setError('매매 기록을 불러오는데 실패했습니다.');
+                    const errorMsg = error.message || '매매 기록을 불러오는데 실패했습니다.';
+                    if (mounted) setError(`데이터 로딩 실패: ${errorMsg}`);
                 } else {
-                    if (mounted) setTrades((data as Trade[]) || []);
+                    if (mounted) {
+                        const strategiesData = data as any[];
+                        const mappedTrades = strategiesData.map(t => ({
+                            ...t,
+                            strategy_name: t.strategies?.name,
+                            strategies: undefined // Clean up
+                        }));
+                        setTrades(mappedTrades as Trade[]);
+                    }
                 }
             } else {
                 // Load Guest Trades from LocalStorage
@@ -72,16 +81,22 @@ export function useTrades(user: User | null) {
         data: {
             date: string;
             symbol: string;
+            symbol_name?: string;
             side: TradeSide;
             price: number;
             quantity: number;
             memo: string;
             tags: string[];
+            strategy_id?: string;
+            strategy_name?: string;
+            entry_reason?: string;
+            exit_reason?: string;
+            emotion_tag?: string;
         },
         imageFile: File | null
     ) => {
         let imageUrl: string | null = null;
-        const { date, symbol, side, price, quantity, memo, tags } = data;
+        const { date, symbol, symbol_name, side, price, quantity, memo, tags, strategy_id, strategy_name, entry_reason, exit_reason, emotion_tag } = data;
 
         try {
             // 1. Image Upload / Processing
@@ -124,31 +139,47 @@ export function useTrades(user: User | null) {
                             user_id: user.id,
                             date,
                             symbol,
+                            symbol_name: symbol_name || null,
                             side,
                             price,
                             quantity,
                             memo,
                             tags: tags, // Supabase handles array correctly if column is text[] or jsonb
                             image: imageUrl,
+                            // Strategy ID Validation: Supabase expects UUID.
+                            // If strategy_id is "default-..." or "guest-...", it's a local/guest ID and cannot be saved to DB as UUID.
+                            // We should set it to null for DB insert.
+                            strategy_id: (strategy_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(strategy_id)) ? strategy_id : null,
+                            entry_reason: entry_reason || null,
+                            exit_reason: exit_reason || null,
+                            emotion_tag: emotion_tag || null,
                         },
                     ])
                     .select()
                     .single();
 
                 if (insertError) throw insertError;
-                setTrades((prev) => [newTrade as Trade, ...prev]);
+                // Add strategy_name to the returned trade for UI display
+                const tradeWithStrategyName = { ...newTrade, strategy_name } as Trade;
+                setTrades((prev) => [tradeWithStrategyName, ...prev]);
             } else {
                 // Guest Local Insert
                 const newTrade: Trade = {
                     id: `guest-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
                     date,
                     symbol,
+                    symbol_name: symbol_name || undefined,
                     side,
                     price,
                     quantity,
                     memo,
                     tags,
                     image: imageUrl ?? undefined,
+                    strategy_id: strategy_id || undefined,
+                    strategy_name: strategy_name || undefined,
+                    entry_reason: entry_reason || undefined,
+                    exit_reason: exit_reason || undefined,
+                    emotion_tag: emotion_tag || undefined,
                 };
                 setTrades((prev) => [newTrade, ...prev]);
             }
@@ -157,6 +188,7 @@ export function useTrades(user: User | null) {
             throw err;
         }
     };
+
 
     const removeTrade = async (id: string) => {
         if (user) {
@@ -185,30 +217,71 @@ export function useTrades(user: User | null) {
         }
     };
 
-    const updateTrade = async (date: string, trade: Trade) => {
-        // Note: date is passed for sorting if needed, but trade.date is also there.
-        // In this app, we usually update the trade object itself.
+    const updateTrade = async (id: string, data: Partial<Trade>, imageFile: File | null) => {
+        let imageUrl: string | null | undefined = data.image;
 
         try {
+            // 1. Image Upload / Processing
+            if (imageFile) {
+                if (user) {
+                    // Upload to Supabase Storage
+                    const fileExt = imageFile.name.split('.').pop()?.toLowerCase() || 'png';
+                    const fileName = `${Date.now()}.${fileExt}`;
+                    const filePath = `${user.id}/${fileName}`;
+
+                    const { error: uploadError } = await supabase.storage
+                        .from('trade-images')
+                        .upload(filePath, imageFile, {
+                            contentType: imageFile.type,
+                            upsert: false,
+                        });
+
+                    if (uploadError) {
+                        console.error('Image upload failed:', uploadError);
+                        throw new Error('이미지 업로드 실패');
+                    }
+
+                    const { data: publicUrlData } = supabase.storage
+                        .from('trade-images')
+                        .getPublicUrl(filePath);
+                    imageUrl = publicUrlData.publicUrl;
+                } else {
+                    // Guest: Convert to Base64
+                    imageUrl = await fileToDataUrl(imageFile);
+                }
+            }
+
+            // 2. Database Update
             if (user) {
                 const { error } = await supabase
                     .from('trades')
                     .update({
-                        date: trade.date,
-                        symbol: trade.symbol,
-                        side: trade.side,
-                        price: trade.price,
-                        quantity: trade.quantity,
-                        memo: trade.memo,
-                        tags: trade.tags,
-                        image: trade.image,
+                        date: data.date,
+                        symbol: data.symbol,
+                        symbol_name: data.symbol_name || null,
+                        side: data.side,
+                        price: data.price,
+                        quantity: data.quantity,
+                        memo: data.memo,
+                        tags: data.tags,
+                        image: imageUrl,
+                        strategy_id: (data.strategy_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.strategy_id)) ? data.strategy_id : null,
+                        entry_reason: data.entry_reason || null,
+                        exit_reason: data.exit_reason || null,
+                        emotion_tag: data.emotion_tag || null,
                     })
-                    .eq('id', trade.id)
+                    .eq('id', id)
                     .eq('user_id', user.id);
                 if (error) throw error;
             }
 
-            setTrades(prev => prev.map(t => (t.id === trade.id ? trade : t)));
+            // 3. Local State Update
+            setTrades(prev => prev.map(t => {
+                if (t.id === id) {
+                    return { ...t, ...data, image: imageUrl ?? undefined, id }; // Ensure ID is preserved
+                }
+                return t;
+            }));
         } catch (err) {
             console.error('Failed to update trade:', err);
             throw err;

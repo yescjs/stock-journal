@@ -1,4 +1,4 @@
-export type ActiveTab = 'journal' | 'stats' | 'settings';
+export type ActiveTab = 'journal' | 'stats' | 'diary' | 'settings';
 export type SortKey = 'date' | 'symbol' | 'amount';
 
 export type SymbolSortKey =

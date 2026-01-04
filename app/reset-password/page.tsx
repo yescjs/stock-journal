@@ -74,7 +74,7 @@ export default function ResetPasswordPage() {
         return;
       }
 
-      console.log('update password data:', data);
+
       setMsgType('success');
       setMsg(
         '비밀번호가 변경되었습니다. 앞으로는 새 비밀번호로 로그인해 주세요.',
@@ -82,7 +82,7 @@ export default function ResetPasswordPage() {
       setPassword('');
       setPasswordConfirm('');
 
-    // 비밀번호 변경 완료 후 첫 페이지로 이동
+      // 비밀번호 변경 완료 후 첫 페이지로 이동
       setTimeout(() => {
         router.push('/');
       }, 1000);
