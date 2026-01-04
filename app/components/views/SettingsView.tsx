@@ -15,6 +15,8 @@ interface SettingsViewProps {
   onAddStrategy: (s: Omit<Strategy, 'id' | 'created_at'>) => Promise<any>;
   onUpdateStrategy: (id: string, s: Partial<Strategy>) => Promise<any>;
   onRemoveStrategy: (id: string) => Promise<any>;
+  onUpdateSymbolNames: () => void;
+  isUpdating: boolean;
 }
 
 import { supabase } from '@/app/lib/supabaseClient';
@@ -27,7 +29,9 @@ export function SettingsView({
   strategies,
   onAddStrategy,
   onUpdateStrategy,
-  onRemoveStrategy
+  onRemoveStrategy,
+  onUpdateSymbolNames,
+  isUpdating
 }: SettingsViewProps) {
   const {
     handleExportCsv,
@@ -102,6 +106,8 @@ export function SettingsView({
         onClearAll={handleDropGuestData}
         onDeleteAccount={handleDeleteAccount}
         backupMessage={null}
+        onUpdateSymbolNames={onUpdateSymbolNames}
+        isUpdating={isUpdating}
       />
 
       {/* Hidden File Input for Backup Import */}

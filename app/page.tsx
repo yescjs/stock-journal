@@ -21,6 +21,8 @@ import { useTradeFilter } from '@/app/hooks/useTradeFilter';
 import { useMarketData } from '@/app/hooks/useMarketData';
 import { useDiary } from '@/app/hooks/useDiary';
 
+import { useDataCorrection } from '@/app/hooks/useDataCorrection';
+
 // Components
 import { Header } from '@/app/components/Header';
 import { LoginForm } from '@/app/components/LoginForm';
@@ -80,6 +82,8 @@ export default function Home() {
         trades, setTrades, currentUser, currentPrices, setCurrentPrices,
         onNotify: (t, m) => showNotify(t as NotifyType, m)
     });
+
+    const dataCorrection = useDataCorrection(currentUser, (t, m) => showNotify(t as NotifyType, m));
 
     // --- 2. UI State ---
     const [activeTab, setActiveTab] = useState<ActiveTab>('journal');
@@ -382,6 +386,8 @@ export default function Home() {
                             onAddStrategy={addStrategy}
                             onUpdateStrategy={updateStrategy}
                             onRemoveStrategy={removeStrategy}
+                            onUpdateSymbolNames={dataCorrection.updateMissingSymbolNames}
+                            isUpdating={dataCorrection.isCorrecting}
                         />
                     </div>
                 ) : null}

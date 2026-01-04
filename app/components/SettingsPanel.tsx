@@ -11,7 +11,8 @@ import {
     Shield,
     Database,
     AlertTriangle,
-    CheckCircle2
+    CheckCircle2,
+    RefreshCw
 } from 'lucide-react';
 
 interface SettingsPanelProps {
@@ -21,8 +22,10 @@ interface SettingsPanelProps {
     onExportBackup: () => void;
     onImportBackup: () => void;
     onClearAll: () => void;
-    onDeleteAccount?: () => void; // New prop
+    onDeleteAccount?: () => void;
     backupMessage: string | null;
+    onUpdateSymbolNames?: () => void; // New prop
+    isUpdating?: boolean; // New prop
 }
 
 export function SettingsPanel({
@@ -34,6 +37,8 @@ export function SettingsPanel({
     onClearAll,
     onDeleteAccount,
     backupMessage,
+    onUpdateSymbolNames,
+    isUpdating
 }: SettingsPanelProps) {
     const cardClass = `rounded-3xl p-6 md:p-8 border transition-all glass-card ${darkMode
         ? 'bg-slate-900/40 border-slate-700/50'
@@ -99,6 +104,34 @@ export function SettingsPanel({
                 </div>
 
                 <div className="space-y-3">
+
+                    {/* Data Correction */}
+                    <div className={`flex items-center justify-between p-4 rounded-2xl border ${darkMode ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white/50 border-white/50'
+                        }`}>
+                        <div className="flex items-center gap-4">
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${darkMode ? 'bg-slate-800 text-slate-400' : 'bg-white text-indigo-500 shadow-sm'
+                                }`}>
+                                <RefreshCw size={20} strokeWidth={2} />
+                            </div>
+                            <div>
+                                <div className={`font-bold text-sm ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                                    종목명 데이터 업데이트
+                                </div>
+                                <div className={`text-xs mt-0.5 font-medium ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                                    이전 데이터의 누락된 종목명을 복구합니다
+                                </div>
+                            </div>
+                        </div>
+                        <button
+                            onClick={onUpdateSymbolNames}
+                            disabled={isUpdating}
+                            className={buttonClass}
+                        >
+                            <RefreshCw size={14} className={isUpdating ? "animate-spin" : ""} />
+                            {isUpdating ? '업데이트 중...' : '업데이트'}
+                        </button>
+                    </div>
+
                     {/* CSV Export */}
                     <div className={`flex items-center justify-between p-4 rounded-2xl border ${darkMode ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white/50 border-white/50'
                         }`}>

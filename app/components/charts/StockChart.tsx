@@ -115,7 +115,7 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
             }
 
         } catch (err: any) {
-            console.error('Chart loading error:', err);
+            // console.warn('Chart loading error:', err);
             setError(err.message || '차트 데이터를 불러올 수 없습니다');
             setChartData([]);
         } finally {

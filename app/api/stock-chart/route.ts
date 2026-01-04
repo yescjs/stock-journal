@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
         }
 
         // 모든 시도가 실패한 경우
-        console.error('All data sources failed:', { symbol });
+        console.warn('All data sources failed:', { symbol });
         return NextResponse.json(
             {
                 error: '차트 데이터를 불러올 수 없습니다',
