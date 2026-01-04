@@ -6,8 +6,9 @@ import { StockChartData, ChartPeriod } from '@/app/types/stock';
 import { Trade } from '@/app/types/trade';
 import { fetchStockChart } from '@/app/utils/stockApi';
 import { formatNumber } from '@/app/utils/format';
-import { TrendingUp, Loader2, Activity } from 'lucide-react';
+import { TrendingUp, Activity } from 'lucide-react';
 import { format } from 'date-fns';
+import { ChartSkeleton } from '@/app/components/ui/ChartSkeleton';
 
 interface StockChartProps {
     symbol: string;
@@ -18,11 +19,10 @@ interface StockChartProps {
 }
 
 const PERIOD_OPTIONS: Array<{ label: string; value: ChartPeriod }> = [
-    { label: '1일', value: '1d' },
-    { label: '1주', value: '5d' },
     { label: '1개월', value: '1mo' },
     { label: '3개월', value: '3mo' },
     { label: '1년', value: '1y' },
+    { label: '3년', value: '3y' as ChartPeriod },
 ];
 
 // 이동평균 계산 함수
@@ -262,16 +262,7 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
     const volumeChartHeight = compact ? 60 : 100;
 
     if (loading) {
-        return (
-            <div className={`rounded-2xl p-6 border ${darkMode ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
-                <div className={`flex flex-col items-center justify-center ${compact ? 'py-8' : 'py-12'}`}>
-                    <Loader2 className={`w-6 h-6 animate-spin mb-2 ${darkMode ? 'text-indigo-400' : 'text-indigo-600'}`} />
-                    <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                        차트 데이터를 불러오는 중...
-                    </p>
-                </div>
-            </div>
-        );
+        return <ChartSkeleton darkMode={darkMode} compact={compact} />;
     }
 
     if (error) {

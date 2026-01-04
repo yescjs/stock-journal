@@ -29,7 +29,8 @@ export function useTrades(user: User | null) {
 
                 if (error) {
                     console.error('Error fetching trades:', error);
-                    if (mounted) setError('매매 기록을 불러오는데 실패했습니다.');
+                    const errorMsg = error.message || '매매 기록을 불러오는데 실패했습니다.';
+                    if (mounted) setError(`데이터 로딩 실패: ${errorMsg}`);
                 } else {
                     if (mounted) {
                         const strategiesData = data as any[];

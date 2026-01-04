@@ -5,6 +5,7 @@ import { supabase } from '@/app/lib/supabaseClient';
 export function useSupabaseAuth() {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
+    const [authError, setAuthError] = useState<string | null>(null);
 
     useEffect(() => {
         let mounted = true;
@@ -14,10 +15,52 @@ export function useSupabaseAuth() {
                 const { data: { session }, error } = await supabase.auth.getSession();
                 if (error) throw error;
                 if (mounted) {
-                    setUser(session?.user ?? null);
+                    const user = session?.user ?? null;
+                    if (user && user.user_metadata?.deleted_account) {
+                        await supabase.auth.signOut();
+                        setUser(null);
+                    } else {
+                        setUser(user);
+                        setAuthError(null); // Clear any previous errors
+                    }
                 }
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Error getting session:', error);
+
+                // Enhanced JWT error handling
+                const errorMessage = error.message || '';
+                const isJWTError = errorMessage.includes('JWT') ||
+                    errorMessage.includes('json') ||
+                    errorMessage.includes('token') ||
+                    errorMessage.includes('Expected 3 parts');
+
+                if (isJWTError) {
+                    // Clear corrupted auth data from localStorage
+                    try {
+                        const keysToRemove: string[] = [];
+                        for (let i = 0; i < localStorage.length; i++) {
+                            const key = localStorage.key(i);
+                            if (key && key.startsWith('sb-')) {
+                                keysToRemove.push(key);
+                            }
+                        }
+                        keysToRemove.forEach(key => localStorage.removeItem(key));
+                        console.log('Cleared corrupted Supabase auth data from localStorage');
+                    } catch (storageError) {
+                        console.error('Failed to clear localStorage:', storageError);
+                    }
+
+                    // Sign out to reset auth state
+                    await supabase.auth.signOut();
+                    setUser(null);
+                    setAuthError('인증 정보가 손상되었습니다. 다시 로그인해주세요.');
+                } else {
+                    setAuthError('인증 확인 중 오류가 발생했습니다.');
+                }
+
+                if (mounted) {
+                    setUser(null);
+                }
             } finally {
                 if (mounted) {
                     setLoading(false);
@@ -30,6 +73,9 @@ export function useSupabaseAuth() {
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             if (mounted) {
                 setUser(session?.user ?? null);
+                if (session?.user) {
+                    setAuthError(null); // Clear errors on successful auth
+                }
             }
         });
 
@@ -42,7 +88,8 @@ export function useSupabaseAuth() {
     const logout = async () => {
         await supabase.auth.signOut();
         setUser(null);
+        setAuthError(null);
     };
 
-    return { user, loading, logout };
+    return { user, loading, logout, authError };
 }

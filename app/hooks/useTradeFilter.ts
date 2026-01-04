@@ -27,7 +27,10 @@ export function useTradeFilter(trades: Trade[]) {
         // Symbol Filter (Input)
         if (filterSymbol) {
             const lower = filterSymbol.toLowerCase();
-            result = result.filter(t => t.symbol.toLowerCase().includes(lower));
+            result = result.filter(t =>
+                t.symbol.toLowerCase().includes(lower) ||
+                (t.symbol_name && t.symbol_name.toLowerCase().includes(lower))
+            );
         }
 
         // Tag Filter

@@ -1,7 +1,7 @@
 import React from 'react';
 import { User } from '@supabase/supabase-js';
 import { ActiveTab } from '@/app/types/ui';
-import { Sun, Moon, LogOut, LogIn, TrendingUp } from 'lucide-react';
+import { Sun, Moon, LogOut, LogIn, TrendingUp, BookOpen } from 'lucide-react';
 
 interface HeaderProps {
     darkMode: boolean;
@@ -11,6 +11,7 @@ interface HeaderProps {
     onShowLogin: () => void;
     activeTab: ActiveTab;
     setActiveTab: React.Dispatch<React.SetStateAction<ActiveTab>>;
+    onShowGuide: () => void;
 }
 
 export function Header({
@@ -21,6 +22,7 @@ export function Header({
     onShowLogin,
     activeTab,
     setActiveTab,
+    onShowGuide,
 }: HeaderProps) {
     const tabs: { id: ActiveTab; label: string; icon: string }[] = [
         { id: 'journal', label: '매매일지', icon: '📝' },
@@ -33,7 +35,7 @@ export function Header({
         <div className="sticky top-4 z-40 mb-6">
             <header className={`rounded-2xl glass-panel px-6 py-4 transition-all duration-300 ${darkMode ? 'bg-slate-900/80 border-slate-700/50' : 'bg-white/80 border-white/50'}`}>
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    
+
                     {/* Brand & Identity */}
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4 group cursor-default">
@@ -44,7 +46,7 @@ export function Header({
                                     <TrendingUp size={24} strokeWidth={2.5} />
                                 </div>
                             </div>
-                            
+
                             <div>
                                 <h1 className="text-xl md:text-2xl font-black tracking-tight flex items-center gap-1.5 font-sans">
                                     <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-indigo-600 dark:from-indigo-400 dark:to-indigo-300">
@@ -54,16 +56,18 @@ export function Header({
                                         Journal
                                     </span>
                                 </h1>
-                                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5 mt-0.5">
+                                <p className="text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 mt-0.5">
                                     {currentUser ? (
                                         <>
                                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"></span>
-                                            PRO TRADER
+                                            <span className="text-slate-400 dark:text-slate-500">PRO TRADER</span>
                                         </>
                                     ) : (
                                         <>
                                             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"></span>
-                                            GUEST MODE
+                                            <span className="text-amber-600 dark:text-amber-500">게스트 모드</span>
+                                            <span className="text-slate-400 dark:text-slate-600">•</span>
+                                            <span className="text-slate-500 dark:text-slate-600 text-[10px] normal-case">로그인하여 데이터 보관하세요</span>
                                         </>
                                     )}
                                 </p>
@@ -72,11 +76,28 @@ export function Header({
 
                         {/* Mobile Controls */}
                         <div className="flex md:hidden items-center gap-2">
-                             <button
+                            {currentUser ? (
+                                <button
+                                    onClick={onLogout}
+                                    className={`p-2.5 rounded-xl transition-all active:scale-95 ${darkMode ? 'bg-slate-800 text-rose-400' : 'bg-slate-100 text-rose-600'
+                                        }`}
+                                    title="로그아웃"
+                                >
+                                    <LogOut size={18} />
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={onShowLogin}
+                                    className="p-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white transition-all active:scale-95"
+                                    title="로그인"
+                                >
+                                    <LogIn size={18} />
+                                </button>
+                            )}
+                            <button
                                 onClick={() => setDarkMode(!darkMode)}
-                                className={`p-2.5 rounded-xl transition-all active:scale-95 ${
-                                    darkMode ? 'bg-slate-800 text-yellow-400' : 'bg-slate-100 text-slate-600'
-                                }`}
+                                className={`p-2.5 rounded-xl transition-all active:scale-95 ${darkMode ? 'bg-slate-800 text-yellow-400' : 'bg-slate-100 text-slate-600'
+                                    }`}
                             >
                                 {darkMode ? <Sun size={18} /> : <Moon size={18} />}
                             </button>
@@ -93,18 +114,18 @@ export function Header({
                                         key={tab.id}
                                         onClick={() => setActiveTab(tab.id)}
                                         className={`
-                                            relative flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-xs md:text-sm font-bold rounded-xl transition-all duration-300
-                                            ${isActive 
-                                                ? (darkMode 
-                                                    ? 'bg-slate-800 text-white shadow-lg shadow-black/20 ring-1 ring-white/10' 
-                                                    : 'bg-white text-indigo-600 shadow-md ring-1 ring-black/5') 
+                                            relative flex-1 flex items-center justify-center gap-2 px-2 md:px-4 py-2 md:py-2.5 text-xs md:text-sm font-bold rounded-xl transition-all duration-300
+                                            ${isActive
+                                                ? (darkMode
+                                                    ? 'bg-slate-800 text-white shadow-lg shadow-black/20 ring-1 ring-white/10'
+                                                    : 'bg-white text-indigo-600 shadow-md ring-1 ring-black/5')
                                                 : (darkMode
                                                     ? 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
                                                     : 'text-slate-500 hover:text-slate-800 hover:bg-black/5')}
                                         `}
                                     >
-                                        <span className={`text-base transition-transform duration-300 ${isActive ? 'scale-110' : 'scale-100 grayscale opacity-70'}`}>{tab.icon}</span>
-                                        <span className="hidden sm:inline">{tab.label}</span>
+                                        <span className={`text-sm md:text-base transition-transform duration-300 ${isActive ? 'scale-110' : 'scale-100 grayscale opacity-70'}`}>{tab.icon}</span>
+                                        <span className="hidden leading-none sm:inline">{tab.label}</span>
                                     </button>
                                 );
                             })}
@@ -114,7 +135,7 @@ export function Header({
                     {/* Right Action Area */}
                     <div className="hidden md:flex items-center gap-3">
                         <div className={`h-8 w-px mx-2 ${darkMode ? 'bg-slate-800' : 'bg-slate-200'}`}></div>
-                        
+
                         <button
                             onClick={() => setDarkMode(!darkMode)}
                             className={`
@@ -125,6 +146,19 @@ export function Header({
                             `}
                         >
                             {darkMode ? <Sun size={18} strokeWidth={2.5} /> : <Moon size={18} strokeWidth={2.5} />}
+                        </button>
+
+                        <button
+                            onClick={onShowGuide}
+                            className={`
+                                p-3 rounded-2xl border transition-all duration-200 active:scale-95
+                                ${darkMode
+                                    ? 'border-slate-800 bg-slate-900/50 text-indigo-400 hover:bg-slate-800 hover:border-slate-700'
+                                    : 'border-slate-200 bg-white/50 text-indigo-500 hover:text-indigo-600 hover:bg-white hover:border-slate-300 shadow-sm'}
+                            `}
+                            title="이용 가이드"
+                        >
+                            <BookOpen size={18} strokeWidth={2.5} />
                         </button>
 
                         {currentUser ? (

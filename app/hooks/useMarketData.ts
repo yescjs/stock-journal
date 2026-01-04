@@ -8,7 +8,7 @@ export function useMarketData() {
 
     // Exchange Rate State (KRW per USD) - Default 1476 as in original code
     const [exchangeRate, setExchangeRate] = useState<number>(1476);
-    
+
     // UI Logic: Show converted values?
     const [showConverted, setShowConverted] = useState(false);
 
@@ -26,6 +26,28 @@ export function useMarketData() {
     useEffect(() => {
         localStorage.setItem(CURRENT_PRICE_KEY, JSON.stringify(currentPrices));
     }, [currentPrices]);
+
+    // Fetch Exchange Rate (Real-time)
+    useEffect(() => {
+        const fetchExchangeRate = async () => {
+            try {
+                const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+                if (!res.ok) throw new Error('Failed to fetch');
+                const data = await res.json();
+                if (data && data.rates && data.rates.KRW) {
+                    setExchangeRate(data.rates.KRW);
+                }
+            } catch (error) {
+                console.error("Failed to fetch exchange rate:", error);
+                // Fallback or keep default
+            }
+        };
+
+        fetchExchangeRate();
+        // Optional: Refresh every hour
+        const interval = setInterval(fetchExchangeRate, 3600000);
+        return () => clearInterval(interval);
+    }, []);
 
     const handleCurrentPriceChange = (symbol: string, value: string) => {
         const num = Number(value);

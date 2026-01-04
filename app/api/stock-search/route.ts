@@ -91,7 +91,7 @@ async function getKRXStocks(): Promise<KRXStock[]> {
         if (kospi.length > 0 || kosdaq.length > 0) {
             krxStocksCache = [...kospi, ...kosdaq];
             krxCacheTimestamp = now;
-            console.log(`KRX stocks cached: ${krxStocksCache.length} stocks`);
+
         }
     } catch (error) {
         console.error('Failed to fetch KRX stocks:', error);

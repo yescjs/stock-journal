@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
         }
 
         // KRX에서 새로운 데이터 가져오기
-        console.log('Fetching fresh stock list from KRX...');
+
 
         const [kospiStocks, kosdaqStocks] = await Promise.all([
             fetchKRXStocks('KOSPI'),

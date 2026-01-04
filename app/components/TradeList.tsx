@@ -5,13 +5,14 @@ import { formatMonthLabel, formatNumber, formatQuantity, formatPrice, getCurrenc
 import { EMOTION_TAG_LABELS, EMOTION_TAG_COLORS } from '@/app/types/strategies';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Pencil, Trash2, Camera, ChevronDown, Zap, Calendar, TrendingUp, TrendingDown, Clock, Hash } from 'lucide-react';
+import { Pencil, Trash2, Camera, ChevronDown, Zap, Calendar, TrendingUp, TrendingDown, Clock, Hash, Share2, Check } from 'lucide-react';
+
 
 interface TradeListProps {
     trades: Trade[];
     currentUser: User | null;
-    onDelete: (id: string) => void;
-    onEdit: (trade: Trade) => void;
+    onDelete?: (id: string) => void;
+    onEdit?: (trade: Trade) => void;
     openMonths: Record<string, boolean>;
     toggleMonth: (key: string) => void;
     darkMode: boolean;
@@ -36,6 +37,32 @@ export function TradeList({
     exchangeRate,
     showConverted,
 }: TradeListProps) {
+    const [copiedId, setCopiedId] = React.useState<string | null>(null);
+
+    const handleShare = async (trade: Trade) => {
+        const amount = trade.price * trade.quantity;
+        const currencySymbol = trade.symbol.match(/\d+/) ? '₩' : '$'; // Simple check, or reuse helper
+
+        const details = [
+            `[매매 기록] ${trade.symbol_name || trade.symbol}`,
+            `📅 날짜: ${trade.date}`,
+            `📊 구분: ${trade.side === 'BUY' ? '매수' : '매도'}`,
+            `🔢 수량: ${formatQuantity(trade.quantity, trade.symbol)}`,
+            `💰 단가: ${formatPrice(trade.price, trade.symbol)}`,
+            `💵 총액: ${formatPrice(amount, trade.symbol)}`,
+            trade.strategy_name ? `⚡ 전략: ${trade.strategy_name}` : '',
+            trade.memo ? `📝 메모: ${trade.memo}` : ''
+        ].filter(Boolean).join('\n');
+
+        try {
+            await navigator.clipboard.writeText(details);
+            setCopiedId(trade.id);
+            setTimeout(() => setCopiedId(null), 2000);
+        } catch (err) {
+            console.error('Failed to copy:', err);
+        }
+    };
+
     // Group by Month
     const monthGroups = useMemo(() => {
         if (trades.length === 0) return [];
@@ -155,7 +182,9 @@ export function TradeList({
                                                 <th className="px-4 py-3 text-right">수량</th>
                                                 <th className="px-4 py-3 text-right">총액</th>
                                                 <th className="px-4 py-3 w-[200px] hidden lg:table-cell">메모</th>
-                                                <th className={`px-4 py-3 z-10 sticky right-0 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)] text-center w-[80px] ${darkMode ? 'bg-slate-900' : 'bg-slate-50'}`}>관리</th>
+                                                {(onDelete || onEdit) && (
+                                                    <th className={`px-4 py-3 z-10 sticky right-0 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)] text-center w-[80px] ${darkMode ? 'bg-slate-900' : 'bg-slate-50'}`}>관리</th>
+                                                )}
                                             </tr>
                                         </thead>
                                         <tbody className={`divide-y ${darkMode ? 'divide-slate-800' : 'divide-slate-100'}`}>
@@ -252,22 +281,28 @@ export function TradeList({
                                                         </td>
 
                                                         {/* Actions */}
-                                                        <td className={`px-4 py-3 sticky right-0 z-10 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)] ${darkMode ? 'bg-slate-900/95 backdrop-blur-sm' : 'bg-white/95 backdrop-blur-sm'}`}>
-                                                            <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                <button
-                                                                    onClick={(e) => { e.stopPropagation(); onEdit(t); }}
-                                                                    className={`p-1.5 rounded-lg transition-all ${darkMode ? 'bg-slate-800 hover:bg-indigo-600 hover:text-white text-slate-400' : 'bg-white border border-slate-200 hover:bg-indigo-50 hover:border-indigo-200 text-slate-500'}`}
-                                                                >
-                                                                    <Pencil size={14} />
-                                                                </button>
-                                                                <button
-                                                                    onClick={(e) => { e.stopPropagation(); onDelete(t.id); }}
-                                                                    className={`p-1.5 rounded-lg transition-all ${darkMode ? 'bg-slate-800 hover:bg-rose-600 hover:text-white text-slate-400' : 'bg-white border border-slate-200 hover:bg-rose-50 hover:border-rose-200 text-slate-500'}`}
-                                                                >
-                                                                    <Trash2 size={14} />
-                                                                </button>
-                                                            </div>
-                                                        </td>
+                                                        {(onDelete || onEdit) && (
+                                                            <td className={`px-4 py-3 sticky right-0 z-10 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)] ${darkMode ? 'bg-slate-900/95 backdrop-blur-sm' : 'bg-white/95 backdrop-blur-sm'}`}>
+                                                                <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                    {onEdit && (
+                                                                        <button
+                                                                            onClick={(e) => { e.stopPropagation(); onEdit?.(t); }}
+                                                                            className={`p-1.5 rounded-lg transition-all ${darkMode ? 'bg-slate-800 hover:bg-indigo-600 hover:text-white text-slate-400' : 'bg-white border border-slate-200 hover:bg-indigo-50 hover:border-indigo-200 text-slate-500'}`}
+                                                                        >
+                                                                            <Pencil size={14} />
+                                                                        </button>
+                                                                    )}
+                                                                    {onDelete && (
+                                                                        <button
+                                                                            onClick={(e) => { e.stopPropagation(); onDelete?.(t.id); }}
+                                                                            className={`p-1.5 rounded-lg transition-all ${darkMode ? 'bg-slate-800 hover:bg-rose-600 hover:text-white text-slate-400' : 'bg-white border border-slate-200 hover:bg-rose-50 hover:border-rose-200 text-slate-500'}`}
+                                                                        >
+                                                                            <Trash2 size={14} />
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                        )}
                                                     </tr>
                                                 );
                                             })}
@@ -368,13 +403,13 @@ export function TradeList({
                                                         </button>
                                                     )}
                                                     <button
-                                                        onClick={(e) => { e.stopPropagation(); onEdit(t); }}
+                                                        onClick={(e) => { e.stopPropagation(); onEdit?.(t); }}
                                                         className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl transition-all ${darkMode ? 'bg-indigo-500/20 text-indigo-400' : 'bg-indigo-50 text-indigo-600'}`}
                                                     >
                                                         <Pencil size={14} /> 수정
                                                     </button>
                                                     <button
-                                                        onClick={(e) => { e.stopPropagation(); onDelete(t.id); }}
+                                                        onClick={(e) => { e.stopPropagation(); onDelete?.(t.id); }}
                                                         className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl transition-all ${darkMode ? 'bg-rose-500/20 text-rose-400' : 'bg-rose-50 text-rose-600'}`}
                                                     >
                                                         <Trash2 size={14} /> 삭제
@@ -385,10 +420,11 @@ export function TradeList({
                                     })}
                                 </div>
                             </div>
-                        )}
+                        )
+                        }
                     </div>
                 );
             })}
-        </div>
+        </div >
     );
 }

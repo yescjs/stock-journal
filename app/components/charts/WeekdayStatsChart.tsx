@@ -33,8 +33,8 @@ export function WeekdayStatsChart({ data, darkMode }: WeekdayStatsChartProps) {
     const labelClass = 'text-[10px] font-bold uppercase tracking-wider ' + (darkMode ? 'text-slate-500' : 'text-slate-400');
 
     return (
-        <div className={cardClass + ' p-6'}>
-            <div className="flex items-center justify-between mb-6">
+        <div className={cardClass + ' p-6 max-w-full'}>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
                 <div>
                     <h3 className={'text-lg font-bold flex items-center gap-2 ' + (darkMode ? 'text-slate-100' : 'text-slate-900')}>
                         <Calendar size={20} className={darkMode ? 'text-cyan-400' : 'text-cyan-600'} />
@@ -67,63 +67,65 @@ export function WeekdayStatsChart({ data, darkMode }: WeekdayStatsChartProps) {
             </div>
 
             {/* Weekday Bars */}
-            <div className="grid grid-cols-7 gap-1 md:gap-2">
-                {data.map((day) => {
-                    const pnlPercent = maxPnL > 0 ? Math.abs(day.totalPnL) / maxPnL * 100 : 0;
-                    const isPositive = day.totalPnL >= 0;
-                    const isBest = bestDay && day.dayIndex === bestDay.dayIndex && day.totalPnL > 0;
-                    const isWorst = worstDay && day.dayIndex === worstDay.dayIndex && day.totalPnL < 0;
+            <div className="overflow-x-auto -mx-6 px-6">
+                <div className="grid grid-cols-7 gap-1 md:gap-2">
+                    {data.map((day) => {
+                        const pnlPercent = maxPnL > 0 ? Math.abs(day.totalPnL) / maxPnL * 100 : 0;
+                        const isPositive = day.totalPnL >= 0;
+                        const isBest = bestDay && day.dayIndex === bestDay.dayIndex && day.totalPnL > 0;
+                        const isWorst = worstDay && day.dayIndex === worstDay.dayIndex && day.totalPnL < 0;
 
-                    return (
-                        <div
-                            key={day.dayIndex}
-                            className={
-                                'rounded-xl p-2 text-center transition-all ' +
-                                (isBest
-                                    ? (darkMode ? 'bg-emerald-500/20 ring-1 ring-emerald-500/50' : 'bg-emerald-50 ring-1 ring-emerald-300')
-                                    : isWorst
-                                        ? (darkMode ? 'bg-rose-500/20 ring-1 ring-rose-500/50' : 'bg-rose-50 ring-1 ring-rose-300')
-                                        : (darkMode ? 'bg-slate-800/50 hover:bg-slate-800' : 'bg-slate-50 hover:bg-slate-100'))
-                            }
-                        >
-                            {/* Weekday Name */}
-                            <div className={
-                                'text-xs font-black mb-1 ' +
-                                (day.dayIndex === 0 ? 'text-rose-500' : day.dayIndex === 6 ? 'text-blue-500' : (darkMode ? 'text-slate-300' : 'text-slate-700'))
-                            }>
-                                {WEEKDAY_NAMES[day.dayIndex]}
-                            </div>
-
-                            {/* Trade count */}
-                            <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">거래</div>
-                            <div className={'text-sm font-bold mb-1.5 ' + (darkMode ? 'text-slate-100' : 'text-slate-900')}>
-                                {day.tradeCount}
-                            </div>
-
-                            {/* Win Rate Bar */}
-                            <div className="h-1 rounded-full bg-slate-200 dark:bg-slate-700 mb-1 overflow-hidden">
-                                <div
-                                    className={`h-full rounded-full transition-all ${day.winRate >= 50 ? 'bg-emerald-500' : 'bg-rose-500'}`}
-                                    style={{ width: `${day.winRate}%` }}
-                                />
-                            </div>
-                            <div className={`text-[9px] font-bold ${day.winRate >= 50 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                {day.winRate.toFixed(0)}%
-                            </div>
-
-                            {/* PnL */}
-                            <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
-                                <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">손익</div>
+                        return (
+                            <div
+                                key={day.dayIndex}
+                                className={
+                                    'rounded-xl p-2 text-center transition-all ' +
+                                    (isBest
+                                        ? (darkMode ? 'bg-emerald-500/20 ring-1 ring-emerald-500/50' : 'bg-emerald-50 ring-1 ring-emerald-300')
+                                        : isWorst
+                                            ? (darkMode ? 'bg-rose-500/20 ring-1 ring-rose-500/50' : 'bg-rose-50 ring-1 ring-rose-300')
+                                            : (darkMode ? 'bg-slate-800/50 hover:bg-slate-800' : 'bg-slate-50 hover:bg-slate-100'))
+                                }
+                            >
+                                {/* Weekday Name */}
                                 <div className={
-                                    'text-[10px] sm:text-xs font-bold tabular-nums tracking-tight ' +
-                                    (isPositive ? 'text-emerald-500' : 'text-rose-500')
+                                    'text-xs font-black mb-1 ' +
+                                    (day.dayIndex === 0 ? 'text-rose-500' : day.dayIndex === 6 ? 'text-blue-500' : (darkMode ? 'text-slate-300' : 'text-slate-700'))
                                 }>
-                                    {isPositive ? '+' : ''}{formatNumber(day.totalPnL)}
+                                    {WEEKDAY_NAMES[day.dayIndex]}
+                                </div>
+
+                                {/* Trade count */}
+                                <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">거래</div>
+                                <div className={'text-sm font-bold mb-1.5 ' + (darkMode ? 'text-slate-100' : 'text-slate-900')}>
+                                    {day.tradeCount}
+                                </div>
+
+                                {/* Win Rate Bar */}
+                                <div className="h-1 rounded-full bg-slate-200 dark:bg-slate-700 mb-1 overflow-hidden">
+                                    <div
+                                        className={`h-full rounded-full transition-all ${day.winRate >= 50 ? 'bg-emerald-500' : 'bg-rose-500'}`}
+                                        style={{ width: `${day.winRate}%` }}
+                                    />
+                                </div>
+                                <div className={`text-[9px] font-bold ${day.winRate >= 50 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                    {day.winRate.toFixed(0)}%
+                                </div>
+
+                                {/* PnL */}
+                                <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                                    <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">손익</div>
+                                    <div className={
+                                        'text-[10px] sm:text-xs font-bold tabular-nums tracking-tight ' +
+                                        (isPositive ? 'text-emerald-500' : 'text-rose-500')
+                                    }>
+                                        {isPositive ? '+' : ''}{formatNumber(day.totalPnL)}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    );
-                })}
+                        );
+                    })}
+                </div>
             </div>
 
             {/* Summary Stats */}

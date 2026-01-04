@@ -93,19 +93,18 @@ export function MonthlyGoalsWidget({
     };
 
     // Style Classes reflecting Glassmorphism
-    const cardClass = `glass-card p-6 rounded-3xl ${darkMode ? 'bg-slate-900/40 border-slate-700/50' : 'bg-white/60 border-white/60 shadow-sm'}`;
+    const cardClass = `glass-card p-4 sm:p-6 rounded-3xl max-w-full ${darkMode ? 'bg-slate-900/40 border-slate-700/50' : 'bg-white/60 border-white/60 shadow-sm'}`;
     const dateBadgeClass = `text-xs font-bold px-2.5 py-1 rounded-lg ${darkMode ? 'bg-slate-700/50 text-slate-300' : 'bg-indigo-50 text-indigo-600'}`;
     const labelClass = `text-[10px] font-bold uppercase tracking-wider ${darkMode ? 'text-slate-500' : 'text-slate-400'}`;
-    const inputClass = `w-full px-4 py-2.5 text-sm font-medium rounded-xl outline-none transition-all ${
-        darkMode
-            ? 'bg-slate-800/50 border border-slate-700 text-white placeholder-slate-500 focus:bg-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'
-            : 'bg-white/50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100'
-    }`;
+    const inputClass = `w-full px-4 py-2.5 text-sm font-medium rounded-xl outline-none transition-all ${darkMode
+        ? 'bg-slate-800/50 border border-slate-700 text-white placeholder-slate-500 focus:bg-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'
+        : 'bg-white/50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100'
+        }`;
 
     return (
-        <div className={cardClass}>
+        <div className={cardClass + ' overflow-hidden'}>
             {/* Header */}
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                 <div>
                     <h3 className="text-xl font-bold flex items-center gap-2.5">
                         <div className={`p-2 rounded-xl ${darkMode ? 'bg-violet-500/20 text-violet-300' : 'bg-violet-100 text-violet-600'}`}>
@@ -133,10 +132,10 @@ export function MonthlyGoalsWidget({
                     }}
                     className={`
                         flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl transition-all btn-press
-                        ${showForm 
+                        ${showForm
                             ? (darkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-600')
-                            : (darkMode 
-                                ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/20' 
+                            : (darkMode
+                                ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/20'
                                 : 'bg-gradient-to-r from-violet-500 to-indigo-500 text-white shadow-lg shadow-violet-500/30')}
                     `}
                 >
@@ -179,7 +178,7 @@ export function MonthlyGoalsWidget({
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div>
                             <label className={labelClass + ' mb-1.5 block'}>목표 수익 (원)</label>
                             <input
@@ -231,8 +230,8 @@ export function MonthlyGoalsWidget({
                                 disabled={saving}
                                 className={`
                                     w-full py-3.5 rounded-xl font-bold text-sm text-white transition-all btn-press shadow-lg
-                                    ${saving 
-                                        ? 'bg-slate-400 cursor-not-allowed' 
+                                    ${saving
+                                        ? 'bg-slate-400 cursor-not-allowed'
                                         : 'bg-violet-600 hover:bg-violet-500 shadow-violet-500/25'}
                                 `}
                             >
@@ -248,7 +247,7 @@ export function MonthlyGoalsWidget({
             )}
 
             {/* Monthly Progress Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 {monthlyProgress.map((progress) => {
                     const hasGoal = !!progress.goal;
                     const isCurrentMonth = progress.month === `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
@@ -260,11 +259,11 @@ export function MonthlyGoalsWidget({
                             className={`
                                 relative p-4 rounded-2xl transition-all duration-300 cursor-pointer group border btn-press
                                 ${isCurrentMonth
-                                    ? (darkMode 
-                                        ? 'bg-violet-900/10 border-violet-500/30' 
+                                    ? (darkMode
+                                        ? 'bg-violet-900/10 border-violet-500/30'
                                         : 'bg-violet-50 border-violet-200')
-                                    : (darkMode 
-                                        ? 'bg-slate-800/30 border-slate-700/50 hover:bg-slate-700/50 hover:border-slate-600' 
+                                    : (darkMode
+                                        ? 'bg-slate-800/30 border-slate-700/50 hover:bg-slate-700/50 hover:border-slate-600'
                                         : 'bg-slate-50 border-slate-100 hover:bg-white hover:border-indigo-100 hover:shadow-md')}
                             `}
                             onClick={() => openEditForm(progress)}
@@ -302,9 +301,9 @@ export function MonthlyGoalsWidget({
                                             </span>
                                             {pnlAchieved && <Trophy size={16} className="text-amber-400 mb-1" fill="currentColor" />}
                                         </div>
-                                        
+
                                         <div className={`h-1.5 w-full rounded-full overflow-hidden ${darkMode ? 'bg-slate-700' : 'bg-slate-200'}`}>
-                                            <div 
+                                            <div
                                                 className={`h-full rounded-full transition-all duration-1000 ease-out ${pnlAchieved ? 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.5)]' : 'bg-violet-500'}`}
                                                 style={{ width: `${Math.min(100, Math.max(0, progress.pnlProgress))}%` }}
                                             />
@@ -336,8 +335,8 @@ export function MonthlyGoalsWidget({
                 })}
             </div>
 
-             {/* Current Month Summary Footer */}
-             {monthlyProgress.length > 0 && monthlyProgress[0].goal && (
+            {/* Current Month Summary Footer */}
+            {monthlyProgress.length > 0 && monthlyProgress[0].goal && (
                 <div className={`mt-6 p-4 rounded-2xl flex items-center justify-between ${darkMode ? 'bg-violet-500/5 border border-violet-500/10' : 'bg-violet-50/50 border border-violet-100'}`}>
                     <div className="flex items-center gap-3">
                         <div className={`p-2 rounded-full ${darkMode ? 'bg-violet-500/20' : 'bg-white shadow-sm'}`}>

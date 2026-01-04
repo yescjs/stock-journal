@@ -4,7 +4,8 @@ import { TradeSide, Trade } from '@/app/types/trade';
 import { Strategy, EmotionTag, EMOTION_TAG_LABELS, EMOTION_TAG_COLORS } from '@/app/types/strategies';
 import { getKoreanWeekdayLabel, parseTagString, getCurrencySymbol } from '@/app/utils/format';
 import { StockSymbolInput } from '@/app/components/StockSymbolInput';
-import { Zap, ChevronDown, Camera, Plus, Save } from 'lucide-react';
+import { Zap, ChevronDown, Image as ImageIcon, Plus, Save, Info } from 'lucide-react';
+import { DatePicker } from '@/app/components/DatePicker';
 
 interface TradeFormProps {
     darkMode: boolean;
@@ -133,17 +134,53 @@ export function TradeForm({
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
 
-        if (!form.date || !form.symbol || !form.price || !form.quantity) {
-            alert('날짜, 종목, 가격, 수량은 필수입니다.');
+        // 필수 필드 검증
+        if (!form.date) {
+            alert('날짜를 선택해주세요.');
             return;
         }
 
+        if (!form.symbol || form.symbol.trim() === '') {
+            alert('종목을 선택해주세요.');
+            return;
+        }
+
+        if (!form.price || form.price.trim() === '') {
+            alert('가격을 입력해주세요.');
+            return;
+        }
+
+        if (!form.quantity || form.quantity.trim() === '') {
+            alert('수량을 입력해주세요.');
+            return;
+        }
+
+        // 숫자 형식 검증
         const price = Number(form.price);
         const quantity = Number(form.quantity);
+
         if (Number.isNaN(price) || Number.isNaN(quantity)) {
             alert('가격과 수량은 숫자로 입력해주세요.');
             return;
         }
+
+        // 양수 검증
+        if (price <= 0) {
+            alert('가격은 0보다 큰 값을 입력해주세요.');
+            return;
+        }
+
+        if (quantity <= 0) {
+            alert('수량은 0보다 큰 값을 입력해주세요.');
+            return;
+        }
+
+        // 합리적인 범위 검증 (선택적)
+        if (quantity % 1 !== 0) {
+            alert('수량은 정수로 입력해주세요.');
+            return;
+        }
+
 
         const parsedTags = parseTagString(form.tags);
         const uniqueTags = Array.from(new Set(parsedTags));
@@ -217,7 +254,7 @@ export function TradeForm({
                             <Plus size={20} className={darkMode ? 'text-indigo-400' : 'text-indigo-600'} strokeWidth={3} />
                         </div>
                         <div>
-                            <h2 className={`text-lg font-black tracking-tight ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                            <h2 className={`text-lg font-bold tracking-normal ${darkMode ? 'text-white' : 'text-slate-900'}`}>
                                 {initialData ? '매매 기록 수정' : '새 매매 기록'}
                             </h2>
                             <p className={`text-xs font-bold ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
@@ -233,12 +270,10 @@ export function TradeForm({
                 <div className="grid grid-cols-12 gap-3 items-end">
                     <div className="col-span-7">
                         <label className={labelClass}>날짜</label>
-                        <input
-                            type="date"
-                            name="date"
-                            value={form.date}
-                            onChange={handleChange}
-                            className={inputBaseClass + ' text-center tracking-tight font-mono'}
+                        <DatePicker
+                            selectedDate={form.date}
+                            onChange={(dateObj, dateStr) => setForm(prev => ({ ...prev, date: dateStr }))}
+                            darkMode={darkMode}
                         />
                     </div>
                     <div className="col-span-5">
@@ -276,7 +311,7 @@ export function TradeForm({
                 {/* Row 3: Price & Quantity */}
                 <div className="grid grid-cols-2 gap-3">
                     <div>
-                        <label className={labelClass}>
+                        <label className={labelClass} title="1주당 매매 단가를 입력하세요">
                             단가 {form.symbol && <span className={darkMode ? 'text-indigo-400' : 'text-indigo-600'}>({getCurrencySymbol(form.symbol)})</span>}
                         </label>
                         <div className="relative">
@@ -290,7 +325,8 @@ export function TradeForm({
                                 placeholder="0"
                                 value={form.price}
                                 onChange={handleChange}
-                                className={inputBaseClass + ' font-mono text-right ' + (form.symbol && getCurrencySymbol(form.symbol) === '$' ? 'pl-10' : '') + (form.symbol && getCurrencySymbol(form.symbol) === '원' ? ' pr-14' : '')}
+                                className={inputBaseClass + ' font-mono text-right ' + (form.symbol && getCurrencySymbol(form.symbol) === '$' ? 'pl-10' : '') + (form.symbol && getCurrencySymbol(form.symbol) === '원' ? ' pr-10' : '')}
+                                title="매수/매도 단가"
                             />
                             {form.symbol && getCurrencySymbol(form.symbol) === '원' && (
                                 <span className={`absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold ${darkMode ? 'text-indigo-400' : 'text-indigo-500'}`}>원</span>
@@ -298,7 +334,9 @@ export function TradeForm({
                         </div>
                     </div>
                     <div>
-                        <label className={labelClass}>수량</label>
+                        <label className={labelClass} title="매매한 수량을 입력하세요">
+                            수량
+                        </label>
                         <input
                             type="number"
                             inputMode="numeric"
@@ -307,6 +345,7 @@ export function TradeForm({
                             value={form.quantity}
                             onChange={handleChange}
                             className={inputBaseClass + ' text-right font-mono'}
+                            title="매수/매도 수량"
                         />
                     </div>
                 </div>
@@ -316,7 +355,7 @@ export function TradeForm({
                     <button
                         type="button"
                         onClick={() => setShowAdvanced(!showAdvanced)}
-                        className={`w-full py-2.5 flex items-center justify-center gap-2 text-xs font-bold transition-all rounded-xl border ${darkMode ? 'bg-slate-900/40 border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-indigo-400' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200'}`}
+                        className={`w-full py-2.5 flex items-center justify-center gap-2 text-xs font-bold transition-all rounded-xl border ${darkMode ? 'bg-slate-900/40 border-slate-700 text-slate-400 hover:bg-slate-800 hover:border-slate-500 text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200'}`}
                     >
                         <ChevronDown size={14} className={`transform transition-transform duration-300 ${showAdvanced ? 'rotate-180' : ''}`} />
                         {showAdvanced ? '간단히 보기' : '태그/전략/메모 입력하기'}
@@ -328,7 +367,9 @@ export function TradeForm({
                     <div className="space-y-4 animate-fade-in pt-1">
                         {/* Tags */}
                         <div>
-                            <label className={labelClass}>태그 (쉼표로 구분)</label>
+                            <label className={labelClass} title="나중에 분석할 수 있도록 태그를 달아보세요 (예: 뇌동매매)">
+                                태그 (쉼표로 구분) <Info size={10} className="inline opacity-50 ml-1" />
+                            </label>
                             <input
                                 type="text"
                                 name="tags"
@@ -336,6 +377,7 @@ export function TradeForm({
                                 value={form.tags}
                                 onChange={handleChange}
                                 className={inputBaseClass}
+                                title="태그 입력"
                             />
                         </div>
 
@@ -343,7 +385,7 @@ export function TradeForm({
                         {strategies.length > 0 && (
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className={labelClass}>
+                                    <label className={labelClass} title="사용된 매매 전략을 선택하세요">
                                         <Zap size={10} className="inline mr-1" /> 전략
                                     </label>
                                     <select
@@ -351,6 +393,7 @@ export function TradeForm({
                                         value={form.strategy_id}
                                         onChange={handleChange}
                                         className={inputBaseClass + ' cursor-pointer appearance-none'}
+                                        title="전략 선택"
                                     >
                                         <option value="">선택 안함</option>
                                         {strategies.map((s) => (
@@ -361,12 +404,15 @@ export function TradeForm({
                                     </select>
                                 </div>
                                 <div>
-                                    <label className={labelClass}>심리 상태</label>
+                                    <label className={labelClass} title="매매 당시의 심리 상태를 기록세요">
+                                        심리 상태
+                                    </label>
                                     <select
                                         name="emotion_tag"
                                         value={form.emotion_tag}
                                         onChange={handleChange}
                                         className={inputBaseClass + ' cursor-pointer appearance-none'}
+                                        title="심리 상태 선택"
                                     >
                                         <option value="">선택 안함</option>
                                         {Object.entries(EMOTION_TAG_LABELS).map(([key, label]) => (
@@ -382,7 +428,9 @@ export function TradeForm({
                         {/* Reasons */}
                         <div className="space-y-3">
                             <div>
-                                <label className={labelClass}>진입 근거</label>
+                                <label className={labelClass} title="왜 진입했나요? 근거를 남겨주세요">
+                                    진입 근거
+                                </label>
                                 <textarea
                                     name="entry_reason"
                                     placeholder="진입 시점의 판단 근거를 기록하세요."
@@ -393,7 +441,9 @@ export function TradeForm({
                                 />
                             </div>
                             <div>
-                                <label className={labelClass}>청산 근거</label>
+                                <label className={labelClass} title="어떻게 청산할 계획인가요?">
+                                    청산 근거
+                                </label>
                                 <textarea
                                     name="exit_reason"
                                     placeholder="청산 시점의 판단 또는 계획을 기록하세요."
@@ -419,7 +469,7 @@ export function TradeForm({
                                 />
                             </div>
                             <div className="col-span-3">
-                                <label className={labelClass}>차트</label>
+                                <label className={labelClass} title="차트 이미지를 업로드하세요">차트</label>
                                 <input
                                     ref={chartInputRef}
                                     type="file"
@@ -432,8 +482,9 @@ export function TradeForm({
                                         type="button"
                                         onClick={() => chartInputRef.current?.click()}
                                         className={`w-full h-[46px] rounded-xl flex items-center justify-center transition-all border border-dashed ${darkMode ? 'bg-slate-800/40 border-slate-700 hover:bg-slate-800 hover:border-slate-500 text-slate-500' : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-indigo-300 text-slate-400'}`}
+                                        title="이미지 업로드"
                                     >
-                                        <Camera size={18} />
+                                        <ImageIcon size={18} />
                                     </button>
                                 ) : (
                                     <div className="relative w-full h-[46px] rounded-xl overflow-hidden group shadow-md cursor-pointer" onClick={() => chartInputRef.current?.click()}>

@@ -55,6 +55,13 @@ export function TradeListView({
     resetFilters
   } = filterState;
 
+  // Reset selected symbol when user logs out
+  React.useEffect(() => {
+    if (!currentUser) {
+      setSelectedSymbol('');
+    }
+  }, [currentUser, setSelectedSymbol]);
+
   // Derive Daily Data for Calendar
   const dailyData: PnLPoint[] = React.useMemo(() => {
     const map = new Map<string, number>();
@@ -127,6 +134,14 @@ export function TradeListView({
       <div className="flex-none flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
           <h2 className={`text-2xl font-black tracking-tight flex items-center gap-2.5 ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
+            {selectedSymbol && (
+              <button
+                onClick={() => setSelectedSymbol('')}
+                className={`p-1 rounded-lg transition-colors ${darkMode ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
+              >
+                <ChevronDown size={28} className="rotate-90" />
+              </button>
+            )}
             {selectedSymbol ? '종목 상세 분석' : (viewMode === 'calendar' ? '매매 캘린더' : '매매 피드')}
             {selectedSymbol && (
               <span className={`text-sm font-bold px-3 py-1 rounded-lg ${darkMode ? 'bg-indigo-500/20 text-indigo-300' : 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'}`}>
@@ -134,11 +149,7 @@ export function TradeListView({
               </span>
             )}
           </h2>
-          <p className={`text-sm mt-1 font-medium ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-            {selectedSymbol
-              ? `선택한 종목의 매매 내역을 상세히 분석합니다.`
-              : (viewMode === 'calendar' ? '월별 매매 성과를 달력 형태로 확인하세요.' : '전체 매매 내역을 최신순으로 조회합니다.')}
-          </p>
+          {/* ... description ... */}
         </div>
 
         <div className="flex gap-3">
@@ -193,45 +204,34 @@ export function TradeListView({
         <MotionWrapper key={selectedSymbol ? 'detail' : viewMode}>
           {selectedSymbol ? (
             <div className="animate-slide-up">
-              <SymbolDetailCard
-                symbol={selectedSymbol}
-                trades={trades}
-                currentPrice={currentPrices[selectedSymbol]}
-                onClose={() => setSelectedSymbol('')}
-                darkMode={darkMode}
-              />
-              <div className="mt-8">
-                {viewMode === 'calendar' ? (
-                  <div className={`rounded-3xl p-6 border glass-card ${darkMode ? 'bg-slate-900/40 border-slate-700/50' : 'bg-white/60 border-white/60 shadow-lg'}`}>
-                    <CalendarView
-                      currentDate={calendarDate}
-                      onDateChange={setCalendarDate}
-                      dailyData={dailyData}
-                      onSelectDate={(date) => {
-                        setDateFrom(date);
-                        setDateTo(date);
-                      }}
-                      selectedDateStr={dateFrom === dateTo ? dateFrom : undefined}
-                      darkMode={darkMode}
-                    />
-                  </div>
-                ) : (
-                  <TradeList
-                    trades={filteredTrades}
-                    currentUser={currentUser}
-                    onDelete={onDelete}
-                    onEdit={onEdit}
-                    openMonths={openMonths}
-                    toggleMonth={toggleMonth}
+              {viewMode === 'list' ? (
+                <SymbolDetailCard
+                  symbol={selectedSymbol}
+                  trades={trades}
+                  currentPrice={currentPrices[selectedSymbol]}
+                  onClose={() => setSelectedSymbol('')}
+                  darkMode={darkMode}
+                  exchangeRate={exchangeRate}
+                  showConverted={showConverted}
+                />
+              ) : (
+                <div className={`rounded-3xl p-6 border glass-card ${darkMode ? 'bg-slate-900/40 border-slate-700/50' : 'bg-white/60 border-white/60 shadow-lg'}`}>
+                  <CalendarView
+                    currentDate={calendarDate}
+                    onDateChange={setCalendarDate}
+                    dailyData={dailyData}
+                    onSelectDate={(date) => {
+                      // Optional: behavior when clicking a date in symbol view
+                      // Maybe filter the list to that date?
+                      // For now, let's just keep it consistent or allow navigation
+                      setDateFrom(date);
+                      setDateTo(date);
+                    }}
+                    selectedDateStr={dateFrom === dateTo ? dateFrom : undefined}
                     darkMode={darkMode}
-                    tagColors={tagColors}
-                    onSymbolClick={(sym) => setSelectedSymbol(sym)}
-                    onImagePreview={setPreviewImage}
-                    exchangeRate={exchangeRate}
-                    showConverted={showConverted}
                   />
-                )}
-              </div>
+                </div>
+              )}
             </div>
           ) : (
             viewMode === 'calendar' ? (

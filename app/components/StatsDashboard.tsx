@@ -27,7 +27,7 @@ import { RiskManagementWidget } from './RiskManagementWidget';
 import { InsightsWidget } from './InsightsWidget';
 import { SymbolSortKey, TagSortKey } from '@/app/types/ui';
 import { formatNumber, formatQuantity } from '@/app/utils/format';
-import { TrendingUp, TrendingDown, Wallet, Target, ArrowUpRight, ArrowDownRight, Cloud, HardDrive, ChevronUp, ChevronDown, RefreshCw, Loader2, Download, Trophy, AlertTriangle, Zap, Activity } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, Target, ArrowUpRight, ArrowDownRight, Cloud, HardDrive, ChevronUp, ChevronDown, RefreshCw, Loader2, Download, Trophy, AlertTriangle, Zap, Activity, Calendar } from 'lucide-react';
 import { fetchStockChart } from '@/app/utils/stockApi';
 
 interface StatsDashboardProps {
@@ -166,23 +166,8 @@ export function StatsDashboard({
     const pnlChartPoints =
         pnlChartMode === 'daily' ? dailyRealizedPoints : monthlyRealizedPoints;
 
-    // Exchange Rate Fetching
-    useEffect(() => {
-        const fetchExchangeRate = async () => {
-            try {
-                const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
-                const data = await res.json();
-                if (data && data.rates && data.rates.KRW) {
-                    onExchangeRateChange(data.rates.KRW);
-                }
-            } catch (error) {
-                console.error("Failed to fetch exchange rate:", error);
-            }
-        };
-
-        // Fetch on mount
-        fetchExchangeRate();
-    }, []);
+    // Exchange Rate Fetching - Moved to useMarketData hook
+    // useEffect(() => { ... }, []);
 
     // 손익 Top 5 계산
     const topProfits = useMemo(() => {
@@ -373,188 +358,218 @@ export function StatsDashboard({
     }
 
     const cardBaseClass =
-        'rounded-2xl border shadow-sm transition-all duration-300 ' +
+        'rounded-2xl border shadow-sm transition-all duration-300 max-w-full ' +
         (darkMode
             ? 'bg-slate-900 border-slate-800'
             : 'bg-white border-slate-200');
 
     const sectionTitleClass = 'text-lg font-bold flex items-center gap-2 ' + (darkMode ? 'text-slate-100' : 'text-slate-900');
 
-    const tableWrapperClass = 'border rounded-xl overflow-hidden overflow-x-auto ' + (darkMode ? 'border-slate-800' : 'border-slate-200');
+    const tableWrapperClass = 'border rounded-xl overflow-x-auto custom-scrollbar ' + (darkMode ? 'border-slate-800' : 'border-slate-200');
     const tableHeaderClass = 'text-left text-[11px] font-bold uppercase tracking-wider py-3 px-4 ' + (darkMode ? 'bg-slate-800/50 text-slate-400' : 'bg-indigo-50/80 text-indigo-600');
     const tableCellClass = 'py-3.5 px-4 text-sm border-t ' + (darkMode ? 'border-slate-800' : 'border-slate-100');
 
+    // Current Month Goal Calculation
+    const currentMonthKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+    const currentMonthGoal = monthlyGoals.find(g => g.year === new Date().getFullYear() && g.month === new Date().getMonth() + 1);
+    const currentMonthPnL = monthlyRealizedPoints.find(p => p.key === currentMonthKey)?.value || 0;
+
     return (
-        <div className="space-y-8 pb-20">
-            {/* 1. Sticky Navigation & Controls (Floating Glass Design) */}
-            <div className="sticky top-4 z-40 flex justify-center mb-10 pointer-events-none">
-                <div className={`pointer-events-auto flex items-center gap-3 p-2 rounded-2xl border shadow-2xl backdrop-blur-xl transition-all ${darkMode
-                    ? 'bg-slate-950/90 border-slate-700/50 shadow-black/50'
-                    : 'bg-white/90 border-white/50 shadow-slate-200/50'
-                    }`}>
-                    {/* Navigation Links */}
-                    <div className="flex items-center gap-1">
-                        {NAV_ITEMS.map((item) => (
-                            <button
-                                key={item.id}
-                                onClick={() => scrollToSection(item.id)}
-                                className={`
-                                        whitespace-nowrap px-4 py-2 rounded-xl text-sm font-bold transition-all
-                                        ${activeSection === item.id
-                                        ? (darkMode ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30 scale-105' : 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 scale-105')
-                                        : (darkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100')
-                                    }
-                                    `}
-                            >
-                                {item.label}
-                            </button>
-                        ))}
-                    </div>
+        <div className="space-y-8 pb-20 max-w-full overflow-x-hidden">
+            {/* 1. Sticky Navigation & Controls */}
+            <div className="sticky top-4 z-50 mb-10 pointer-events-none">
+                <div className="flex justify-center">
+                    <div className={`pointer-events-auto flex items-center gap-2 md:gap-3 p-1.5 md:p-2 rounded-2xl border shadow-2xl backdrop-blur-xl transition-all max-w-[95vw] overflow-x-auto scrollbar-hide ${darkMode
+                        ? 'bg-slate-950/80 border-slate-700/50 shadow-black/50'
+                        : 'bg-white/80 border-white/50 shadow-slate-200/50'
+                        }`}>
 
-                    {/* Divider */}
-                    <div className={`w-px h-8 mx-1 ${darkMode ? 'bg-slate-800' : 'bg-slate-200'}`} />
-
-                    {/* Controls: Export & Exchange Rate */}
-                    <div className="flex items-center gap-3 pr-2">
-                        {/* Exchange Rate Input - Enhanced Visibility */}
-                        <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border-2 transition-all ${darkMode
-                            ? 'bg-indigo-950/30 border-indigo-500/30 hover:border-indigo-500/50'
-                            : 'bg-indigo-50 border-indigo-100 hover:border-indigo-200'
-                            }`}>
-                            <span className={`text-xs font-bold ${darkMode ? 'text-indigo-300' : 'text-indigo-500'}`}>$1USD</span>
-                            <span className={darkMode ? 'text-slate-500' : 'text-slate-300'}>=</span>
-                            <div className="flex items-center">
-                                <input
-                                    type="number"
-                                    value={exchangeRate}
-                                    onChange={(e) => onExchangeRateChange(Number(e.target.value))}
-                                    className={`w-24 text-base font-extrabold bg-transparent text-right outline-none ${darkMode ? 'text-indigo-400' : 'text-indigo-600'}`}
-                                />
-                                <span className={`text-sm ml-1 font-bold ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>원</span>
-                            </div>
+                        {/* Navigation Links */}
+                        <div className="flex items-center gap-1 shrink-0">
+                            {NAV_ITEMS.map((item) => (
+                                <button
+                                    key={item.id}
+                                    onClick={() => scrollToSection(item.id)}
+                                    className={`
+                                            whitespace-nowrap px-3 md:px-4 py-1.5 md:py-2 rounded-xl text-xs md:text-sm font-bold transition-all
+                                            ${activeSection === item.id
+                                            ? (darkMode ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30 scale-105' : 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 scale-105')
+                                            : (darkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100')
+                                        }
+                                        `}
+                                >
+                                    {item.label}
+                                </button>
+                            ))}
                         </div>
 
-                        {/* Export Button */}
-                        <button
-                            onClick={exportToCSV}
-                            className={`p-2.5 rounded-xl transition-all border ${darkMode
-                                ? 'border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-white hover:border-slate-700'
-                                : 'border-slate-200 text-slate-400 hover:bg-white hover:text-slate-600 hover:shadow-sm'
-                                }`}
-                            title="CSV 내보내기"
-                        >
-                            <Download size={18} />
-                        </button>
+                        {/* Divider */}
+                        <div className={`w-px h-6 md:h-8 mx-0.5 md:mx-1 shrink-0 ${darkMode ? 'bg-slate-800' : 'bg-slate-200'}`} />
+
+                        {/* Controls: Export & Exchange Rate */}
+                        <div className="flex items-center gap-2 pr-1 shrink-0">
+                            {/* Exchange Rate Input */}
+                            <div className={`flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 rounded-xl border-2 transition-all ${darkMode
+                                ? 'bg-indigo-950/30 border-indigo-500/30 hover:border-indigo-500/50'
+                                : 'bg-indigo-50 border-indigo-100 hover:border-indigo-200'
+                                }`}>
+                                <span className={`text-[10px] md:text-xs font-bold ${darkMode ? 'text-indigo-300' : 'text-indigo-500'}`}>$1</span>
+                                <span className={darkMode ? 'text-slate-500' : 'text-slate-300'}>=</span>
+                                <div className="flex items-center">
+                                    <input
+                                        type="number"
+                                        value={exchangeRate}
+                                        onChange={(e) => onExchangeRateChange(Number(e.target.value))}
+                                        className={`w-16 md:w-24 text-sm md:text-base font-extrabold bg-transparent text-right outline-none ${darkMode ? 'text-indigo-400' : 'text-indigo-600'}`}
+                                    />
+                                    <span className={`text-xs md:text-sm ml-1 font-bold ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>원</span>
+                                </div>
+                            </div>
+
+                            {/* Export Button */}
+                            <button
+                                onClick={exportToCSV}
+                                className={`p-2 md:p-2.5 rounded-xl transition-all border ${darkMode
+                                    ? 'border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-white hover:border-slate-700'
+                                    : 'border-slate-200 text-slate-400 hover:bg-white hover:text-slate-600 hover:shadow-sm'
+                                    }`}
+                                title="CSV 내보내기"
+                            >
+                                <Download size={16} className="md:w-[18px] md:h-[18px]" />
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* 2. Compact Summary Section (Bento Grid Redesign) */}
+            {/* 2. Bento Grid Summary Section */}
             <div id="section-summary" className="scroll-mt-48 mb-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {/* Total PnL - Hero Card */}
+
+                    {/* Hero Card: Total PnL (2x2 on Desktop) */}
                     <div className={`col-span-1 md:col-span-2 row-span-2 rounded-3xl p-8 flex flex-col justify-between relative overflow-hidden transition-all ${darkMode
                         ? 'bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-slate-800'
-                        : 'bg-white border border-slate-200 shadow-sm'
+                        : 'bg-gradient-to-br from-white via-indigo-50/20 to-indigo-50/50 border border-slate-200 shadow-sm'
                         }`}>
-                        <div className="absolute top-0 right-0 p-8 opacity-10">
-                            <Wallet size={120} />
+                        <div className="absolute top-0 right-0 p-8 opacity-5 lg:opacity-10 scale-150 transform rotate-12 pointer-events-none">
+                            <Wallet size={200} />
                         </div>
                         <div>
                             <span className={`text-xs font-black uppercase tracking-widest ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                                TOTAL PNL
+                                TOTAL LIFETIME PNL
                             </span>
-                            <h3 className={`text-lg font-bold mt-1 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                            <h3 className={`text-xl font-bold mt-2 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`} title="모든 매매의 실현 수익과 손실을 합산한 금액입니다.">
                                 총 실현 손익
                             </h3>
                         </div>
-                        <div className="mt-8">
-                            <div className={`text-5xl lg:text-6xl font-black tracking-tighter ${overallStats.totalPnL > 0 ? 'text-emerald-500' : overallStats.totalPnL < 0 ? 'text-rose-500' : (darkMode ? 'text-slate-200' : 'text-slate-700')
+                        <div className="mt-8 relative z-10">
+                            <div className={`text-5xl lg:text-7xl font-black tracking-tighter ${overallStats.totalPnL > 0 ? 'text-emerald-500' : overallStats.totalPnL < 0 ? 'text-rose-500' : (darkMode ? 'text-slate-200' : 'text-slate-700')
                                 }`}>
                                 {overallStats.totalPnL > 0 ? '+' : ''}{formatNumber(overallStats.totalPnL)}
-                                <span className="text-2xl font-bold ml-2 opacity-50">원</span>
+                                <span className="text-2xl lg:text-3xl font-bold ml-2 opacity-50">원</span>
+                            </div>
+                            <div className={`mt-4 text-sm font-medium ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>
+                                총 {overallStats.totalTrades.toLocaleString()}회의 매매를 통해 실현된 수익입니다.
                             </div>
                         </div>
                     </div>
 
-                    {/* Win Rate */}
-                    <div className={`rounded-3xl p-6 flex flex-col justify-between border transition-all ${darkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-800/50' : 'bg-white border-slate-200 hover:shadow-md'
-                        }`}>
-                        <div className="flex items-center justify-between mb-4">
-                            <div className={`p-2 rounded-xl ${darkMode ? 'bg-indigo-500/20 text-indigo-400' : 'bg-indigo-50 text-indigo-600'}`}>
-                                <Target size={20} />
-                            </div>
-                            <span className={`text-xs font-bold ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>WIN RATE</span>
+                    {/* Monthly Goal Progress (2x1 on Desktop, or just 2 cols) */}
+                    <div className={`col-span-1 md:col-span-2 rounded-3xl p-6 flex flex-col justify-between border transition-all relative overflow-hidden ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 hover:shadow-md'}`}>
+                        <CurrentMonthGoalCard
+                            goal={currentMonthGoal}
+                            actualPnL={currentMonthPnL}
+                            darkMode={darkMode}
+                            onSetGoal={() => {
+                                // Scroll to details/goals section or just simple alert for now if no handler
+                                if (onSetMonthlyGoal) {
+                                    const el = document.getElementById('section-details');
+                                    el?.scrollIntoView({ behavior: 'smooth' });
+                                    setTimeout(() => {
+                                        // Ideally we open the modal here, but for now scrolling is enough queue
+                                        setShowDetails(true);
+                                    }, 500);
+                                }
+                            }}
+                        />
+                    </div>
+
+                    {/* Key Metrics Consolidated Card (2x1) */}
+                    <div className={`col-span-1 md:col-span-2 rounded-3xl p-6 border transition-all ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+                        <div className="flex items-center gap-2 mb-6">
+                            <h3 className={`text-sm font-bold ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>KEY METRICS</h3>
                         </div>
-                        <div>
-                            <div className={`text-3xl font-black ${overallStats.winRate >= 50 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                {overallStats.winRate.toFixed(1)}%
+                        <div className="grid grid-cols-3 gap-4">
+                            {/* Win Rate */}
+                            <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <div className={`p-1.5 rounded-lg ${darkMode ? 'bg-indigo-500/20 text-indigo-400' : 'bg-indigo-50 text-indigo-600'}`}>
+                                        <Target size={16} />
+                                    </div>
+                                    <span className={`text-xs font-bold ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>승률</span>
+                                </div>
+                                <div className={`text-2xl font-black ${overallStats.winRate >= 50 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                    {overallStats.winRate.toFixed(1)}%
+                                </div>
                             </div>
-                            <p className={`text-xs mt-1 font-medium ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>승률</p>
+
+                            {/* Profit Factor */}
+                            <div className="flex flex-col gap-1 border-l pl-4 border-slate-200/50 dark:border-slate-700/50">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <div className={`p-1.5 rounded-lg ${darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>
+                                        <TrendingUp size={16} />
+                                    </div>
+                                    <span className={`text-xs font-bold ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>손익비</span>
+                                </div>
+                                <div className={`text-2xl font-black ${overallStats.profitFactor >= 2.0 ? 'text-emerald-500' : overallStats.profitFactor >= 1 ? (darkMode ? 'text-blue-400' : 'text-blue-600') : 'text-rose-500'}`}>
+                                    {overallStats.profitFactor.toFixed(2)}
+                                </div>
+                            </div>
+
+                            {/* Streak */}
+                            <div className="flex flex-col gap-1 border-l pl-4 border-slate-200/50 dark:border-slate-700/50">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <div className={`p-1.5 rounded-lg ${darkMode ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-50 text-purple-600'}`}>
+                                        <Zap size={16} />
+                                    </div>
+                                    <span className={`text-xs font-bold ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>연속</span>
+                                </div>
+                                <div className={`text-2xl font-black ${overallStats.currentStreak > 0 ? 'text-emerald-500' : overallStats.currentStreak < 0 ? 'text-rose-500' : (darkMode ? 'text-slate-400' : 'text-slate-600')}`}>
+                                    {Math.abs(overallStats.currentStreak)}
+                                    <span className="text-xs font-bold ml-1 text-slate-500">
+                                        {overallStats.currentStreak > 0 ? "승" : "패"}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Profit Factor */}
-                    <div className={`rounded-3xl p-6 flex flex-col justify-between border transition-all ${darkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-800/50' : 'bg-white border-slate-200 hover:shadow-md'
-                        }`}>
-                        <div className="flex items-center justify-between mb-4">
-                            <div className={`p-2 rounded-xl ${darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>
-                                <TrendingUp size={20} />
+                    {/* Risk Status (Summary) */}
+                    {dailyLossAlert && (
+                        <div className={`rounded-3xl p-6 flex flex-col justify-between border transition-all bg-rose-500 text-white border-rose-600 hover:shadow-md hover:scale-[1.02] shadow-xl shadow-rose-500/20`}>
+                            <div className="flex items-center justify-between mb-4">
+                                <div className={`p-2 rounded-xl bg-white/20 text-white`}>
+                                    <AlertTriangle size={20} />
+                                </div>
+                                <span className={`text-xs font-bold text-rose-100`}>RISK ALERT</span>
                             </div>
-                            <span className={`text-xs font-bold ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>PF</span>
-                        </div>
-                        <div>
-                            <div className={`text-3xl font-black ${overallStats.profitFactor >= 2.0 ? 'text-emerald-500' : overallStats.profitFactor >= 1 ? (darkMode ? 'text-blue-400' : 'text-blue-600') : 'text-rose-500'
-                                }`}>
-                                {overallStats.profitFactor.toFixed(2)}
+                            <div>
+                                <div className={`text-xl font-black`}>
+                                    손실 한도 초과
+                                </div>
+                                <p className={`text-xs mt-1 font-medium text-rose-100 opacity-90`}>{dailyLossAlert.message}</p>
                             </div>
-                            <p className={`text-xs mt-1 font-medium ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>손익비</p>
                         </div>
-                    </div>
+                    )}
 
-                    {/* Streak */}
-                    <div className={`rounded-3xl p-6 flex flex-col justify-between border transition-all ${darkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-800/50' : 'bg-white border-slate-200 hover:shadow-md'
-                        }`}>
-                        <div className="flex items-center justify-between mb-4">
-                            <div className={`p-2 rounded-xl ${darkMode ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-50 text-purple-600'}`}>
-                                <Zap size={20} />
-                            </div>
-                            <span className={`text-xs font-bold ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>STREAK</span>
-                        </div>
-                        <div>
-                            <div className={`text-3xl font-black ${overallStats.currentStreak > 0 ? 'text-emerald-500' : overallStats.currentStreak < 0 ? 'text-rose-500' : (darkMode ? 'text-slate-400' : 'text-slate-600')}`}>
-                                {Math.abs(overallStats.currentStreak)}
-                                <span className="text-sm font-bold ml-1 text-slate-500">
-                                    {overallStats.currentStreak > 0 ? "연승" : "연패"}
-                                </span>
-                            </div>
-                            <p className={`text-xs mt-1 font-medium ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>현재 연속 기록</p>
-                        </div>
-                    </div>
-
-                    {/* Trade Count (New Addition for Bento filler) */}
-                    <div className={`rounded-3xl p-6 flex flex-col justify-between border transition-all ${darkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-800/50' : 'bg-white border-slate-200 hover:shadow-md'
-                        }`}>
-                        <div className="flex items-center justify-between mb-4">
-                            <div className={`p-2 rounded-xl ${darkMode ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-50 text-amber-600'}`}>
-                                <Activity size={20} />
-                            </div>
-                            <span className={`text-xs font-bold ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>TRADES</span>
-                        </div>
-                        <div>
-                            <div className={`text-3xl font-black ${darkMode ? 'text-slate-200' : 'text-slate-700'}`}>
-                                {overallStats.totalTrades || 0}
-                            </div>
-                            <p className={`text-xs mt-1 font-medium ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>총 매매 횟수</p>
-                        </div>
-                    </div>
                 </div>
             </div>
 
-            {/* 3. PnL Chart (Monthly/Daily) - High Priority */}
-            {pnlChartPoints.length > 0 && (
-                <div id="section-monthly" className="scroll-mt-48 mb-6">
-                    <div className={cardBaseClass + ' p-6'}>
+            {/* 3. Main Chart Section (Grid) */}
+            <div id="section-monthly" className="grid grid-cols-1 lg:grid-cols-3 gap-6 scroll-mt-48 mb-6">
+                {/* PnL Chart (Spans 2 cols) */}
+                {pnlChartPoints.length > 0 && (
+                    <div className={`lg:col-span-2 ${cardBaseClass} p-6`}>
                         <div className="flex items-center justify-between mb-6">
                             <h2 className={sectionTitleClass}>
                                 {pnlChartMode === 'daily' ? <TrendingUp size={20} className={darkMode ? 'text-emerald-400' : 'text-emerald-600'} /> : <Target size={20} className={darkMode ? 'text-emerald-400' : 'text-emerald-600'} />}
@@ -589,39 +604,19 @@ export function StatsDashboard({
                             />
                         )}
                     </div>
-                </div>
-            )}
+                )}
 
-            {/* 4. Equity Curve (Combined) - High Priority */}
-            {equityPoints.length > 0 && (
-                <div id="section-equity" className="scroll-mt-48 mb-6">
-                    <EquityCurve
-                        data={equityPoints}
-                        monthlyData={monthlyEquityPoints}
-                        darkMode={darkMode}
-                    />
-                </div>
-            )}
-
-            {/* 5. AI Insights Widget */}
-            {insights && (
-                <div id="section-insights" className="scroll-mt-48 mb-6">
-                    <InsightsWidget insights={insights} darkMode={darkMode} />
-                </div>
-            )}
-
-            {/* 6. Top Performers (Win/Loss) */}
-            {(topProfits.length > 0 || topLosses.length > 0) && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    {/* Top Profits */}
+                {/* Equity Curve or Top Profits (Third col) */}
+                <div className="space-y-6">
+                    {/* Top Profits List */}
                     <div className={cardBaseClass + ' p-5'}>
                         <h3 className={'text-sm font-bold flex items-center gap-2 mb-4 ' + (darkMode ? 'text-emerald-400' : 'text-emerald-600')}>
                             <Trophy size={16} />
-                            수익 Top 5
+                            수익 Top 3
                         </h3>
-                        {topProfits.length > 0 ? (
-                            <div className="space-y-2">
-                                {topProfits.map((s, idx) => (
+                        {topProfits.slice(0, 3).length > 0 ? (
+                            <div className="space-y-3">
+                                {topProfits.slice(0, 3).map((s, idx) => (
                                     <div
                                         key={s.symbol}
                                         className={
@@ -635,65 +630,43 @@ export function StatsDashboard({
                                             <span className={'w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ' + (darkMode ? 'bg-emerald-500/30 text-emerald-400' : 'bg-emerald-200 text-emerald-700')}>
                                                 {idx + 1}
                                             </span>
-                                            <span className={'font-bold text-sm ' + (darkMode ? 'text-slate-200' : 'text-slate-700')}>
-                                                {s.symbol_name || s.symbol}
-                                            </span>
+                                            <div>
+                                                <span className={'font-bold text-sm block ' + (darkMode ? 'text-slate-200' : 'text-slate-700')}>
+                                                    {s.symbol_name || s.symbol}
+                                                </span>
+                                            </div>
                                         </div>
-                                        <span className="font-bold text-emerald-500 tabular-nums">
+                                        <span className="font-bold text-emerald-500 tabular-nums text-sm">
                                             +{formatNumber(s.realizedPnL)}
                                         </span>
                                     </div>
                                 ))}
                             </div>
                         ) : (
-                            <p className={'text-sm text-center py-4 ' + (darkMode ? 'text-slate-500' : 'text-slate-400')}>
-                                수익 종목이 없습니다
-                            </p>
+                            <div className="text-center py-6 text-slate-400 text-xs">수익 종목이 없습니다</div>
                         )}
                     </div>
 
-                    {/* Top Losses */}
-                    <div className={cardBaseClass + ' p-5'}>
-                        <h3 className={'text-sm font-bold flex items-center gap-2 mb-4 ' + (darkMode ? 'text-rose-400' : 'text-rose-600')}>
-                            <AlertTriangle size={16} />
-                            손실 Top 5
-                        </h3>
-                        {topLosses.length > 0 ? (
-                            <div className="space-y-2">
-                                {topLosses.map((s, idx) => (
-                                    <div
-                                        key={s.symbol}
-                                        className={
-                                            'flex items-center justify-between p-3 rounded-xl transition-all ' +
-                                            (onSymbolClick ? 'cursor-pointer hover:scale-[1.02] ' : '') +
-                                            (darkMode ? 'bg-rose-500/10 hover:bg-rose-500/20' : 'bg-rose-50 hover:bg-rose-100')
-                                        }
-                                        onClick={() => onSymbolClick?.(s.symbol)}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <span className={'w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ' + (darkMode ? 'bg-rose-500/30 text-rose-400' : 'bg-rose-200 text-rose-700')}>
-                                                {idx + 1}
-                                            </span>
-                                            <span className={'font-bold text-sm ' + (darkMode ? 'text-slate-200' : 'text-slate-700')}>
-                                                {s.symbol_name || s.symbol}
-                                            </span>
-                                        </div>
-                                        <span className="font-bold text-rose-500 tabular-nums">
-                                            {formatNumber(s.realizedPnL)}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className={'text-sm text-center py-4 ' + (darkMode ? 'text-slate-500' : 'text-slate-400')}>
-                                손실 종목이 없습니다
-                            </p>
-                        )}
-                    </div>
+                    {equityPoints.length > 0 && (
+                        <div>
+                            <EquityCurve
+                                data={equityPoints}
+                                monthlyData={monthlyEquityPoints}
+                                darkMode={darkMode}
+                            />
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* 4. AI Insights Widget */}
+            {insights && (
+                <div id="section-insights" className="scroll-mt-48 mb-6">
+                    <InsightsWidget insights={insights} darkMode={darkMode} />
                 </div>
             )}
 
-            {/* 7. Detailed Stats Toggle Section */}
+            {/* 5. Detailed Stats Toggle Section */}
             <div id="section-details" className="scroll-mt-48 mb-6">
                 <div className="flex flex-col items-center">
                     <button
@@ -706,17 +679,12 @@ export function StatsDashboard({
                             }
                         `}
                     >
-                        <span>{showDetails ? '상세 분석 접기' : '상세 분석 더보기'}</span>
+                        <span>{showDetails ? '상세 분석 접기' : '더 많은 분석 보기'}</span>
                         <ChevronDown
                             size={18}
                             className={`transition-transform duration-300 ${showDetails ? 'rotate-180' : ''}`}
                         />
                     </button>
-                    {!showDetails && (
-                        <p className={`mt-3 text-xs ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                            전략 성과, 요일별 통계, 리스크 관리 등 더 자세한 정보를 확인하세요
-                        </p>
-                    )}
                 </div>
 
                 {/* Collapsible Content */}
@@ -726,7 +694,20 @@ export function StatsDashboard({
                 `}>
                     <div className="min-h-0 space-y-8">
 
-                        {/* 7.1 Strategy Performance */}
+                        {/* 7.1 Monthly Goals (Full Widget) */}
+                        {onSetMonthlyGoal && onRemoveMonthlyGoal && (
+                            <div>
+                                <MonthlyGoalsWidget
+                                    goals={monthlyGoals}
+                                    monthlyPnLPoints={monthlyRealizedPoints}
+                                    onSetGoal={onSetMonthlyGoal}
+                                    onRemoveGoal={onRemoveMonthlyGoal}
+                                    darkMode={darkMode}
+                                />
+                            </div>
+                        )}
+
+                        {/* 7.2 Strategy Performance */}
                         {strategyStats.length > 0 && (
                             <div className={cardBaseClass + ' p-6'}>
                                 <h2 className={sectionTitleClass + ' mb-4'}>
@@ -734,7 +715,7 @@ export function StatsDashboard({
                                     전략별 성과
                                 </h2>
                                 <div className={tableWrapperClass}>
-                                    <table className="w-full text-left min-w-[700px]">
+                                    <table className="w-full text-left min-w-[700px] whitespace-nowrap">
                                         <thead>
                                             <tr>
                                                 {[
@@ -787,34 +768,21 @@ export function StatsDashboard({
                             </div>
                         )}
 
-                        {/* 7.2 Weekday Stats */}
-                        {weekdayStats.length > 0 && (
-                            <div>
-                                <WeekdayStatsChart data={weekdayStats} darkMode={darkMode} />
-                            </div>
-                        )}
+                        {/* 7.3 Weekday & Holding Period */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {weekdayStats.length > 0 && (
+                                <div>
+                                    <WeekdayStatsChart data={weekdayStats} darkMode={darkMode} />
+                                </div>
+                            )}
+                            {holdingPeriodStats.length > 0 && (
+                                <div>
+                                    <HoldingPeriodChart data={holdingPeriodStats} darkMode={darkMode} />
+                                </div>
+                            )}
+                        </div>
 
-                        {/* 7.3 Holding Period Stats */}
-                        {holdingPeriodStats.length > 0 && (
-                            <div>
-                                <HoldingPeriodChart data={holdingPeriodStats} darkMode={darkMode} />
-                            </div>
-                        )}
-
-                        {/* 7.4 Monthly Goals */}
-                        {onSetMonthlyGoal && onRemoveMonthlyGoal && (
-                            <div>
-                                <MonthlyGoalsWidget
-                                    goals={monthlyGoals}
-                                    monthlyPnLPoints={monthlyRealizedPoints}
-                                    onSetGoal={onSetMonthlyGoal}
-                                    onRemoveGoal={onRemoveMonthlyGoal}
-                                    darkMode={darkMode}
-                                />
-                            </div>
-                        )}
-
-                        {/* 7.5 Risk Management */}
+                        {/* 7.4 Risk Management */}
                         {onUpdateBalance && onUpdateRiskSettings && riskSettings && (
                             <div>
                                 <RiskManagementWidget
@@ -831,252 +799,272 @@ export function StatsDashboard({
                                 />
                             </div>
                         )}
-                    </div>
-                </div>
-            </div>
 
+                        {/* Symbol Table */}
+                        <div id="section-symbols" className={cardBaseClass + ' p-6 scroll-mt-28'}>
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className={sectionTitleClass}>
+                                    📈 종목별 성과
+                                </h2>
+                                <button
+                                    onClick={fetchAllCurrentPrices}
+                                    disabled={loadingAllPrices}
+                                    className={
+                                        'flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all btn-press ' +
+                                        (darkMode
+                                            ? 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30 border border-indigo-500/30'
+                                            : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200')
+                                    }
+                                >
+                                    {loadingAllPrices ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                                    현재가 조회
+                                </button>
+                            </div>
 
-            <div id="section-symbols" className={cardBaseClass + ' p-6 scroll-mt-28'}>
-                <div className="flex items-center justify-between mb-4">
-                    <h2 className={sectionTitleClass}>
-                        📈 종목별 성과
-                    </h2>
-                    <button
-                        onClick={fetchAllCurrentPrices}
-                        disabled={loadingAllPrices}
-                        className={
-                            'flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all btn-press ' +
-                            (darkMode
-                                ? 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30 border border-indigo-500/30'
-                                : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200')
-                        }
-                    >
-                        {loadingAllPrices ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                        현재가 조회
-                    </button>
-                </div>
-
-                <div className={tableWrapperClass}>
-                    <table className="w-full text-left min-w-[700px]">
-                        <thead>
-                            <tr>
-                                {[
-                                    { k: 'symbol', l: '종목명' },
-                                    { k: 'positionQty', l: '보유수량' },
-                                    { k: 'avgCost', l: '평단가' },
-                                    { k: 'currentPrice', l: '현재가' },
-                                    { k: 'realizedPnL', l: '실현손익' },
-                                    { k: 'unrealizedPnL', l: '평가손익' },
-                                    { k: 'returnRate', l: '수익률' },
-                                    { k: 'winRate', l: '승률' },
-                                ].map((h) => (
-                                    <th
-                                        key={h.k}
-                                        onClick={() => handleSymbolStatsSort(h.k as SymbolSortKey)}
-                                        className={tableHeaderClass + ' cursor-pointer transition-colors select-none ' + (darkMode ? 'hover:bg-slate-700/50' : 'hover:bg-indigo-100/50')}
-                                    >
-                                        <div className="flex items-center gap-1.5">
-                                            {h.l}
-                                            {symbolSort.key === h.k && (
-                                                symbolSort.dir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />
-                                            )}
-                                        </div>
-                                    </th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {sortedSymbolSummaries.map((s) => {
-                                const currentPrice = currentPrices[s.symbol];
-                                const hasPrice = currentPrice !== undefined;
-                                const unrealizedPnL = (s.positionQty > 0 && hasPrice) ? (currentPrice - s.avgCost) * s.positionQty : 0;
-                                const returnRate = (s.positionQty > 0 && hasPrice && s.avgCost > 0) ? ((currentPrice - s.avgCost) / s.avgCost) * 100 : 0;
-                                const isLoading = loadingPrices[s.symbol];
-                                const isKorean = s.symbol.includes('.KS') || s.symbol.includes('.KQ') || /^\d+$/.test(s.symbol);
-
-                                return (
-                                    <tr
-                                        key={s.symbol}
-                                        className={
-                                            'transition-colors ' +
-                                            (onSymbolClick ? 'cursor-pointer ' : '') +
-                                            (darkMode ? 'hover:bg-slate-800/30' : 'hover:bg-indigo-50/30')
-                                        }
-                                        onClick={() => onSymbolClick?.(s.symbol)}
-                                    >
-                                        <td className={tableCellClass + ' font-bold'}>
-                                            <div>
-                                                <div className={darkMode ? 'text-slate-100' : 'text-slate-900'}>{s.symbol_name || s.symbol}</div>
-                                                {s.symbol_name && (
-                                                    <div className={'text-[10px] font-mono ' + (darkMode ? 'text-slate-500' : 'text-slate-400')}>
-                                                        {s.symbol}
+                            <div className={`${tableWrapperClass} max-w-[calc(100vw-2rem)]`}>
+                                <table className="w-full text-left min-w-[700px]">
+                                    <thead>
+                                        <tr>
+                                            {[
+                                                { k: 'symbol', l: '종목명' },
+                                                { k: 'positionQty', l: '보유수량' },
+                                                { k: 'avgCost', l: '평단가' },
+                                                { k: 'currentPrice', l: '현재가' },
+                                                { k: 'realizedPnL', l: '실현손익' },
+                                                { k: 'unrealizedPnL', l: '평가손익' },
+                                                { k: 'returnRate', l: '수익률' },
+                                                { k: 'winRate', l: '승률' },
+                                            ].map((h) => (
+                                                <th
+                                                    key={h.k}
+                                                    onClick={() => handleSymbolStatsSort(h.k as SymbolSortKey)}
+                                                    className={tableHeaderClass + ' cursor-pointer transition-colors select-none ' + (darkMode ? 'hover:bg-slate-700/50' : 'hover:bg-indigo-100/50')}
+                                                >
+                                                    <div className="flex items-center gap-1.5">
+                                                        {h.l}
+                                                        {symbolSort.key === h.k && (
+                                                            symbolSort.dir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />
+                                                        )}
                                                     </div>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td className={tableCellClass + ' font-mono tabular-nums'}>{formatQuantity(s.positionQty, s.symbol)}</td>
-                                        <td className={tableCellClass + ' font-mono tabular-nums'}>{s.positionQty > 0 ? formatNumber(s.avgCost, 0) : '-'}</td>
-                                        <td className={tableCellClass}>
-                                            <div className="flex items-center gap-2">
-                                                {isLoading ? (
-                                                    <Loader2 size={14} className="animate-spin text-indigo-400" />
-                                                ) : hasPrice ? (
-                                                    <span className="font-mono tabular-nums">
-                                                        <span className="text-slate-400 text-xs mr-1">{isKorean ? '₩' : '$'}</span>
-                                                        {formatNumber(currentPrice, isKorean ? 0 : 2)}
-                                                    </span>
-                                                ) : (
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            fetchCurrentPrice(s.symbol);
-                                                        }}
-                                                        className={
-                                                            'px-2 py-1 rounded text-[10px] font-bold transition-all ' +
-                                                            (darkMode ? 'bg-slate-800 text-slate-400 hover:bg-slate-700' : 'bg-slate-100 text-slate-500 hover:bg-slate-200')
-                                                        }
-                                                    >
-                                                        조회
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td className={tableCellClass}>
-                                            <PnLText value={s.realizedPnL} />
-                                        </td>
-                                        <td className={tableCellClass}>
-                                            {s.positionQty > 0 && hasPrice ? <PnLText value={unrealizedPnL} /> : <span className="text-slate-400">-</span>}
-                                        </td>
-                                        <td className={tableCellClass}>
-                                            {s.positionQty > 0 && hasPrice ? (
-                                                <span className={
-                                                    'px-2 py-1 rounded-lg text-[11px] font-bold ' +
-                                                    (returnRate >= 0
-                                                        ? (darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700')
-                                                        : (darkMode ? 'bg-rose-500/20 text-rose-400' : 'bg-rose-100 text-rose-700'))
-                                                }>
-                                                    {returnRate >= 0 ? '+' : ''}{returnRate.toFixed(2)}%
-                                                </span>
-                                            ) : <span className="text-slate-400">-</span>}
-                                        </td>
-                                        <td className={tableCellClass}>
-                                            {s.tradeCount > 0 ? (
-                                                <span className={
-                                                    'px-2 py-1 rounded-lg text-[11px] font-bold ' +
-                                                    (s.winRate >= 50
-                                                        ? (darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700')
-                                                        : (darkMode ? 'bg-rose-500/20 text-rose-400' : 'bg-rose-100 text-rose-700'))
-                                                }>
-                                                    {s.winRate.toFixed(0)}%
-                                                </span>
-                                            ) : <span className="text-slate-400">-</span>}
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {sortedSymbolSummaries.map((s) => {
+                                            const currentPrice = currentPrices[s.symbol];
+                                            const hasPrice = currentPrice !== undefined;
+                                            const unrealizedPnL = (s.positionQty > 0 && hasPrice) ? (currentPrice - s.avgCost) * s.positionQty : 0;
+                                            const returnRate = (s.positionQty > 0 && hasPrice && s.avgCost > 0) ? ((currentPrice - s.avgCost) / s.avgCost) * 100 : 0;
+                                            const isLoading = loadingPrices[s.symbol];
+                                            const isKorean = s.symbol.includes('.KS') || s.symbol.includes('.KQ') || /^\d+$/.test(s.symbol);
 
-            {/* 5. Tag Table */}
-            <div className={cardBaseClass + ' p-6'}>
-                <h2 className={sectionTitleClass + ' mb-4'}>
-                    🏷️ 전략/태그 분석
-                </h2>
-                <div className={tableWrapperClass}>
-                    <table className="w-full text-left min-w-[600px]">
-                        <thead>
-                            <tr>
-                                {[
-                                    { k: 'tag', l: '태그명' },
-                                    { k: 'tradeCount', l: '매매횟수' },
-                                    { k: 'winRate', l: '승률' },
-                                    { k: 'realizedPnL', l: '실현손익' },
-                                    { k: 'avgPnLPerTrade', l: '거래당 평균 손익' },
-                                ].map((h) => (
-                                    <th
-                                        key={h.k}
-                                        onClick={() => handleTagStatsSort(h.k as TagSortKey)}
-                                        className={tableHeaderClass + ' cursor-pointer transition-colors select-none ' + (darkMode ? 'hover:bg-slate-700/50' : 'hover:bg-indigo-100/50')}
-                                    >
-                                        <div className="flex items-center gap-1.5">
-                                            {h.l}
-                                            {tagSort.key === h.k && (
-                                                tagSort.dir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />
-                                            )}
-                                        </div>
-                                    </th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {sortedTagStats.map((t) => (
-                                <tr key={t.tag} className={'transition-colors ' + (darkMode ? 'hover:bg-slate-800/30' : 'hover:bg-indigo-50/30')}>
-                                    <td className={tableCellClass + ' font-bold'}>
-                                        <span className={'px-2 py-1 rounded-lg text-xs font-medium ' + (darkMode ? 'bg-slate-800' : 'bg-slate-100')} style={{ color: tagColors[t.tag] }}>
-                                            {t.tag}
-                                        </span>
-                                    </td>
-                                    <td className={tableCellClass + ' font-mono tabular-nums'}>{t.tradeCount}</td>
-                                    <td className={tableCellClass}>
-                                        <span className={
-                                            'px-2 py-1 rounded-lg text-[11px] font-bold ' +
-                                            (t.winRate >= 50
-                                                ? (darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700')
-                                                : (darkMode ? 'bg-rose-500/20 text-rose-400' : 'bg-rose-100 text-rose-700'))
-                                        }>
-                                            {t.winRate.toFixed(0)}%
-                                        </span>
-                                    </td>
-                                    <td className={tableCellClass}><PnLText value={t.realizedPnL} /></td>
-                                    <td className={tableCellClass}><PnLText value={t.avgPnLPerTrade} /></td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                                            return (
+                                                <tr
+                                                    key={s.symbol}
+                                                    className={
+                                                        'transition-colors ' +
+                                                        (onSymbolClick ? 'cursor-pointer ' : '') +
+                                                        (darkMode ? 'hover:bg-slate-800/30' : 'hover:bg-indigo-50/30')
+                                                    }
+                                                    onClick={() => onSymbolClick?.(s.symbol)}
+                                                >
+                                                    <td className={tableCellClass + ' font-bold'}>
+                                                        <div>
+                                                            <div className={darkMode ? 'text-slate-100' : 'text-slate-900'}>{s.symbol_name || s.symbol}</div>
+                                                            {s.symbol_name && (
+                                                                <div className={'text-[10px] font-mono ' + (darkMode ? 'text-slate-500' : 'text-slate-400')}>
+                                                                    {s.symbol}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className={tableCellClass + ' font-mono tabular-nums'}>{formatQuantity(s.positionQty, s.symbol)}</td>
+                                                    <td className={tableCellClass + ' font-mono tabular-nums'}>{s.positionQty > 0 ? formatNumber(s.avgCost, 0) : '-'}</td>
+                                                    <td className={tableCellClass}>
+                                                        <div className="flex items-center gap-2">
+                                                            {isLoading ? (
+                                                                <Loader2 size={14} className="animate-spin text-indigo-400" />
+                                                            ) : hasPrice ? (
+                                                                <span className="font-mono tabular-nums">
+                                                                    <span className="text-slate-400 text-xs mr-1">{isKorean ? '₩' : '$'}</span>
+                                                                    {formatNumber(currentPrice, isKorean ? 0 : 2)}
+                                                                </span>
+                                                            ) : (
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        fetchCurrentPrice(s.symbol);
+                                                                    }}
+                                                                    className={
+                                                                        'px-2 py-1 rounded text-[10px] font-bold transition-all ' +
+                                                                        (darkMode ? 'bg-slate-800 text-slate-400 hover:bg-slate-700' : 'bg-slate-100 text-slate-500 hover:bg-slate-200')
+                                                                    }
+                                                                >
+                                                                    조회
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className={tableCellClass}>
+                                                        <PnLText value={s.realizedPnL} />
+                                                    </td>
+                                                    <td className={tableCellClass}>
+                                                        {s.positionQty > 0 && hasPrice ? <PnLText value={unrealizedPnL} /> : <span className="text-slate-400">-</span>}
+                                                    </td>
+                                                    <td className={tableCellClass}>
+                                                        {s.positionQty > 0 && hasPrice ? (
+                                                            <span className={
+                                                                'px-2 py-1 rounded-lg text-[11px] font-bold ' +
+                                                                (returnRate >= 0
+                                                                    ? (darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700')
+                                                                    : (darkMode ? 'bg-rose-500/20 text-rose-400' : 'bg-rose-100 text-rose-700'))
+                                                            }>
+                                                                {returnRate >= 0 ? '+' : ''}{returnRate.toFixed(2)}%
+                                                            </span>
+                                                        ) : <span className="text-slate-400">-</span>}
+                                                    </td>
+                                                    <td className={tableCellClass}>
+                                                        {s.tradeCount > 0 ? (
+                                                            <span className={
+                                                                'px-2 py-1 rounded-lg text-[11px] font-bold ' +
+                                                                (s.winRate >= 50
+                                                                    ? (darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700')
+                                                                    : (darkMode ? 'bg-rose-500/20 text-rose-400' : 'bg-rose-100 text-rose-700'))
+                                                            }>
+                                                                {s.winRate.toFixed(0)}%
+                                                            </span>
+                                                        ) : <span className="text-slate-400">-</span>}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        {/* Tag Table */}
+                        <div className={cardBaseClass + ' p-6'}>
+                            <h2 className={sectionTitleClass + ' mb-4'}>
+                                🏷️ 태그 통계
+                            </h2>
+                            <div className={`${tableWrapperClass} max-w-[calc(100vw-2rem)]`}>
+                                <table className="w-full text-left min-w-[600px]">
+                                    <thead>
+                                        <tr>
+                                            {[
+                                                { k: 'tag', l: '태그명' },
+                                                { k: 'tradeCount', l: '매매횟수' },
+                                                { k: 'winRate', l: '승률' },
+                                                { k: 'realizedPnL', l: '실현손익' },
+                                                { k: 'avgPnLPerTrade', l: '거래당 평균 손익' },
+                                            ].map((h) => (
+                                                <th
+                                                    key={h.k}
+                                                    onClick={() => handleTagStatsSort(h.k as TagSortKey)}
+                                                    className={tableHeaderClass + ' cursor-pointer transition-colors select-none ' + (darkMode ? 'hover:bg-slate-700/50' : 'hover:bg-indigo-100/50')}
+                                                >
+                                                    <div className="flex items-center gap-1.5">
+                                                        {h.l}
+                                                        {tagSort.key === h.k && (
+                                                            tagSort.dir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />
+                                                        )}
+                                                    </div>
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {sortedTagStats.map((t) => (
+                                            <tr key={t.tag} className={'transition-colors ' + (darkMode ? 'hover:bg-slate-800/30' : 'hover:bg-indigo-50/30')}>
+                                                <td className={tableCellClass + ' font-bold'}>
+                                                    <span className={'px-2 py-1 rounded-lg text-xs font-medium ' + (darkMode ? 'bg-slate-800' : 'bg-slate-100')} style={{ color: tagColors[t.tag] }}>
+                                                        {t.tag}
+                                                    </span>
+                                                </td>
+                                                <td className={tableCellClass + ' font-mono tabular-nums'}>{t.tradeCount}</td>
+                                                <td className={tableCellClass}>
+                                                    <span className={
+                                                        'px-2 py-1 rounded-lg text-[11px] font-bold ' +
+                                                        (t.winRate >= 50
+                                                            ? (darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700')
+                                                            : (darkMode ? 'bg-rose-500/20 text-rose-400' : 'bg-rose-100 text-rose-700'))
+                                                    }>
+                                                        {t.winRate.toFixed(0)}%
+                                                    </span>
+                                                </td>
+                                                <td className={tableCellClass}><PnLText value={t.realizedPnL} /></td>
+                                                <td className={tableCellClass}><PnLText value={t.avgPnLPerTrade} /></td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                    </div>
                 </div>
             </div>
         </div >
     );
 }
 
-interface StatItemProps {
-    label: string;
-    value: number | string;
-    suffix?: string;
-    isCurrency?: boolean;
-    trend?: 'up' | 'down' | 'neutral';
-    icon?: React.ReactNode;
-    darkMode: boolean;
-}
-
-function StatItem({ label, value, suffix, isCurrency, trend, icon, darkMode }: StatItemProps) {
-    const numValue = typeof value === 'number' ? value : parseFloat(String(value));
-
-    // Determine color based on trend or value
-    let colorClass = darkMode ? 'text-white' : 'text-slate-900';
-    if (trend) {
-        if (trend === 'up') colorClass = 'text-emerald-500';
-        else if (trend === 'down') colorClass = 'text-rose-500';
-        else colorClass = darkMode ? 'text-slate-400' : 'text-slate-500';
-    } else if (isCurrency) {
-        if (numValue > 0) colorClass = 'text-emerald-500';
-        else if (numValue < 0) colorClass = 'text-rose-500';
+// Compact Goal Card for Bento Grid
+function CurrentMonthGoalCard({ goal, actualPnL, darkMode, onSetGoal }: { goal?: MonthlyGoal, actualPnL: number, darkMode: boolean, onSetGoal?: () => void }) {
+    if (!goal) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full text-center py-4 cursor-pointer" onClick={onSetGoal}>
+                <div className={`p-3 rounded-full mb-3 ${darkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>
+                    <Target size={24} />
+                </div>
+                <p className={`font-bold text-sm ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>이번 달 목표 설정하기</p>
+                <p className={`text-xs mt-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>목표를 설정하고 달성을 시작하세요</p>
+            </div>
+        )
     }
 
-    const bgClass = darkMode ? 'bg-slate-800/50' : 'bg-slate-50';
+    const progress = Math.min(100, Math.max(0, (actualPnL / goal.target_pnl) * 100));
+    const isAchieved = progress >= 100;
+    const remaining = goal.target_pnl - actualPnL;
 
     return (
-        <div className={`rounded-xl p-4 ${bgClass} flex flex-col justify-between`}>
-            <div className={'flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider mb-2 ' + (darkMode ? 'text-slate-500' : 'text-slate-400')}>
-                {icon}
-                {label}
+        <div className="h-full flex flex-col justify-between">
+            <div className="flex items-start justify-between">
+                <div className="flex items-center gap-2">
+                    <div className={`p-2 rounded-xl ${darkMode ? 'bg-violet-500/20 text-violet-400' : 'bg-violet-100 text-violet-600'}`}>
+                        <Calendar size={20} />
+                    </div>
+                    <div>
+                        <span className={`text-[10px] font-black uppercase tracking-widest block ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                            THIS MONTH GOAL
+                        </span>
+                        <span className={`text-xs font-bold ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                            {new Date().getMonth() + 1}월 목표 달성률
+                        </span>
+                    </div>
+                </div>
+                {isAchieved && <Trophy size={20} className="text-amber-400" fill="currentColor" />}
             </div>
-            <div className={`text-lg lg:text-xl font-black tabular-nums flex items-baseline gap-1 ${colorClass}`}>
-                {isCurrency && numValue > 0 && '+'}
-                {typeof value === 'number' ? formatNumber(Math.abs(value)) : value}
-                {suffix && <span className="text-xs font-medium opacity-70">{suffix}</span>}
+
+            <div className="mt-4">
+                <div className="flex items-end gap-2 mb-2">
+                    <span className={`text-3xl font-black ${isAchieved ? 'text-emerald-500' : (darkMode ? 'text-slate-200' : 'text-slate-800')}`}>
+                        {progress.toFixed(0)}%
+                    </span>
+                    <span className={`text-xs font-medium mb-1.5 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                        / {formatNumber(goal.target_pnl)}원
+                    </span>
+                </div>
+                <div className={`h-2 w-full rounded-full overflow-hidden ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
+                    <div
+                        className={`h-full rounded-full transition-all duration-1000 ${isAchieved ? 'bg-emerald-500' : 'bg-violet-500'}`}
+                        style={{ width: `${progress}%` }}
+                    />
+                </div>
+                <div className={`text-[10px] mt-2 text-right ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                    {remaining > 0 ? `${formatNumber(remaining)}원 남음` : '목표 달성!'}
+                </div>
             </div>
         </div>
     );

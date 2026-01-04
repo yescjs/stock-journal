@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
 
         // 2단계: 한국 주식이면 네이버 금융 시도
         if (isKoreanStock(symbol)) {
-            console.log(`Yahoo Finance failed for ${symbol}, trying Naver Finance...`);
+            // console.log(`Yahoo Finance failed for ${symbol}, trying Naver Finance...`);
             const naverResult = await tryNaverFinance(symbol, period);
             if (naverResult) {
                 return NextResponse.json({
@@ -212,7 +212,7 @@ async function tryNaverFinance(
             .sort((a: PriceData, b: PriceData) => a.date - b.date); // 날짜 오름차순 정렬
 
         if (prices.length > 0) {
-            console.log(`Naver Finance success: ${prices.length} data points for ${stockCode}`);
+            // console.log(`Naver Finance success: ${prices.length} data points for ${stockCode}`);
             return { prices };
         }
 
@@ -244,6 +244,7 @@ function getPeriodConfig(period: string): { range: string; interval: string } {
         '1mo': { range: '1mo', interval: '1d' },
         '3mo': { range: '3mo', interval: '1d' },
         '1y': { range: '1y', interval: '1d' },
+        '3y': { range: '3y', interval: '1wk' }, // 3Y uses weekly interval for better load
     };
 
     return configs[period] || configs['1mo'];

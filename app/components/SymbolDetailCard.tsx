@@ -1,8 +1,9 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Trade } from '@/app/types/trade';
-import { formatNumber, formatQuantity } from '@/app/utils/format';
-import { TrendingUp, TrendingDown, DollarSign, Activity, X, BarChart2 } from 'lucide-react';
+import { formatNumber, formatQuantity, isKRWSymbol } from '@/app/utils/format';
+import { TrendingUp, TrendingDown, DollarSign, Activity, BarChart2 } from 'lucide-react';
 import { StockChart } from '@/app/components/charts/StockChart';
+import { TradeList } from '@/app/components/TradeList';
 
 interface SymbolDetailCardProps {
     symbol: string;
@@ -10,10 +11,13 @@ interface SymbolDetailCardProps {
     currentPrice?: number;
     onClose: () => void;
     darkMode: boolean;
+    exchangeRate: number;
+    showConverted: boolean;
 }
 
-export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, onClose, darkMode }: SymbolDetailCardProps) {
+export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, onClose, darkMode, exchangeRate, showConverted }: SymbolDetailCardProps) {
     const [dynamicPrice, setDynamicPrice] = useState<number | undefined>(initialPrice);
+    const [openMonths, setOpenMonths] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         if (initialPrice) setDynamicPrice(initialPrice);
@@ -23,6 +27,15 @@ export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, o
         return trades.filter(t => t.symbol === symbol);
     }, [symbol, trades]);
 
+    // Currency Conversion Logic
+    const isKRW = isKRWSymbol(symbol);
+    const shouldConvert = !isKRW && showConverted;
+    const activeExchangeRate = shouldConvert ? exchangeRate : 1;
+    const currencyUnit = isKRW || shouldConvert ? '원' : '$';
+
+    const displayedPrice = dynamicPrice ? dynamicPrice * activeExchangeRate : undefined;
+
+    // ... stats calculation code ...
     const stats = useMemo(() => {
         let totalBuyQty = 0;
         let totalBuyAmt = 0;
@@ -30,7 +43,12 @@ export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, o
         let totalSellAmt = 0;
 
         stockTrades.forEach(t => {
-            const amt = t.price * t.quantity;
+            const dateStr = t.date; // or use timestamp if available, but assuming daily rate isn't per-transaction here for simplicity, or we use current rate for simplicity in this view
+            // For PnL calculation in summary, we usually use the current active exchange rate for consistency with "Current Value"
+
+            const price = t.price * activeExchangeRate;
+            const amt = price * t.quantity;
+
             if (t.side === 'BUY') {
                 totalBuyQty += t.quantity;
                 totalBuyAmt += amt;
@@ -44,7 +62,11 @@ export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, o
         const avgCost = totalBuyQty > 0 ? totalBuyAmt / totalBuyQty : 0;
         const avgSellPrice = totalSellQty > 0 ? totalSellAmt / totalSellQty : 0;
         const realizedPnL = totalSellQty * (avgSellPrice - avgCost);
-        const unrealizedPnL = positionQty * ((dynamicPrice || avgCost) - avgCost);
+
+        // Unrealized PnL: (Current Price - Avg Cost) * Held Qty
+        // displayedPrice is the converted current price
+        const currentVal = displayedPrice || avgCost;
+        const unrealizedPnL = positionQty * (currentVal - avgCost);
 
         return {
             positionQty,
@@ -52,9 +74,8 @@ export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, o
             realizedPnL,
             unrealizedPnL,
         };
-    }, [stockTrades, dynamicPrice]);
+    }, [stockTrades, displayedPrice, activeExchangeRate]);
 
-    // Get stock name from trades (use first trade's symbol_name if available)
     const stockName = useMemo(() => {
         const tradeWithName = stockTrades.find(t => t.symbol_name);
         return tradeWithName?.symbol_name || symbol;
@@ -77,12 +98,12 @@ export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, o
                         </div>
                         <div>
                             <div className="flex items-center gap-2 mb-1">
-                                <h2 className={`text-2xl font-black tracking-tight ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
+                                <h2 className={`text-2xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
                                     {stockName}
                                 </h2>
-                                {dynamicPrice && (
+                                {displayedPrice && (
                                     <span className={`px-2 py-0.5 rounded-lg text-xs font-bold ${darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700'}`}>
-                                        현재가 {formatNumber(dynamicPrice)}
+                                        현재가 {currencyUnit === '$' ? '$' : ''}{formatNumber(displayedPrice)}{currencyUnit === '원' ? '원' : ''}
                                     </span>
                                 )}
                             </div>
@@ -97,23 +118,12 @@ export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, o
                             </div>
                         </div>
                     </div>
-                    <button
-                        onClick={onClose}
-                        className={`
-                            p-2.5 rounded-xl transition-all btn-press
-                            ${darkMode 
-                                ? 'bg-slate-800/50 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400' 
-                                : 'bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-500'}
-                        `}
-                    >
-                        <X size={20} />
-                    </button>
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <StatItem
                         label="보유 수량"
-                        value={formatQuantity(stats.positionQty, symbol)}
+                        value={formatQuantity(stats.positionQty, isKRW ? symbol : undefined)} // Keep qty format native
                         icon={<Activity size={16} />}
                         colorClass={darkMode ? 'text-blue-400' : 'text-blue-600'}
                         bgClass={darkMode ? 'bg-blue-500/10' : 'bg-blue-50'}
@@ -121,7 +131,7 @@ export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, o
                     />
                     <StatItem
                         label="평균 단가"
-                        value={formatNumber(stats.avgCost)}
+                        value={(currencyUnit === '$' ? '$' : '') + formatNumber(stats.avgCost) + (currencyUnit === '원' ? '원' : '')}
                         icon={<DollarSign size={16} />}
                         colorClass={darkMode ? 'text-amber-400' : 'text-amber-600'}
                         bgClass={darkMode ? 'bg-amber-500/10' : 'bg-amber-50'}
@@ -129,7 +139,7 @@ export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, o
                     />
                     <StatItem
                         label="실현 손익"
-                        value={stats.realizedPnL !== 0 ? formatNumber(stats.realizedPnL) : '-'}
+                        value={stats.realizedPnL !== 0 ? (currencyUnit === '$' ? '$' : '') + formatNumber(stats.realizedPnL) + (currencyUnit === '원' ? '원' : '') : '-'}
                         valueClass={stats.realizedPnL > 0 ? 'text-emerald-500' : stats.realizedPnL < 0 ? 'text-rose-500' : ''}
                         icon={<TrendingUp size={16} />}
                         colorClass={darkMode ? 'text-emerald-400' : 'text-emerald-600'}
@@ -138,7 +148,7 @@ export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, o
                     />
                     <StatItem
                         label="평가 손익"
-                        value={stats.positionQty !== 0 ? formatNumber(stats.unrealizedPnL) : '-'}
+                        value={stats.positionQty !== 0 ? (currencyUnit === '$' ? '$' : '') + formatNumber(stats.unrealizedPnL) + (currencyUnit === '원' ? '원' : '') : '-'}
                         valueClass={stats.unrealizedPnL > 0 ? 'text-emerald-500' : stats.unrealizedPnL < 0 ? 'text-rose-500' : ''}
                         icon={stats.unrealizedPnL >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
                         colorClass={stats.unrealizedPnL >= 0 ? (darkMode ? 'text-emerald-400' : 'text-emerald-600') : (darkMode ? 'text-rose-400' : 'text-rose-600')}
@@ -148,19 +158,34 @@ export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, o
                 </div>
             </div>
 
-            {/* Stock Chart Section */}
-            <div className={`rounded-3xl p-1 border overflow-hidden ${darkMode ? 'bg-slate-900/40 border-slate-700/50' : 'bg-white/60 border-white/60'}`}>
-                <StockChart
-                    symbol={symbol}
-                    darkMode={darkMode}
-                    trades={trades}
-                    compact={true}
-                    onCurrentPriceLoad={(price) => setDynamicPrice(price)}
-                />
+            {/* Content Section */}
+            <div className={`rounded-3xl p-1 border overflow-hidden min-h-[400px] ${darkMode ? 'bg-slate-900/40 border-slate-700/50' : 'bg-white/60 border-white/60'}`}>
+                <div className="space-y-4">
+                    <StockChart
+                        symbol={symbol}
+                        darkMode={darkMode}
+                        trades={trades}
+                        compact={true}
+                        onCurrentPriceLoad={(price) => setDynamicPrice(price)}
+                    />
+                    <div className="px-2 pb-2">
+                        <TradeList
+                            trades={stockTrades}
+                            currentUser={null} // Read-only
+                            toggleMonth={(key) => setOpenMonths(prev => ({ ...prev, [key]: !prev[key] }))}
+                            darkMode={darkMode}
+                            exchangeRate={exchangeRate}
+                            showConverted={showConverted}
+                            openMonths={openMonths}
+                        />
+
+                    </div>
+                </div>
             </div>
         </div>
     );
 }
+
 
 function StatItem({ label, value, icon, valueClass, colorClass, bgClass, darkMode }: any) {
     return (
@@ -176,7 +201,7 @@ function StatItem({ label, value, icon, valueClass, colorClass, bgClass, darkMod
                     {label}
                 </span>
             </div>
-            <div className={`text-xl font-black tracking-tight ${valueClass || (darkMode ? 'text-slate-200' : 'text-slate-800')}`}>
+            <div className={`text-xl font-bold ${valueClass || (darkMode ? 'text-slate-200' : 'text-slate-800')}`}>
                 {value}
             </div>
         </div>

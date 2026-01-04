@@ -29,11 +29,22 @@ export function useBackupManager({
   // Check for Guest Data
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      // Check for actual guest trade data
       const guestData = localStorage.getItem(GUEST_TRADES_KEY);
-      if (guestData && guestData !== '[]') {
+      if (guestData) {
         try {
           const parsed = JSON.parse(guestData);
-          setHasGuestData(Array.isArray(parsed) && parsed.length > 0);
+          if (Array.isArray(parsed)) {
+            // If user is logged in, only show alert if there's actual data
+            // If user is not logged in, empty array also counts (for guest mode)
+            if (currentUser) {
+              setHasGuestData(parsed.length > 0);
+            } else {
+              setHasGuestData(true);
+            }
+          } else {
+            setHasGuestData(false);
+          }
         } catch {
           setHasGuestData(false);
         }
@@ -41,7 +52,7 @@ export function useBackupManager({
         setHasGuestData(false);
       }
     }
-  }, []);
+  }, [currentUser]);
 
   const handleExportCsv = () => {
     if (trades.length === 0) {
@@ -154,18 +165,25 @@ export function useBackupManager({
         user_id: currentUser.id,
         date: t.date,
         symbol: t.symbol,
+        symbol_name: t.symbol_name ?? null,
         side: t.side,
         price: t.price,
         quantity: t.quantity,
         memo: t.memo,
         tags: t.tags ?? [],
-        image: t.image ?? null
+        image: t.image ?? null,
+        strategy_id: (t.strategy_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(t.strategy_id)) ? t.strategy_id : null,
+        entry_reason: t.entry_reason ?? null,
+        exit_reason: t.exit_reason ?? null,
+        emotion_tag: t.emotion_tag ?? null
       }));
 
       const { error } = await supabase.from('trades').insert(rows);
       if (error) throw error;
 
+      // Remove both guest data and guest started flag
       localStorage.removeItem(GUEST_TRADES_KEY);
+      localStorage.removeItem('stock-journal-guest-started');
       setHasGuestData(false);
 
       alert('마이그레이션이 완료되었습니다. 페이지를 새로고침합니다.');
@@ -182,6 +200,7 @@ export function useBackupManager({
   const handleDropGuestData = () => {
     if (confirm('게스트 데이터를 모두 삭제하시겠습니까?')) {
       localStorage.removeItem(GUEST_TRADES_KEY);
+      localStorage.removeItem('stock-journal-guest-started');
       setHasGuestData(false);
       if (!currentUser) setTrades([]);
       onNotify('success', '게스트 데이터가 삭제되었습니다.');

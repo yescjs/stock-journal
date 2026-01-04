@@ -164,7 +164,7 @@ export function EquityCurve({ data, monthlyData, darkMode }: EquityCurveProps) {
     };
 
     return (
-        <div className={`rounded-xl border overflow-hidden ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
+        <div className={`rounded-3xl border overflow-hidden ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
             {/* Header */}
             <div className={`px-4 py-3 border-b flex items-center justify-between ${darkMode ? 'border-slate-800 bg-gradient-to-r from-slate-800/50 to-slate-900' : 'border-slate-100 bg-gradient-to-r from-indigo-50/50 to-white'}`}>
                 <div className="flex items-center gap-2">
@@ -259,7 +259,7 @@ export function EquityCurve({ data, monthlyData, darkMode }: EquityCurveProps) {
 
             {/* Chart */}
             <div className="p-4 pt-0">
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={280}>
                     <ComposedChart data={filteredData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                         <defs>
                             <linearGradient id="equityGradient" x1="0" y1="0" x2="0" y2="1">

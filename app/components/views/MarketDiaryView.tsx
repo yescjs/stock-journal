@@ -6,10 +6,13 @@ import { BookOpen, Edit2, Trash2, Save, X, Smile, Frown, Meh, Activity, ArrowLef
 import { DiaryCalendar } from '@/app/components/DiaryCalendar';
 import { parseISO } from 'date-fns';
 
+import { Trade } from '@/app/types/trade';
+
 interface MarketDiaryViewProps {
     darkMode: boolean;
     currentUser: User | null;
     diaryData: ReturnType<typeof useDiary>;
+    trades: Trade[];
 }
 
 type ViewMode = 'calendar' | 'detail' | 'edit';
@@ -17,7 +20,8 @@ type ViewMode = 'calendar' | 'detail' | 'edit';
 export function MarketDiaryView({
     darkMode,
     currentUser,
-    diaryData
+    diaryData,
+    trades
 }: MarketDiaryViewProps) {
     const { diaries, saveDiary, deleteDiary, loading } = diaryData;
     const [viewMode, setViewMode] = useState<ViewMode>('calendar');
@@ -111,8 +115,8 @@ export function MarketDiaryView({
 
     const cardClass = `rounded-2xl border p-6 transition-all ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`;
     const inputClass = `w-full px-4 py-2.5 rounded-xl border text-sm transition-all outline-none ${darkMode
-            ? 'bg-slate-800 border-slate-700 text-slate-100 placeholder-slate-500 focus:border-indigo-500'
-            : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-indigo-500'
+        ? 'bg-slate-800 border-slate-700 text-slate-100 placeholder-slate-500 focus:border-indigo-500'
+        : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-indigo-500'
         }`;
     const labelClass = `block text-xs font-bold uppercase tracking-wider mb-2 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`;
 
@@ -134,11 +138,12 @@ export function MarketDiaryView({
                             </p>
                         </div>
                     </div>
-                    <div className="flex-1 h-[calc(100vh-200px)] min-h-[600px]">
+                    <div className="flex-1 min-h-0 h-full overflow-hidden">
                         <DiaryCalendar
                             currentDate={currentCalendarDate}
                             onDateChange={setCurrentCalendarDate}
                             diaries={diaries}
+                            trades={trades}
                             onSelectDate={handleDateSelect}
                             selectedDateStr={selectedDate}
                             darkMode={darkMode}
@@ -181,8 +186,8 @@ export function MarketDiaryView({
                                                     key={s}
                                                     onClick={() => setFormData({ ...formData, market_sentiment: s })}
                                                     className={`py-2 rounded-xl text-xs font-bold transition-all border ${formData.market_sentiment === s
-                                                            ? 'border-transparent ring-2 ring-indigo-500 ' + sentimentColors[s]
-                                                            : (darkMode ? 'bg-slate-800 border-slate-700 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500')
+                                                        ? 'border-transparent ring-2 ring-indigo-500 ' + sentimentColors[s]
+                                                        : (darkMode ? 'bg-slate-800 border-slate-700 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500')
                                                         }`}
                                                 >
                                                     {sentimentLabels[s]}
@@ -317,8 +322,8 @@ export function MarketDiaryView({
                                                         <div
                                                             key={i}
                                                             className={`w-8 h-2 rounded-full ${i < currentDiary.my_condition
-                                                                    ? (currentDiary.my_condition >= 4 ? 'bg-emerald-500' : currentDiary.my_condition <= 2 ? 'bg-rose-500' : 'bg-amber-400')
-                                                                    : (darkMode ? 'bg-slate-800' : 'bg-slate-200')
+                                                                ? (currentDiary.my_condition >= 4 ? 'bg-emerald-500' : currentDiary.my_condition <= 2 ? 'bg-rose-500' : 'bg-amber-400')
+                                                                : (darkMode ? 'bg-slate-800' : 'bg-slate-200')
                                                                 }`}
                                                         />
                                                     ))}

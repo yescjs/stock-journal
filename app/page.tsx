@@ -24,19 +24,22 @@ import { useDiary } from '@/app/hooks/useDiary';
 // Components
 import { Header } from '@/app/components/Header';
 import { LoginForm } from '@/app/components/LoginForm';
+import { LandingPage } from '@/app/components/LandingPage';
 import { TradeForm } from '@/app/components/TradeForm';
 import { DashboardView } from '@/app/components/views/DashboardView';
 import { TradeListView } from '@/app/components/views/TradeListView';
 import { SettingsView } from '@/app/components/views/SettingsView';
 import { MarketDiaryView } from '@/app/components/views/MarketDiaryView';
+import { UserGuide } from '@/app/components/UserGuide';
 
 // Styles & Icons
 const THEME_KEY = 'stock-journal-theme-v1';
 const OPEN_MONTHS_KEY = 'stock-journal-open-months-v1';
 
 export default function Home() {
+    const [showGuide, setShowGuide] = useState(false);
     // --- 1. Auth & Data Hooks ---
-    const { user: currentUser, loading: authLoading, logout } = useSupabaseAuth();
+    const { user: currentUser, loading: authLoading, logout, authError } = useSupabaseAuth();
 
     // Data Logic
     const { trades, loading: tradesLoading, addTrade, removeTrade, updateTrade, clearAllTrades, setTrades } = useTrades(currentUser);
@@ -82,6 +85,7 @@ export default function Home() {
     const [activeTab, setActiveTab] = useState<ActiveTab>('journal');
     const [darkMode, setDarkMode] = useState(false);
     const [showLoginModal, setShowLoginModal] = useState(false);
+    const [showAddModal, setShowAddModal] = useState(false);
 
     // Tag Colors
     const { tagColors } = useTagColors();
@@ -159,10 +163,73 @@ export default function Home() {
         }
     };
 
+    // Handler to start as guest (create empty guest data)
+    const handleStartAsGuest = () => {
+        if (typeof window !== 'undefined') {
+            // Create empty guest data array to enable guest mode
+            localStorage.setItem('stock-journal-guest-trades-v1', JSON.stringify([]));
+            // Force re-render by reloading
+            window.location.reload();
+        }
+    };
+
     if (authLoading) return <div className="h-screen flex items-center justify-center bg-slate-100">Loading...</div>;
 
+    // Show Landing Page for guests without data
+    if (!currentUser && !backupManager.hasGuestData) {
+        return (
+            <>
+                <LandingPage
+                    onStart={() => setShowLoginModal(true)}
+                    onStartAsGuest={handleStartAsGuest}
+                />
+                {showLoginModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                        <div className={`relative w-full max-w-md rounded-3xl p-6 shadow-2xl ${darkMode ? 'bg-slate-900 border border-slate-700' : 'bg-white'}`}>
+                            <button
+                                onClick={() => setShowLoginModal(false)}
+                                className="absolute right-4 top-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                            >
+                                ✕
+                            </button>
+                            <div className="mb-6 text-center">
+                                <h2 className={`text-2xl font-black ${darkMode ? 'text-white' : 'text-slate-900'}`}>로그인</h2>
+                                <p className={`text-sm mt-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>데이터 동기화를 위해 로그인하세요</p>
+                            </div>
+                            <LoginForm
+                                darkMode={darkMode}
+                                onDone={() => setShowLoginModal(false)} // Just close modal, state change to logged in will trigger re-render
+                            />
+                            <div className="mt-4 text-center">
+                                <button
+                                    onClick={() => {
+                                        setShowLoginModal(false);
+                                        handleStartAsGuest();
+                                    }}
+                                    className={`text-sm font-medium transition-colors ${darkMode ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}
+                                >
+                                    로그인 없이 게스트로 시작하기
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </>
+        );
+    }
+
     return (
-        <div className={`h-screen flex flex-col ${darkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} overflow-hidden transition-colors duration-300`}>
+        <div className={`min-h-screen flex flex-col ${darkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} transition-colors duration-300`}>
+
+            {/* Auth Error Notification */}
+            {authError && (
+                <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-xl shadow-lg text-sm font-bold animate-in fade-in slide-in-from-top-4 bg-rose-500 text-white max-w-md">
+                    <div className="flex items-center gap-2">
+                        <span>⚠️</span>
+                        <span>{authError}</span>
+                    </div>
+                </div>
+            )}
 
             {/* Toast Notification */}
             {notify && (
@@ -184,7 +251,15 @@ export default function Home() {
                     onShowLogin={() => setShowLoginModal(true)}
                     activeTab={activeTab}
                     setActiveTab={setActiveTab}
+                    onShowGuide={() => setShowGuide(true)}
                 />
+
+                <UserGuide
+                    isOpen={showGuide}
+                    onClose={() => setShowGuide(false)}
+                    darkMode={darkMode}
+                />
+
             </div>
 
             {/* Main Content */}
@@ -278,6 +353,7 @@ export default function Home() {
                             darkMode={darkMode}
                             currentUser={currentUser}
                             diaryData={diaryData}
+                            trades={trades}
                         />
                     </div>
                 ) : activeTab === 'stats' ? (
@@ -312,6 +388,16 @@ export default function Home() {
 
             </div>
 
+            {/* Mobile Add Trade FAB */}
+            {activeTab === 'journal' && (
+                <button
+                    onClick={() => setShowAddModal(true)}
+                    className="lg:hidden fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-indigo-600 text-white shadow-xl shadow-indigo-600/30 flex items-center justify-center hover:scale-110 active:scale-95 transition-all"
+                >
+                    <span className="text-2xl font-light mb-1">+</span>
+                </button>
+            )}
+
             {/* Login Modal */}
             {showLoginModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -334,14 +420,19 @@ export default function Home() {
                 </div>
             )}
 
-            {/* Edit Trade Modal */}
-            {editingTrade && (
+            {/* Add/Edit Trade Modal */}
+            {(editingTrade || showAddModal) && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className={`relative w-full max-w-lg rounded-3xl p-0 shadow-2xl overflow-hidden flex flex-col max-h-[90vh] ${darkMode ? 'bg-slate-900 border border-slate-700' : 'bg-white'}`}>
                         <div className={`px-6 py-4 flex items-center justify-between border-b ${darkMode ? 'border-slate-800 bg-slate-900' : 'border-slate-100 bg-white'}`}>
-                            <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-slate-900'}`}>매매 기록 수정</h3>
+                            <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                                {editingTrade ? '매매 기록 수정' : '새로운 매매 기록'}
+                            </h3>
                             <button
-                                onClick={() => setEditingTrade(null)}
+                                onClick={() => {
+                                    setEditingTrade(null);
+                                    setShowAddModal(false);
+                                }}
                                 className={`p-2 rounded-full transition-colors ${darkMode ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
                             >
                                 ✕
@@ -352,7 +443,10 @@ export default function Home() {
                                 darkMode={darkMode}
                                 currentUser={currentUser}
                                 baseTrades={trades}
-                                onAddTrade={async () => { }} // Not used in edit mode
+                                onAddTrade={async (data, file) => {
+                                    await handleAddTrade(data, file);
+                                    setShowAddModal(false);
+                                }}
                                 onUpdateTrade={handleUpdateTrade}
                                 allTags={allTags}
                                 strategies={strategies}

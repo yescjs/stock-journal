@@ -21,6 +21,7 @@ interface SettingsPanelProps {
     onExportBackup: () => void;
     onImportBackup: () => void;
     onClearAll: () => void;
+    onDeleteAccount?: () => void; // New prop
     backupMessage: string | null;
 }
 
@@ -31,16 +32,17 @@ export function SettingsPanel({
     onExportBackup,
     onImportBackup,
     onClearAll,
+    onDeleteAccount,
     backupMessage,
 }: SettingsPanelProps) {
     const cardClass = `rounded-3xl p-6 md:p-8 border transition-all glass-card ${darkMode
-            ? 'bg-slate-900/40 border-slate-700/50'
-            : 'bg-white/60 border-white/60 shadow-lg'
+        ? 'bg-slate-900/40 border-slate-700/50'
+        : 'bg-white/60 border-white/60 shadow-lg'
         }`;
 
     const buttonClass = `px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 btn-press ${darkMode
-            ? 'bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white border border-slate-700/50'
-            : 'bg-white text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200'
+        ? 'bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white border border-slate-700/50'
+        : 'bg-white text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200'
         }`;
 
     const labelClass = `text-xs font-black uppercase tracking-wider mb-4 flex items-center gap-2 ${darkMode ? 'text-slate-400' : 'text-slate-500'
@@ -173,8 +175,8 @@ export function SettingsPanel({
 
             {/* Danger Zone */}
             <div className={`rounded-3xl p-6 md:p-8 border-2 transition-all ${darkMode
-                    ? 'bg-rose-950/20 border-rose-900/30'
-                    : 'bg-rose-50/50 border-rose-100'
+                ? 'bg-rose-950/20 border-rose-900/30'
+                : 'bg-rose-50/50 border-rose-100'
                 }`}>
                 <div className={`text-xs font-black uppercase tracking-wider mb-4 flex items-center gap-2 ${darkMode ? 'text-rose-400' : 'text-rose-500'
                     }`}>
@@ -182,32 +184,63 @@ export function SettingsPanel({
                     위험 영역
                 </div>
 
-                <div className={`flex items-center justify-between p-4 rounded-2xl border ${darkMode ? 'bg-slate-900/50 border-rose-900/30' : 'bg-white border-rose-100'
-                    }`}>
-                    <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${darkMode ? 'bg-rose-900/20' : 'bg-rose-50'
-                            }`}>
-                            <Trash2 size={20} className="text-rose-500" />
-                        </div>
-                        <div>
-                            <div className={`font-bold text-sm ${darkMode ? 'text-white' : 'text-slate-900'}`}>
-                                모든 데이터 삭제
+                <div className="space-y-3">
+                    {/* Clear All Data */}
+                    <div className={`flex items-center justify-between p-4 rounded-2xl border ${darkMode ? 'bg-slate-900/50 border-rose-900/30' : 'bg-white border-rose-100'
+                        }`}>
+                        <div className="flex items-center gap-4">
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${darkMode ? 'bg-rose-900/20' : 'bg-rose-50'
+                                }`}>
+                                <Trash2 size={20} className="text-rose-500" />
                             </div>
-                            <div className={`text-xs mt-0.5 font-medium ${darkMode ? 'text-rose-300' : 'text-rose-400'}`}>
-                                이 작업은 되돌릴 수 없습니다
+                            <div>
+                                <div className={`font-bold text-sm ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                                    {currentUser ? '데이터 초기화' : '게스트 데이터 삭제'}
+                                </div>
+                                <div className={`text-xs mt-0.5 font-medium ${darkMode ? 'text-rose-300' : 'text-rose-400'}`}>
+                                    {currentUser ? '현재 계정의 모든 거래내역을 삭제합니다' : '브라우저에 저장된 데이터를 삭제합니다'}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <button
-                        onClick={onClearAll}
-                        className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 btn-press ${darkMode
+                        <button
+                            onClick={onClearAll}
+                            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 btn-press ${darkMode
                                 ? 'bg-rose-900/30 text-rose-400 hover:bg-rose-900/50 border border-rose-800'
                                 : 'bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200'
-                            }`}
-                    >
-                        <Trash2 size={14} />
-                        초기화
-                    </button>
+                                }`}
+                        >
+                            <Trash2 size={14} />
+                            초기화
+                        </button>
+                    </div>
+
+                    {/* Delete Account (Only for Logged In Users) */}
+                    {currentUser && onDeleteAccount && (
+                        <div className={`flex items-center justify-between p-4 rounded-2xl border ${darkMode ? 'bg-slate-900/50 border-rose-900/30' : 'bg-white border-rose-100'
+                            }`}>
+                            <div className="flex items-center gap-4">
+                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${darkMode ? 'bg-rose-900/20' : 'bg-rose-50'
+                                    }`}>
+                                    <UserIcon size={20} className="text-rose-500" />
+                                </div>
+                                <div>
+                                    <div className={`font-bold text-sm ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                                        회원 탈퇴
+                                    </div>
+                                    <div className={`text-xs mt-0.5 font-medium ${darkMode ? 'text-rose-300' : 'text-rose-400'}`}>
+                                        계정과 모든 데이터를 영구적으로 삭제합니다
+                                    </div>
+                                </div>
+                            </div>
+                            <button
+                                onClick={onDeleteAccount}
+                                className="px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 btn-press bg-rose-500 text-white hover:bg-rose-600 shadow-lg shadow-rose-500/20"
+                            >
+                                <Trash2 size={14} />
+                                탈퇴하기
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
