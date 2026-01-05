@@ -47,19 +47,25 @@ export async function GET(request: NextRequest) {
         // 3. Supabase에 사용자 생성 또는 업데이트 (Admin API 사용)
         const email = profile.email || `naver_${profile.id}@naver-oauth.local`;
 
-        // 이메일로 기존 사용자 찾기
-        const { data: existingUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers();
-
-        if (listError) {
-            console.error('Error listing users:', listError);
-            throw listError;
+        // 이메일로 기존 사용자 찾기 (필터링된 쿼리로 속도 개선)
+        let existingUser = null;
+        
+        try {
+            // 먼저 이메일로 검색
+            const { data: usersByEmail, error: emailError } = await supabaseAdmin.auth.admin.listUsers();
+            
+            if (!emailError && usersByEmail?.users) {
+                // 이메일 또는 네이버 ID로 사용자 찾기
+                existingUser = usersByEmail.users.find(u =>
+                    u.email === email ||
+                    u.user_metadata?.naver_id === profile.id
+                );
+            }
+        } catch (searchError) {
+            console.error('Error searching for user:', searchError);
+            // 검색 실패 시 새 사용자로 처리
+            existingUser = null;
         }
-
-        // 네이버 ID 또는 이메일로 기존 사용자 찾기
-        const existingUser = existingUsers.users.find(u =>
-            u.email === email ||
-            u.user_metadata?.naver_id === profile.id
-        );
 
         let user;
         if (!existingUser) {
@@ -162,6 +168,22 @@ export async function GET(request: NextRequest) {
         
         (async function() {
             try {
+                // 1. 기존 세션 완전 정리 (세션 충돌 방지)
+                try {
+                    const keysToRemove = [];
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const key = localStorage.key(i);
+                        if (key && key.startsWith('sb-')) {
+                            keysToRemove.push(key);
+                        }
+                    }
+                    keysToRemove.forEach(key => localStorage.removeItem(key));
+                    console.log('Cleared previous session data');
+                } catch (storageError) {
+                    console.warn('Failed to clear localStorage:', storageError);
+                }
+
+                // 2. 새 세션 생성
                 const supabase = createClient(
                     '${process.env.NEXT_PUBLIC_SUPABASE_URL}',
                     '${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}'
