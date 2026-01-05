@@ -86,7 +86,24 @@ export function useSupabaseAuth() {
     }, []);
 
     const logout = async () => {
+        // 1. Supabase 로그아웃
         await supabase.auth.signOut();
+        
+        // 2. localStorage 완전 정리 (세션 충돌 방지)
+        try {
+            const keysToRemove: string[] = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('sb-')) {
+                    keysToRemove.push(key);
+                }
+            }
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+            console.log('Cleared all Supabase session data from localStorage');
+        } catch (e) {
+            console.error('Failed to clear localStorage:', e);
+        }
+        
         setUser(null);
         setAuthError(null);
     };
