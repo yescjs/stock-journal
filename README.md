@@ -1,11 +1,10 @@
-[# 📈 Stock Journal
+# 📈 Stock Journal
 
 > 직관적인 매매일지로 시작하는 스마트한 주식 투자 관리
 
 Stock Journal은 개인 투자자를 위한 현대적인 주식 매매 일지 애플리케이션입니다. 매매 기록, 수익률 분석, 리스크 관리를 한 곳에서 관리하며, 데이터 기반의 투자 결정을 돕습니다.
 
-[![Next.js](https://img.shields.io/badge/Next.js-16.0-black?style=flat-square&logo=next.js)]
-(https://nextjs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-16.0-black?style=flat-square&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
 [![Supabase](https://img.shields.io/badge/Supabase-Auth%20%26%20DB-green?style=flat-square&logo=supabase)](https://supabase.com/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-4.0-38bdf8?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
@@ -215,4 +214,3 @@ const unrealizedPnL = (currentPrice - avgBuyPrice) * quantity;
 
 ---
 
-](https://img.shields.io/badge/Supabase-Auth%20%26%20DB-green?style=flat-square&logo=supabase)
