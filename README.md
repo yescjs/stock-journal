@@ -1,4 +1,4 @@
-# 📈 Stock Journal
+[# 📈 Stock Journal
 
 > 직관적인 매매일지로 시작하는 스마트한 주식 투자 관리
 
@@ -215,3 +215,4 @@ const unrealizedPnL = (currentPrice - avgBuyPrice) * quantity;
 
 ---
 
+](https://img.shields.io/badge/Supabase-Auth%20%26%20DB-green?style=flat-square&logo=supabase)
