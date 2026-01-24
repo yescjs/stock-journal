@@ -177,7 +177,17 @@ export default function Home() {
         }
     };
 
-    if (authLoading) return <div className="h-screen flex items-center justify-center bg-slate-100">Loading...</div>;
+    if (authLoading) return (
+        <div className="h-screen flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950">
+            <div className="relative">
+                <div className="absolute inset-0 bg-indigo-500 blur-lg opacity-20 rounded-full animate-pulse"></div>
+                <div className="relative w-16 h-16 rounded-2xl flex items-center justify-center bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-600 shadow-xl">
+                    <span className="text-white text-2xl animate-pulse">📊</span>
+                </div>
+            </div>
+            <p className="mt-4 text-slate-500 text-sm font-medium animate-pulse">불러오는 중...</p>
+        </div>
+    );
 
     // Show Landing Page for guests without data
     if (!currentUser && !backupManager.hasGuestData) {
@@ -188,11 +198,15 @@ export default function Home() {
                     onStartAsGuest={handleStartAsGuest}
                 />
                 {showLoginModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+                        onClick={(e) => e.target === e.currentTarget && setShowLoginModal(false)}
+                    >
                         <div className={`relative w-full max-w-md rounded-3xl p-6 shadow-2xl ${darkMode ? 'bg-slate-900 border border-slate-700' : 'bg-white'}`}>
                             <button
                                 onClick={() => setShowLoginModal(false)}
-                                className="absolute right-4 top-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                                aria-label="닫기"
+                                className="absolute right-4 top-4 p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
                             >
                                 ✕
                             </button>
@@ -235,13 +249,19 @@ export default function Home() {
                 </div>
             )}
 
-            {/* Toast Notification */}
+            {/* Toast Notification - Bottom center on mobile, top center on desktop */}
             {notify && (
-                <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full shadow-lg text-sm font-bold animate-in fade-in slide-in-from-top-4 ${notify.type === 'success' ? 'bg-emerald-500 text-white' :
+                <div className={`fixed z-50 px-4 py-2.5 rounded-xl shadow-lg text-sm font-bold animate-in fade-in duration-200
+                    left-1/2 -translate-x-1/2
+                    bottom-24 md:bottom-auto md:top-4
+                    ${notify.type === 'success' ? 'bg-emerald-500 text-white' :
                     notify.type === 'error' ? 'bg-rose-500 text-white' :
                         'bg-blue-500 text-white'
                     }`}>
-                    {notify.message}
+                    <div className="flex items-center gap-2">
+                        <span>{notify.type === 'success' ? '✓' : notify.type === 'error' ? '✕' : 'ℹ'}</span>
+                        <span>{notify.message}</span>
+                    </div>
                 </div>
             )}
 
@@ -398,7 +418,9 @@ export default function Home() {
             {activeTab === 'journal' && (
                 <button
                     onClick={() => setShowAddModal(true)}
-                    className="lg:hidden fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-indigo-600 text-white shadow-xl shadow-indigo-600/30 flex items-center justify-center hover:scale-110 active:scale-95 transition-all"
+                    aria-label="새 매매 기록 추가"
+                    title="새 매매 기록 추가"
+                    className="lg:hidden fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-indigo-600 text-white shadow-xl shadow-indigo-600/30 flex items-center justify-center hover:scale-110 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2"
                 >
                     <span className="text-2xl font-light mb-1">+</span>
                 </button>
@@ -406,11 +428,15 @@ export default function Home() {
 
             {/* Login Modal */}
             {showLoginModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+                    onClick={(e) => e.target === e.currentTarget && setShowLoginModal(false)}
+                >
                     <div className={`relative w-full max-w-md rounded-3xl p-6 shadow-2xl ${darkMode ? 'bg-slate-900 border border-slate-700' : 'bg-white'}`}>
                         <button
                             onClick={() => setShowLoginModal(false)}
-                            className="absolute right-4 top-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                            aria-label="닫기"
+                            className="absolute right-4 top-4 p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
                         >
                             ✕
                         </button>
@@ -428,7 +454,15 @@ export default function Home() {
 
             {/* Add/Edit Trade Modal */}
             {(editingTrade || showAddModal) && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) {
+                            setEditingTrade(null);
+                            setShowAddModal(false);
+                        }
+                    }}
+                >
                     <div className={`relative w-full max-w-lg rounded-3xl p-0 shadow-2xl overflow-hidden flex flex-col max-h-[90vh] ${darkMode ? 'bg-slate-900 border border-slate-700' : 'bg-white'}`}>
                         <div className={`px-6 py-4 flex items-center justify-between border-b ${darkMode ? 'border-slate-800 bg-slate-900' : 'border-slate-100 bg-white'}`}>
                             <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-slate-900'}`}>
@@ -439,6 +473,7 @@ export default function Home() {
                                     setEditingTrade(null);
                                     setShowAddModal(false);
                                 }}
+                                aria-label="닫기"
                                 className={`p-2 rounded-full transition-colors ${darkMode ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
                             >
                                 ✕

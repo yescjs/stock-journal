@@ -84,7 +84,9 @@ export function DatePicker({ selectedDate, onChange, darkMode, className = '' }:
             {/* Dropdown Calendar */}
             {isOpen && (
                 <div className={`
-                    absolute top-full left-0 mt-2 z-50 p-4 rounded-2xl border shadow-xl animate-in fade-in zoom-in-95 w-[320px]
+                    absolute top-full mt-2 z-50 p-4 rounded-2xl border shadow-xl animate-in fade-in zoom-in-95 w-[320px]
+                    left-0 right-auto sm:left-0
+                    max-w-[calc(100vw-2rem)]
                     ${darkMode
                         ? 'bg-slate-900 border-slate-700'
                         : 'bg-white border-slate-200'}

@@ -79,25 +79,29 @@ export function Header({
                             {currentUser ? (
                                 <button
                                     onClick={onLogout}
-                                    className={`p-2.5 rounded-xl transition-all active:scale-95 ${darkMode ? 'bg-slate-800 text-rose-400' : 'bg-slate-100 text-rose-600'
+                                    className={`p-2.5 rounded-xl transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-400 ${darkMode ? 'bg-slate-800 text-rose-400' : 'bg-slate-100 text-rose-600'
                                         }`}
                                     title="로그아웃"
+                                    aria-label="로그아웃"
                                 >
                                     <LogOut size={18} />
                                 </button>
                             ) : (
                                 <button
                                     onClick={onShowLogin}
-                                    className="p-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white transition-all active:scale-95"
+                                    className="p-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-400"
                                     title="로그인"
+                                    aria-label="로그인"
                                 >
                                     <LogIn size={18} />
                                 </button>
                             )}
                             <button
                                 onClick={() => setDarkMode(!darkMode)}
-                                className={`p-2.5 rounded-xl transition-all active:scale-95 ${darkMode ? 'bg-slate-800 text-yellow-400' : 'bg-slate-100 text-slate-600'
+                                className={`p-2.5 rounded-xl transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-400 ${darkMode ? 'bg-slate-800 text-yellow-400' : 'bg-slate-100 text-slate-600'
                                     }`}
+                                title={darkMode ? '라이트 모드' : '다크 모드'}
+                                aria-label={darkMode ? '라이트 모드로 전환' : '다크 모드로 전환'}
                             >
                                 {darkMode ? <Sun size={18} /> : <Moon size={18} />}
                             </button>
@@ -105,7 +109,7 @@ export function Header({
                     </div>
 
                     {/* Navigation Tabs - Floating Island Style */}
-                    <nav className="flex-1 max-w-lg mx-auto md:mx-0">
+                    <nav className="flex-1 max-w-lg mx-auto md:mx-0" role="tablist" aria-label="메인 네비게이션">
                         <div className={`flex p-1.5 rounded-2xl w-full gap-1 shadow-inner ${darkMode ? 'bg-slate-950/50' : 'bg-slate-100/80'}`}>
                             {tabs.map((tab) => {
                                 const isActive = activeTab === tab.id;
@@ -113,8 +117,11 @@ export function Header({
                                     <button
                                         key={tab.id}
                                         onClick={() => setActiveTab(tab.id)}
+                                        role="tab"
+                                        aria-selected={isActive}
+                                        aria-label={tab.label}
                                         className={`
-                                            relative flex-1 flex items-center justify-center gap-2 px-2 md:px-4 py-2 md:py-2.5 text-xs md:text-sm font-bold rounded-xl transition-all duration-300
+                                            relative flex-1 flex items-center justify-center gap-2 px-2 md:px-4 py-2 md:py-2.5 text-xs md:text-sm font-bold rounded-xl transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-inset
                                             ${isActive
                                                 ? (darkMode
                                                     ? 'bg-slate-800 text-white shadow-lg shadow-black/20 ring-1 ring-white/10'
@@ -124,7 +131,7 @@ export function Header({
                                                     : 'text-slate-500 hover:text-slate-800 hover:bg-black/5')}
                                         `}
                                     >
-                                        <span className={`text-sm md:text-base transition-transform duration-300 ${isActive ? 'scale-110' : 'scale-100 grayscale opacity-70'}`}>{tab.icon}</span>
+                                        <span className={`text-sm md:text-base transition-transform duration-300 ${isActive ? 'scale-110' : 'scale-100 grayscale opacity-70'}`} aria-hidden="true">{tab.icon}</span>
                                         <span className="hidden leading-none sm:inline">{tab.label}</span>
                                     </button>
                                 );
@@ -139,11 +146,13 @@ export function Header({
                         <button
                             onClick={() => setDarkMode(!darkMode)}
                             className={`
-                                p-3 rounded-2xl border transition-all duration-200 active:scale-95
+                                p-3 rounded-2xl border transition-all duration-200 active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-400
                                 ${darkMode
                                     ? 'border-slate-800 bg-slate-900/50 text-yellow-400 hover:bg-slate-800 hover:border-slate-700'
                                     : 'border-slate-200 bg-white/50 text-slate-500 hover:text-indigo-600 hover:bg-white hover:border-slate-300 shadow-sm'}
                             `}
+                            title={darkMode ? '라이트 모드' : '다크 모드'}
+                            aria-label={darkMode ? '라이트 모드로 전환' : '다크 모드로 전환'}
                         >
                             {darkMode ? <Sun size={18} strokeWidth={2.5} /> : <Moon size={18} strokeWidth={2.5} />}
                         </button>
@@ -151,12 +160,13 @@ export function Header({
                         <button
                             onClick={onShowGuide}
                             className={`
-                                p-3 rounded-2xl border transition-all duration-200 active:scale-95
+                                p-3 rounded-2xl border transition-all duration-200 active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-400
                                 ${darkMode
                                     ? 'border-slate-800 bg-slate-900/50 text-indigo-400 hover:bg-slate-800 hover:border-slate-700'
                                     : 'border-slate-200 bg-white/50 text-indigo-500 hover:text-indigo-600 hover:bg-white hover:border-slate-300 shadow-sm'}
                             `}
                             title="이용 가이드"
+                            aria-label="이용 가이드"
                         >
                             <BookOpen size={18} strokeWidth={2.5} />
                         </button>

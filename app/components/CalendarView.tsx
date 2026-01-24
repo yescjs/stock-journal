@@ -115,7 +115,7 @@ export function CalendarView({
       </div>
 
       {/* Grid */}
-      <div className="grid grid-cols-7 gap-2 md:gap-3 flex-1">
+      <div className="grid grid-cols-7 gap-1 md:gap-3 flex-1">
         {calendarDays.map((day) => {
           const dateKey = format(day, 'yyyy-MM-dd');
           const pnl = dataMap.get(dateKey) ?? 0;
@@ -127,8 +127,12 @@ export function CalendarView({
             <div
               key={dateKey}
               onClick={() => onSelectDate(dateKey)}
+              onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelectDate(dateKey)}
+              role="button"
+              tabIndex={isCurrentMonth ? 0 : -1}
+              aria-label={`${format(day, 'yyyy년 M월 d일', { locale: ko })}${pnl !== 0 ? `, 손익: ${pnl > 0 ? '+' : ''}${formatMoney(pnl)}원` : ''}`}
               className={cn(
-                "group relative min-h-[80px] md:min-h-[100px] rounded-2xl flex flex-col p-2 md:p-3 cursor-pointer transition-all duration-300 border backdrop-blur-sm",
+                "group relative min-h-[60px] md:min-h-[100px] rounded-xl md:rounded-2xl flex flex-col p-1.5 md:p-3 cursor-pointer transition-all duration-300 border backdrop-blur-sm touch-manipulation focus:outline-none focus:ring-2 focus:ring-indigo-400",
                 // Base styles
                 !isSelected && (darkMode ? "border-slate-800/50 hover:border-slate-700" : "border-slate-100 hover:border-indigo-200 hover:shadow-md"),
                 // Background color
