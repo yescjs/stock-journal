@@ -27,8 +27,6 @@ export function StockInsightDrawer({ symbol, trades, currentPrice, onClose, dark
         let totalBuyAmt = 0;
         let totalSellQty = 0;
         let totalSellAmt = 0;
-        let winCount = 0;
-        let lossCount = 0;
 
         // Group by trade for win/loss? 
         // Simple logic: Realized PnL is usually calculated FIFO or Avg Cost.
