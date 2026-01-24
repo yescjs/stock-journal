@@ -322,26 +322,35 @@ export function LoginForm({ onDone, darkMode = false }: LoginFormProps) {
             <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Email */}
                 <div className="relative">
-                    <Mail size={18} className={iconClass} />
+                    <label htmlFor="email" className="sr-only">이메일 주소</label>
+                    <Mail size={18} className={iconClass} aria-hidden="true" />
                     <input
+                        id="email"
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="이메일 주소"
                         className={inputClass}
+                        autoComplete="email"
+                        required
                     />
                 </div>
 
                 {/* Password */}
                 {mode !== 'resetPassword' && (
                     <div className="relative">
-                        <Lock size={18} className={iconClass} />
+                        <label htmlFor="password" className="sr-only">비밀번호</label>
+                        <Lock size={18} className={iconClass} aria-hidden="true" />
                         <input
+                            id="password"
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="비밀번호 (6자 이상)"
                             className={inputClass}
+                            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                            minLength={6}
+                            required
                         />
                     </div>
                 )}
@@ -349,13 +358,18 @@ export function LoginForm({ onDone, darkMode = false }: LoginFormProps) {
                 {/* Confirm Password */}
                 {mode === 'signup' && (
                     <div className="relative">
-                        <Lock size={18} className={iconClass} />
+                        <label htmlFor="confirmPassword" className="sr-only">비밀번호 확인</label>
+                        <Lock size={18} className={iconClass} aria-hidden="true" />
                         <input
+                            id="confirmPassword"
                             type="password"
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             placeholder="비밀번호 확인"
                             className={inputClass}
+                            autoComplete="new-password"
+                            minLength={6}
+                            required
                         />
                     </div>
                 )}

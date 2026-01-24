@@ -221,7 +221,7 @@ export function LandingPage({ onStart, onStartAsGuest }: LandingPageProps) {
 
             <footer className="py-12 text-center text-slate-400 text-sm bg-white border-t border-slate-100">
                 <div className="max-w-[1080px] mx-auto px-6">
-                    © 2024 Stock Journal. All rights reserved.
+                    © {new Date().getFullYear()} Stock Journal. All rights reserved.
                 </div>
             </footer>
         </div>
