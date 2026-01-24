@@ -67,10 +67,9 @@ export async function GET(request: NextRequest) {
             existingUser = null;
         }
 
-        let user;
         if (!existingUser) {
             // 사용자가 없으면 생성 (ID는 자동 생성)
-            const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+            const { error: createError } = await supabaseAdmin.auth.admin.createUser({
                 email: email,
                 email_confirm: true,
                 user_metadata: {
@@ -87,10 +86,9 @@ export async function GET(request: NextRequest) {
                 console.error('Error creating user:', createError);
                 throw createError;
             }
-            user = newUser.user;
         } else {
             // 사용자가 있으면 메타데이터 업데이트
-            const { data: updatedUser, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+            const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
                 existingUser.id,
                 {
                     user_metadata: {
@@ -108,7 +106,6 @@ export async function GET(request: NextRequest) {
                 console.error('Error updating user:', updateError);
                 throw updateError;
             }
-            user = updatedUser.user;
         }
 
         // 4. OTP 생성 및 자동 검증으로 세션 생성
@@ -222,10 +219,11 @@ export async function GET(request: NextRequest) {
         response.cookies.delete('naver_oauth_state');
 
         return response;
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Naver callback error:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         return NextResponse.redirect(
-            `${process.env.NEXT_PUBLIC_BASE_URL}/?error=naver_callback_failed&message=${encodeURIComponent(error.message)}`
+            `${process.env.NEXT_PUBLIC_BASE_URL}/?error=naver_callback_failed&message=${encodeURIComponent(errorMessage)}`
         );
     }
 }

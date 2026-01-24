@@ -74,10 +74,11 @@ export async function GET(request: NextRequest) {
             { status: 404 }
         );
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Stock chart API error:', error);
+        const message = error instanceof Error ? error.message : 'Unknown error';
         return NextResponse.json(
-            { error: '서버 오류가 발생했습니다', message: error.message },
+            { error: '서버 오류가 발생했습니다', message },
             { status: 500 }
         );
     }
@@ -178,8 +179,7 @@ async function tryNaverFinance(
             .replace(/\s/g, '')   // 공백 제거
             .trim();
 
-        // eslint-disable-next-line no-eval
-        const parsed = eval(cleanedText) as string[][];
+        const parsed = JSON.parse(cleanedText) as string[][];
 
         if (!Array.isArray(parsed) || parsed.length < 2) {
             console.error('Naver Finance: No data in response');

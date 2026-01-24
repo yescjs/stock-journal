@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getNaverAuthUrl } from '@/app/lib/naverAuth';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
     try {
         // CSRF 방지를 위한 state 생성
         const state = Math.random().toString(36).substring(7);
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
         });
 
         return response;
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Naver login error:', error);
         return NextResponse.redirect(
             `${process.env.NEXT_PUBLIC_BASE_URL}/?error=naver_login_failed`
