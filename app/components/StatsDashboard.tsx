@@ -364,7 +364,7 @@ export function StatsDashboard({
     return (
         <div className="space-y-8 pb-20 max-w-full overflow-x-hidden">
             {/* 1. Sticky Navigation & Controls */}
-            <div className="sticky top-24 z-40 mb-10 pointer-events-none">
+            <div className="sticky top-20 z-40 mb-6 pointer-events-none">
                 <div className="flex justify-center">
                     <div className={`pointer-events-auto flex items-center gap-2 md:gap-3 p-1.5 md:p-2 rounded-2xl border shadow-2xl backdrop-blur-xl transition-all max-w-[95vw] overflow-x-auto scrollbar-hide ${darkMode
                         ? 'bg-slate-950/80 border-slate-700/50 shadow-black/50'

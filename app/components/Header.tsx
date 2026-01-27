@@ -33,8 +33,8 @@ export function Header({
     ];
 
     return (
-        <div className="sticky top-4 z-40 mb-6">
-            <header className={`rounded-2xl glass-panel px-6 py-4 transition-all duration-300 ${darkMode ? 'bg-slate-900/80 border-slate-700/50' : 'bg-white/80 border-white/50'}`}>
+        <div className="z-40">
+            <header className={`transition-all duration-300 py-4 ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
 
                     <div className="flex items-center justify-between">

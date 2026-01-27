@@ -5,11 +5,9 @@ import { TradeList } from '@/app/components/TradeList';
 import { CalendarView } from '@/app/components/CalendarView';
 import { SymbolDetailCard } from '@/app/components/SymbolDetailCard';
 import { MotionWrapper } from '@/app/components/MotionWrapper';
-import { LayoutGrid, List as ListIcon, Search, Filter, X, RefreshCw, ChevronDown, Upload, Image as ImageIcon } from 'lucide-react';
+import { LayoutGrid, List as ListIcon, Search, Filter, X, RefreshCw, ChevronDown } from 'lucide-react';
 import { Button } from '@/app/components/ui/Button';
 import { Input } from '@/app/components/ui/Input';
-import { CsvImportModal } from '@/app/components/CsvImportModal';
-import { PlaybookGallery } from '@/app/components/PlaybookGallery';
 import { supabase } from '@/app/lib/supabaseClient';
 import { useTradeFilter } from '@/app/hooks/useTradeFilter';
 import { PnLPoint } from '@/app/types/stats';
@@ -47,10 +45,9 @@ export function TradeListView({
   showConverted,
   onToggleConverted
 }: TradeListViewProps) {
-  const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'playbook'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const {
     selectedSymbol, setSelectedSymbol,
@@ -84,39 +81,6 @@ export function TradeListView({
       label: key.slice(5) // MM-DD 
     }));
   }, [trades, selectedSymbol]);
-
-  const handleBulkImport = async (newTrades: any[]) => {
-    try {
-      if (currentUser) {
-        // DB Import
-        const rows = newTrades.map(t => ({
-          user_id: currentUser.id,
-          date: t.date,
-          symbol: t.symbol,
-          side: t.side,
-          price: t.price,
-          quantity: t.quantity,
-          memo: t.memo,
-          tags: [],
-          image: null
-        }));
-
-        const { error } = await supabase.from('trades').insert(rows);
-        if (error) throw error;
-        window.location.reload(); // Simple reload to refresh data
-      } else {
-        // Guest Mode Import
-        const existingStr = localStorage.getItem('stock-journal-guest-trades-v1');
-        const existingTrades = existingStr ? JSON.parse(existingStr) : [];
-        const updatedTrades = [...existingTrades, ...newTrades];
-        localStorage.setItem('stock-journal-guest-trades-v1', JSON.stringify(updatedTrades));
-        window.location.reload();
-      }
-    } catch (error) {
-      console.error('Import failed:', error);
-      alert('가져오기에 실패했습니다.');
-    }
-  };
 
   // Filter Bar Component
   const renderFilterBar = () => (
@@ -162,14 +126,16 @@ export function TradeListView({
         <div>
           <h2 className={`text-2xl font-black tracking-tight flex items-center gap-2.5 ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
             {selectedSymbol && (
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setSelectedSymbol('')}
-                className={`p-1 rounded-lg transition-colors ${darkMode ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
+                className={`p-1 h-auto aspect-square rounded-xl mr-2 ${darkMode ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
               >
                 <ChevronDown size={28} className="rotate-90" />
-              </button>
+              </Button>
             )}
-            {selectedSymbol ? '종목 상세 분석' : (viewMode === 'calendar' ? '매매 캘린더' : viewMode === 'playbook' ? '플레이북 갤러리' : '매매 피드')}
+            {selectedSymbol ? '종목 상세 분석' : (viewMode === 'calendar' ? '매매 캘린더' : '매매 피드')}
             {selectedSymbol && (
               <span className={`text-sm font-bold px-3 py-1 rounded-lg ${darkMode ? 'bg-indigo-500/20 text-indigo-300' : 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'}`}>
                 {selectedSymbol}
@@ -180,20 +146,6 @@ export function TradeListView({
         </div>
 
         <div className="flex gap-3">
-          {/* Import Button */}
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setIsImportModalOpen(true)}
-            className={`
-                backdrop-blur-md border h-[38px]
-                ${darkMode ? 'bg-card/60 border-slate-700/50 text-slate-400 hover:bg-slate-800' : 'bg-white/60 border-white/60 text-slate-500 hover:bg-white'}
-            `}
-          >
-            <Upload size={14} className="mr-2" />
-            <span className="hidden sm:inline">가져오기</span>
-          </Button>
-
           {/* Currency Toggle */}
           <Button
             variant="secondary"
@@ -210,30 +162,21 @@ export function TradeListView({
             <span>{showConverted ? `₩ ${exchangeRate.toLocaleString()}원` : '$ USD'}</span>
           </Button>
 
-          <div className={`flex p-1 rounded-xl border backdrop-blur-md ${darkMode ? 'bg-card/60 border-slate-700/50' : 'bg-white/60 border-white/60 shadow-lg shadow-indigo-100/20'}`}>
+          <div className={`flex p-1 rounded-2xl border backdrop-blur-md ${darkMode ? 'bg-card/60 border-slate-700/50' : 'bg-white/60 border-white/60 shadow-lg shadow-indigo-100/20'}`}>
             <Button
               variant={viewMode === 'list' ? 'primary' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('list')}
-              className={`h-[30px] px-3 text-xs ${viewMode === 'list' ? '' : 'text-slate-500'}`}
+              className={`h-[30px] px-3 text-xs ${viewMode === 'list' ? 'shadow-sm' : 'text-slate-500 hover:bg-transparent'}`}
             >
               <ListIcon size={14} strokeWidth={2.5} className="mr-1.5" />
               <span className="hidden sm:inline">목록</span>
             </Button>
             <Button
-              variant={viewMode === 'playbook' ? 'primary' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('playbook')}
-              className={`h-[30px] px-3 text-xs ${viewMode === 'playbook' ? '' : 'text-slate-500'}`}
-            >
-              <ImageIcon size={14} strokeWidth={2.5} className="mr-1.5" />
-              <span className="hidden sm:inline">플레이북</span>
-            </Button>
-            <Button
               variant={viewMode === 'calendar' ? 'primary' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('calendar')}
-              className={`h-[30px] px-3 text-xs ${viewMode === 'calendar' ? '' : 'text-slate-500'}`}
+              className={`h-[30px] px-3 text-xs ${viewMode === 'calendar' ? 'shadow-sm' : 'text-slate-500 hover:bg-transparent'}`}
             >
               <LayoutGrid size={14} strokeWidth={2.5} className="mr-1.5" />
               <span className="hidden sm:inline">캘린더</span>
@@ -295,15 +238,6 @@ export function TradeListView({
                   darkMode={darkMode}
                 />
               </div>
-            ) : viewMode === 'playbook' ? (
-              <PlaybookGallery 
-                trades={filteredTrades}
-                darkMode={darkMode}
-                onSelectTrade={(trade) => {
-                  setSelectedSymbol(trade.symbol);
-                  // Optional: also scroll to trade or open edit modal
-                }}
-              />
             ) : (
               <TradeList
                 trades={filteredTrades}
@@ -337,13 +271,6 @@ export function TradeListView({
           </div>
         </div>
       )}
-
-      {/* Import Modal */}
-      <CsvImportModal 
-        isOpen={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
-        onImport={handleBulkImport}
-      />
     </div>
   );
 }

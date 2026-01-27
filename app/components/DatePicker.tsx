@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, getDay } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, getDay, isSameMonth } from 'date-fns';
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 
 interface DatePickerProps {
@@ -28,7 +28,7 @@ export function DatePicker({ selectedDate, onChange, darkMode, className = '' }:
     useEffect(() => {
         const newDate = new Date(selectedDate);
         if (!isSameMonth(newDate, currentMonth)) {
-            setTimeout(() => setCurrentMonth(newDate), 0);
+            setTimeout(() => setCurrentMonthOffset(0), 0);
         }
     }, [selectedDate, currentMonth]);
 

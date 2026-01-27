@@ -69,7 +69,7 @@ export function useBackupManager({
         `"${(t.memo || '').replace(/"/g, '""')}"`,
         `"${(t.tags || []).join(' ')}"`,
         t.image || '',
-        (t as any).created_at || ''
+        (t as Trade & { created_at?: string }).created_at || ''
       ].join(','))
     ].join('\n');
 
@@ -119,7 +119,7 @@ export function useBackupManager({
           await supabase.from('trades').delete().eq('user_id', currentUser.id);
 
           // 2. Insert all
-          const rows = json.trades.map((t: any) => ({
+          const rows = json.trades.map((t: Trade) => ({
             user_id: currentUser.id,
             date: t.date,
             symbol: t.symbol,
@@ -189,9 +189,10 @@ export function useBackupManager({
       alert('마이그레이션이 완료되었습니다. 페이지를 새로고침합니다.');
       window.location.reload();
 
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e);
-      alert(`마이그레이션 실패: ${e.message || '알 수 없는 오류'}`);
+      const errorMessage = e instanceof Error ? e.message : '알 수 없는 오류';
+      alert(`마이그레이션 실패: ${errorMessage}`);
     } finally {
       setIsMigrating(false);
     }

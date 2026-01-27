@@ -10,28 +10,30 @@ import { Button } from '@/app/components/ui/Button';
 import { Card } from '@/app/components/ui/Card';
 import { Input } from '@/app/components/ui/Input';
 
+export interface TradeSubmitData {
+    date: string;
+    symbol: string;
+    symbol_name?: string;
+    side: TradeSide;
+    price: number;
+    quantity: number;
+    memo: string;
+    tags: string[];
+    strategy_id?: string;
+    strategy_name?: string;
+    entry_reason?: string;
+    exit_reason?: string;
+    emotion_tag?: string;
+}
+
 interface TradeFormProps {
     darkMode: boolean;
     currentUser: User | null;
     baseTrades: { symbol: string }[];
     initialData?: Trade;
-    onUpdateTrade?: (id: string, data: any, imageFile: File | null) => Promise<void>;
+    onUpdateTrade?: (id: string, data: TradeSubmitData, imageFile: File | null) => Promise<void>;
     onAddTrade: (
-        data: {
-            date: string;
-            symbol: string;
-            symbol_name?: string;
-            side: TradeSide;
-            price: number;
-            quantity: number;
-            memo: string;
-            tags: string[];
-            strategy_id?: string;
-            strategy_name?: string;
-            entry_reason?: string;
-            exit_reason?: string;
-            emotion_tag?: string;
-        },
+        data: TradeSubmitData,
         imageFile: File | null
     ) => Promise<void>;
     allTags: string[];
@@ -285,9 +287,8 @@ export function TradeForm({
                                 type="button"
                                 fullWidth
                                 onClick={() => setForm(prev => ({ ...prev, side: 'BUY' }))}
-                                className={form.side === 'BUY' 
-                                    ? 'bg-rose-500 hover:bg-rose-600 text-white border-none' 
-                                    : 'bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400'}
+                                variant={form.side === 'BUY' ? 'primary' : 'secondary'}
+                                className={form.side === 'BUY' ? 'bg-rose-500 hover:bg-rose-600 text-white border-none' : ''}
                             >
                                 매수
                             </Button>
@@ -295,9 +296,8 @@ export function TradeForm({
                                 type="button"
                                 fullWidth
                                 onClick={() => setForm(prev => ({ ...prev, side: 'SELL' }))}
-                                className={form.side === 'SELL' 
-                                    ? 'bg-blue-500 hover:bg-blue-600 text-white border-none' 
-                                    : 'bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400'}
+                                variant={form.side === 'SELL' ? 'primary' : 'secondary'}
+                                className={form.side === 'SELL' ? 'bg-blue-500 hover:bg-blue-600 text-white border-none' : ''}
                             >
                                 매도
                             </Button>

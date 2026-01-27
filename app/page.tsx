@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 
 // Types
 import { ActiveTab, NotifyType } from '@/app/types/ui';
+import { Trade } from '@/app/types/trade';
 
 // Utils
 import { isKRWSymbol } from '@/app/utils/format';
@@ -27,7 +28,7 @@ import { useDataCorrection } from '@/app/hooks/useDataCorrection';
 import { Header } from '@/app/components/Header';
 import { LoginForm } from '@/app/components/LoginForm';
 import { LandingPage } from '@/app/components/LandingPage';
-import { TradeForm } from '@/app/components/TradeForm';
+import { TradeForm, TradeSubmitData } from '@/app/components/TradeForm';
 import { DashboardView } from '@/app/components/views/DashboardView';
 import { TradeListView } from '@/app/components/views/TradeListView';
 import { SettingsView } from '@/app/components/views/SettingsView';
@@ -153,24 +154,26 @@ export default function Home() {
     const journalNetCash = journalStats.sell - journalStats.buy;
 
     // Handlers
-    const handleAddTrade = async (data: any, imageFile: File | null) => {
+    const handleAddTrade = async (data: TradeSubmitData, imageFile: File | null) => {
         try {
             await addTrade(data, imageFile);
             showNotify('success', '기록이 저장되었습니다.');
-        } catch (e: any) {
-            alert(`저장 실패: ${e.message}`);
+        } catch (e: unknown) {
+            const errorMessage = e instanceof Error ? e.message : '알 수 없는 오류';
+            alert(`저장 실패: ${errorMessage}`);
         }
     };
 
-    const [editingTrade, setEditingTrade] = useState<any | null>(null);
+    const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
 
-    const handleUpdateTrade = async (id: string, data: any, imageFile: File | null) => {
+    const handleUpdateTrade = async (id: string, data: TradeSubmitData, imageFile: File | null) => {
         try {
             await updateTrade(id, data, imageFile);
             showNotify('success', '수정이 완료되었습니다.');
             setEditingTrade(null);
-        } catch (e: any) {
-            alert(`수정 실패: ${e.message}`);
+        } catch (e: unknown) {
+            const errorMessage = e instanceof Error ? e.message : '알 수 없는 오류';
+            alert(`수정 실패: ${errorMessage}`);
         }
     };
 
@@ -273,17 +276,19 @@ export default function Home() {
             )}
 
             {/* Header */}
-            <div className="sticky top-0 z-50 flex-none pt-4 px-4 w-full max-w-7xl mx-auto bg-slate-50/80 backdrop-blur-md dark:bg-slate-950/80 transition-colors duration-300">
-                <Header
-                    darkMode={darkMode}
-                    setDarkMode={setDarkMode}
-                    currentUser={currentUser}
-                    onLogout={logout}
-                    onShowLogin={() => setShowLoginModal(true)}
-                    activeTab={activeTab}
-                    setActiveTab={setActiveTab}
-                    onShowGuide={() => setShowGuide(true)}
-                />
+            <div className="sticky top-0 z-50 flex-none w-full bg-slate-50/80 backdrop-blur-md dark:bg-slate-950/80 transition-colors duration-300 border-b border-slate-200/50 dark:border-slate-800/50">
+                <div className="max-w-7xl mx-auto px-4">
+                    <Header
+                        darkMode={darkMode}
+                        setDarkMode={setDarkMode}
+                        currentUser={currentUser}
+                        onLogout={logout}
+                        onShowLogin={() => setShowLoginModal(true)}
+                        activeTab={activeTab}
+                        setActiveTab={setActiveTab}
+                        onShowGuide={() => setShowGuide(true)}
+                    />
+                </div>
 
                 <UserGuide
                     isOpen={showGuide}
@@ -294,7 +299,7 @@ export default function Home() {
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 min-h-0 w-full max-w-7xl mx-auto px-4 pb-4">
+            <div className="flex-1 min-h-0 w-full max-w-7xl mx-auto px-4 pt-2 pb-8">
 
                 {activeTab === 'journal' ? (
                     <div className="h-full lg:flex lg:gap-8 items-start">
@@ -498,9 +503,9 @@ export default function Home() {
                                 onUpdateTrade={handleUpdateTrade}
                                 allTags={allTags}
                                 strategies={strategies}
-                                isCompact={false}
-                                initialData={editingTrade}
-                            />
+                                 isCompact={false}
+                                 initialData={editingTrade || undefined}
+                             />
                         </div>
                     </div>
                 </div>

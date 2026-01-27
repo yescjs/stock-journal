@@ -2,7 +2,7 @@ import React from 'react';
 import { User } from '@supabase/supabase-js';
 import { SettingsPanel } from '@/app/components/SettingsPanel';
 import { useBackupManager } from '@/app/hooks/useBackupManager';
-import { Download, Upload, Trash2, Database, Target, Sliders } from 'lucide-react';
+import { Target, Sliders } from 'lucide-react';
 import { StrategyManager } from '@/app/components/StrategyManager';
 import { Strategy } from '@/app/types/strategies';
 import { Card } from '@/app/components/ui/Card';
@@ -13,9 +13,9 @@ interface SettingsViewProps {
   currentUser: User | null;
   backupManager: ReturnType<typeof useBackupManager>;
   strategies: Strategy[];
-  onAddStrategy: (s: Omit<Strategy, 'id' | 'created_at'>) => Promise<any>;
-  onUpdateStrategy: (id: string, s: Partial<Strategy>) => Promise<any>;
-  onRemoveStrategy: (id: string) => Promise<any>;
+  onAddStrategy: (s: Omit<Strategy, 'id' | 'created_at'>) => Promise<Strategy>;
+  onUpdateStrategy: (id: string, s: Partial<Strategy>) => Promise<void>;
+  onRemoveStrategy: (id: string) => Promise<void>;
   onUpdateSymbolNames: () => void;
   isUpdating: boolean;
 }
@@ -62,8 +62,9 @@ export function SettingsView({
       await supabase.auth.signOut();
       window.location.reload();
 
-    } catch (e: any) {
-      alert('탈퇴 처리 중 오류가 발생했습니다: ' + e.message);
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : '알 수 없는 오류';
+      alert('탈퇴 처리 중 오류가 발생했습니다: ' + errorMessage);
       console.error(e);
     }
   };
