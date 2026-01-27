@@ -17,8 +17,11 @@ export function DatePicker({ selectedDate, onChange, darkMode, className = '' }:
 
     // Sync currentMonth if selectedDate changes externally
     useEffect(() => {
-        setCurrentMonth(new Date(selectedDate));
-    }, [selectedDate]);
+        const newDate = new Date(selectedDate);
+        if (!isSameMonth(newDate, currentMonth)) {
+            setTimeout(() => setCurrentMonth(newDate), 0);
+        }
+    }, [selectedDate, currentMonth]);
 
     // Close on click outside
     useEffect(() => {

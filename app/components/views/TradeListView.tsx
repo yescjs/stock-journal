@@ -5,7 +5,9 @@ import { TradeList } from '@/app/components/TradeList';
 import { CalendarView } from '@/app/components/CalendarView';
 import { SymbolDetailCard } from '@/app/components/SymbolDetailCard';
 import { MotionWrapper } from '@/app/components/MotionWrapper';
-import { LayoutGrid, List as ListIcon, Search, Filter, X, Calendar as CalendarIcon, RefreshCw, ChevronDown } from 'lucide-react';
+import { LayoutGrid, List as ListIcon, Search, Filter, X, Calendar as CalendarIcon, RefreshCw, ChevronDown, Upload } from 'lucide-react';
+import { CsvImportModal } from '@/app/components/CsvImportModal';
+import { supabase } from '@/app/lib/supabaseClient';
 import { useTradeFilter } from '@/app/hooks/useTradeFilter';
 import { PnLPoint } from '@/app/types/stats';
 
@@ -45,6 +47,7 @@ export function TradeListView({
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const {
     selectedSymbol, setSelectedSymbol,
@@ -79,6 +82,39 @@ export function TradeListView({
     }));
   }, [trades, selectedSymbol]);
 
+  const handleBulkImport = async (newTrades: any[]) => {
+    try {
+      if (currentUser) {
+        // DB Import
+        const rows = newTrades.map(t => ({
+          user_id: currentUser.id,
+          date: t.date,
+          symbol: t.symbol,
+          side: t.side,
+          price: t.price,
+          quantity: t.quantity,
+          memo: t.memo,
+          tags: [],
+          image: null
+        }));
+
+        const { error } = await supabase.from('trades').insert(rows);
+        if (error) throw error;
+        window.location.reload(); // Simple reload to refresh data
+      } else {
+        // Guest Mode Import
+        const existingStr = localStorage.getItem('stock-journal-guest-trades-v1');
+        const existingTrades = existingStr ? JSON.parse(existingStr) : [];
+        const updatedTrades = [...existingTrades, ...newTrades];
+        localStorage.setItem('stock-journal-guest-trades-v1', JSON.stringify(updatedTrades));
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('Import failed:', error);
+      alert('가져오기에 실패했습니다.');
+    }
+  };
+
   // Glassmorphism Shared Classes
   const inputContainerClass = `flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${darkMode
     ? 'bg-slate-800/40 border-slate-700/50 hover:bg-slate-800/60 focus-within:bg-slate-800/80 focus-within:border-indigo-500/50'
@@ -91,7 +127,7 @@ export function TradeListView({
   // Filter Bar Component
   const renderFilterBar = () => (
     <div className={`mb-6 p-1.5 rounded-2xl flex flex-wrap gap-2 items-center lg:items-stretch`}>
-      <div className={`flex-1 min-w-[200px] ${inputContainerClass}`}>
+      <div className={`w-full sm:flex-1 sm:min-w-[200px] ${inputContainerClass}`}>
         <Search size={18} className={darkMode ? "text-indigo-400" : "text-indigo-400"} strokeWidth={2.5} />
         <input
           type="text"
@@ -101,7 +137,7 @@ export function TradeListView({
           className={inputClass}
         />
       </div>
-      <div className={`flex-1 min-w-[200px] ${inputContainerClass}`}>
+      <div className={`w-full sm:flex-1 sm:min-w-[200px] ${inputContainerClass}`}>
         <Filter size={18} className={darkMode ? "text-purple-400" : "text-purple-400"} strokeWidth={2.5} />
         <input
           type="text"
@@ -115,7 +151,7 @@ export function TradeListView({
         <button
           onClick={resetFilters}
           className={`
-                    px-4 py-3 rounded-xl text-sm font-bold flex items-center gap-2 transition-all hover:-translate-y-0.5 btn-press
+                    px-4 py-3 rounded-xl text-sm font-bold flex items-center gap-2 transition-all active:scale-95 hover:-translate-y-0.5 btn-press
                     ${darkMode
               ? 'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20'
               : 'bg-rose-50 text-rose-500 hover:bg-rose-100 shadow-sm'}
@@ -153,11 +189,23 @@ export function TradeListView({
         </div>
 
         <div className="flex gap-3">
+          {/* Import Button */}
+          <button
+            onClick={() => setIsImportModalOpen(true)}
+            className={`
+                flex items-center gap-2 px-4 py-2 rounded-xl border backdrop-blur-md font-bold text-xs transition-all active:scale-95
+                ${darkMode ? 'bg-slate-900/60 border-slate-700/50 text-slate-400 hover:bg-slate-800' : 'bg-white/60 border-white/60 text-slate-500 hover:bg-white'}
+            `}
+          >
+            <Upload size={14} />
+            <span className="hidden sm:inline">가져오기</span>
+          </button>
+
           {/* Currency Toggle */}
           <button
             onClick={() => onToggleConverted(!showConverted)}
             className={`
-                flex items-center gap-2 px-4 py-2 rounded-xl border backdrop-blur-md font-bold text-xs transition-all
+                flex items-center gap-2 px-4 py-2 rounded-xl border backdrop-blur-md font-bold text-xs transition-all active:scale-95
                 ${showConverted
                 ? (darkMode ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-600')
                 : (darkMode ? 'bg-slate-900/60 border-slate-700/50 text-slate-400 hover:bg-slate-800' : 'bg-white/60 border-white/60 text-slate-500 hover:bg-white')}
@@ -171,7 +219,7 @@ export function TradeListView({
             <button
               onClick={() => setViewMode('list')}
               className={`
-                flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all
+                flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all active:scale-95
                 ${viewMode === 'list'
                   ? (darkMode ? 'bg-slate-700 text-white shadow-md' : 'bg-indigo-600 text-white shadow-lg shadow-indigo-200')
                   : (darkMode ? 'text-slate-400 hover:bg-slate-800 hover:text-white' : 'text-slate-500 hover:bg-indigo-50 hover:text-indigo-600')}
@@ -183,7 +231,7 @@ export function TradeListView({
             <button
               onClick={() => setViewMode('calendar')}
               className={`
-                flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all
+                flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all active:scale-95
                 ${viewMode === 'calendar'
                   ? (darkMode ? 'bg-slate-700 text-white shadow-md' : 'bg-indigo-600 text-white shadow-lg shadow-indigo-200')
                   : (darkMode ? 'text-slate-400 hover:bg-slate-800 hover:text-white' : 'text-slate-500 hover:bg-indigo-50 hover:text-indigo-600')}
@@ -283,6 +331,13 @@ export function TradeListView({
           </div>
         </div>
       )}
+
+      {/* Import Modal */}
+      <CsvImportModal 
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImport={handleBulkImport}
+      />
     </div>
   );
 }

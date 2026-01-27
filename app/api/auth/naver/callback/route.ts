@@ -11,24 +11,62 @@ export async function GET(request: NextRequest) {
 
         // 에러 처리
         if (error) {
-            console.error('Naver OAuth error:', error);
+            console.error('[네이버 OAuth] 인증 거부:', {
+                error: error,
+                timestamp: new Date().toISOString()
+            });
             return NextResponse.redirect(
-                `${process.env.NEXT_PUBLIC_BASE_URL}/?error=naver_auth_failed`
+                `${process.env.NEXT_PUBLIC_BASE_URL}/?error=naver_auth_failed&message=${encodeURIComponent('네이버 로그인 인증에 실패했습니다.')}`
             );
         }
 
         // 필수 파라미터 확인
         if (!code || !state) {
+            console.error('[네이버 OAuth] 필수 파라미터 누락:', {
+                hasCode: !!code,
+                hasState: !!state,
+                timestamp: new Date().toISOString()
+            });
             return NextResponse.redirect(
-                `${process.env.NEXT_PUBLIC_BASE_URL}/?error=missing_parameters`
+                `${process.env.NEXT_PUBLIC_BASE_URL}/?error=missing_parameters&message=${encodeURIComponent('로그인 요청이 유효하지 않습니다. 다시 시도해주세요.')}`
             );
         }
 
-        // State 검증 (CSRF 방지)
+        // State 검증 (CSRF 방지 + 만료 시간 체크)
         const savedState = request.cookies.get('naver_oauth_state')?.value;
         if (!savedState || savedState !== state) {
+            console.error('[네이버 OAuth] State 검증 실패:', {
+                hasSavedState: !!savedState,
+                stateMatch: savedState === state,
+                timestamp: new Date().toISOString()
+            });
             return NextResponse.redirect(
-                `${process.env.NEXT_PUBLIC_BASE_URL}/?error=invalid_state`
+                `${process.env.NEXT_PUBLIC_BASE_URL}/?error=invalid_state&message=${encodeURIComponent('로그인 요청이 유효하지 않습니다. 다시 시도해주세요.')}`
+            );
+        }
+
+        // State 만료 시간 검증 (10분)
+        const [timestamp, randomValue] = state.split('-');
+        if (!timestamp || !randomValue) {
+            console.error('[네이버 OAuth] State 형식 오류:', {
+                state: state,
+                timestamp: new Date().toISOString()
+            });
+            return NextResponse.redirect(
+                `${process.env.NEXT_PUBLIC_BASE_URL}/?error=invalid_state_format&message=${encodeURIComponent('로그인 요청이 유효하지 않습니다. 다시 시도해주세요.')}`
+            );
+        }
+
+        const stateAge = Date.now() - parseInt(timestamp, 10);
+        const TEN_MINUTES_MS = 10 * 60 * 1000;
+        if (stateAge > TEN_MINUTES_MS || stateAge < 0) {
+            console.error('[네이버 OAuth] State 만료:', {
+                stateAge: stateAge,
+                maxAge: TEN_MINUTES_MS,
+                timestamp: new Date().toISOString()
+            });
+            return NextResponse.redirect(
+                `${process.env.NEXT_PUBLIC_BASE_URL}/?error=state_expired&message=${encodeURIComponent('로그인 요청이 만료되었습니다. 다시 시도해주세요.')}`
             );
         }
 
@@ -39,7 +77,12 @@ export async function GET(request: NextRequest) {
         const userProfile = await getNaverUserProfile(tokenData.access_token);
 
         if (userProfile.resultcode !== '00') {
-            throw new Error('Failed to get user profile');
+            console.error('[네이버 OAuth] 프로필 조회 실패:', {
+                resultcode: userProfile.resultcode,
+                message: userProfile.message,
+                timestamp: new Date().toISOString()
+            });
+            throw new Error('네이버 사용자 프로필 조회에 실패했습니다.');
         }
 
         const { response: profile } = userProfile;
@@ -47,68 +90,102 @@ export async function GET(request: NextRequest) {
         // 3. Supabase에 사용자 생성 또는 업데이트 (Admin API 사용)
         const email = profile.email || `naver_${profile.id}@naver-oauth.local`;
 
-        // 이메일로 기존 사용자 찾기 (필터링된 쿼리로 속도 개선)
-        let existingUser = null;
-        
-        try {
-            // 먼저 이메일로 검색
-            const { data: usersByEmail, error: emailError } = await supabaseAdmin.auth.admin.listUsers();
-            
-            if (!emailError && usersByEmail?.users) {
-                // 이메일 또는 네이버 ID로 사용자 찾기
-                existingUser = usersByEmail.users.find(u =>
-                    u.email === email ||
-                    u.user_metadata?.naver_id === profile.id
-                );
-            }
-        } catch (searchError) {
-            console.error('Error searching for user:', searchError);
-            // 검색 실패 시 새 사용자로 처리
-            existingUser = null;
-        }
-
+        // 최적화: 먼저 사용자 생성을 시도하고, 이미 존재하면 조회 및 업데이트
         let user;
-        if (!existingUser) {
-            // 사용자가 없으면 생성 (ID는 자동 생성)
-            const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-                email: email,
-                email_confirm: true,
-                user_metadata: {
-                    provider: 'naver',
-                    naver_id: profile.id,
-                    name: profile.name,
-                    nickname: profile.nickname,
-                    profile_image: profile.profile_image,
-                    full_name: profile.name,
-                }
-            });
 
-            if (createError) {
-                console.error('Error creating user:', createError);
+        // 1단계: 사용자 생성 시도 (대부분의 경우 한 번의 API 호출로 완료)
+        const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+            email: email,
+            email_confirm: true,
+            user_metadata: {
+                provider: 'naver',
+                naver_id: profile.id,
+                name: profile.name,
+                nickname: profile.nickname,
+                profile_image: profile.profile_image,
+                full_name: profile.name,
+            }
+        });
+
+        if (createError) {
+            // 2단계: 사용자가 이미 존재하는 경우 (에러 메시지로 판단)
+            if (createError.message.includes('already registered') || createError.message.includes('duplicate')) {
+                try {
+                    // 이메일로 사용자 조회 (페이지네이션 없이 단일 쿼리)
+                    const { data: usersByEmail, error: listError } = await supabaseAdmin.auth.admin.listUsers({
+                        page: 1,
+                        perPage: 1000, // 충분히 큰 값
+                    });
+
+                    if (listError) {
+                        console.error('[네이버 OAuth] 사용자 목록 조회 실패:', {
+                            error: listError.message,
+                            code: listError.code,
+                            timestamp: new Date().toISOString()
+                        });
+                        throw listError;
+                    }
+
+                    // 이메일 또는 네이버 ID로 사용자 찾기
+                    const existingUser = usersByEmail.users.find(u =>
+                        u.email === email ||
+                        u.user_metadata?.naver_id === profile.id
+                    );
+
+                    if (!existingUser) {
+                        console.error('[네이버 OAuth] 기존 사용자를 찾을 수 없음:', {
+                            email: email,
+                            naverId: profile.id,
+                            timestamp: new Date().toISOString()
+                        });
+                        throw new Error('사용자를 찾을 수 없습니다.');
+                    }
+
+                    // 사용자 메타데이터 업데이트
+                    const { data: updatedUser, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+                        existingUser.id,
+                        {
+                            user_metadata: {
+                                provider: 'naver',
+                                naver_id: profile.id,
+                                name: profile.name,
+                                nickname: profile.nickname,
+                                profile_image: profile.profile_image,
+                                full_name: profile.name,
+                            }
+                        }
+                    );
+
+                    if (updateError) {
+                        console.error('[네이버 OAuth] 사용자 정보 업데이트 실패:', {
+                            error: updateError.message,
+                            code: updateError.code,
+                            userId: existingUser.id,
+                            timestamp: new Date().toISOString()
+                        });
+                        throw updateError;
+                    }
+                    user = updatedUser.user;
+                } catch (fallbackError: any) {
+                    console.error('[네이버 OAuth] 기존 사용자 처리 실패:', {
+                        error: fallbackError.message,
+                        stack: fallbackError.stack,
+                        timestamp: new Date().toISOString()
+                    });
+                    throw fallbackError;
+                }
+            } else {
+                // 다른 종류의 생성 에러는 그대로 throw
+                console.error('[네이버 OAuth] 사용자 생성 실패:', {
+                    error: createError.message,
+                    code: createError.code,
+                    timestamp: new Date().toISOString()
+                });
                 throw createError;
             }
-            user = newUser.user;
         } else {
-            // 사용자가 있으면 메타데이터 업데이트
-            const { data: updatedUser, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
-                existingUser.id,
-                {
-                    user_metadata: {
-                        provider: 'naver',
-                        naver_id: profile.id,
-                        name: profile.name,
-                        nickname: profile.nickname,
-                        profile_image: profile.profile_image,
-                        full_name: profile.name,
-                    }
-                }
-            );
-
-            if (updateError) {
-                console.error('Error updating user:', updateError);
-                throw updateError;
-            }
-            user = updatedUser.user;
+            // 신규 사용자 생성 성공
+            user = newUser.user;
         }
 
         // 4. OTP 생성 및 자동 검증으로 세션 생성
@@ -119,8 +196,13 @@ export async function GET(request: NextRequest) {
         });
 
         if (otpError || !otpData.properties) {
-            console.error('Error generating OTP:', otpError);
-            throw otpError || new Error('Failed to generate OTP');
+            console.error('[네이버 OAuth] OTP 생성 실패:', {
+                error: otpError?.message,
+                code: otpError?.code,
+                hasProperties: !!otpData?.properties,
+                timestamp: new Date().toISOString()
+            });
+            throw otpError || new Error('세션 생성에 실패했습니다.');
         }
 
         // 5. 클라이언트에서 세션을 설정할 수 있도록 토큰을 localStorage에 저장하는 스크립트 포함
@@ -129,43 +211,232 @@ export async function GET(request: NextRequest) {
 <html>
 <head>
     <title>로그인 중...</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         body {
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #0f172a;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', sans-serif;
+            color: white;
+            padding: 20px;
+        }
+        .container {
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 30px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        .logo svg {
+            width: 45px;
+            height: 45px;
+        }
+        .title {
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
+        }
+        .step-text {
+            font-size: 16px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 40px;
+            min-height: 24px;
+        }
+        .progress-container {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 40px;
+            position: relative;
+        }
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #fff 0%, #f0f0f0 100%);
+            border-radius: 10px;
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+        }
+        .steps-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 50px;
+        }
+        .step {
+            flex: 1;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .step::before {
+            content: '';
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 8px;
+            transition: all 0.3s ease;
+            position: relative;
+            z-index: 1;
+        }
+        .step.active::before {
+            background: white;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.6);
+            transform: scale(1.1);
+        }
+        .step.completed::before {
+            background: #10b981;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
+        }
+        .step-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.7);
+            text-align: center;
+            margin-top: 8px;
+        }
+        .step.active .step-label {
             color: white;
         }
-        .loader {
-            text-align: center;
-        }
         .spinner {
-            border: 3px solid rgba(255, 255, 255, 0.1);
-            border-top: 3px solid white;
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-top: 4px solid white;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
+            width: 50px;
+            height: 50px;
+            animation: spin 0.8s linear infinite;
             margin: 0 auto 20px;
         }
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        .timeout-notice {
+            display: none;
+            margin-top: 30px;
+            padding: 16px;
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        @media (max-width: 480px) {
+            .title {
+                font-size: 24px;
+            }
+            .step-text {
+                font-size: 14px;
+            }
+            .step-label {
+                font-size: 10px;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="loader">
+    <div class="container">
+        <div class="logo">
+            <svg viewBox="0 0 24 24" fill="white">
+                <path d="M12 2C6.477 2 2 5.582 2 10c0 2.895 1.959 5.455 4.888 7.047l-1.726 6.343c-.117.432.277.794.688.632L12 20.8c.337.013.677.02 1.019.02 5.523 0 9.981-3.582 9.981-8S18.542 2 12 2z" />
+            </svg>
+        </div>
+        <h1 class="title">네이버 로그인</h1>
+        <p class="step-text" id="step-text">로그인 정보 확인 중...</p>
+
+        <div class="steps-indicator">
+            <div class="step active" id="step-1">
+                <div class="step-label">정보 확인</div>
+            </div>
+            <div class="step" id="step-2">
+                <div class="step-label">사용자 인증</div>
+            </div>
+            <div class="step" id="step-3">
+                <div class="step-label">완료</div>
+            </div>
+        </div>
+
+        <div class="progress-container">
+            <div class="progress-bar" id="progress-bar" style="width: 33%"></div>
+        </div>
+
         <div class="spinner"></div>
-        <p>네이버 로그인 처리 중...</p>
+
+        <div class="timeout-notice" id="timeout-notice">
+            ⚠️ 로그인 처리 시간이 초과되었습니다.<br>
+            잠시 후 메인 페이지로 이동합니다...
+        </div>
     </div>
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-        
+
+        let currentStep = 1;
+        const steps = [
+            '로그인 정보 확인 중...',
+            '사용자 정보 처리 중...',
+            '완료! 이동 중...'
+        ];
+
+        function updateStep(step) {
+            currentStep = step;
+
+            // 텍스트 업데이트
+            document.getElementById('step-text').textContent = steps[step - 1];
+
+            // 프로그레스바 업데이트
+            const progressBar = document.getElementById('progress-bar');
+            progressBar.style.width = (step * 33.33) + '%';
+
+            // 스텝 인디케이터 업데이트
+            for (let i = 1; i <= 3; i++) {
+                const stepEl = document.getElementById('step-' + i);
+                stepEl.classList.remove('active', 'completed');
+                if (i < step) {
+                    stepEl.classList.add('completed');
+                } else if (i === step) {
+                    stepEl.classList.add('active');
+                }
+            }
+        }
+
+        // 타임아웃 설정 (30초)
+        const timeoutId = setTimeout(() => {
+            if (currentStep < 3) {
+                document.getElementById('timeout-notice').style.display = 'block';
+                document.querySelector('.spinner').style.display = 'none';
+
+                setTimeout(() => {
+                    window.location.href = '${process.env.NEXT_PUBLIC_BASE_URL}/?error=login_timeout&message=' +
+                        encodeURIComponent('로그인 처리 시간이 초과되었습니다. 다시 시도해주세요.');
+                }, 3000);
+            }
+        }, 30000);
+
         (async function() {
             try {
                 // 1. 기존 세션 완전 정리 (세션 충돌 방지)
@@ -183,6 +454,9 @@ export async function GET(request: NextRequest) {
                     console.warn('Failed to clear localStorage:', storageError);
                 }
 
+                // 2단계로 이동
+                updateStep(2);
+
                 // 2. 새 세션 생성
                 const supabase = createClient(
                     '${process.env.NEXT_PUBLIC_SUPABASE_URL}',
@@ -199,10 +473,19 @@ export async function GET(request: NextRequest) {
                     throw error;
                 }
 
-                // 세션이 자동으로 설정됨
-                window.location.href = '${process.env.NEXT_PUBLIC_BASE_URL}/';
+                // 3단계로 이동 (완료)
+                updateStep(3);
+
+                // 타임아웃 클리어
+                clearTimeout(timeoutId);
+
+                // 약간의 지연 후 리다이렉트 (사용자가 완료 상태를 볼 수 있도록)
+                setTimeout(() => {
+                    window.location.href = '${process.env.NEXT_PUBLIC_BASE_URL}/';
+                }, 500);
             } catch (error) {
                 console.error('Login error:', error);
+                clearTimeout(timeoutId);
                 window.location.href = '${process.env.NEXT_PUBLIC_BASE_URL}/?error=login_failed&details=' + encodeURIComponent(error.message);
             }
         })();
@@ -223,9 +506,35 @@ export async function GET(request: NextRequest) {
 
         return response;
     } catch (error: any) {
-        console.error('Naver callback error:', error);
+        console.error('[네이버 OAuth] 콜백 처리 실패:', {
+            message: error.message,
+            stack: error.stack,
+            name: error.name,
+            timestamp: new Date().toISOString()
+        });
+
+        // 에러 타입 판별 후 사용자 친화적 메시지 전달
+        let userMessage = '네이버 로그인에 실패했습니다.';
+
+        // 네트워크 오류
+        if (error.name === 'TypeError' || error.message?.includes('fetch') || error.message?.includes('network')) {
+            userMessage = '네이버 서버와 통신할 수 없습니다. 잠시 후 다시 시도해주세요.';
+        }
+        // 프로필 조회 실패
+        else if (error.message?.includes('프로필')) {
+            userMessage = '네이버 사용자 정보를 가져올 수 없습니다. 다시 시도해주세요.';
+        }
+        // 사용자 생성/업데이트 실패
+        else if (error.message?.includes('사용자')) {
+            userMessage = '사용자 정보 처리 중 오류가 발생했습니다. 다시 시도해주세요.';
+        }
+        // 세션 생성 실패
+        else if (error.message?.includes('세션')) {
+            userMessage = '로그인 세션 생성에 실패했습니다. 다시 시도해주세요.';
+        }
+
         return NextResponse.redirect(
-            `${process.env.NEXT_PUBLIC_BASE_URL}/?error=naver_callback_failed&message=${encodeURIComponent(error.message)}`
+            `${process.env.NEXT_PUBLIC_BASE_URL}/?error=naver_callback_failed&message=${encodeURIComponent(userMessage)}`
         );
     }
 }

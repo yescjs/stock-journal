@@ -24,7 +24,8 @@ export function useTagColors() {
         const saved = localStorage.getItem(TAG_COLORS_KEY);
         if (saved) {
             try {
-                setTagColors(JSON.parse(saved));
+                const parsed = JSON.parse(saved);
+                setTimeout(() => setTagColors(parsed), 0);
             } catch {}
         }
     }, []);
