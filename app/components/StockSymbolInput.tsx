@@ -267,7 +267,7 @@ export function StockSymbolInput({
                         <div className="w-12 h-12 mx-auto mb-2 rounded-xl flex items-center justify-center bg-slate-100 dark:bg-slate-800">
                             <Search className="w-6 h-6 opacity-50" />
                         </div>
-                        <p className="text-sm font-bold">'{debouncedQuery}' 검색 결과 없음</p>
+                        <p className="text-sm font-bold">&apos;{debouncedQuery}&apos; 검색 결과 없음</p>
                         <p className="text-xs mt-1 opacity-70">종목명 또는 종목 코드를 다시 확인해주세요</p>
                     </div>
                 )

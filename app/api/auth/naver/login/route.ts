@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getNaverAuthUrl } from '@/app/lib/naverAuth';
 import crypto from 'crypto';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
     try {
         // CSRF 방지를 위한 state 생성 (타임스탬프 + 강력한 랜덤 값)
         const timestamp = Date.now();
