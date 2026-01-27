@@ -26,8 +26,11 @@ export function DatePicker({ selectedDate, onChange, darkMode, className = '' }:
 
     // Reset offset when selectedDate changes to a different month
     useEffect(() => {
-        setCurrentMonthOffset(0);
-    }, [derivedMonth]);
+        const newDate = new Date(selectedDate);
+        if (!isSameMonth(newDate, currentMonth)) {
+            setTimeout(() => setCurrentMonth(newDate), 0);
+        }
+    }, [selectedDate, currentMonth]);
 
     // Close on click outside
     useEffect(() => {

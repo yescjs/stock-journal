@@ -36,10 +36,8 @@ export function Header({
             <header className={`rounded-2xl glass-panel px-6 py-4 transition-all duration-300 ${darkMode ? 'bg-slate-900/80 border-slate-700/50' : 'bg-white/80 border-white/50'}`}>
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
 
-                    {/* Brand & Identity */}
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4 group cursor-default">
-                            {/* Logo Icon with Gradient & Glow */}
                             <div className="relative">
                                 <div className="absolute inset-0 bg-indigo-500 blur-lg opacity-20 group-hover:opacity-40 transition-opacity rounded-full"></div>
                                 <div className="relative w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-white shadow-xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-600 transform group-hover:scale-105 transition-transform duration-300">
@@ -56,25 +54,24 @@ export function Header({
                                         Journal
                                     </span>
                                 </h1>
-                                <p className="text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 mt-0.5">
+                                <p className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 mt-0.5">
                                     {currentUser ? (
                                         <>
                                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"></span>
-                                            <span className="text-slate-400 dark:text-slate-500">PRO TRADER</span>
+                                            <span className="text-slate-400 dark:text-slate-400">PRO TRADER</span>
                                         </>
                                     ) : (
                                         <>
                                             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"></span>
                                             <span className="text-amber-600 dark:text-amber-500">게스트 모드</span>
-                                            <span className="text-slate-400 dark:text-slate-600">•</span>
-                                            <span className="text-slate-500 dark:text-slate-600 text-[10px] normal-case">로그인하여 데이터 보관하세요</span>
+                                            <span className="text-slate-400 dark:text-slate-500">•</span>
+                                            <span className="text-slate-500 dark:text-slate-400 text-xs normal-case">로그인하여 데이터 보관하세요</span>
                                         </>
                                     )}
                                 </p>
                             </div>
                         </div>
 
-                        {/* Mobile Controls */}
                         <div className="flex md:hidden items-center gap-2">
                             {currentUser ? (
                                 <button
@@ -108,8 +105,7 @@ export function Header({
                         </div>
                     </div>
 
-                    {/* Navigation Tabs - Floating Island Style */}
-                    <nav className="flex-1 max-w-lg mx-auto md:mx-0" role="tablist" aria-label="메인 네비게이션">
+                    <nav className="flex-1 max-w-lg mx-auto md:mx-0">
                         <div className={`flex p-1.5 rounded-2xl w-full gap-1 shadow-inner ${darkMode ? 'bg-slate-950/50' : 'bg-slate-100/80'}`}>
                             {tabs.map((tab) => {
                                 const isActive = activeTab === tab.id;
@@ -139,7 +135,6 @@ export function Header({
                         </div>
                     </nav>
 
-                    {/* Right Action Area */}
                     <div className="hidden md:flex items-center gap-3">
                         <div className={`h-8 w-px mx-2 ${darkMode ? 'bg-slate-800' : 'bg-slate-200'}`}></div>
 

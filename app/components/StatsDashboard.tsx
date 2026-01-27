@@ -19,6 +19,7 @@ import {
 
 import { WinLossChart } from './charts/WinLossChart';
 import { MonthlyBarChart } from './charts/MonthlyBarChart';
+import { CalendarHeatmap } from './charts/CalendarHeatmap';
 import { EquityCurve } from './charts/EquityCurve';
 import { WeekdayStatsChart } from './charts/WeekdayStatsChart';
 import { HoldingPeriodChart } from './charts/HoldingPeriodChart';
@@ -101,6 +102,7 @@ export function StatsDashboard({
     onExchangeRateChange,
 }: StatsDashboardProps) {
     const [pnlChartMode, setPnlChartMode] = useState<PnLChartMode>('daily');
+    const [dailyViewMode, setDailyViewMode] = useState<'bar' | 'calendar'>('calendar');
     const [loadingPrices, setLoadingPrices] = useState<Record<string, boolean>>({});
     const [loadingAllPrices, setLoadingAllPrices] = useState(false);
 
@@ -572,30 +574,67 @@ export function StatsDashboard({
                     <div className={`lg:col-span-2 ${cardBaseClass} p-6`}>
                         <div className="flex items-center justify-between mb-6">
                             <h2 className={sectionTitleClass}>
-                                {pnlChartMode === 'daily' ? <TrendingUp size={20} className={darkMode ? 'text-emerald-400' : 'text-emerald-600'} /> : <Target size={20} className={darkMode ? 'text-emerald-400' : 'text-emerald-600'} />}
-                                {pnlChartMode === 'daily' ? '일별 손익 현황' : '월별 손익 현황'}
+                                {pnlChartMode === 'daily' 
+                                    ? (dailyViewMode === 'calendar' 
+                                        ? <Calendar size={20} className={darkMode ? 'text-emerald-400' : 'text-emerald-600'} /> 
+                                        : <TrendingUp size={20} className={darkMode ? 'text-emerald-400' : 'text-emerald-600'} />
+                                      )
+                                    : <Target size={20} className={darkMode ? 'text-emerald-400' : 'text-emerald-600'} />
+                                }
+                                {pnlChartMode === 'daily' 
+                                    ? (dailyViewMode === 'calendar' ? '월별 매매 캘린더' : '일별 손익 현황') 
+                                    : '월별 손익 현황'
+                                }
                             </h2>
-                            <div className={'flex p-1 rounded-lg ' + (darkMode ? 'bg-slate-800' : 'bg-slate-100')}>
-                                <button
-                                    onClick={() => setPnlChartMode('daily')}
-                                    className={'px-3 py-1.5 text-xs font-bold rounded-md transition-all ' + (pnlChartMode === 'daily' ? (darkMode ? 'bg-slate-700 text-white shadow' : 'bg-white text-indigo-600 shadow') : (darkMode ? 'text-slate-400 hover:text-slate-300' : 'text-slate-500 hover:text-slate-700'))}
-                                >
-                                    일별
-                                </button>
-                                <button
-                                    onClick={() => setPnlChartMode('monthly')}
-                                    className={'px-3 py-1.5 text-xs font-bold rounded-md transition-all ' + (pnlChartMode === 'monthly' ? (darkMode ? 'bg-slate-700 text-white shadow' : 'bg-white text-indigo-600 shadow') : (darkMode ? 'text-slate-400 hover:text-slate-300' : 'text-slate-500 hover:text-slate-700'))}
-                                >
-                                    월별
-                                </button>
+                            <div className="flex items-center gap-3">
+                                {pnlChartMode === 'daily' && (
+                                    <div className={'flex p-1 rounded-lg ' + (darkMode ? 'bg-slate-800' : 'bg-slate-100')}>
+                                        <button
+                                            onClick={() => setDailyViewMode('calendar')}
+                                            className={'p-1.5 rounded-md transition-all ' + (dailyViewMode === 'calendar' ? (darkMode ? 'bg-slate-700 text-white shadow' : 'bg-white text-indigo-600 shadow') : (darkMode ? 'text-slate-400 hover:text-slate-300' : 'text-slate-500 hover:text-slate-700'))}
+                                            title="캘린더 뷰"
+                                        >
+                                            <Calendar size={14} />
+                                        </button>
+                                        <button
+                                            onClick={() => setDailyViewMode('bar')}
+                                            className={'p-1.5 rounded-md transition-all ' + (dailyViewMode === 'bar' ? (darkMode ? 'bg-slate-700 text-white shadow' : 'bg-white text-indigo-600 shadow') : (darkMode ? 'text-slate-400 hover:text-slate-300' : 'text-slate-500 hover:text-slate-700'))}
+                                            title="차트 뷰"
+                                        >
+                                            <Activity size={14} />
+                                        </button>
+                                    </div>
+                                )}
+                                
+                                <div className={'flex p-1 rounded-lg ' + (darkMode ? 'bg-slate-800' : 'bg-slate-100')}>
+                                    <button
+                                        onClick={() => setPnlChartMode('daily')}
+                                        className={'px-3 py-1.5 text-xs font-bold rounded-md transition-all ' + (pnlChartMode === 'daily' ? (darkMode ? 'bg-slate-700 text-white shadow' : 'bg-white text-indigo-600 shadow') : (darkMode ? 'text-slate-400 hover:text-slate-300' : 'text-slate-500 hover:text-slate-700'))}
+                                    >
+                                        일별
+                                    </button>
+                                    <button
+                                        onClick={() => setPnlChartMode('monthly')}
+                                        className={'px-3 py-1.5 text-xs font-bold rounded-md transition-all ' + (pnlChartMode === 'monthly' ? (darkMode ? 'bg-slate-700 text-white shadow' : 'bg-white text-indigo-600 shadow') : (darkMode ? 'text-slate-400 hover:text-slate-300' : 'text-slate-500 hover:text-slate-700'))}
+                                    >
+                                        월별
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         {pnlChartMode === 'daily' ? (
-                            <MonthlyBarChart
-                                data={dailyRealizedPoints}
-                                darkMode={darkMode}
-                                title="일별 손익 (Daily PnL)"
-                            />
+                            dailyViewMode === 'calendar' ? (
+                                <CalendarHeatmap 
+                                    dailyData={dailyRealizedPoints} 
+                                    darkMode={darkMode} 
+                                />
+                            ) : (
+                                <MonthlyBarChart
+                                    data={dailyRealizedPoints}
+                                    darkMode={darkMode}
+                                    title="일별 손익 (Daily PnL)"
+                                />
+                            )
                         ) : (
                             <MonthlyBarChart
                                 data={monthlyRealizedPoints}

@@ -243,7 +243,7 @@ export function TradeForm({
             : 'bg-white/50 text-slate-900 placeholder-slate-400 border border-indigo-50/50 focus:bg-white focus:border-indigo-200 focus:ring-2 focus:ring-indigo-100 shadow-sm'}
     `;
 
-    const labelClass = `block mb-1.5 text-[10px] font-black uppercase tracking-wider ${darkMode ? 'text-slate-400' : 'text-slate-500'}`;
+    const labelClass = `block mb-1.5 text-xs font-bold uppercase tracking-wider ${darkMode ? 'text-slate-400' : 'text-slate-500'}`;
 
     return (
         <div className={!isCompact ? `rounded-3xl border p-6 transition-all glass-card ${darkMode ? 'bg-slate-900/40 border-slate-700/50' : 'bg-white/60 border-white/60 shadow-xl shadow-indigo-100/20'}` : ''}>
@@ -267,8 +267,8 @@ export function TradeForm({
 
             <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Row 1: Date & Side */}
-                <div className="grid grid-cols-12 gap-3 items-end">
-                    <div className="col-span-7">
+                <div className="flex flex-col sm:grid sm:grid-cols-12 gap-3 sm:items-end">
+                    <div className="sm:col-span-7">
                         <label className={labelClass}>날짜</label>
                         <DatePicker
                             selectedDate={form.date}
@@ -276,19 +276,19 @@ export function TradeForm({
                             darkMode={darkMode}
                         />
                     </div>
-                    <div className="col-span-5">
+                    <div className="sm:col-span-5">
                         <div className={`p-1 rounded-xl flex h-[46px] border ${darkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-white border-slate-100 shadow-sm'}`}>
                             <button
                                 type="button"
                                 onClick={() => setForm(prev => ({ ...prev, side: 'BUY' }))}
-                                className={`flex-1 rounded-lg text-xs font-black transition-all btn-press ${form.side === 'BUY' ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/30' : (darkMode ? 'text-slate-500 hover:text-rose-400' : 'text-slate-400 hover:text-rose-500')}`}
+                                className={`flex-1 rounded-lg text-xs font-black transition-all active:scale-95 btn-press ${form.side === 'BUY' ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/30' : (darkMode ? 'text-slate-500 hover:text-rose-400' : 'text-slate-400 hover:text-rose-500')}`}
                             >
                                 매수
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setForm(prev => ({ ...prev, side: 'SELL' }))}
-                                className={`flex-1 rounded-lg text-xs font-black transition-all btn-press ${form.side === 'SELL' ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30' : (darkMode ? 'text-slate-500 hover:text-blue-400' : 'text-slate-400 hover:text-blue-500')}`}
+                                className={`flex-1 rounded-lg text-xs font-black transition-all active:scale-95 btn-press ${form.side === 'SELL' ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30' : (darkMode ? 'text-slate-500 hover:text-blue-400' : 'text-slate-400 hover:text-blue-500')}`}
                             >
                                 매도
                             </button>
@@ -383,11 +383,12 @@ export function TradeForm({
 
                         {/* Strategy & Emotion */}
                         {strategies.length > 0 && (
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="flex flex-col sm:grid sm:grid-cols-2 gap-3">
                                 <div>
                                     <label className={labelClass} title="사용된 매매 전략을 선택하세요">
                                         <Zap size={10} className="inline mr-1" /> 전략
                                     </label>
+
                                     <select
                                         name="strategy_id"
                                         value={form.strategy_id}
@@ -456,8 +457,8 @@ export function TradeForm({
                         </div>
 
                         {/* Memo & Image */}
-                        <div className="grid grid-cols-12 gap-3">
-                            <div className="col-span-9">
+                        <div className="flex flex-col sm:grid sm:grid-cols-12 gap-3">
+                            <div className="sm:col-span-9">
                                 <label className={labelClass}>간단 메모</label>
                                 <textarea
                                     name="memo"
@@ -468,8 +469,9 @@ export function TradeForm({
                                     rows={1}
                                 />
                             </div>
-                            <div className="col-span-3">
+                            <div className="sm:col-span-3">
                                 <label className={labelClass} title="차트 이미지를 업로드하세요">차트</label>
+
                                 <input
                                     ref={chartInputRef}
                                     type="file"

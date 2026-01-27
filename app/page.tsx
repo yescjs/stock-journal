@@ -103,7 +103,12 @@ export default function Home() {
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const saved = localStorage.getItem(OPEN_MONTHS_KEY);
-            if (saved) { try { setOpenMonths(JSON.parse(saved)); } catch { } }
+            if (saved) { 
+                try { 
+                    const parsed = JSON.parse(saved);
+                    setTimeout(() => setOpenMonths(parsed), 0);
+                } catch { } 
+            }
         }
     }, []);
     useEffect(() => { localStorage.setItem(OPEN_MONTHS_KEY, JSON.stringify(openMonths)); }, [openMonths]);
@@ -114,8 +119,10 @@ export default function Home() {
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const savedTheme = localStorage.getItem(THEME_KEY);
-            if (savedTheme) setDarkMode(savedTheme === 'true');
-            else setDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches);
+            setTimeout(() => {
+                if (savedTheme) setDarkMode(savedTheme === 'true');
+                else setDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches);
+            }, 0);
         }
     }, []);
 

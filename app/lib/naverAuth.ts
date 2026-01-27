@@ -24,16 +24,46 @@ interface NaverUserProfile {
     };
 }
 
+interface NaverEnvConfig {
+    clientId: string;
+    clientSecret: string;
+    baseUrl: string;
+}
+
+/**
+ * 네이버 인증에 필요한 환경변수 검증
+ * @throws {Error} 필수 환경변수가 누락된 경우
+ */
+function validateNaverEnv(): NaverEnvConfig {
+    const clientId = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID;
+    const clientSecret = process.env.NAVER_CLIENT_SECRET;
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+
+    if (!clientId) {
+        throw new Error('NEXT_PUBLIC_NAVER_CLIENT_ID 환경변수가 설정되지 않았습니다.');
+    }
+
+    if (!clientSecret) {
+        throw new Error('NAVER_CLIENT_SECRET 환경변수가 설정되지 않았습니다.');
+    }
+
+    if (!baseUrl) {
+        throw new Error('NEXT_PUBLIC_BASE_URL 환경변수가 설정되지 않았습니다.');
+    }
+
+    return { clientId, clientSecret, baseUrl };
+}
+
 /**
  * 네이버 OAuth 인증 URL 생성
  */
 export function getNaverAuthUrl(state: string): string {
-    const clientId = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID;
-    const redirectUri = `${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/naver/callback`;
+    const { clientId, baseUrl } = validateNaverEnv();
+    const redirectUri = `${baseUrl}/api/auth/naver/callback`;
 
     const params = new URLSearchParams({
         response_type: 'code',
-        client_id: clientId || '',
+        client_id: clientId,
         redirect_uri: redirectUri,
         state: state,
     });
@@ -45,48 +75,85 @@ export function getNaverAuthUrl(state: string): string {
  * 네이버 액세스 토큰 교환
  */
 export async function getNaverAccessToken(code: string, state: string): Promise<NaverTokenResponse> {
-    const clientId = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID;
-    const clientSecret = process.env.NAVER_CLIENT_SECRET;
-    const redirectUri = `${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/naver/callback`;
+    const { clientId, clientSecret, baseUrl } = validateNaverEnv();
+    const redirectUri = `${baseUrl}/api/auth/naver/callback`;
 
     const params = new URLSearchParams({
         grant_type: 'authorization_code',
-        client_id: clientId || '',
-        client_secret: clientSecret || '',
+        client_id: clientId,
+        client_secret: clientSecret,
         code: code,
         state: state,
     });
 
-    const response = await fetch(`https://nid.naver.com/oauth2.0/token?${params.toString()}`, {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-    });
+    try {
+        const response = await fetch(`https://nid.naver.com/oauth2.0/token?${params.toString()}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+        });
 
-    if (!response.ok) {
-        throw new Error('Failed to get access token from Naver');
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('[네이버 토큰 교환] 실패:', {
+                status: response.status,
+                statusText: response.statusText,
+                errorData: errorData,
+                timestamp: new Date().toISOString()
+            });
+            throw new Error('네이버 액세스 토큰을 가져올 수 없습니다.');
+        }
+
+        return response.json();
+    } catch (error: any) {
+        // 네트워크 오류와 기타 오류 구분
+        if (error.name === 'TypeError' || error.message?.includes('fetch')) {
+            console.error('[네이버 토큰 교환] 네트워크 오류:', {
+                message: error.message,
+                timestamp: new Date().toISOString()
+            });
+            throw new Error('네이버 서버와 통신할 수 없습니다. 잠시 후 다시 시도해주세요.');
+        }
+        throw error;
     }
-
-    return response.json();
 }
 
 /**
  * 네이버 사용자 프로필 조회
  */
 export async function getNaverUserProfile(accessToken: string): Promise<NaverUserProfile> {
-    const response = await fetch('https://openapi.naver.com/v1/nid/me', {
-        method: 'GET',
-        headers: {
-            Authorization: `Bearer ${accessToken}`,
-        },
-    });
+    try {
+        const response = await fetch('https://openapi.naver.com/v1/nid/me', {
+            method: 'GET',
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+            },
+        });
 
-    if (!response.ok) {
-        throw new Error('Failed to get user profile from Naver');
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('[네이버 프로필 조회] 실패:', {
+                status: response.status,
+                statusText: response.statusText,
+                errorData: errorData,
+                timestamp: new Date().toISOString()
+            });
+            throw new Error('네이버 사용자 프로필을 가져올 수 없습니다.');
+        }
+
+        return response.json();
+    } catch (error: any) {
+        // 네트워크 오류와 기타 오류 구분
+        if (error.name === 'TypeError' || error.message?.includes('fetch')) {
+            console.error('[네이버 프로필 조회] 네트워크 오류:', {
+                message: error.message,
+                timestamp: new Date().toISOString()
+            });
+            throw new Error('네이버 서버와 통신할 수 없습니다. 잠시 후 다시 시도해주세요.');
+        }
+        throw error;
     }
-
-    return response.json();
 }
 
 /**

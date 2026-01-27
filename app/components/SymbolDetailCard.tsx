@@ -20,7 +20,9 @@ export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, o
     const [openMonths, setOpenMonths] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
-        if (initialPrice) setDynamicPrice(initialPrice);
+        if (initialPrice) {
+            setTimeout(() => setDynamicPrice(initialPrice), 0);
+        }
     }, [initialPrice]);
 
     const stockTrades = useMemo(() => {
