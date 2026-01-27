@@ -90,6 +90,7 @@ export function Header({
                                     size="sm"
                                     onClick={onShowLogin}
                                     title="로그인"
+                                    aria-label="로그인"
                                 >
                                     <LogIn size={18} />
                                 </Button>
@@ -116,7 +117,7 @@ export function Header({
                                         className={`flex-1 gap-2 text-xs md:text-sm font-bold ${isActive ? 'shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                                         size="sm"
                                     >
-                                        <span className={`text-sm md:text-base transition-transform duration-300 ${isActive ? 'scale-110' : 'scale-100 grayscale opacity-70'}`}>{tab.icon}</span>
+                                        <span className={`text-sm md:text-base transition-transform duration-300 ${isActive ? 'scale-110' : 'scale-100 grayscale opacity-70'}`} aria-hidden="true">{tab.icon}</span>
                                         <span className="hidden leading-none sm:inline">{tab.label}</span>
                                     </Button>
                                 );
@@ -140,6 +141,7 @@ export function Header({
                             size="sm"
                             onClick={onShowGuide}
                             title="이용 가이드"
+                            aria-label="이용 가이드"
                         >
                             <BookOpen size={18} strokeWidth={2.5} />
                         </Button>

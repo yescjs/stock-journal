@@ -40,7 +40,12 @@ async function fetchKRXStocks(market: 'KOSPI' | 'KOSDAQ'): Promise<KRXStock[]> {
         const data = await response.json();
         const items = data.OutBlock_1 || [];
 
-        return items.map((item: any) => ({
+        interface KRXItem {
+            ISU_SRT_CD: string;
+            ISU_ABBRV?: string;
+            ISU_NM?: string;
+        }
+        return items.map((item: KRXItem) => ({
             symbol: `${item.ISU_SRT_CD}.${market === 'KOSPI' ? 'KS' : 'KQ'}`,
             name: item.ISU_ABBRV || item.ISU_NM || '',
             market: market,
@@ -96,7 +101,7 @@ export async function GET(request: NextRequest) {
             cached: false,
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Stock list API error:', error);
 
         // 에러 시 캐시된 데이터라도 반환
@@ -109,8 +114,9 @@ export async function GET(request: NextRequest) {
             });
         }
 
+        const message = error instanceof Error ? error.message : 'Unknown error';
         return NextResponse.json(
-            { error: 'Failed to fetch stock list', message: error.message },
+            { error: 'Failed to fetch stock list', message },
             { status: 500 }
         );
     }

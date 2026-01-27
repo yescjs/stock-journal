@@ -131,7 +131,7 @@ export function DiaryCalendar({
             </div>
 
             {/* Grid */}
-            <div className="px-3 py-3 grid grid-cols-7 gap-2 md:gap-3 flex-1">
+            <div className="px-1 md:px-3 py-3 grid grid-cols-7 gap-1 md:gap-3 flex-1">
                 {calendarDays.map((day) => {
                     const dateKey = format(day, 'yyyy-MM-dd');
                     const diary = diaryMap.get(dateKey);
@@ -144,8 +144,12 @@ export function DiaryCalendar({
                         <div
                             key={dateKey}
                             onClick={() => onSelectDate(dateKey)}
+                            onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelectDate(dateKey)}
+                            role="button"
+                            tabIndex={isCurrentMonth ? 0 : -1}
+                            aria-label={`${format(day, 'yyyy년 M월 d일', { locale: ko })}${diary ? ', 기록 있음' : ''}${tradeActivity ? ', 매매 기록 있음' : ''}`}
                             className={cn(
-                                "group relative min-h-[100px] rounded-2xl flex flex-col p-3 cursor-pointer transition-all duration-300 border backdrop-blur-sm",
+                                "group relative min-h-[60px] md:min-h-[100px] rounded-xl md:rounded-2xl flex flex-col p-1.5 md:p-3 cursor-pointer transition-all duration-300 border backdrop-blur-sm touch-manipulation focus:outline-none focus:ring-2 focus:ring-indigo-400",
                                 // ... base styles ...
                                 !isSelected && (darkMode
                                     ? "bg-slate-900/40 border-slate-800/50 hover:bg-slate-800/60 hover:border-slate-700"
@@ -186,21 +190,21 @@ export function DiaryCalendar({
                             </div>
 
                             {/* Content */}
-                            <div className="flex-1 flex flex-col items-center justify-center gap-1">
+                            <div className="flex-1 flex flex-col items-center justify-center gap-0.5 md:gap-1">
                                 {diary ? (
                                     <>
-                                        <div className="text-2xl animate-in zoom-in duration-300">
+                                        <div className="text-lg md:text-2xl animate-in zoom-in duration-300">
                                             {getSentimentIcon(diary.market_sentiment)}
                                         </div>
                                         {diary.market_issue && (
-                                            <div className={`text-[10px] w-full text-center truncate px-1 rounded ${darkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>
+                                            <div className={`hidden md:block text-[10px] w-full text-center truncate px-1 rounded ${darkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>
                                                 {diary.market_issue}
                                             </div>
                                         )}
                                     </>
                                 ) : (
-                                    <div className={`opacity-0 group-hover:opacity-100 transition-opacity text-xs ${darkMode ? 'text-slate-600' : 'text-slate-300'}`}>
-                                        + 작성
+                                    <div className={`opacity-0 group-hover:opacity-100 transition-opacity text-[10px] md:text-xs ${darkMode ? 'text-slate-600' : 'text-slate-300'}`}>
+                                        +
                                     </div>
                                 )}
                             </div>

@@ -1,17 +1,24 @@
 'use client';
 
-import { useEffect, useState, FormEvent } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { useEffect, useState, FormEvent, useMemo } from 'react';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 
-// 👉 Home 페이지와 같은 키 사용
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Lazy client initialization to avoid build-time errors
+function getSupabaseClient(): SupabaseClient | null {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('Missing Supabase environment variables');
+    return null;
+  }
+  return createClient(supabaseUrl, supabaseAnonKey);
+}
 
 export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(true);
   const [hasSession, setHasSession] = useState(false);
+  const [configError, setConfigError] = useState(false);
 
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
@@ -21,8 +28,17 @@ export default function ResetPasswordPage() {
 
   const router = useRouter();
 
+  // Memoize supabase client to avoid re-creating on each render
+  const supabase = useMemo(() => getSupabaseClient(), []);
+
   useEffect(() => {
     const checkSession = async () => {
+      if (!supabase) {
+        setConfigError(true);
+        setLoading(false);
+        return;
+      }
+
       try {
         const { data } = await supabase.auth.getSession();
         if (data.session && data.session.user) {
@@ -38,12 +54,18 @@ export default function ResetPasswordPage() {
       }
     };
     checkSession();
-  }, []);
+  }, [supabase]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setMsg(null);
     setMsgType(null);
+
+    if (!supabase) {
+      setMsgType('error');
+      setMsg('Supabase 설정 오류입니다.');
+      return;
+    }
 
     const trimmedPw = password.trim();
     const trimmedConfirm = passwordConfirm.trim();
@@ -61,7 +83,7 @@ export default function ResetPasswordPage() {
 
     try {
       setSending(true);
-      const { data, error } = await supabase.auth.updateUser({
+      const { error } = await supabase.auth.updateUser({
         password: trimmedPw,
       });
 
@@ -101,6 +123,19 @@ export default function ResetPasswordPage() {
       <main className="min-h-screen flex items-center justify-center bg-slate-100">
         <div className="text-xs text-slate-500">
           비밀번호 재설정 링크를 확인하는 중입니다…
+        </div>
+      </main>
+    );
+  }
+
+  if (configError) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-slate-100 px-4">
+        <div className="max-w-sm w-full bg-white shadow-md rounded-xl p-5 text-xs space-y-2">
+          <h1 className="text-sm font-semibold">설정 오류</h1>
+          <p className="text-slate-600">
+            서버 설정이 올바르지 않습니다. 관리자에게 문의해 주세요.
+          </p>
         </div>
       </main>
     );
