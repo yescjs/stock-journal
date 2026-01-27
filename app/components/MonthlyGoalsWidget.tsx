@@ -280,7 +280,7 @@ export function MonthlyGoalsWidget({
                                 <span className={dateBadgeClass}>
                                     {progress.month.split('-')[1]}월
                                 </span>
-                                {isCurrentMonth && <span className="ml-2 text-[10px] font-bold text-violet-500 animate-pulse">THIS MONTH</span>}
+                                {isCurrentMonth && <span className="ml-2 text-[10px] font-bold text-violet-500 animate-pulse">이번 달</span>}
                             </div>
 
                             {hasGoal ? (

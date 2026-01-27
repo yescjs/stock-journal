@@ -6,6 +6,9 @@ import { getKoreanWeekdayLabel, parseTagString, getCurrencySymbol } from '@/app/
 import { StockSymbolInput } from '@/app/components/StockSymbolInput';
 import { Zap, ChevronDown, Image as ImageIcon, Plus, Save, Info } from 'lucide-react';
 import { DatePicker } from '@/app/components/DatePicker';
+import { Button } from '@/app/components/ui/Button';
+import { Card } from '@/app/components/ui/Card';
+import { Input } from '@/app/components/ui/Input';
 
 interface TradeFormProps {
     darkMode: boolean;
@@ -246,7 +249,7 @@ export function TradeForm({
     const labelClass = `block mb-1.5 text-xs font-bold uppercase tracking-wider ${darkMode ? 'text-slate-400' : 'text-slate-500'}`;
 
     return (
-        <div className={!isCompact ? `rounded-3xl border p-6 transition-all glass-card ${darkMode ? 'bg-slate-900/40 border-slate-700/50' : 'bg-white/60 border-white/60 shadow-xl shadow-indigo-100/20'}` : ''}>
+        <Card variant="glass" className={!isCompact ? 'p-6' : 'border-none bg-transparent shadow-none backdrop-blur-none'}>
             {!isCompact && (
                 <div className="mb-6 flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -277,21 +280,27 @@ export function TradeForm({
                         />
                     </div>
                     <div className="sm:col-span-5">
-                        <div className={`p-1 rounded-xl flex h-[46px] border ${darkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-white border-slate-100 shadow-sm'}`}>
-                            <button
+                        <div className="flex gap-2 h-[46px]">
+                            <Button
                                 type="button"
+                                fullWidth
                                 onClick={() => setForm(prev => ({ ...prev, side: 'BUY' }))}
-                                className={`flex-1 rounded-lg text-xs font-black transition-all active:scale-95 btn-press ${form.side === 'BUY' ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/30' : (darkMode ? 'text-slate-500 hover:text-rose-400' : 'text-slate-400 hover:text-rose-500')}`}
+                                className={form.side === 'BUY' 
+                                    ? 'bg-rose-500 hover:bg-rose-600 text-white border-none' 
+                                    : 'bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400'}
                             >
                                 매수
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                                 type="button"
+                                fullWidth
                                 onClick={() => setForm(prev => ({ ...prev, side: 'SELL' }))}
-                                className={`flex-1 rounded-lg text-xs font-black transition-all active:scale-95 btn-press ${form.side === 'SELL' ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30' : (darkMode ? 'text-slate-500 hover:text-blue-400' : 'text-slate-400 hover:text-blue-500')}`}
+                                className={form.side === 'SELL' 
+                                    ? 'bg-blue-500 hover:bg-blue-600 text-white border-none' 
+                                    : 'bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400'}
                             >
                                 매도
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </div>
@@ -537,6 +546,6 @@ export function TradeForm({
                     </button>
                 </div>
             </form>
-        </div>
+        </Card>
     );
 }

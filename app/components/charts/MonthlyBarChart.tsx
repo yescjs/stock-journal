@@ -10,30 +10,38 @@ interface MonthlyBarChartProps {
     title?: string;
 }
 
+// Custom Tooltip Component for Glassmorphism
+interface CustomTooltipProps {
+    active?: boolean;
+    payload?: Array<{ value: number }>;
+    label?: string;
+    darkMode: boolean;
+}
+
+const CustomTooltip = ({ active, payload, label, darkMode }: CustomTooltipProps) => {
+    if (active && payload && payload.length) {
+        return (
+            <div className={`p-4 rounded-xl border backdrop-blur-md shadow-xl ${
+                darkMode 
+                ? 'bg-popover/80 border-slate-700 text-popover-foreground' 
+                : 'bg-popover/80 border-white/50 text-popover-foreground'
+            }`}>
+                <p className={`text-xs font-bold mb-1 ${darkMode ? 'text-muted-foreground' : 'text-muted-foreground'}`}>{label}</p>
+                <p className={`text-sm font-black ${payload[0].value >= 0 ? 'text-[#F04452]' : 'text-[#3182F6]'}`}>
+                    {payload[0].value >= 0 ? '+' : ''}{payload[0].value.toLocaleString()} 원
+                </p>
+            </div>
+        );
+    }
+    return null;
+};
+
 export function MonthlyBarChart({ data, darkMode, title }: MonthlyBarChartProps) {
-    // Custom Tooltip Component for Glassmorphism
-    const CustomTooltip = ({ active, payload, label }: any) => {
-        if (active && payload && payload.length) {
-            return (
-                <div className={`p-4 rounded-xl border backdrop-blur-md shadow-xl ${
-                    darkMode 
-                    ? 'bg-slate-900/80 border-slate-700 text-white' 
-                    : 'bg-white/80 border-white/50 text-slate-900'
-                }`}>
-                    <p className={`text-xs font-bold mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{label}</p>
-                    <p className={`text-sm font-black ${payload[0].value >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                        {payload[0].value >= 0 ? '+' : ''}{payload[0].value.toLocaleString()} 원
-                    </p>
-                </div>
-            );
-        }
-        return null;
-    };
 
     return (
         <div className="w-full h-[300px]">
             {title && (
-                <h3 className={`text-sm font-bold mb-4 ${darkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                <h3 className={`text-sm font-bold mb-4 text-foreground`}>
                     {title}
                 </h3>
             )}
@@ -55,15 +63,16 @@ export function MonthlyBarChart({ data, darkMode, title }: MonthlyBarChartProps)
                         axisLine={false}
                         tickFormatter={(val) => `${(val / 10000).toFixed(0)}만`}
                     />
-                    <Tooltip content={<CustomTooltip />} cursor={{ fill: darkMode ? '#ffffff05' : '#00000005', radius: 4 }} />
+                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                    <Tooltip content={(props: any) => <CustomTooltip {...props} darkMode={darkMode} />} cursor={{ fill: darkMode ? '#ffffff05' : '#00000005', radius: 4 }} />
                     <Bar dataKey="value" radius={[6, 6, 6, 6]}>
                         {data.map((entry, index) => (
                             <Cell 
                                 key={`cell-${index}`} 
-                                fill={entry.value >= 0 ? '#10b981' : '#f43f5e'} 
-                                fillOpacity={0.8}
-                                stroke={entry.value >= 0 ? '#059669' : '#e11d48'}
-                                strokeWidth={2}
+                                fill={entry.value >= 0 ? '#F04452' : '#3182F6'} 
+                                fillOpacity={0.9}
+                                stroke={entry.value >= 0 ? '#F04452' : '#3182F6'}
+                                strokeWidth={0}
                             />
                         ))}
                     </Bar>

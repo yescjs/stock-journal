@@ -19,18 +19,22 @@ export async function GET() {
         });
 
         return response;
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        const errorName = error instanceof Error ? error.name : 'Unknown';
+
         console.error('[네이버 로그인] 상세 에러:', {
-            message: error.message,
-            stack: error.stack,
-            name: error.name
+            message: errorMessage,
+            stack: errorStack,
+            name: errorName
         });
 
         // 에러 타입 판별 후 사용자 친화적 메시지 전달
         let userMessage = '네이버 로그인에 실패했습니다.';
 
         // 환경변수 설정 오류
-        if (error.message?.includes('환경변수')) {
+        if (errorMessage?.includes('환경변수')) {
             userMessage = '서버 설정 오류가 발생했습니다. 관리자에게 문의해주세요.';
         }
 

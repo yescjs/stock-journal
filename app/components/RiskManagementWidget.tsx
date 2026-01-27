@@ -166,9 +166,9 @@ export function RiskManagementWidget({
                 {/* Left: Account Overview */}
                 <div className={`rounded-2xl p-6 ${darkMode ? 'bg-slate-800/30' : 'bg-slate-50 border border-slate-100'}`}>
                     <div className="flex items-center justify-between mb-6">
-                        <span className={labelClass}>현재 총 자산 (EQUITY)</span>
+                        <span className={labelClass}>현재 총 자산</span>
                         <div className={`px-2 py-1 rounded text-[10px] font-bold ${darkMode ? 'bg-slate-700 text-slate-300' : 'bg-white text-slate-500 border border-slate-200'}`}>
-                            LAST SYNCED
+                            마지막 동기화
                         </div>
                     </div>
                     
@@ -245,7 +245,7 @@ export function RiskManagementWidget({
                     {/* Position Allocation */}
                     <div className={`flex-1 rounded-2xl p-6 ${darkMode ? 'bg-slate-800/30' : 'bg-slate-50 border border-slate-100'}`}>
                          <div className="flex items-center justify-between mb-4">
-                            <span className={labelClass}>포지션 비중 (POSITION SIZING)</span>
+                            <span className={labelClass}>포지션 비중</span>
                             <button onClick={() => setExpandedPositions(!expandedPositions)} className="text-xs font-bold text-cyan-500 hover:underline">
                                 {expandedPositions ? '접기' : '더 보기'}
                             </button>

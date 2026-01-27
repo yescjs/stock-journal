@@ -1,3 +1,4 @@
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
 @import "tailwindcss";
 
 @theme {
@@ -29,79 +30,106 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   
-  --radius: 1rem;
+  --color-up: var(--color-up);
+  --color-down: var(--color-down);
+  
+  --radius: 1.5rem;
 }
 
-/* Base Variables */
+/* Base Variables - Toss Design System (TDS) */
 :root {
-  --background: hsl(210 40% 98%);
-  --foreground: hsl(222 47% 11%);
+  /* Backgrounds */
+  --background: hsl(210 20% 96%); /* #F2F4F6 */
+  --foreground: hsl(215 19% 25%); /* #333D4B (Body Text) */
 
-  --card: hsl(0 0% 100%);
-  --card-foreground: hsl(222 47% 11%);
+  /* Cards & Surfaces */
+  --card: hsl(0 0% 100%); /* #FFFFFF */
+  --card-foreground: hsl(216 23% 13%); /* #191F28 (Headings) */
 
   --popover: hsl(0 0% 100%);
-  --popover-foreground: hsl(222 47% 11%);
+  --popover-foreground: hsl(216 23% 13%);
 
-  --primary: hsl(243 75% 59%);
-  --primary-foreground: hsl(210 40% 98%);
+  /* Primary - Toss Blue */
+  --primary: hsl(215 91% 58%); /* #3182F6 */
+  --primary-foreground: hsl(0 0% 100%);
 
-  --secondary: hsl(210 40% 96.1%);
-  --secondary-foreground: hsl(222 47% 11%);
+  /* Secondary */
+  --secondary: hsl(210 20% 96%); /* Same as bg for subtle buttons */
+  --secondary-foreground: hsl(216 23% 13%);
 
-  --muted: hsl(210 40% 96.1%);
-  --muted-foreground: hsl(215 16% 47%);
+  /* Muted & Subtext */
+  --muted: hsl(210 14% 91%); /* #E5E8EB */
+  --muted-foreground: hsl(213 13% 59%); /* #8B95A1 */
 
-  --accent: hsl(210 40% 96.1%);
-  --accent-foreground: hsl(222 47% 11%);
+  /* Accent */
+  --accent: hsl(210 20% 96%);
+  --accent-foreground: hsl(216 23% 13%);
 
-  --destructive: hsl(0 84.2% 60.2%);
-  --destructive-foreground: hsl(210 40% 98%);
+  /* Destructive - Toss Red */
+  --destructive: hsl(355 84% 60%); /* #F04452 */
+  --destructive-foreground: hsl(0 0% 100%);
 
-  --border: hsl(214 32% 91%);
-  --input: hsl(214 32% 91%);
-  --ring: hsl(243 75% 59%);
+  /* Borders & Inputs */
+  --border: hsl(210 14% 91%); /* #E5E8EB */
+  --input: hsl(210 14% 91%);
+  --ring: hsl(215 91% 58%); /* Primary Blue */
 
-  --radius: 1rem;
+  /* Korean Stock Market Colors */
+  --color-up: hsl(355 84% 60%); /* Red = UP */
+  --color-down: hsl(215 91% 58%); /* Blue = DOWN */
+
+  --radius: 1.5rem; /* 24px */
   
-  /* Modern Glassmorphism Variables */
-  --glass-bg: rgba(255, 255, 255, 0.7);
-  --glass-border: rgba(255, 255, 255, 0.5);
-  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+  /* Modern Glassmorphism Variables - Cleaner & More Transparent */
+  --glass-bg: rgba(255, 255, 255, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.4);
+  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
 }
 
 .dark {
-  --background: hsl(222 47% 11%);
-  --foreground: hsl(210 40% 98%);
+  /* Backgrounds - Deep Dark Gray */
+  --background: hsl(228 16% 13%); /* #1B1D25 */
+  --foreground: hsl(210 10% 91%); /* #E5E7EB */
 
-  --card: hsl(222 47% 11%);
-  --card-foreground: hsl(210 40% 98%);
+  /* Cards & Surfaces */
+  --card: hsl(229 11% 19%); /* #2B2D36 */
+  --card-foreground: hsl(210 20% 98%); /* #F9FAFB */
 
-  --popover: hsl(222 47% 11%);
-  --popover-foreground: hsl(210 40% 98%);
+  --popover: hsl(229 11% 19%);
+  --popover-foreground: hsl(210 20% 98%);
 
-  --primary: hsl(243 75% 59%);
-  --primary-foreground: hsl(210 40% 98%);
+  /* Primary - Toss Blue (Slightly adjusted for dark mode if needed, but keeping brand color) */
+  --primary: hsl(215 91% 58%);
+  --primary-foreground: hsl(0 0% 100%);
 
-  --secondary: hsl(217 32% 17%);
-  --secondary-foreground: hsl(210 40% 98%);
+  /* Secondary */
+  --secondary: hsl(229 11% 25%);
+  --secondary-foreground: hsl(210 20% 98%);
 
-  --muted: hsl(217 32% 17%);
+  /* Muted */
+  --muted: hsl(229 11% 25%);
   --muted-foreground: hsl(215 20% 65%);
 
-  --accent: hsl(217 32% 17%);
-  --accent-foreground: hsl(210 40% 98%);
+  /* Accent */
+  --accent: hsl(229 11% 25%);
+  --accent-foreground: hsl(210 20% 98%);
 
-  --destructive: hsl(0 62.8% 30.6%);
-  --destructive-foreground: hsl(210 40% 98%);
+  /* Destructive */
+  --destructive: hsl(355 84% 60%);
+  --destructive-foreground: hsl(0 0% 100%);
 
-  --border: hsl(217 32% 17%);
-  --input: hsl(217 32% 17%);
-  --ring: hsl(243 75% 59%);
+  /* Borders */
+  --border: hsl(229 11% 25%);
+  --input: hsl(229 11% 25%);
+  --ring: hsl(215 91% 58%);
+
+  /* Korean Stock Market Colors */
+  --color-up: hsl(355 84% 60%);
+  --color-down: hsl(215 91% 58%);
   
   /* Dark Glassmorphism Variables */
-  --glass-bg: rgba(15, 23, 42, 0.6);
-  --glass-border: rgba(255, 255, 255, 0.05);
+  --glass-bg: rgba(27, 29, 37, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.08);
   --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
 }
 
@@ -111,7 +139,8 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased tracking-tight;
+    font-family: "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
   }
 
   /* Improved focus states for accessibility */
@@ -131,7 +160,15 @@
   }
 }
 
-/* Custom Utilities (Tailwind v4 handles custom classes via normal CSS if not in @utility block) */
+/* Custom Utilities */
+
+/* Toss Shadow */
+.shadow-toss {
+  box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.04);
+}
+.dark .shadow-toss {
+  box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.2);
+}
 
 /* Custom Scrollbar */
 .scrollbar-thin::-webkit-scrollbar {
@@ -147,31 +184,35 @@
 
 /* Glassmorphism Utilities */
 .glass-panel {
-    @apply backdrop-blur-xl border shadow-lg transition-all duration-300;
+    @apply backdrop-blur-xl border transition-all duration-300;
     background: var(--glass-bg);
     border-color: var(--glass-border);
-    box-shadow: var(--glass-shadow);
+    box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.04);
+}
+
+.dark .glass-panel {
+    box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.2);
 }
 
 .glass-card {
     @apply backdrop-blur-lg border transition-all duration-200;
-    background: rgba(255, 255, 255, 0.5);
-    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.6);
+    border-color: rgba(255, 255, 255, 0.4);
 }
 
 .dark .glass-card {
-    background: rgba(30, 41, 59, 0.4);
-    border-color: rgba(255, 255, 255, 0.05);
+    background: rgba(43, 45, 54, 0.5);
+    border-color: rgba(255, 255, 255, 0.08);
 }
 
 .hover-glass:hover {
-    @apply transform -translate-y-0.5 shadow-xl;
+    @apply transform -translate-y-0.5 shadow-lg;
     border-color: var(--ring);
 }
 
-/* Button Press Effect */
+/* Button Press Effect - Toss Style (Subtle scale) */
 .btn-press:active {
-    @apply transform scale-95 opacity-80;
+    @apply transform scale-[0.96] opacity-90 transition-transform duration-100;
 }
 
 /* Animations */
@@ -185,7 +226,7 @@
     animation: float 3s ease-in-out infinite;
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar (Duplicate class cleanup) */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -205,50 +246,4 @@
 
 .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: rgba(148, 163, 184, 0.4);
-}
-
-/* Disabled button styles */
-button:disabled,
-input:disabled,
-select:disabled,
-textarea:disabled {
-  @apply cursor-not-allowed opacity-50;
-}
-
-/* Safe area padding for mobile devices with notches */
-@supports (padding-bottom: env(safe-area-inset-bottom)) {
-  .safe-area-bottom {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-}
-
-/* Touch target improvements for mobile */
-@media (pointer: coarse) {
-  button,
-  [role="button"],
-  a,
-  input[type="checkbox"],
-  input[type="radio"] {
-    min-height: 44px;
-    min-width: 44px;
-  }
-}
-
-/* Smooth scrolling for the whole page */
-html {
-  scroll-behavior: smooth;
-}
-
-/* Prevent text selection on interactive elements */
-button,
-[role="button"],
-.select-none {
-  -webkit-user-select: none;
-  user-select: none;
-}
-
-/* Better text rendering */
-body {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }

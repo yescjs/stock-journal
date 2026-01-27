@@ -14,6 +14,8 @@ import {
     CheckCircle2,
     RefreshCw
 } from 'lucide-react';
+import { Card } from '@/app/components/ui/Card';
+import { Button } from '@/app/components/ui/Button';
 
 interface SettingsPanelProps {
     darkMode: boolean;
@@ -40,23 +42,18 @@ export function SettingsPanel({
     onUpdateSymbolNames,
     isUpdating
 }: SettingsPanelProps) {
-    const cardClass = `rounded-3xl p-6 md:p-8 border transition-all glass-card ${darkMode
-        ? 'bg-slate-900/40 border-slate-700/50'
-        : 'bg-white/60 border-white/60 shadow-lg'
+    const labelClass = `text-xs font-black uppercase tracking-wider mb-4 flex items-center gap-2 ${darkMode ? 'text-slate-400' : 'text-slate-500'
         }`;
 
     const buttonClass = `px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 btn-press ${darkMode
-        ? 'bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white border border-slate-700/50'
-        : 'bg-white text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200'
-        }`;
-
-    const labelClass = `text-xs font-black uppercase tracking-wider mb-4 flex items-center gap-2 ${darkMode ? 'text-slate-400' : 'text-slate-500'
+        ? 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'
+        : 'bg-white text-indigo-600 hover:bg-indigo-50 border border-indigo-100 shadow-sm'
         }`;
 
     return (
         <div className="space-y-6 animate-fade-in">
             {/* Profile Card */}
-            <div className={cardClass}>
+            <Card variant="glass" className="p-6 md:p-8">
                 <div className="flex items-center gap-5">
                     {currentUser ? (
                         <>
@@ -94,10 +91,10 @@ export function SettingsPanel({
                         </>
                     )}
                 </div>
-            </div>
+            </Card>
 
             {/* Data Management Section */}
-            <div className={cardClass}>
+            <Card variant="glass" className="p-6 md:p-8">
                 <div className={labelClass}>
                     <Database size={14} />
                     데이터 관리
@@ -204,7 +201,7 @@ export function SettingsPanel({
                         </button>
                     </div>
                 </div>
-            </div>
+            </Card>
 
             {/* Danger Zone */}
             <div className={`rounded-3xl p-6 md:p-8 border-2 transition-all ${darkMode

@@ -273,7 +273,7 @@ export default function Home() {
             )}
 
             {/* Header */}
-            <div className="flex-none pt-4 px-4 w-full max-w-7xl mx-auto z-30">
+            <div className="sticky top-0 z-50 flex-none pt-4 px-4 w-full max-w-7xl mx-auto bg-slate-50/80 backdrop-blur-md dark:bg-slate-950/80 transition-colors duration-300">
                 <Header
                     darkMode={darkMode}
                     setDarkMode={setDarkMode}

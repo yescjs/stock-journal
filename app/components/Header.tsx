@@ -2,6 +2,7 @@ import React from 'react';
 import { User } from '@supabase/supabase-js';
 import { ActiveTab } from '@/app/types/ui';
 import { Sun, Moon, LogOut, LogIn, TrendingUp, BookOpen } from 'lucide-react';
+import { Button } from '@/app/components/ui/Button';
 
 interface HeaderProps {
     darkMode: boolean;
@@ -39,18 +40,18 @@ export function Header({
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4 group cursor-default">
                             <div className="relative">
-                                <div className="absolute inset-0 bg-indigo-500 blur-lg opacity-20 group-hover:opacity-40 transition-opacity rounded-full"></div>
-                                <div className="relative w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-white shadow-xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-600 transform group-hover:scale-105 transition-transform duration-300">
+                                <div className="absolute inset-0 bg-primary/20 blur-lg opacity-20 group-hover:opacity-40 transition-opacity rounded-full"></div>
+                                <div className="relative w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-primary-foreground shadow-xl bg-primary transform group-hover:scale-105 transition-transform duration-300">
                                     <TrendingUp size={24} strokeWidth={2.5} />
                                 </div>
                             </div>
 
                             <div>
                                 <h1 className="text-xl md:text-2xl font-black tracking-tight flex items-center gap-1.5 font-sans">
-                                    <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-indigo-600 dark:from-indigo-400 dark:to-indigo-300">
+                                    <span className="text-primary">
                                         Stock
                                     </span>
-                                    <span className={darkMode ? 'text-slate-100' : 'text-slate-900'}>
+                                    <span className="text-foreground">
                                         Journal
                                     </span>
                                 </h1>
@@ -58,14 +59,14 @@ export function Header({
                                     {currentUser ? (
                                         <>
                                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"></span>
-                                            <span className="text-slate-400 dark:text-slate-400">PRO TRADER</span>
+                                            <span className="text-muted-foreground">프로 트레이더</span>
                                         </>
                                     ) : (
                                         <>
                                             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"></span>
                                             <span className="text-amber-600 dark:text-amber-500">게스트 모드</span>
-                                            <span className="text-slate-400 dark:text-slate-500">•</span>
-                                            <span className="text-slate-500 dark:text-slate-400 text-xs normal-case">로그인하여 데이터 보관하세요</span>
+                                            <span className="text-muted-foreground">•</span>
+                                            <span className="text-muted-foreground text-xs normal-case">로그인하여 데이터 보관하세요</span>
                                         </>
                                     )}
                                 </p>
@@ -74,34 +75,33 @@ export function Header({
 
                         <div className="flex md:hidden items-center gap-2">
                             {currentUser ? (
-                                <button
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
                                     onClick={onLogout}
-                                    className={`p-2.5 rounded-xl transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-400 ${darkMode ? 'bg-slate-800 text-rose-400' : 'bg-slate-100 text-rose-600'
-                                        }`}
                                     title="로그아웃"
-                                    aria-label="로그아웃"
+                                    className="text-destructive hover:bg-destructive/10"
                                 >
                                     <LogOut size={18} />
-                                </button>
+                                </Button>
                             ) : (
-                                <button
+                                <Button
+                                    variant="primary"
+                                    size="sm"
                                     onClick={onShowLogin}
-                                    className="p-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-400"
                                     title="로그인"
                                     aria-label="로그인"
                                 >
                                     <LogIn size={18} />
-                                </button>
+                                </Button>
                             )}
-                            <button
+                            <Button
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => setDarkMode(!darkMode)}
-                                className={`p-2.5 rounded-xl transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-400 ${darkMode ? 'bg-slate-800 text-yellow-400' : 'bg-slate-100 text-slate-600'
-                                    }`}
-                                title={darkMode ? '라이트 모드' : '다크 모드'}
-                                aria-label={darkMode ? '라이트 모드로 전환' : '다크 모드로 전환'}
                             >
                                 {darkMode ? <Sun size={18} /> : <Moon size={18} />}
-                            </button>
+                            </Button>
                         </div>
                     </div>
 
@@ -110,26 +110,16 @@ export function Header({
                             {tabs.map((tab) => {
                                 const isActive = activeTab === tab.id;
                                 return (
-                                    <button
+                                    <Button
                                         key={tab.id}
+                                        variant={isActive ? 'secondary' : 'ghost'}
                                         onClick={() => setActiveTab(tab.id)}
-                                        role="tab"
-                                        aria-selected={isActive}
-                                        aria-label={tab.label}
-                                        className={`
-                                            relative flex-1 flex items-center justify-center gap-2 px-2 md:px-4 py-2 md:py-2.5 text-xs md:text-sm font-bold rounded-xl transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-inset
-                                            ${isActive
-                                                ? (darkMode
-                                                    ? 'bg-slate-800 text-white shadow-lg shadow-black/20 ring-1 ring-white/10'
-                                                    : 'bg-white text-indigo-600 shadow-md ring-1 ring-black/5')
-                                                : (darkMode
-                                                    ? 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
-                                                    : 'text-slate-500 hover:text-slate-800 hover:bg-black/5')}
-                                        `}
+                                        className={`flex-1 gap-2 text-xs md:text-sm font-bold ${isActive ? 'shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                                        size="sm"
                                     >
                                         <span className={`text-sm md:text-base transition-transform duration-300 ${isActive ? 'scale-110' : 'scale-100 grayscale opacity-70'}`} aria-hidden="true">{tab.icon}</span>
                                         <span className="hidden leading-none sm:inline">{tab.label}</span>
-                                    </button>
+                                    </Button>
                                 );
                             })}
                         </div>
@@ -138,55 +128,44 @@ export function Header({
                     <div className="hidden md:flex items-center gap-3">
                         <div className={`h-8 w-px mx-2 ${darkMode ? 'bg-slate-800' : 'bg-slate-200'}`}></div>
 
-                        <button
+                        <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => setDarkMode(!darkMode)}
-                            className={`
-                                p-3 rounded-2xl border transition-all duration-200 active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-400
-                                ${darkMode
-                                    ? 'border-slate-800 bg-slate-900/50 text-yellow-400 hover:bg-slate-800 hover:border-slate-700'
-                                    : 'border-slate-200 bg-white/50 text-slate-500 hover:text-indigo-600 hover:bg-white hover:border-slate-300 shadow-sm'}
-                            `}
-                            title={darkMode ? '라이트 모드' : '다크 모드'}
-                            aria-label={darkMode ? '라이트 모드로 전환' : '다크 모드로 전환'}
                         >
                             {darkMode ? <Sun size={18} strokeWidth={2.5} /> : <Moon size={18} strokeWidth={2.5} />}
-                        </button>
+                        </Button>
 
-                        <button
+                        <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={onShowGuide}
-                            className={`
-                                p-3 rounded-2xl border transition-all duration-200 active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-400
-                                ${darkMode
-                                    ? 'border-slate-800 bg-slate-900/50 text-indigo-400 hover:bg-slate-800 hover:border-slate-700'
-                                    : 'border-slate-200 bg-white/50 text-indigo-500 hover:text-indigo-600 hover:bg-white hover:border-slate-300 shadow-sm'}
-                            `}
                             title="이용 가이드"
                             aria-label="이용 가이드"
                         >
                             <BookOpen size={18} strokeWidth={2.5} />
-                        </button>
+                        </Button>
 
                         {currentUser ? (
-                            <button
+                            <Button
+                                variant="secondary"
+                                size="sm"
                                 onClick={onLogout}
-                                className={`
-                                    group flex items-center gap-2 px-5 py-3 text-xs font-bold rounded-2xl border transition-all duration-200 active:scale-95
-                                    ${darkMode
-                                        ? 'border-slate-800 bg-slate-900/50 text-slate-400 hover:text-rose-400 hover:border-rose-900/50 hover:bg-rose-900/10'
-                                        : 'border-slate-200 bg-white/50 text-slate-600 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-200 shadow-sm'}
-                                `}
+                                className="gap-2 hover:text-destructive hover:bg-destructive/10"
                             >
-                                <LogOut size={16} strokeWidth={2.5} className="group-hover:-translate-x-0.5 transition-transform" />
+                                <LogOut size={16} strokeWidth={2.5} />
                                 <span>로그아웃</span>
-                            </button>
+                            </Button>
                         ) : (
-                            <button
+                            <Button
+                                variant="primary"
+                                size="sm"
                                 onClick={onShowLogin}
-                                className="flex items-center gap-2 px-6 py-3 text-xs font-bold bg-gradient-to-r from-indigo-500 to-violet-600 text-white rounded-2xl hover:shadow-lg hover:shadow-indigo-500/30 hover:-translate-y-0.5 transition-all active:scale-95 active:translate-y-0"
+                                className="gap-2"
                             >
                                 <LogIn size={16} strokeWidth={2.5} />
                                 <span>로그인</span>
-                            </button>
+                            </Button>
                         )}
                     </div>
                 </div>

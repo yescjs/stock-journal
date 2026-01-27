@@ -51,15 +51,18 @@ export function LoginForm({ onDone, darkMode = false }: LoginFormProps) {
 
             // OAuth will redirect, so no further action needed here
         } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';
             setMsgType('error');
-            const message = error instanceof Error ? error.message : 'Unknown error';
-            setMsg(`Google 로그인 실패: ${message}`);
+            setMsg(`Google 로그인 실패: ${errorMessage}`);
             setSending(false);
         }
     };
 
     // Naver Login Handler
+    const [naverLoginLoading, setNaverLoginLoading] = useState(false);
+
     const handleNaverLogin = () => {
+        setNaverLoginLoading(true);
         setSending(true);
         resetMsg();
         // 네이버 로그인 API 라우트로 리다이렉트
@@ -161,9 +164,9 @@ export function LoginForm({ onDone, darkMode = false }: LoginFormProps) {
                 setMsg('비밀번호 재설정 이메일을 발송했습니다.');
             }
         } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : '알 수 없는 오류';
             setMsgType('error');
-            const message = err instanceof Error ? err.message : '알 수 없는 오류';
-            setMsg(`오류가 발생했습니다: ${message}`);
+            setMsg(`오류가 발생했습니다: ${errorMessage}`);
         } finally {
             setSending(false);
         }
@@ -298,10 +301,19 @@ export function LoginForm({ onDone, darkMode = false }: LoginFormProps) {
                             : 'hover:scale-[1.02] active:scale-[0.98]'
                             } bg-[#03C75A] text-white hover:bg-[#02B350] shadow-md`}
                     >
-                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2C6.477 2 2 5.582 2 10c0 2.895 1.959 5.455 4.888 7.047l-1.726 6.343c-.117.432.277.794.688.632L12 20.8c.337.013.677.02 1.019.02 5.523 0 9.981-3.582 9.981-8S18.542 2 12 2z" />
-                        </svg>
-                        네이버로 계속하기
+                        {naverLoginLoading ? (
+                            <>
+                                <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                네이버 로그인 중...
+                            </>
+                        ) : (
+                            <>
+                                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2C6.477 2 2 5.582 2 10c0 2.895 1.959 5.455 4.888 7.047l-1.726 6.343c-.117.432.277.794.688.632L12 20.8c.337.013.677.02 1.019.02 5.523 0 9.981-3.582 9.981-8S18.542 2 12 2z" />
+                                </svg>
+                                네이버로 계속하기
+                            </>
+                        )}
                     </button>
 
 

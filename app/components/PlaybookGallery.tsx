@@ -15,8 +15,8 @@ export function PlaybookGallery({ trades, darkMode, onSelectTrade }: PlaybookGal
     return (
       <div className={`flex flex-col items-center justify-center h-64 p-8 rounded-3xl border text-center ${
         darkMode 
-          ? 'bg-slate-900/40 border-slate-700/50 text-slate-400' 
-          : 'bg-white/60 border-white/60 text-slate-500 shadow-lg'
+          ? 'bg-card/40 border-slate-700/50 text-muted-foreground' 
+          : 'bg-white/60 border-white/60 text-muted-foreground shadow-lg'
       }`}>
         <div className={`p-4 rounded-full mb-4 ${darkMode ? 'bg-slate-800' : 'bg-indigo-50'}`}>
           <ImageIcon size={32} className={darkMode ? 'text-slate-500' : 'text-indigo-400'} />
@@ -42,7 +42,7 @@ export function PlaybookGallery({ trades, darkMode, onSelectTrade }: PlaybookGal
             className={`
               break-inside-avoid relative group cursor-pointer rounded-2xl overflow-hidden border transition-all duration-300 hover:scale-[1.02] hover:shadow-xl
               ${darkMode 
-                ? 'bg-slate-800/40 border-slate-700/50 hover:border-indigo-500/50' 
+                ? 'bg-card/40 border-slate-700/50 hover:border-indigo-500/50' 
                 : 'bg-white border-indigo-50 hover:border-indigo-200 shadow-md'}
             `}
           >
@@ -65,7 +65,7 @@ export function PlaybookGallery({ trades, darkMode, onSelectTrade }: PlaybookGal
                     ? 'bg-rose-500/80 text-white' 
                     : 'bg-blue-500/80 text-white'}
                 `}>
-                  {trade.side === 'BUY' ? 'LONG' : 'SHORT'}
+                  {trade.side === 'BUY' ? '매수' : '매도'}
                 </span>
               </div>
 

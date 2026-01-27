@@ -1,16 +1,11 @@
 import React, { useMemo } from 'react';
 import { Trade } from '@/app/types/trade';
-import { User } from '@supabase/supabase-js';
-import { formatMonthLabel, formatNumber, formatQuantity, formatPrice, getCurrencySymbol, getKoreanWeekdayLabel } from '@/app/utils/format';
-import { EMOTION_TAG_LABELS, EMOTION_TAG_COLORS } from '@/app/types/strategies';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { Pencil, Trash2, Camera, ChevronDown, Zap, Calendar, TrendingUp, TrendingDown, Clock, Hash, Share2, Check } from 'lucide-react';
+import { formatMonthLabel, formatQuantity, formatPrice, getKoreanWeekdayLabel } from '@/app/utils/format';
+import { Pencil, Trash2, Camera, ChevronDown, Zap, Calendar } from 'lucide-react';
 
 
 interface TradeListProps {
     trades: Trade[];
-    currentUser: User | null;
     onDelete?: (id: string) => void;
     onEdit?: (trade: Trade) => void;
     openMonths: Record<string, boolean>;
@@ -25,7 +20,6 @@ interface TradeListProps {
 
 export function TradeList({
     trades,
-    currentUser,
     onDelete,
     onEdit,
     openMonths,
@@ -37,32 +31,6 @@ export function TradeList({
     exchangeRate,
     showConverted,
 }: TradeListProps) {
-    const [copiedId, setCopiedId] = React.useState<string | null>(null);
-
-    const handleShare = async (trade: Trade) => {
-        const amount = trade.price * trade.quantity;
-        const currencySymbol = trade.symbol.match(/\d+/) ? '₩' : '$'; // Simple check, or reuse helper
-
-        const details = [
-            `[매매 기록] ${trade.symbol_name || trade.symbol}`,
-            `📅 날짜: ${trade.date}`,
-            `📊 구분: ${trade.side === 'BUY' ? '매수' : '매도'}`,
-            `🔢 수량: ${formatQuantity(trade.quantity, trade.symbol)}`,
-            `💰 단가: ${formatPrice(trade.price, trade.symbol)}`,
-            `💵 총액: ${formatPrice(amount, trade.symbol)}`,
-            trade.strategy_name ? `⚡ 전략: ${trade.strategy_name}` : '',
-            trade.memo ? `📝 메모: ${trade.memo}` : ''
-        ].filter(Boolean).join('\n');
-
-        try {
-            await navigator.clipboard.writeText(details);
-            setCopiedId(trade.id);
-            setTimeout(() => setCopiedId(null), 2000);
-        } catch (err) {
-            console.error('Failed to copy:', err);
-        }
-    };
-
     // Group by Month
     const monthGroups = useMemo(() => {
         if (trades.length === 0) return [];
@@ -103,13 +71,13 @@ export function TradeList({
         return (
             <div className={`
                 flex flex-col items-center justify-center py-24 rounded-3xl border-2 border-dashed transition-colors
-                ${darkMode ? 'bg-slate-900/20 border-slate-800' : 'bg-slate-50/50 border-slate-200'}
+                ${darkMode ? 'bg-muted/20 border-slate-800' : 'bg-slate-50/50 border-slate-200'}
             `}>
                 <div className={`w-20 h-20 rounded-3xl flex items-center justify-center mb-6 shadow-sm ${darkMode ? 'bg-slate-800' : 'bg-white'}`}>
                     <span className="text-4xl">📝</span>
                 </div>
                 <h3 className={`font-bold text-xl mb-2 ${darkMode ? 'text-slate-300' : 'text-slate-900'}`}>아직 작성된 매매 일지가 없습니다</h3>
-                <p className={`text-sm ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                <p className={`text-sm ${darkMode ? 'text-muted-foreground' : 'text-slate-400'}`}>
                     우측의 '일지 작성' 버튼을 눌러 첫 기록을 남겨보세요!
                 </p>
             </div>
@@ -127,7 +95,7 @@ export function TradeList({
                         className={`
                             rounded-3xl border overflow-hidden transition-all duration-300 glass-card
                             ${darkMode
-                                ? 'bg-slate-900/40 border-slate-700/50 hover:bg-slate-900/50'
+                                ? 'bg-card/40 border-slate-700/50 hover:bg-card/50'
                                 : 'bg-white/60 border-white/60 shadow-sm hover:shadow-lg hover:bg-white/80'}
                         `}
                     >
@@ -137,7 +105,7 @@ export function TradeList({
                             className={`
                                 flex items-center justify-between px-6 py-5 cursor-pointer select-none transition-all duration-200
                                 ${darkMode
-                                    ? 'bg-slate-800/30 hover:bg-slate-800/50'
+                                    ? 'bg-accent/30 hover:bg-accent/50'
                                     : 'bg-indigo-50/30 hover:bg-indigo-50/60'}
                             `}
                         >
@@ -173,7 +141,7 @@ export function TradeList({
                                     <table className="w-full text-sm text-left border-collapse">
                                         <thead className={`
                                             text-xs font-bold uppercase tracking-wider border-b
-                                            ${darkMode ? 'bg-slate-900/20 text-slate-500 border-slate-800' : 'bg-slate-50/50 text-slate-500 border-slate-100'}
+                                            ${darkMode ? 'bg-muted/20 text-muted-foreground border-slate-800' : 'bg-slate-50/50 text-slate-500 border-slate-100'}
                                         `}>
                                             <tr>
                                                 <th className="px-4 py-3 whitespace-nowrap w-[100px]">날짜</th>
@@ -183,7 +151,7 @@ export function TradeList({
                                                 <th className="px-4 py-3 text-right">총액</th>
                                                 <th className="px-4 py-3 w-[200px] hidden lg:table-cell">메모</th>
                                                 {(onDelete || onEdit) && (
-                                                    <th className={`px-4 py-3 z-10 sticky right-0 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)] text-center w-[80px] ${darkMode ? 'bg-slate-900' : 'bg-slate-50'}`}>관리</th>
+                                                    <th className={`px-4 py-3 z-10 sticky right-0 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)] text-center w-[80px] ${darkMode ? 'bg-card' : 'bg-slate-50'}`}>관리</th>
                                                 )}
                                             </tr>
                                         </thead>
@@ -282,7 +250,7 @@ export function TradeList({
 
                                                         {/* Actions */}
                                                         {(onDelete || onEdit) && (
-                                                            <td className={`px-4 py-3 sticky right-0 z-10 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)] ${darkMode ? 'bg-slate-900/95 backdrop-blur-sm' : 'bg-white/95 backdrop-blur-sm'}`}>
+                                                            <td className={`px-4 py-3 sticky right-0 z-10 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)] ${darkMode ? 'bg-card/95 backdrop-blur-sm' : 'bg-white/95 backdrop-blur-sm'}`}>
                                                                 <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                                     {onEdit && (
                                                                         <button
@@ -329,7 +297,7 @@ export function TradeList({
                                                 <div className="flex justify-between items-start">
                                                     <div className="flex items-center gap-3">
                                                         <div className={`
-                                                            w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black
+                                                            w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black shrink-0
                                                             ${t.side === 'BUY'
                                                                 ? (darkMode ? 'bg-rose-500/20 text-rose-400' : 'bg-rose-50 text-rose-600')
                                                                 : (darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-50 text-blue-600')}
@@ -337,16 +305,16 @@ export function TradeList({
                                                             {t.side === 'BUY' ? 'L' : 'S'}
                                                         </div>
                                                         <div>
-                                                            <div className={`font-black text-lg ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
+                                                            <div className={`font-black text-lg leading-tight ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
                                                                 {t.symbol_name || t.symbol}
                                                             </div>
-                                                            <div className={`text-xs font-medium flex items-center gap-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                                                            <div className={`text-xs font-medium flex items-center gap-1 mt-0.5 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
                                                                 {t.date} <span className="w-1 h-1 rounded-full bg-current opacity-50" /> {dayOfWeek}
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    <div className="text-right">
-                                                        <div className={`font-black text-base ${darkMode ? 'text-white' : 'text-slate-900'}`}>{displayPrice(amount, t.symbol)}</div>
+                                                    <div className="text-right shrink-0 ml-2">
+                                                        <div className={`font-black text-base ${darkMode ? 'text-foreground' : 'text-slate-900'}`}>{displayPrice(amount, t.symbol)}</div>
                                                         <div className={`text-xs font-medium ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>
                                                             {displayPrice(t.price, t.symbol)}
                                                         </div>

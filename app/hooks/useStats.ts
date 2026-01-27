@@ -298,7 +298,7 @@ export function useStats(
 
         result.sort((a, b) => b.totalPnL - a.totalPnL);
         return result;
-    }, [trades, strategyNameMap]);
+    }, [trades, strategyNameMap, exchangeRate]);
 
     // 3. Daily Realized PnL
     const dailyRealizedPoints = useMemo<PnLPoint[]>(() => {
@@ -799,7 +799,7 @@ export function useStats(
             maxDrawdown,
             maxDrawdownPercent,
         };
-    }, [trades, tagStats, equityPoints]);
+    }, [trades, tagStats, equityPoints, exchangeRate]);
 
     // 10. Holding Period Stats (보유 기간별 분석)
     const holdingPeriodStats = useMemo<HoldingPeriodStats[]>(() => {
