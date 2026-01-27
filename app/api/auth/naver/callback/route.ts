@@ -166,10 +166,12 @@ export async function GET(request: NextRequest) {
                         throw updateError;
                     }
                     user = updatedUser.user;
-                } catch (fallbackError: any) {
+                } catch (fallbackError: unknown) {
+                    const errorMessage = fallbackError instanceof Error ? fallbackError.message : '알 수 없는 오류';
+                    const errorStack = fallbackError instanceof Error ? fallbackError.stack : undefined;
                     console.error('[네이버 OAuth] 기존 사용자 처리 실패:', {
-                        error: fallbackError.message,
-                        stack: fallbackError.stack,
+                        error: errorMessage,
+                        stack: errorStack,
                         timestamp: new Date().toISOString()
                     });
                     throw fallbackError;
@@ -188,21 +190,95 @@ export async function GET(request: NextRequest) {
             user = newUser.user;
         }
 
-        // 4. OTP 생성 및 자동 검증으로 세션 생성
-        // Admin API로 OTP 생성
-        const { data: otpData, error: otpError } = await supabaseAdmin.auth.admin.generateLink({
-            type: 'magiclink',
-            email: email,
-        });
+        // 4. 세션 생성 (OTP 방식 with Retry)
+        //
+        // OTP 방식의 복잡도 분석:
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //
+        // 1. 서버 측 (현재 위치):
+        //    - Admin API로 `generateLink({type: 'magiclink'})` 호출
+        //    - 반환되는 `hashed_token`을 HTML 응답에 포함
+        //    ⚠️  문제점: hashed_token은 일회용이며 약 60초 유효기간
+        //
+        // 2. 클라이언트 측 (HTML <script> 내):
+        //    - Supabase Client로 `verifyOtp({type: 'email', token_hash})` 호출
+        //    - 성공 시 localStorage에 세션 토큰 자동 저장
+        //    ⚠️  문제점: 네트워크 지연, 브라우저 차단 시 실패 가능
+        //
+        // 3. 왜 이 방식을 사용하는가?
+        //    - Supabase Admin API는 서버 측 세션을 직접 생성하는 메서드 미제공
+        //    - `admin.createUser()`는 세션을 반환하지 않음
+        //    - 클라이언트 측에서 세션을 설정해야만 localStorage 동기화 가능
+        //    - Magic Link OTP는 이를 우회하는 공식 패턴
+        //
+        // 4. 대안 검토:
+        //    ✗ signInWithPassword: 비밀번호 생성 필요 (보안 위험, 복잡도 증가)
+        //    ✗ Admin API JWT 직접 생성: 공식 미지원, 토큰 갱신 로직 필요
+        //    ✓ OTP 방식: 공식 권장, 비밀번호 불필요, 일회용 보안
+        //
+        // 5. 개선 방향:
+        //    - 재시도 로직 추가로 네트워크 일시 장애 대응
+        //    - 타임아웃 증가 (30초 → 60초) OTP 유효기간 대응
+        //    - 상세 에러 로깅으로 실패 원인 추적
+        //
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-        if (otpError || !otpData.properties) {
-            console.error('[네이버 OAuth] OTP 생성 실패:', {
-                error: otpError?.message,
-                code: otpError?.code,
-                hasProperties: !!otpData?.properties,
+        let otpData;
+        let otpError;
+
+        // 재시도 로직: 최대 3회 시도
+        const MAX_RETRIES = 3;
+        const RETRY_DELAY_MS = 1000; // 재시도 간 1초 대기
+
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            console.log(`[네이버 OAuth] OTP 생성 시도 ${attempt}/${MAX_RETRIES}`, {
+                email: email,
+                userId: user?.id,
                 timestamp: new Date().toISOString()
             });
-            throw otpError || new Error('세션 생성에 실패했습니다.');
+
+            const result = await supabaseAdmin.auth.admin.generateLink({
+                type: 'magiclink',
+                email: email,
+            });
+
+            otpData = result.data;
+            otpError = result.error;
+
+            // 성공 조건: error가 없고 properties.hashed_token이 존재
+            if (!otpError && otpData?.properties?.hashed_token) {
+                console.log(`[네이버 OAuth] OTP 생성 성공 (${attempt}회 시도)`, {
+                    hashedTokenLength: otpData.properties.hashed_token.length,
+                    timestamp: new Date().toISOString()
+                });
+                break;
+            }
+
+            // 실패 로깅
+            console.warn(`[네이버 OAuth] OTP 생성 실패 (시도 ${attempt}/${MAX_RETRIES})`, {
+                error: otpError?.message,
+                code: otpError?.code,
+                hasData: !!otpData,
+                hasProperties: !!otpData?.properties,
+                hasHashedToken: !!otpData?.properties?.hashed_token,
+                timestamp: new Date().toISOString()
+            });
+
+            // 마지막 시도가 아니면 대기 후 재시도
+            if (attempt < MAX_RETRIES) {
+                await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+            }
+        }
+
+        // 최종 실패 처리
+        if (otpError || !otpData?.properties?.hashed_token) {
+            console.error('[네이버 OAuth] OTP 생성 최종 실패 (재시도 모두 소진)', {
+                error: otpError?.message,
+                code: otpError?.code,
+                attemptsUsed: MAX_RETRIES,
+                timestamp: new Date().toISOString()
+            });
+            throw otpError || new Error('세션 생성에 실패했습니다. 잠시 후 다시 시도해주세요.');
         }
 
         // 5. 클라이언트에서 세션을 설정할 수 있도록 토큰을 localStorage에 저장하는 스크립트 포함
@@ -424,7 +500,8 @@ export async function GET(request: NextRequest) {
             }
         }
 
-        // 타임아웃 설정 (30초)
+        // 타임아웃 설정 (60초로 증가 - OTP 유효기간 고려)
+        // OTP 생성부터 검증까지의 전체 과정을 포함하므로 여유있게 설정
         const timeoutId = setTimeout(() => {
             if (currentStep < 3) {
                 document.getElementById('timeout-notice').style.display = 'block';
@@ -435,7 +512,7 @@ export async function GET(request: NextRequest) {
                         encodeURIComponent('로그인 처리 시간이 초과되었습니다. 다시 시도해주세요.');
                 }, 3000);
             }
-        }, 30000);
+        }, 60000); // 30초 → 60초로 증가
 
         (async function() {
             try {
@@ -458,19 +535,66 @@ export async function GET(request: NextRequest) {
                 updateStep(2);
 
                 // 2. 새 세션 생성
+                // Supabase Client 생성
                 const supabase = createClient(
                     '${process.env.NEXT_PUBLIC_SUPABASE_URL}',
                     '${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}'
                 );
 
-                const { data, error } = await supabase.auth.verifyOtp({
-                    type: 'email',
-                    token_hash: '${otpData.properties.hashed_token}'
-                });
+                // OTP 검증으로 세션 생성 (재시도 로직 포함)
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                // verifyOtp() 단계 설명:
+                // 1. 서버에서 전달받은 hashed_token을 Supabase로 검증 요청
+                // 2. 유효한 토큰이면 Supabase가 새로운 세션(access_token, refresh_token) 생성
+                // 3. Supabase Client가 자동으로 localStorage에 세션 저장
+                // 4. 이후 모든 API 요청에서 이 세션 사용
+                //
+                // 실패 가능 케이스:
+                // - 네트워크 타임아웃 (느린 연결, CDN 지연)
+                // - OTP 토큰 만료 (서버 생성 후 60초 경과)
+                // - 브라우저 localStorage 차단 (시크릿 모드, 쿠키 차단 설정)
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-                if (error) {
-                    console.error('OTP verification error:', error);
-                    throw error;
+                const MAX_OTP_RETRIES = 3;
+                const OTP_RETRY_DELAY_MS = 2000; // OTP 검증은 2초 간격으로 재시도
+                let verifyData, verifyError;
+
+                for (let attempt = 1; attempt <= MAX_OTP_RETRIES; attempt++) {
+                    console.log('OTP verification attempt:', attempt, '/', MAX_OTP_RETRIES);
+
+                    const result = await supabase.auth.verifyOtp({
+                        type: 'email',
+                        token_hash: '${otpData.properties.hashed_token}'
+                    });
+
+                    verifyData = result.data;
+                    verifyError = result.error;
+
+                    // 성공 조건: error가 없고 session이 존재
+                    if (!verifyError && verifyData?.session) {
+                        console.log('OTP verification success on attempt:', attempt);
+                        break;
+                    }
+
+                    // 실패 로깅
+                    console.warn('OTP verification failed, attempt:', attempt, {
+                        error: verifyError?.message,
+                        hasSession: !!verifyData?.session
+                    });
+
+                    // 마지막 시도가 아니면 대기 후 재시도
+                    if (attempt < MAX_OTP_RETRIES) {
+                        await new Promise(resolve => setTimeout(resolve, OTP_RETRY_DELAY_MS));
+                    }
+                }
+
+                // 최종 실패 처리
+                if (verifyError || !verifyData?.session) {
+                    console.error('OTP verification final failure:', {
+                        error: verifyError?.message,
+                        attemptsUsed: MAX_OTP_RETRIES
+                    });
+                    throw verifyError || new Error('세션 생성 검증 실패');
                 }
 
                 // 3단계로 이동 (완료)
@@ -505,11 +629,15 @@ export async function GET(request: NextRequest) {
         response.cookies.delete('naver_oauth_state');
 
         return response;
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        const errorName = error instanceof Error ? error.name : 'Unknown';
+
         console.error('[네이버 OAuth] 콜백 처리 실패:', {
-            message: error.message,
-            stack: error.stack,
-            name: error.name,
+            message: errorMessage,
+            stack: errorStack,
+            name: errorName,
             timestamp: new Date().toISOString()
         });
 
@@ -517,19 +645,19 @@ export async function GET(request: NextRequest) {
         let userMessage = '네이버 로그인에 실패했습니다.';
 
         // 네트워크 오류
-        if (error.name === 'TypeError' || error.message?.includes('fetch') || error.message?.includes('network')) {
+        if (errorName === 'TypeError' || errorMessage?.includes('fetch') || errorMessage?.includes('network')) {
             userMessage = '네이버 서버와 통신할 수 없습니다. 잠시 후 다시 시도해주세요.';
         }
         // 프로필 조회 실패
-        else if (error.message?.includes('프로필')) {
+        else if (errorMessage?.includes('프로필')) {
             userMessage = '네이버 사용자 정보를 가져올 수 없습니다. 다시 시도해주세요.';
         }
         // 사용자 생성/업데이트 실패
-        else if (error.message?.includes('사용자')) {
+        else if (errorMessage?.includes('사용자')) {
             userMessage = '사용자 정보 처리 중 오류가 발생했습니다. 다시 시도해주세요.';
         }
         // 세션 생성 실패
-        else if (error.message?.includes('세션')) {
+        else if (errorMessage?.includes('세션')) {
             userMessage = '로그인 세션 생성에 실패했습니다. 다시 시도해주세요.';
         }
 

@@ -1,4 +1,9 @@
-import { supabase } from './supabaseClient';
+/**
+ * 네이버 OAuth 인증 관련 함수들
+ * - getNaverAuthUrl: OAuth 인증 URL 생성
+ * - getNaverAccessToken: 액세스 토큰 교환
+ * - getNaverUserProfile: 사용자 프로필 조회
+ */
 
 interface NaverTokenResponse {
     access_token: string;
@@ -31,8 +36,15 @@ interface NaverEnvConfig {
 }
 
 /**
- * 네이버 인증에 필요한 환경변수 검증
+ * 네이버 OAuth 인증에 필요한 환경변수 검증
+ *
+ * 검증 항목:
+ * - NEXT_PUBLIC_NAVER_CLIENT_ID: 네이버 OAuth 앱 ID
+ * - NAVER_CLIENT_SECRET: 네이버 OAuth 앱 비밀키 (서버 환경변수)
+ * - NEXT_PUBLIC_BASE_URL: 콜백 URL 생성에 사용할 기본 URL
+ *
  * @throws {Error} 필수 환경변수가 누락된 경우
+ * @returns {NaverEnvConfig} 검증된 환경변수 설정 객체
  */
 function validateNaverEnv(): NaverEnvConfig {
     const clientId = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID;
@@ -56,6 +68,16 @@ function validateNaverEnv(): NaverEnvConfig {
 
 /**
  * 네이버 OAuth 인증 URL 생성
+ *
+ * 사용자를 네이버 로그인 페이지로 리다이렉트하기 위한 URL을 생성합니다.
+ * CSRF 방지를 위해 state 파라미터를 포함합니다.
+ *
+ * @param {string} state - CSRF 방지용 state 값 (타임스탬프-난수 형식)
+ * @returns {string} 네이버 OAuth 인증 URL
+ * @example
+ * const state = `${Date.now()}-${crypto.randomBytes(16).toString('hex')}`;
+ * const url = getNaverAuthUrl(state);
+ * // https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=...&redirect_uri=...&state=...
  */
 export function getNaverAuthUrl(state: string): string {
     const { clientId, baseUrl } = validateNaverEnv();
@@ -72,11 +94,22 @@ export function getNaverAuthUrl(state: string): string {
 }
 
 /**
- * 네이버 액세스 토큰 교환
+ * 네이버 OAuth 인증 코드를 액세스 토큰으로 교환
+ *
+ * 네이버 로그인 완료 후 받은 인증 코드를 사용하여
+ * 실제 API 호출에 필요한 액세스 토큰을 받아옵니다.
+ *
+ * 에러 처리:
+ * - 네트워크 오류: 사용자 친화적 메시지 제공
+ * - API 오류: 상세한 로그 기록
+ *
+ * @param {string} code - 네이버에서 받은 인증 코드
+ * @param {string} state - CSRF 방지용 state 값
+ * @returns {Promise<NaverTokenResponse>} access_token, refresh_token 등 포함
+ * @throws {Error} 토큰 교환 실패 시
  */
 export async function getNaverAccessToken(code: string, state: string): Promise<NaverTokenResponse> {
-    const { clientId, clientSecret, baseUrl } = validateNaverEnv();
-    const redirectUri = `${baseUrl}/api/auth/naver/callback`;
+    const { clientId, clientSecret } = validateNaverEnv();
 
     const params = new URLSearchParams({
         grant_type: 'authorization_code',
@@ -106,11 +139,12 @@ export async function getNaverAccessToken(code: string, state: string): Promise<
         }
 
         return response.json();
-    } catch (error: any) {
+    } catch (error: unknown) {
         // 네트워크 오류와 기타 오류 구분
-        if (error.name === 'TypeError' || error.message?.includes('fetch')) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        if (err.name === 'TypeError' || err.message?.includes('fetch')) {
             console.error('[네이버 토큰 교환] 네트워크 오류:', {
-                message: error.message,
+                message: err.message,
                 timestamp: new Date().toISOString()
             });
             throw new Error('네이버 서버와 통신할 수 없습니다. 잠시 후 다시 시도해주세요.');
@@ -121,6 +155,17 @@ export async function getNaverAccessToken(code: string, state: string): Promise<
 
 /**
  * 네이버 사용자 프로필 조회
+ *
+ * 액세스 토큰을 사용하여 네이버에서 로그인한 사용자의
+ * 기본 정보(ID, 이메일, 이름, 닉네임 등)를 조회합니다.
+ *
+ * 에러 처리:
+ * - 네트워크 오류: 사용자 친화적 메시지 제공
+ * - API 오류: 상세한 로그 기록
+ *
+ * @param {string} accessToken - 네이버에서 받은 액세스 토큰
+ * @returns {Promise<NaverUserProfile>} resultcode와 사용자 프로필 정보
+ * @throws {Error} 프로필 조회 실패 시
  */
 export async function getNaverUserProfile(accessToken: string): Promise<NaverUserProfile> {
     try {
@@ -143,11 +188,12 @@ export async function getNaverUserProfile(accessToken: string): Promise<NaverUse
         }
 
         return response.json();
-    } catch (error: any) {
+    } catch (error: unknown) {
         // 네트워크 오류와 기타 오류 구분
-        if (error.name === 'TypeError' || error.message?.includes('fetch')) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        if (err.name === 'TypeError' || err.message?.includes('fetch')) {
             console.error('[네이버 프로필 조회] 네트워크 오류:', {
-                message: error.message,
+                message: err.message,
                 timestamp: new Date().toISOString()
             });
             throw new Error('네이버 서버와 통신할 수 없습니다. 잠시 후 다시 시도해주세요.');
@@ -156,68 +202,3 @@ export async function getNaverUserProfile(accessToken: string): Promise<NaverUse
     }
 }
 
-/**
- * Supabase에 네이버 사용자 생성 또는 업데이트
- */
-export async function createOrUpdateSupabaseUser(
-    naverProfile: NaverUserProfile,
-    accessToken: string
-): Promise<{ success: boolean; error?: string }> {
-    try {
-        const { response: profile } = naverProfile;
-
-        // 네이버 ID를 기반으로 고유한 이메일 생성 (이메일이 없는 경우)
-        const email = profile.email || `naver_${profile.id}@naver-oauth.local`;
-
-        // Supabase Auth에 사용자 생성/업데이트
-        // 네이버 OAuth는 Supabase에서 공식 지원하지 않으므로,
-        // 사용자 메타데이터에 네이버 정보를 저장
-        const { data: existingUser, error: checkError } = await supabase.auth.getUser();
-
-        if (existingUser?.user) {
-            // 이미 로그인된 사용자가 있으면 메타데이터 업데이트
-            const { error: updateError } = await supabase.auth.updateUser({
-                data: {
-                    provider: 'naver',
-                    naver_id: profile.id,
-                    name: profile.name,
-                    nickname: profile.nickname,
-                    profile_image: profile.profile_image,
-                    email: email,
-                },
-            });
-
-            if (updateError) {
-                return { success: false, error: updateError.message };
-            }
-        }
-
-        return { success: true };
-    } catch (error: any) {
-        return { success: false, error: error.message };
-    }
-}
-
-/**
- * 네이버 사용자 정보로 커스텀 세션 생성
- */
-export function createNaverSession(naverProfile: NaverUserProfile, accessToken: string) {
-    const { response: profile } = naverProfile;
-
-    return {
-        user: {
-            id: profile.id,
-            email: profile.email || `naver_${profile.id}@naver-oauth.local`,
-            user_metadata: {
-                provider: 'naver',
-                naver_id: profile.id,
-                name: profile.name,
-                nickname: profile.nickname,
-                profile_image: profile.profile_image,
-                full_name: profile.name,
-            },
-        },
-        access_token: accessToken,
-        provider: 'naver',
-    };
-}

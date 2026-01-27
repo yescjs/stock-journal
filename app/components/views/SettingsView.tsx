@@ -5,6 +5,7 @@ import { useBackupManager } from '@/app/hooks/useBackupManager';
 import { Download, Upload, Trash2, Database, Target, Sliders } from 'lucide-react';
 import { StrategyManager } from '@/app/components/StrategyManager';
 import { Strategy } from '@/app/types/strategies';
+import { Card } from '@/app/components/ui/Card';
 
 interface SettingsViewProps {
   darkMode: boolean;
@@ -80,7 +81,7 @@ export function SettingsView({
       </div>
 
       {/* Strategy Management Section */}
-      <div className={`rounded-3xl border overflow-hidden glass-card ${darkMode ? 'bg-slate-900/40 border-slate-700/50' : 'bg-white/60 border-white/60 shadow-lg'}`}>
+      <Card variant="glass" className="overflow-hidden">
         <div className="p-6 md:p-8">
           <h3 className={`text-lg font-black mb-6 flex items-center gap-2 ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
             <Target size={20} className="text-indigo-500" />
@@ -94,7 +95,7 @@ export function SettingsView({
             onRemove={onRemoveStrategy}
           />
         </div>
-      </div>
+      </Card>
 
       {/* Profile & Data Management via SettingsPanel */}
       <SettingsPanel

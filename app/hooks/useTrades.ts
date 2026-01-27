@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/app/lib/supabaseClient';
 import { Trade, TradeSide } from '@/app/types/trade';

@@ -171,15 +171,14 @@ export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, o
                         onCurrentPriceLoad={(price) => setDynamicPrice(price)}
                     />
                     <div className="px-2 pb-2">
-                        <TradeList
-                            trades={stockTrades}
-                            currentUser={null} // Read-only
-                            toggleMonth={(key) => setOpenMonths(prev => ({ ...prev, [key]: !prev[key] }))}
-                            darkMode={darkMode}
-                            exchangeRate={exchangeRate}
-                            showConverted={showConverted}
-                            openMonths={openMonths}
-                        />
+                         <TradeList
+                             trades={stockTrades}
+                             toggleMonth={(key) => setOpenMonths(prev => ({ ...prev, [key]: !prev[key] }))}
+                             darkMode={darkMode}
+                             exchangeRate={exchangeRate}
+                             showConverted={showConverted}
+                             openMonths={openMonths}
+                         />
 
                     </div>
                 </div>

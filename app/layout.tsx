@@ -1,22 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Noto_Sans_KR } from "next/font/google"; // Upgrade font
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const notoSansKr = Noto_Sans_KR({
-  variable: "--font-noto-sans-kr",
-  subsets: ["latin"],
-  weight: ["100", "300", "400", "500", "700", "900"],
-});
 
 export const metadata: Metadata = {
   title: "Stock Journal",
@@ -34,9 +17,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${notoSansKr.variable} antialiased font-sans`}
+        className="antialiased tracking-tight bg-background text-foreground"
       >
-        {children}
+        <div className="mx-auto max-w-screen-xl min-h-screen p-4 sm:p-6 lg:p-8">
+          {children}
+        </div>
       </body>
     </html>
   );
