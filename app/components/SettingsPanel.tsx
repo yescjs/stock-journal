@@ -119,14 +119,16 @@ export function SettingsPanel({
                                 </div>
                             </div>
                         </div>
-                        <button
+                        <Button
                             onClick={onUpdateSymbolNames}
                             disabled={isUpdating}
-                            className={buttonClass}
+                            variant="secondary"
+                            size="sm"
+                            className="text-xs"
                         >
                             <RefreshCw size={14} className={isUpdating ? "animate-spin" : ""} />
                             {isUpdating ? '업데이트 중...' : '업데이트'}
-                        </button>
+                        </Button>
                     </div>
 
                     {/* CSV Export */}
@@ -146,10 +148,10 @@ export function SettingsPanel({
                                 </div>
                             </div>
                         </div>
-                        <button onClick={onExportCsv} className={buttonClass}>
+                        <Button onClick={onExportCsv} variant="secondary" size="sm" className="text-xs">
                             <Download size={14} />
                             내보내기
-                        </button>
+                        </Button>
                     </div>
 
                     {/* Backup Export */}
@@ -169,10 +171,10 @@ export function SettingsPanel({
                                 </div>
                             </div>
                         </div>
-                        <button onClick={onExportBackup} className={buttonClass}>
+                        <Button onClick={onExportBackup} variant="secondary" size="sm" className="text-xs">
                             <Download size={14} />
                             다운로드
-                        </button>
+                        </Button>
                     </div>
 
                     {/* Backup Import */}
@@ -195,10 +197,10 @@ export function SettingsPanel({
                                 )}
                             </div>
                         </div>
-                        <button onClick={onImportBackup} className={buttonClass}>
+                        <Button onClick={onImportBackup} variant="secondary" size="sm" className="text-xs">
                             <Upload size={14} />
                             파일 선택
-                        </button>
+                        </Button>
                     </div>
                 </div>
             </Card>

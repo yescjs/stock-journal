@@ -1,7 +1,9 @@
 import React, { useMemo } from 'react';
 import { Trade } from '@/app/types/trade';
 import { formatMonthLabel, formatQuantity, formatPrice, getKoreanWeekdayLabel } from '@/app/utils/format';
-import { Pencil, Trash2, Camera, ChevronDown, Zap, Calendar } from 'lucide-react';
+import { Pencil, Trash2, Camera, ChevronDown, Zap, Calendar, ListTodo } from 'lucide-react';
+import { Card } from '@/app/components/ui/Card';
+import { Button } from '@/app/components/ui/Button';
 
 
 interface TradeListProps {
@@ -69,18 +71,18 @@ export function TradeList({
 
     if (trades.length === 0) {
         return (
-            <div className={`
-                flex flex-col items-center justify-center py-24 rounded-3xl border-2 border-dashed transition-colors
-                ${darkMode ? 'bg-muted/20 border-slate-800' : 'bg-slate-50/50 border-slate-200'}
-            `}>
+            <Card
+                variant="glass"
+                className="flex flex-col items-center justify-center py-24 border-2 border-dashed"
+            >
                 <div className={`w-20 h-20 rounded-3xl flex items-center justify-center mb-6 shadow-sm ${darkMode ? 'bg-slate-800' : 'bg-white'}`}>
-                    <span className="text-4xl">📝</span>
+                    <ListTodo className="text-slate-400" size={40} />
                 </div>
                 <h3 className={`font-bold text-xl mb-2 ${darkMode ? 'text-slate-300' : 'text-slate-900'}`}>아직 작성된 매매 일지가 없습니다</h3>
                 <p className={`text-sm ${darkMode ? 'text-muted-foreground' : 'text-slate-400'}`}>
-                    우측의 '일지 작성' 버튼을 눌러 첫 기록을 남겨보세요!
+                    우측의 &apos;일지 작성&apos; 버튼을 눌러 첫 기록을 남겨보세요!
                 </p>
-            </div>
+            </Card>
         );
     }
 

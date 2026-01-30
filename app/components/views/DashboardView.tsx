@@ -62,7 +62,7 @@ export function DashboardView({
   const { goals: monthlyGoals, setGoal: setMonthlyGoal, removeGoal: removeMonthlyGoal } = goalsData;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="animate-in fade-in duration-500">
        <StatsDashboard
           darkMode={darkMode}
           symbolSummaries={symbolSummaries}

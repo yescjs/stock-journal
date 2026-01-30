@@ -882,7 +882,7 @@ export function useStats(
             avgHoldingDays: 0,
         }));
 
-        let totalHoldingDays: number[] = periods.map(() => 0);
+        const totalHoldingDays: number[] = periods.map(() => 0);
 
         for (const r of results) {
             const periodIdx = periods.findIndex(p => r.holdingDays >= p.min && r.holdingDays <= p.max);

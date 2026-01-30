@@ -1,7 +1,12 @@
 import { useState } from 'react';
 import { supabase } from '@/app/lib/supabaseClient';
 import { User } from '@supabase/supabase-js';
-import { Trade } from '@/app/types/trade';
+
+interface SearchResult {
+    symbol: string;
+    name: string;
+    exchange?: string;
+}
 
 export function useDataCorrection(currentUser: User | null, onNotify: (type: 'success' | 'error' | 'info', message: string) => void) {
     const [isCorrecting, setIsCorrecting] = useState(false);
@@ -55,7 +60,7 @@ export function useDataCorrection(currentUser: User | null, onNotify: (type: 'su
                         const res = await fetch(`/api/stock-search?q=${encodeURIComponent(code)}`);
                         if (res.ok) {
                             const data = await res.json();
-                            const match = data.results.find((r: any) =>
+                            const match = data.results.find((r: SearchResult) =>
                                 r.symbol === symbol ||
                                 r.symbol.split('.')[0] === symbol.split('.')[0]
                             );
@@ -86,7 +91,7 @@ export function useDataCorrection(currentUser: User | null, onNotify: (type: 'su
             onNotify('success', `${updatedCount}개 종목의 이름을 업데이트했습니다. 새로고침 해주세요.`);
             setTimeout(() => window.location.reload(), 1500);
 
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Data correction error:', err);
             onNotify('error', '데이터 업데이트 중 오류가 발생했습니다.');
         } finally {
