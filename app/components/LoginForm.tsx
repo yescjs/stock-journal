@@ -299,7 +299,7 @@ export function LoginForm({ onDone, darkMode = false }: LoginFormProps) {
                         className={`w-full py-3.5 px-4 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-3 ${sending
                             ? 'opacity-50 cursor-not-allowed'
                             : 'hover:scale-[1.02] active:scale-[0.98]'
-                            } bg-[#03C75A] text-white hover:bg-[#02B350] shadow-md`}
+                            } bg-[#03A94D] text-white hover:bg-[#028A3D] shadow-md`}
                     >
                         {naverLoginLoading ? (
                             <>
@@ -308,8 +308,8 @@ export function LoginForm({ onDone, darkMode = false }: LoginFormProps) {
                             </>
                         ) : (
                             <>
-                                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M12 2C6.477 2 2 5.582 2 10c0 2.895 1.959 5.455 4.888 7.047l-1.726 6.343c-.117.432.277.794.688.632L12 20.8c.337.013.677.02 1.019.02 5.523 0 9.981-3.582 9.981-8S18.542 2 12 2z" />
+                                <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M4 16V4H8L12 10V4H16V16H12L8 10V16H4Z" fill="currentColor"/>
                                 </svg>
                                 네이버로 계속하기
                             </>

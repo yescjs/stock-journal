@@ -33,6 +33,7 @@ import { DashboardView } from '@/app/components/views/DashboardView';
 import { TradeListView } from '@/app/components/views/TradeListView';
 import { SettingsView } from '@/app/components/views/SettingsView';
 import { MarketDiaryView } from '@/app/components/views/MarketDiaryView';
+import { EconomicReportsView } from '@/app/components/views/EconomicReportsView';
 import { UserGuide } from '@/app/components/UserGuide';
 
 // Styles & Icons
@@ -188,14 +189,14 @@ export default function Home() {
     };
 
     if (authLoading) return (
-        <div className="h-screen flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950">
+        <div className="h-screen flex flex-col items-center justify-center bg-background">
             <div className="relative">
-                <div className="absolute inset-0 bg-indigo-500 blur-lg opacity-20 rounded-full animate-pulse"></div>
-                <div className="relative w-16 h-16 rounded-2xl flex items-center justify-center bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-600 shadow-xl">
-                    <span className="text-white text-2xl animate-pulse">📊</span>
+                <div className="absolute inset-0 bg-primary/20 blur-xl opacity-30 rounded-full animate-pulse"></div>
+                <div className="relative w-14 h-14 rounded-2xl flex items-center justify-center bg-primary shadow-toss-md">
+                    <span className="text-primary-foreground text-2xl">📊</span>
                 </div>
             </div>
-            <p className="mt-4 text-slate-500 text-sm font-medium animate-pulse">불러오는 중...</p>
+            <p className="mt-4 text-muted-foreground text-sm font-medium">불러오는 중...</p>
         </div>
     );
 
@@ -206,27 +207,28 @@ export default function Home() {
                 <LandingPage
                     onStart={() => setShowLoginModal(true)}
                     onStartAsGuest={handleStartAsGuest}
+                    darkMode={darkMode}
                 />
                 {showLoginModal && (
                     <div
-                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
                         onClick={(e) => e.target === e.currentTarget && setShowLoginModal(false)}
                     >
-                        <div className={`relative w-full max-w-md rounded-3xl p-6 shadow-2xl ${darkMode ? 'bg-slate-900 border border-slate-700' : 'bg-white'}`}>
+                        <div className={`relative w-full max-w-md rounded-3xl p-6 shadow-toss-lg ${darkMode ? 'bg-card border border-border' : 'bg-card'}`}>
                             <button
                                 onClick={() => setShowLoginModal(false)}
                                 aria-label="닫기"
-                                className="absolute right-4 top-4 p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
+                                className="absolute right-4 top-4 p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                             >
                                 ✕
                             </button>
                             <div className="mb-6 text-center">
-                                <h2 className={`text-2xl font-black ${darkMode ? 'text-white' : 'text-slate-900'}`}>로그인</h2>
-                                <p className={`text-sm mt-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>데이터 동기화를 위해 로그인하세요</p>
+                                <h2 className="text-2xl font-bold text-foreground">로그인</h2>
+                                <p className="text-sm mt-1 text-muted-foreground">데이터 동기화를 위해 로그인하세요</p>
                             </div>
                             <LoginForm
                                 darkMode={darkMode}
-                                onDone={() => setShowLoginModal(false)} // Just close modal, state change to logged in will trigger re-render
+                                onDone={() => setShowLoginModal(false)}
                             />
                             <div className="mt-4 text-center">
                                 <button
@@ -234,7 +236,7 @@ export default function Home() {
                                         setShowLoginModal(false);
                                         handleStartAsGuest();
                                     }}
-                                    className={`text-sm font-medium transition-colors ${darkMode ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}
+                                    className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                                 >
                                     로그인 없이 게스트로 시작하기
                                 </button>
@@ -299,7 +301,7 @@ export default function Home() {
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 min-h-0 w-full max-w-7xl mx-auto px-4 pt-2 pb-8">
+            <div className="flex-1 min-h-0 w-full max-w-7xl mx-auto px-4 pt-4 pb-8">
 
                 {activeTab === 'journal' ? (
                     <div className="h-full lg:flex lg:gap-8 items-start">
@@ -328,20 +330,20 @@ export default function Home() {
                             <div className="space-y-4 pr-2">
                                 {/* Guest Data Alert */}
                                 {currentUser && backupManager.hasGuestData && (
-                                    <div className="p-4 rounded-xl border border-amber-500/50 bg-amber-500/10">
-                                        <h3 className="font-bold text-amber-500 mb-2">게스트 데이터 발견</h3>
-                                        <p className="text-xs text-slate-400 mb-3">로그인 전 작성한 데이터가 있습니다.</p>
+                                    <div className="p-4 rounded-2xl border border-amber-500/30 bg-amber-500/10">
+                                        <h3 className="font-bold text-amber-600 dark:text-amber-500 mb-2 text-sm">게스트 데이터 발견</h3>
+                                        <p className="text-xs text-muted-foreground mb-3">로그인 전 작성한 데이터가 있습니다.</p>
                                         <div className="flex gap-2">
                                             <button
                                                 onClick={backupManager.handleMigrateGuestToAccount}
                                                 disabled={backupManager.isMigrating}
-                                                className="flex-1 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg"
+                                                className="flex-1 py-2 bg-primary text-white text-xs font-semibold rounded-xl shadow-toss-sm hover:bg-primary/90 transition-colors"
                                             >
                                                 가져오기
                                             </button>
                                             <button
                                                 onClick={backupManager.handleDropGuestData}
-                                                className="px-3 py-1.5 border border-slate-600 text-slate-400 text-xs font-bold rounded-lg"
+                                                className="px-3 py-2 border border-border text-muted-foreground text-xs font-semibold rounded-xl hover:bg-muted transition-colors"
                                             >
                                                 삭제
                                             </button>
@@ -350,25 +352,25 @@ export default function Home() {
                                 )}
 
                                 {/* Summary Cards */}
-                                <div className="grid grid-cols-2 gap-2">
-                                    <div className={`p-3 rounded-xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-                                        <div className="text-[10px] font-bold uppercase text-slate-500 mb-1">매수 합계</div>
-                                        <div className="font-black text-lg">{journalStats.buy.toLocaleString()}</div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="p-4 rounded-2xl border border-border/50 bg-card shadow-toss-sm">
+                                        <div className="text-[10px] font-semibold uppercase text-muted-foreground mb-1">매수 합계</div>
+                                        <div className="font-bold text-base">{journalStats.buy.toLocaleString()}</div>
                                     </div>
-                                    <div className={`p-3 rounded-xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-                                        <div className="text-[10px] font-bold uppercase text-slate-500 mb-1">순손익</div>
-                                        <div className={`font-black text-lg ${journalNetCash >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                    <div className="p-4 rounded-2xl border border-border/50 bg-card shadow-toss-sm">
+                                        <div className="text-[10px] font-semibold uppercase text-muted-foreground mb-1">순손익</div>
+                                        <div className={`font-bold text-base ${journalNetCash >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
                                             {journalNetCash > 0 ? '+' : ''}{journalNetCash.toLocaleString()}
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* Trade Form */}
-                                <div ref={addFormRef} className={`rounded-xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-                                    <div className={`px-3 py-2 border-b font-bold text-xs flex items-center gap-2 ${darkMode ? 'border-slate-800 bg-slate-800/50' : 'border-slate-100 bg-slate-50'}`}>
+                                <div ref={addFormRef} className="rounded-2xl border border-border/50 bg-card shadow-toss overflow-hidden">
+                                    <div className="px-4 py-3 border-b border-border/50 bg-muted/30 font-semibold text-xs flex items-center gap-2 text-foreground">
                                         <span>✍️</span> 매매 기록 작성
                                     </div>
-                                    <div className="p-3">
+                                    <div className="p-4">
                                         <TradeForm
                                             darkMode={darkMode}
                                             currentUser={currentUser}
@@ -384,7 +386,7 @@ export default function Home() {
                         </div>
                     </div>
                 ) : activeTab === 'diary' ? (
-                    <div className="h-full overflow-y-auto scrollbar-thin pb-20">
+                    <div className="h-full overflow-y-auto scrollbar-thin pb-4">
                         <MarketDiaryView
                             darkMode={darkMode}
                             currentUser={currentUser}
@@ -392,8 +394,15 @@ export default function Home() {
                             trades={trades}
                         />
                     </div>
+                ) : activeTab === 'reports' ? (
+                    <div className="h-full overflow-y-auto scrollbar-thin pb-4">
+                        <EconomicReportsView
+                            darkMode={darkMode}
+                            currentUser={currentUser}
+                        />
+                    </div>
                 ) : activeTab === 'stats' ? (
-                    <div className="h-full overflow-y-auto scrollbar-thin pb-20">
+                    <div className="h-full overflow-y-auto scrollbar-thin pb-4">
                         <DashboardView
                             darkMode={darkMode}
                             currentUser={currentUser}
@@ -405,10 +414,14 @@ export default function Home() {
                             tagColors={tagColors}
                             exchangeRate={exchangeRate}
                             onExchangeRateChange={setExchangeRate}
+                            trades={trades}
+                            lastTradeDate={trades.length > 0
+                                ? [...trades].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]?.date
+                                : undefined}
                         />
                     </div>
                 ) : activeTab === 'settings' ? (
-                    <div className="h-full overflow-y-auto scrollbar-thin pb-20">
+                    <div className="h-full overflow-y-auto scrollbar-thin pb-4">
                         <SettingsView
                             darkMode={darkMode}
                             setDarkMode={setDarkMode}
@@ -426,35 +439,35 @@ export default function Home() {
 
             </div>
 
-            {/* Mobile Add Trade FAB */}
+            {/* Mobile Add Trade FAB - Toss Style */}
             {activeTab === 'journal' && (
                 <button
                     onClick={() => setShowAddModal(true)}
                     aria-label="새 매매 기록 추가"
                     title="새 매매 기록 추가"
-                    className="lg:hidden fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-indigo-600 text-white shadow-xl shadow-indigo-600/30 flex items-center justify-center hover:scale-110 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2"
+                    className="lg:hidden fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-primary text-white shadow-toss-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2"
                 >
-                    <span className="text-2xl font-light mb-1">+</span>
+                    <span className="text-2xl font-light">+</span>
                 </button>
             )}
 
-            {/* Login Modal */}
+            {/* Login Modal - Toss Style */}
             {showLoginModal && (
                 <div
-                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
                     onClick={(e) => e.target === e.currentTarget && setShowLoginModal(false)}
                 >
-                    <div className={`relative w-full max-w-md rounded-3xl p-6 shadow-2xl ${darkMode ? 'bg-slate-900 border border-slate-700' : 'bg-white'}`}>
+                    <div className={`relative w-full max-w-md rounded-3xl p-6 shadow-toss-lg ${darkMode ? 'bg-card border border-border' : 'bg-card'}`}>
                         <button
                             onClick={() => setShowLoginModal(false)}
                             aria-label="닫기"
-                            className="absolute right-4 top-4 p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
+                            className="absolute right-4 top-4 p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                         >
                             ✕
                         </button>
                         <div className="mb-6 text-center">
-                            <h2 className={`text-2xl font-black ${darkMode ? 'text-white' : 'text-slate-900'}`}>로그인</h2>
-                            <p className={`text-sm mt-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>데이터 동기화를 위해 로그인하세요</p>
+                            <h2 className="text-2xl font-bold text-foreground">로그인</h2>
+                            <p className="text-sm mt-1 text-muted-foreground">데이터 동기화를 위해 로그인하세요</p>
                         </div>
                         <LoginForm
                             darkMode={darkMode}
@@ -464,10 +477,10 @@ export default function Home() {
                 </div>
             )}
 
-            {/* Add/Edit Trade Modal */}
+            {/* Add/Edit Trade Modal - Toss Style */}
             {(editingTrade || showAddModal) && (
                 <div
-                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
                     onClick={(e) => {
                         if (e.target === e.currentTarget) {
                             setEditingTrade(null);
@@ -475,9 +488,9 @@ export default function Home() {
                         }
                     }}
                 >
-                    <div className={`relative w-full max-w-lg rounded-3xl p-0 shadow-2xl overflow-hidden flex flex-col max-h-[90vh] ${darkMode ? 'bg-slate-900 border border-slate-700' : 'bg-white'}`}>
-                        <div className={`px-6 py-4 flex items-center justify-between border-b ${darkMode ? 'border-slate-800 bg-slate-900' : 'border-slate-100 bg-white'}`}>
-                            <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                    <div className={`relative w-full max-w-lg rounded-3xl p-0 shadow-toss-lg overflow-hidden flex flex-col max-h-[90vh] ${darkMode ? 'bg-card border border-border' : 'bg-card'}`}>
+                        <div className="px-6 py-4 flex items-center justify-between border-b border-border bg-card">
+                            <h3 className="text-lg font-bold text-foreground">
                                 {editingTrade ? '매매 기록 수정' : '새로운 매매 기록'}
                             </h3>
                             <button
@@ -486,7 +499,7 @@ export default function Home() {
                                     setShowAddModal(false);
                                 }}
                                 aria-label="닫기"
-                                className={`p-2 rounded-full transition-colors ${darkMode ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
+                                className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                             >
                                 ✕
                             </button>

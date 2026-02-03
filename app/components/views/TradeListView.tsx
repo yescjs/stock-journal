@@ -82,12 +82,12 @@ export function TradeListView({
     }));
   }, [trades, selectedSymbol]);
 
-  // Filter Bar Component
+  // Filter Bar Component - Toss Style
   const renderFilterBar = () => (
-    <div className={`mb-6 p-1.5 rounded-2xl flex flex-wrap gap-2 items-center lg:items-stretch`}>
+    <div className="mb-6 p-2 rounded-2xl bg-muted/30 flex flex-wrap gap-2 items-center lg:items-stretch">
       <div className="w-full sm:flex-1 sm:min-w-[200px]">
         <Input
-          leftIcon={<Search size={18} className={darkMode ? "text-indigo-400" : "text-indigo-400"} strokeWidth={2.5} />}
+          leftIcon={<Search size={18} className="text-muted-foreground" strokeWidth={2} />}
           placeholder="종목명 검색..."
           value={filterSymbol}
           onChange={(e) => setFilterSymbol(e.target.value)}
@@ -95,7 +95,7 @@ export function TradeListView({
       </div>
       <div className="w-full sm:flex-1 sm:min-w-[200px]">
         <Input
-          leftIcon={<Filter size={18} className={darkMode ? "text-purple-400" : "text-purple-400"} strokeWidth={2.5} />}
+          leftIcon={<Filter size={18} className="text-muted-foreground" strokeWidth={2} />}
           placeholder="태그 (쉼표 구분)"
           value={filterTag}
           onChange={(e) => setFilterTag(e.target.value)}
@@ -103,16 +103,12 @@ export function TradeListView({
       </div>
       {(filterSymbol || filterTag || dateFrom) && (
         <Button
-          variant="ghost"
+          variant="secondary"
+          size="md"
           onClick={resetFilters}
-          className={`
-            h-[52px] px-4 rounded-xl text-sm font-bold flex items-center gap-2
-            ${darkMode
-              ? 'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20'
-              : 'bg-rose-50 text-rose-500 hover:bg-rose-100 shadow-sm'}
-          `}
+          className="gap-2"
         >
-          <RefreshCw size={14} />
+          <RefreshCw size={16} />
           초기화
         </Button>
       )}
@@ -121,64 +117,58 @@ export function TradeListView({
 
   return (
     <div className="h-full flex flex-col">
-      {/* Header Controls */}
+      {/* Header Controls - Toss Style */}
       <div className="flex-none flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className={`text-2xl font-black tracking-tight flex items-center gap-2.5 ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
+          <h2 className="text-xl md:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
             {selectedSymbol && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setSelectedSymbol('')}
-                className={`p-1 h-auto aspect-square rounded-xl mr-2 ${darkMode ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
+                className="p-1 h-auto aspect-square rounded-xl mr-2 hover:bg-muted text-muted-foreground"
               >
                 <ChevronDown size={28} className="rotate-90" />
               </Button>
             )}
             {selectedSymbol ? '종목 상세 분석' : (viewMode === 'calendar' ? '매매 캘린더' : '매매 피드')}
             {selectedSymbol && (
-              <span className={`text-sm font-bold px-3 py-1 rounded-lg ${darkMode ? 'bg-indigo-500/20 text-indigo-300' : 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'}`}>
+              <span className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-primary/10 text-primary dark:bg-primary/20">
                 {selectedSymbol}
               </span>
             )}
           </h2>
-          {/* ... description ... */}
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           {/* Currency Toggle */}
           <Button
             variant="secondary"
             size="sm"
             onClick={() => onToggleConverted(!showConverted)}
-            className={`
-                backdrop-blur-md border h-[38px]
-                ${showConverted
-                ? (darkMode ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-600')
-                : (darkMode ? 'bg-card/60 border-slate-700/50 text-slate-400 hover:bg-slate-800' : 'bg-white/60 border-white/60 text-slate-500 hover:bg-white')}
-            `}
+            className={showConverted ? 'border-primary/30 bg-primary/10 text-primary' : ''}
           >
-            <RefreshCw size={14} className={`mr-2 ${showConverted ? "text-indigo-500" : ""}`} />
+            <RefreshCw size={14} className="mr-2" />
             <span>{showConverted ? `₩ ${exchangeRate.toLocaleString()}원` : '$ USD'}</span>
           </Button>
 
-          <div className={`flex p-1 rounded-2xl border backdrop-blur-md ${darkMode ? 'bg-card/60 border-slate-700/50' : 'bg-white/60 border-white/60 shadow-lg shadow-indigo-100/20'}`}>
+          <div className="flex p-1 rounded-xl bg-muted/50 gap-1">
             <Button
-              variant={viewMode === 'list' ? 'primary' : 'ghost'}
+              variant={viewMode === 'list' ? 'secondary' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('list')}
-              className={`h-[30px] px-3 text-xs ${viewMode === 'list' ? 'shadow-sm' : 'text-slate-500 hover:bg-transparent'}`}
+              className={`h-8 px-3 text-xs ${viewMode === 'list' ? 'shadow-toss-sm' : 'text-muted-foreground hover:bg-transparent'}`}
             >
-              <ListIcon size={14} strokeWidth={2.5} className="mr-1.5" />
+              <ListIcon size={14} strokeWidth={2} className="mr-1.5" />
               <span className="hidden sm:inline">목록</span>
             </Button>
             <Button
-              variant={viewMode === 'calendar' ? 'primary' : 'ghost'}
+              variant={viewMode === 'calendar' ? 'secondary' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('calendar')}
-              className={`h-[30px] px-3 text-xs ${viewMode === 'calendar' ? 'shadow-sm' : 'text-slate-500 hover:bg-transparent'}`}
+              className={`h-8 px-3 text-xs ${viewMode === 'calendar' ? 'shadow-toss-sm' : 'text-muted-foreground hover:bg-transparent'}`}
             >
-              <LayoutGrid size={14} strokeWidth={2.5} className="mr-1.5" />
+              <LayoutGrid size={14} strokeWidth={2} className="mr-1.5" />
               <span className="hidden sm:inline">캘린더</span>
             </Button>
           </div>
@@ -204,15 +194,12 @@ export function TradeListView({
                   showConverted={showConverted}
                 />
               ) : (
-                <div className={`rounded-3xl p-6 border glass-card ${darkMode ? 'bg-card/40 border-slate-700/50' : 'bg-white/60 border-white/60 shadow-lg'}`}>
+                <div className="rounded-2xl p-6 border border-border/50 bg-card shadow-toss">
                   <CalendarView
                     currentDate={calendarDate}
                     onDateChange={setCalendarDate}
                     dailyData={dailyData}
                     onSelectDate={(date) => {
-                      // Optional: behavior when clicking a date in symbol view
-                      // Maybe filter the list to that date?
-                      // For now, let's just keep it consistent or allow navigation
                       setDateFrom(date);
                       setDateTo(date);
                     }}
@@ -224,7 +211,7 @@ export function TradeListView({
             </div>
           ) : (
             viewMode === 'calendar' ? (
-              <div className={`rounded-3xl p-6 border glass-card ${darkMode ? 'bg-card/40 border-slate-700/50' : 'bg-white/60 border-white/60 shadow-lg'}`}>
+              <div className="rounded-2xl p-6 border border-border/50 bg-card shadow-toss">
                 <CalendarView
                   currentDate={calendarDate}
                   onDateChange={setCalendarDate}
@@ -257,14 +244,14 @@ export function TradeListView({
         </MotionWrapper>
       </div>
 
-      {/* Image Preview Modal */}
+      {/* Image Preview Modal - Toss Style */}
       {previewImage && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-fade-in" onClick={() => setPreviewImage(null)}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in" onClick={() => setPreviewImage(null)}>
           <div className="relative max-w-5xl max-h-[90vh] w-full" onClick={e => e.stopPropagation()}>
-            <img src={previewImage} alt="Preview" className="w-full h-full object-contain rounded-2xl shadow-2xl" />
+            <img src={previewImage} alt="Preview" className="w-full h-full object-contain rounded-2xl shadow-toss-lg" />
             <button
               onClick={() => setPreviewImage(null)}
-              className="absolute -top-12 right-0 p-2 bg-white/10 text-white rounded-full hover:bg-white/20 transition-all backdrop-blur-md"
+              className="absolute -top-14 right-0 p-2.5 bg-white/10 text-white rounded-full hover:bg-white/20 transition-colors backdrop-blur-md"
             >
               <X size={24} />
             </button>

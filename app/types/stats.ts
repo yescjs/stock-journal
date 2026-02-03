@@ -129,6 +129,12 @@ export interface InsightData {
     // 드로다운
     maxDrawdown: number;         // 최대 드로다운 금액
     maxDrawdownPercent: number;  // 최대 드로다운 퍼센트
+
+    // 고급 인사이트
+    expectancy: number;          // 기대값
+    avgRMultiple: number;        // 평균 R-multiple
+    bestRMultiple: number;       // 최고 R-multiple
+    worstRMultiple: number;      // 최악 R-multiple
 };
 
 export interface OverallStats {
@@ -145,6 +151,11 @@ export interface OverallStats {
     longestLossStreak: number;
     winCount: number;
     lossCount: number;
+    // 고급 분석 지표
+    expectancy: number;           // 기대값: (승률 × 평균 수익) - (패률 × 평균 손실)
+    rMultipleAvg: number;         // 평균 R-multiple
+    riskRewardRatio: number;      // 리스크/리워드 비율
+    sharpeRatio: number;        // 샤프 비율 (간단 계산)
 }
 
 // 계좌 자산 추적

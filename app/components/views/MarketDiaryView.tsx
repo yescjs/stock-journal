@@ -101,11 +101,12 @@ export function MarketDiaryView({
     };
 
     // --- Styles ---
+    // Toss Design System - Sentiment Colors
     const sentimentColors = {
-        bullish: 'text-rose-500 bg-rose-500/10 border-rose-500/20',
-        bearish: 'text-blue-500 bg-blue-500/10 border-blue-500/20',
-        neutral: 'text-slate-500 bg-slate-500/10 border-slate-500/20',
-        volatile: 'text-amber-500 bg-amber-500/10 border-amber-500/20'
+        bullish: 'text-color-up bg-color-up/10 border-color-up/30',
+        bearish: 'text-color-down bg-color-down/10 border-color-down/30',
+        neutral: 'text-muted-foreground bg-muted border-muted/30',
+        volatile: 'text-amber-600 bg-amber-500/10 border-amber-500/30'
     };
 
     const sentimentLabels = {
@@ -115,7 +116,8 @@ export function MarketDiaryView({
         volatile: '⚡ 변동성'
     };
 
-    const labelClass = `block text-xs font-bold uppercase tracking-wider mb-2 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`;
+    // Toss Design System - Label Class
+    const labelClass = "block text-xs font-semibold uppercase tracking-wide mb-2 text-muted-foreground";
 
 
     // --- Render ---
@@ -127,10 +129,10 @@ export function MarketDiaryView({
                     <div className="flex items-center justify-between mb-2">
                         <div>
                             <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-                                <span className="text-3xl">📖</span>
+                                <span className="text-2xl">📖</span>
                                 시장 복기
                             </h2>
-                            <p className={`mt-1 text-sm ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                            <p className="mt-1 text-sm text-muted-foreground">
                                 월별 흐름을 한눈에 파악하세요
                             </p>
                         </div>
@@ -150,18 +152,19 @@ export function MarketDiaryView({
             )}
 
             {(viewMode === 'detail' || viewMode === 'edit') && (
-                // Detail/Edit View Container
+                // Detail/Edit View Container - Toss Style
                 <div>
                     {/* Back Button Header */}
                     <div className="flex items-center gap-3 mb-6">
                         <Button
                             onClick={handleBack}
                             variant="ghost"
-                            className={`p-2 h-auto aspect-square rounded-xl ${darkMode ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-200'}`}
+                            size="sm"
+                            className="p-2 h-auto aspect-square rounded-xl"
                         >
                             <ArrowLeft size={20} />
                         </Button>
-                        <h2 className="text-xl font-bold">
+                        <h2 className="text-xl font-bold text-foreground">
                             {selectedDate} 복기
                         </h2>
                     </div>
@@ -169,8 +172,8 @@ export function MarketDiaryView({
                     {viewMode === 'edit' ? (
                         // --- EDIT FORM ---
                         <Card className="p-6">
-                            <div className="flex items-center justify-between mb-6 pb-4 border-b border-dashed border-slate-700">
-                                <h3 className="font-bold text-lg">📝 일지 작성/수정</h3>
+                            <div className="flex items-center justify-between mb-6 pb-4 border-b border-border/50">
+                                <h3 className="font-bold text-lg text-foreground">📝 일지 작성/수정</h3>
                             </div>
 
                             <div className="space-y-6">
@@ -184,9 +187,9 @@ export function MarketDiaryView({
                                                     key={s}
                                                     type="button"
                                                     onClick={() => setFormData({ ...formData, market_sentiment: s })}
-                                                    className={`py-2 rounded-2xl text-xs font-bold transition-all border ${formData.market_sentiment === s
-                                                        ? 'ring-2 ring-indigo-500 ' + sentimentColors[s]
-                                                        : (darkMode ? 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100')
+                                                    className={`py-2 rounded-xl text-xs font-semibold transition-all duration-150 border ${formData.market_sentiment === s
+                                                        ? 'ring-2 ring-primary ' + sentimentColors[s]
+                                                        : 'bg-muted/50 text-muted-foreground border-transparent hover:bg-muted'}
                                                         }`}
                                                 >
                                                     {sentimentLabels[s]}

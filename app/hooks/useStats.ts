@@ -448,6 +448,10 @@ export function useStats(
                 longestLossStreak: 0,
                 winCount: 0,
                 lossCount: 0,
+                expectancy: 0,
+                rMultipleAvg: 0,
+                riskRewardRatio: 0,
+                sharpeRatio: 0,
             };
         }
 
@@ -462,18 +466,27 @@ export function useStats(
         let longestLossStreak = 0;
         let totalTradesCount = 0;
         let totalPnL = 0;
+        
+        // R-multiple 계산을 위한 변수들
+        let totalRMultiple = 0;
+        let bestRMultiple = -Infinity;
+        let worstRMultiple = Infinity;
+        let rMultipleCount = 0;
+        const dailyPnLs: number[] = [];
 
         const sortedTrades = [...trades].sort((a, b) => a.date.localeCompare(b.date));
-        const posMap: Record<string, { qty: number, avg: number }> = {};
+        const posMap: Record<string, { qty: number, avg: number, riskAmount: number }> = {};
 
         sortedTrades.forEach(t => {
-            if (!posMap[t.symbol]) posMap[t.symbol] = { qty: 0, avg: 0 };
+            if (!posMap[t.symbol]) posMap[t.symbol] = { qty: 0, avg: 0, riskAmount: 0 };
             const p = posMap[t.symbol];
 
             if (t.side === 'BUY') {
                 const cost = p.qty * p.avg + t.quantity * t.price;
                 p.qty += t.quantity;
                 p.avg = cost / p.qty;
+                // 리스크 금액 추정: 매수 금액의 2%를 리스크로 가정 (간단한 추정)
+                p.riskAmount = cost * 0.02;
             } else {
                 if (p.qty > 0) {
                     const q = Math.min(p.qty, t.quantity);
@@ -486,6 +499,15 @@ export function useStats(
 
                     totalTradesCount++;
                     totalPnL += pnl;
+                    dailyPnLs.push(pnl);
+
+                    // R-multiple 계산: 수익 / 리스크 금액
+                    const riskAmount = Math.abs(p.riskAmount * (q / p.qty)) || Math.abs(pnl) * 0.5; // 리스크가 없으면 수익의 50%로 추정
+                    const rMultiple = riskAmount > 0 ? pnl / riskAmount : 0;
+                    totalRMultiple += rMultiple;
+                    rMultipleCount++;
+                    if (rMultiple > bestRMultiple) bestRMultiple = rMultiple;
+                    if (rMultiple < worstRMultiple) worstRMultiple = rMultiple;
 
                     if (pnl > 0) {
                         winCount++;
@@ -513,17 +535,44 @@ export function useStats(
                     }
 
                     p.qty -= q;
-                    if (p.qty === 0) p.avg = 0;
+                    if (p.qty === 0) {
+                        p.avg = 0;
+                        p.riskAmount = 0;
+                    }
                 }
             }
         });
 
+        // 고급 지표 계산
+        const winRate = totalTradesCount > 0 ? (winCount / totalTradesCount) : 0;
+        const lossRate = totalTradesCount > 0 ? (lossCount / totalTradesCount) : 0;
+        const avgWin = winCount > 0 ? totalWin / winCount : 0;
+        const avgLoss = lossCount > 0 ? Math.abs(totalLoss) / lossCount : 0;
+        
+        // Expectancy = (Win% × Avg Win) - (Loss% × Avg Loss)
+        const expectancy = (winRate * avgWin) - (lossRate * avgLoss);
+        
+        // 평균 R-multiple
+        const avgRMultiple = rMultipleCount > 0 ? totalRMultiple / rMultipleCount : 0;
+        
+        // Risk/Reward Ratio
+        const riskRewardRatio = avgLoss > 0 ? avgWin / avgLoss : 0;
+        
+        // Sharpe Ratio (간단 버전: 평균 수익 / 표준편차)
+        let sharpeRatio = 0;
+        if (dailyPnLs.length > 1) {
+            const mean = dailyPnLs.reduce((a, b) => a + b, 0) / dailyPnLs.length;
+            const variance = dailyPnLs.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / dailyPnLs.length;
+            const stdDev = Math.sqrt(variance);
+            sharpeRatio = stdDev > 0 ? mean / stdDev : 0;
+        }
+
         return {
             totalTrades: totalTradesCount,
-            winRate: totalTradesCount > 0 ? (winCount / totalTradesCount) * 100 : 0,
+            winRate: winRate * 100,
             profitFactor: Math.abs(totalLoss) > 0 ? totalWin / Math.abs(totalLoss) : (totalWin > 0 ? 999 : 0),
             totalPnL,
-            avgWin: winCount > 0 ? totalWin / winCount : 0,
+            avgWin,
             avgLoss: lossCount > 0 ? totalLoss / lossCount : 0,
             maxWin,
             maxLoss,
@@ -532,6 +581,10 @@ export function useStats(
             longestLossStreak,
             winCount,
             lossCount,
+            expectancy,
+            rMultipleAvg: avgRMultiple,
+            riskRewardRatio,
+            sharpeRatio,
         };
     }, [trades, exchangeRate]);
 
@@ -658,6 +711,10 @@ export function useStats(
             maxLossStreak: 0,
             maxDrawdown: 0,
             maxDrawdownPercent: 0,
+            expectancy: 0,
+            avgRMultiple: 0,
+            bestRMultiple: 0,
+            worstRMultiple: 0,
         };
 
         if (trades.length === 0) return defaultInsights;
@@ -786,6 +843,43 @@ export function useStats(
             }
         }
 
+        // R-multiple 및 Expectancy 계산 (Insights 용)
+        let totalRMultiple = 0;
+        let bestRMultiple = -Infinity;
+        let worstRMultiple = Infinity;
+        let rMultipleCount = 0;
+        let winCountForExpectancy = 0;
+        let lossCountForExpectancy = 0;
+        let totalWinForExpectancy = 0;
+        let totalLossForExpectancy = 0;
+        
+        for (const result of tradeResults) {
+            const pnl = result.pnl;
+            // 간단한 R-multiple 추정 (수익의 2%를 리스크로 가정)
+            const estimatedRisk = Math.abs(pnl) > 0 ? Math.abs(pnl) * 0.02 : 1;
+            const rMultiple = estimatedRisk > 0 ? pnl / estimatedRisk : 0;
+            
+            totalRMultiple += rMultiple;
+            rMultipleCount++;
+            if (rMultiple > bestRMultiple) bestRMultiple = rMultiple;
+            if (rMultiple < worstRMultiple) worstRMultiple = rMultiple;
+            
+            if (pnl > 0) {
+                winCountForExpectancy++;
+                totalWinForExpectancy += pnl;
+            } else if (pnl < 0) {
+                lossCountForExpectancy++;
+                totalLossForExpectancy += Math.abs(pnl);
+            }
+        }
+        
+        const totalTradesForExpectancy = winCountForExpectancy + lossCountForExpectancy;
+        const winRate = totalTradesForExpectancy > 0 ? winCountForExpectancy / totalTradesForExpectancy : 0;
+        const lossRate = totalTradesForExpectancy > 0 ? lossCountForExpectancy / totalTradesForExpectancy : 0;
+        const avgWin = winCountForExpectancy > 0 ? totalWinForExpectancy / winCountForExpectancy : 0;
+        const avgLoss = lossCountForExpectancy > 0 ? totalLossForExpectancy / lossCountForExpectancy : 0;
+        const expectancy = (winRate * avgWin) - (lossRate * avgLoss);
+
         return {
             bestDay,
             bestTag,
@@ -798,6 +892,10 @@ export function useStats(
             maxLossStreak,
             maxDrawdown,
             maxDrawdownPercent,
+            expectancy,
+            avgRMultiple: rMultipleCount > 0 ? totalRMultiple / rMultipleCount : 0,
+            bestRMultiple: bestRMultiple > -Infinity ? bestRMultiple : 0,
+            worstRMultiple: worstRMultiple < Infinity ? worstRMultiple : 0,
         };
     }, [trades, tagStats, equityPoints, exchangeRate]);
 

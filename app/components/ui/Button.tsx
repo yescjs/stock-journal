@@ -26,19 +26,21 @@ export function Button({
   children,
   ...props
 }: ButtonProps) {
-  const baseStyles = "inline-flex items-center justify-center rounded-2xl font-medium transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none";
-  
+  // Toss Design System - Button Styles
+  const baseStyles = "inline-flex items-center justify-center font-semibold transition-all duration-150 active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none btn-press";
+
   const variants = {
-    primary: "bg-primary text-primary-foreground hover:opacity-90 shadow-sm",
-    secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-    ghost: "bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground",
-    destructive: "bg-destructive text-destructive-foreground hover:opacity-90 shadow-sm",
+    primary: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-toss-sm",
+    secondary: "bg-secondary text-secondary-foreground hover:bg-muted border border-border",
+    ghost: "bg-transparent text-foreground hover:bg-muted/50",
+    destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-toss-sm",
   };
 
+  // Toss Design System - Size Scale
   const sizes = {
-    lg: "h-[56px] px-6 text-lg",
-    md: "h-[48px] px-5 text-base",
-    sm: "h-[36px] px-3 text-sm",
+    lg: "h-14 px-6 text-base rounded-2xl",
+    md: "h-12 px-5 text-sm rounded-xl",
+    sm: "h-9 px-3.5 text-xs rounded-lg",
   };
 
   return (
