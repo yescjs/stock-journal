@@ -1,4 +1,4 @@
-import { RawNewsItem, KeyIssue } from '@/app/types/economicReports';
+import { RawNewsItem, KeyIssue, SectorAnalysis } from '@/app/types/economicReports';
 
 // 경제 키워드 사전
 const ECONOMIC_KEYWORDS = {
@@ -271,4 +271,57 @@ export function generateKeywordSummary(
     : '';
   
   return `어제(${koreanNews.length}건 국내, ${globalNews.length}건 해외) 총 ${totalNews}건의 경제 뉴스를 분석한 결과, 전반적으로 ${sentimentText} 시장 분위기를 보였습니다. ${keywordText}`;
+}
+
+// 섹터별 키워드 매핑
+const SECTOR_KEYWORDS: Record<string, { keywords: string[]; stocks: string[] }> = {
+  '반도체': { keywords: ['반도체', '메모리', 'HBM', 'AI칩', '파운드리'], stocks: ['삼성전자', 'SK하이닉스'] },
+  '2차전지/배터리': { keywords: ['2차전지', '배터리', '전기차', 'EV', '리튬'], stocks: ['LG에너지솔루션', '삼성SDI'] },
+  '바이오/제약': { keywords: ['바이오', '제약', '신약', '임상', 'FDA'], stocks: ['셀트리온', '삼성바이오로직스'] },
+  'IT/플랫폼': { keywords: ['IT', '플랫폼', '네이버', '카카오', '구글', '애플'], stocks: ['네이버', '카카오'] },
+  '금융': { keywords: ['은행', '보험', '금융', '카드', '증권'], stocks: ['KB금융', '신한지주'] },
+  '에너지/원자재': { keywords: ['유가', '원유', '태양광', '에너지', '원자재', '금'], stocks: [] },
+  '건설/부동산': { keywords: ['부동산', '건설', '아파트', '분양'], stocks: ['현대건설', 'DL이앤씨'] },
+};
+
+/**
+ * 키워드 기반 섹터 분석 추출
+ */
+export function extractSectorAnalysis(
+  koreanNews: RawNewsItem[],
+  globalNews: RawNewsItem[]
+): SectorAnalysis[] {
+  const allNews = [...koreanNews, ...globalNews];
+  const allText = allNews.map(n => n.title + ' ' + (n.content || '')).join(' ').toLowerCase();
+  const results: SectorAnalysis[] = [];
+
+  for (const [sector, config] of Object.entries(SECTOR_KEYWORDS)) {
+    const matchCount = config.keywords.filter(k => allText.includes(k.toLowerCase())).length;
+    if (matchCount === 0) continue;
+
+    // 해당 섹터 관련 뉴스의 감성 분석
+    const sectorNews = allNews.filter(n => {
+      const text = (n.title + ' ' + (n.content || '')).toLowerCase();
+      return config.keywords.some(k => text.includes(k.toLowerCase()));
+    });
+
+    const sectorText = sectorNews.map(n => n.title).join(' ').toLowerCase();
+    const positiveHits = ECONOMIC_KEYWORDS.positive.filter(k => sectorText.includes(k.toLowerCase())).length;
+    const negativeHits = ECONOMIC_KEYWORDS.negative.filter(k => sectorText.includes(k.toLowerCase())).length;
+
+    let trend: 'up' | 'down' | 'neutral' = 'neutral';
+    if (positiveHits > negativeHits + 1) trend = 'up';
+    else if (negativeHits > positiveHits + 1) trend = 'down';
+
+    const trendText = trend === 'up' ? '긍정적' : trend === 'down' ? '부정적' : '중립적';
+
+    results.push({
+      sector,
+      trend,
+      summary: `${sector} 관련 ${sectorNews.length}건의 뉴스. 전반적으로 ${trendText}인 흐름.`,
+      relatedStocks: config.stocks.length > 0 ? config.stocks : undefined,
+    });
+  }
+
+  return results.slice(0, 4);
 }

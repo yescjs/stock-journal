@@ -1,11 +1,36 @@
 'use client';
 
-import React from 'react';
-import { DailyEconomicReport, KeyIssue, NewsItem } from '@/app/types/economicReports';
+import React, { useState } from 'react';
+import {
+  DailyEconomicReport,
+  KeyIssue,
+  NewsItem,
+  SectorAnalysis,
+  MarketIndicator,
+  InvestmentInsight,
+} from '@/app/types/economicReports';
 import { Card } from '@/app/components/ui/Card';
 import { Badge } from '@/app/components/ui/Badge';
 import { Button } from '@/app/components/ui/Button';
-import { TrendingUp, TrendingDown, Minus, AlertCircle, Newspaper, Globe, ExternalLink, Check, Trash2 } from 'lucide-react';
+import {
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  AlertCircle,
+  Newspaper,
+  Globe,
+  ExternalLink,
+  Check,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
+  BarChart3,
+  Lightbulb,
+  Target,
+  Eye,
+  AlertTriangle,
+  Activity,
+} from 'lucide-react';
 
 interface EconomicReportCardProps {
   report: DailyEconomicReport;
@@ -27,6 +52,8 @@ const impactConfig = {
   low: { color: 'bg-blue-500', label: '낮음' },
 };
 
+type SectionKey = 'summary' | 'market_overview' | 'market_indicators' | 'sector_analysis' | 'investment_insights' | 'key_issues' | 'korean_news' | 'global_news';
+
 export function EconomicReportCard({
   report,
   darkMode,
@@ -35,6 +62,21 @@ export function EconomicReportCard({
 }: EconomicReportCardProps) {
   const sentiment = sentimentConfig[report.market_sentiment];
   const SentimentIcon = sentiment.icon;
+
+  const [expandedSections, setExpandedSections] = useState<Record<SectionKey, boolean>>({
+    summary: true,
+    market_overview: false,
+    market_indicators: false,
+    sector_analysis: false,
+    investment_insights: false,
+    key_issues: true,
+    korean_news: false,
+    global_news: false,
+  });
+
+  const toggleSection = (section: SectionKey) => {
+    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
 
   return (
     <Card
@@ -68,7 +110,7 @@ export function EconomicReportCard({
               )}
             </p>
           </div>
-          
+
           {/* Sentiment Badge */}
           <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${sentiment.bg}`}>
             <SentimentIcon className={`w-4 h-4 ${sentiment.color}`} />
@@ -80,18 +122,101 @@ export function EconomicReportCard({
       </div>
 
       {/* Summary */}
-      <div className="p-4">
+      <CollapsibleSection
+        title="요약"
+        icon={<Activity className="w-4 h-4" />}
+        expanded={expandedSections.summary}
+        onToggle={() => toggleSection('summary')}
+        darkMode={darkMode}
+      >
         <p className={`text-sm leading-relaxed ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
           {report.summary}
         </p>
-      </div>
+      </CollapsibleSection>
+
+      {/* Market Overview */}
+      {report.market_overview && (
+        <CollapsibleSection
+          title="시장 개요"
+          icon={<BarChart3 className="w-4 h-4" />}
+          expanded={expandedSections.market_overview}
+          onToggle={() => toggleSection('market_overview')}
+          darkMode={darkMode}
+        >
+          <div className={`text-sm leading-relaxed whitespace-pre-line ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+            {report.market_overview}
+          </div>
+        </CollapsibleSection>
+      )}
+
+      {/* Market Indicators */}
+      {report.market_indicators && report.market_indicators.length > 0 && (
+        <CollapsibleSection
+          title="경제 지표"
+          icon={<Target className="w-4 h-4" />}
+          expanded={expandedSections.market_indicators}
+          onToggle={() => toggleSection('market_indicators')}
+          darkMode={darkMode}
+          badge={`${report.market_indicators.length}개`}
+        >
+          <div className="flex flex-wrap gap-2">
+            {report.market_indicators.map((indicator: MarketIndicator, idx: number) => (
+              <MarketIndicatorChip
+                key={idx}
+                indicator={indicator}
+                darkMode={darkMode}
+              />
+            ))}
+          </div>
+        </CollapsibleSection>
+      )}
+
+      {/* Sector Analysis */}
+      {report.sector_analysis && report.sector_analysis.length > 0 && (
+        <CollapsibleSection
+          title="섹터 분석"
+          icon={<BarChart3 className="w-4 h-4" />}
+          expanded={expandedSections.sector_analysis}
+          onToggle={() => toggleSection('sector_analysis')}
+          darkMode={darkMode}
+          badge={`${report.sector_analysis.length}개`}
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {report.sector_analysis.map((sector: SectorAnalysis, idx: number) => (
+              <SectorCard key={idx} sector={sector} darkMode={darkMode} />
+            ))}
+          </div>
+        </CollapsibleSection>
+      )}
+
+      {/* Investment Insights */}
+      {report.investment_insights && report.investment_insights.length > 0 && (
+        <CollapsibleSection
+          title="투자 시사점"
+          icon={<Lightbulb className="w-4 h-4" />}
+          expanded={expandedSections.investment_insights}
+          onToggle={() => toggleSection('investment_insights')}
+          darkMode={darkMode}
+          badge={`${report.investment_insights.length}개`}
+        >
+          <div className="space-y-2">
+            {report.investment_insights.map((insight: InvestmentInsight, idx: number) => (
+              <InsightCard key={idx} insight={insight} darkMode={darkMode} />
+            ))}
+          </div>
+        </CollapsibleSection>
+      )}
 
       {/* Key Issues */}
       {report.key_issues && report.key_issues.length > 0 && (
-        <div className="px-4 pb-4">
-          <h4 className={`text-sm font-bold mb-3 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-            핵심 이슈
-          </h4>
+        <CollapsibleSection
+          title="핵심 이슈"
+          icon={<AlertCircle className="w-4 h-4" />}
+          expanded={expandedSections.key_issues}
+          onToggle={() => toggleSection('key_issues')}
+          darkMode={darkMode}
+          badge={`${report.key_issues.length}개`}
+        >
           <div className="space-y-2">
             {report.key_issues.map((issue: KeyIssue, idx: number) => (
               <div
@@ -119,42 +244,46 @@ export function EconomicReportCard({
               </div>
             ))}
           </div>
-        </div>
+        </CollapsibleSection>
       )}
 
       {/* News Sections */}
-      <div className="px-4 pb-4 space-y-4">
-        {/* Korean News */}
-        {report.korean_news && report.korean_news.length > 0 && (
-          <NewsSection
-            title="국내 뉴스"
-            icon={Newspaper}
-            news={report.korean_news}
-            darkMode={darkMode}
-          />
-        )}
+      {report.korean_news && report.korean_news.length > 0 && (
+        <CollapsibleSection
+          title="국내 뉴스"
+          icon={<Newspaper className="w-4 h-4" />}
+          expanded={expandedSections.korean_news}
+          onToggle={() => toggleSection('korean_news')}
+          darkMode={darkMode}
+          badge={`${report.korean_news.length}건`}
+        >
+          <NewsList news={report.korean_news} darkMode={darkMode} />
+        </CollapsibleSection>
+      )}
 
-        {/* Global News */}
-        {report.global_news && report.global_news.length > 0 && (
-          <NewsSection
-            title="해외 뉴스"
-            icon={Globe}
-            news={report.global_news}
-            darkMode={darkMode}
-          />
-        )}
-      </div>
+      {report.global_news && report.global_news.length > 0 && (
+        <CollapsibleSection
+          title="해외 뉴스"
+          icon={<Globe className="w-4 h-4" />}
+          expanded={expandedSections.global_news}
+          onToggle={() => toggleSection('global_news')}
+          darkMode={darkMode}
+          badge={`${report.global_news.length}건`}
+        >
+          <NewsList news={report.global_news} darkMode={darkMode} />
+        </CollapsibleSection>
+      )}
 
       {/* Actions */}
       <div className="px-4 py-3 border-t border-slate-200 dark:border-slate-800 flex gap-2">
-          {!report.is_read && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => onMarkAsRead(report.id)}
-              className="flex-1"
-            >
-              <Check className="w-4 h-4 mr-1.5" />
+        {!report.is_read && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => onMarkAsRead(report.id)}
+            className="flex-1"
+          >
+            <Check className="w-4 h-4 mr-1.5" />
             읽음 표시
           </Button>
         )}
@@ -171,32 +300,208 @@ export function EconomicReportCard({
   );
 }
 
-// News Section Component
-function NewsSection({
+// Collapsible Section Component
+function CollapsibleSection({
   title,
-  icon: Icon,
+  icon,
+  expanded,
+  onToggle,
+  darkMode,
+  badge,
+  children,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  expanded: boolean;
+  onToggle: () => void;
+  darkMode: boolean;
+  badge?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={`border-b ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+      <button
+        onClick={onToggle}
+        className={`w-full flex items-center justify-between px-4 py-3 transition-colors ${
+          darkMode ? 'hover:bg-slate-800/50' : 'hover:bg-slate-50'
+        }`}
+      >
+        <div className="flex items-center gap-2">
+          <span className={darkMode ? 'text-slate-400' : 'text-slate-600'}>
+            {icon}
+          </span>
+          <span className={`text-sm font-bold ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+            {title}
+          </span>
+          {badge && (
+            <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+              darkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-500'
+            }`}>
+              {badge}
+            </span>
+          )}
+        </div>
+        {expanded
+          ? <ChevronUp className={`w-4 h-4 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`} />
+          : <ChevronDown className={`w-4 h-4 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`} />
+        }
+      </button>
+      {expanded && (
+        <div className="px-4 pb-4">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Market Indicator Chip Component
+function MarketIndicatorChip({
+  indicator,
+  darkMode,
+}: {
+  indicator: MarketIndicator;
+  darkMode: boolean;
+}) {
+  const directionConfig = {
+    up: { icon: TrendingUp, color: 'text-emerald-500', bg: darkMode ? 'bg-emerald-500/10' : 'bg-emerald-50' },
+    down: { icon: TrendingDown, color: 'text-rose-500', bg: darkMode ? 'bg-rose-500/10' : 'bg-rose-50' },
+    stable: { icon: Minus, color: 'text-slate-500', bg: darkMode ? 'bg-slate-700' : 'bg-slate-100' },
+  };
+
+  const config = directionConfig[indicator.direction];
+  const Icon = config.icon;
+
+  return (
+    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${config.bg}`}>
+      <Icon className={`w-3.5 h-3.5 ${config.color}`} />
+      <div>
+        <span className={`text-xs font-bold ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
+          {indicator.name}
+        </span>
+        <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+          {indicator.description}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Sector Card Component
+function SectorCard({
+  sector,
+  darkMode,
+}: {
+  sector: SectorAnalysis;
+  darkMode: boolean;
+}) {
+  const trendConfig = {
+    up: { label: '상승', color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+    down: { label: '하락', color: 'text-rose-500', bg: 'bg-rose-500/10', border: 'border-rose-500/20' },
+    neutral: { label: '보합', color: 'text-slate-500', bg: 'bg-slate-500/10', border: 'border-slate-500/20' },
+  };
+
+  const config = trendConfig[sector.trend];
+
+  return (
+    <div className={`p-3 rounded-lg border ${config.border} ${darkMode ? 'bg-slate-800/50' : 'bg-white'}`}>
+      <div className="flex items-center justify-between mb-1">
+        <span className={`font-bold text-sm ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
+          {sector.sector}
+        </span>
+        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${config.bg} ${config.color}`}>
+          {config.label}
+        </span>
+      </div>
+      <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+        {sector.summary}
+      </p>
+      {sector.relatedStocks && sector.relatedStocks.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-2">
+          {sector.relatedStocks.map((stock, idx) => (
+            <span
+              key={idx}
+              className={`text-xs px-1.5 py-0.5 rounded ${
+                darkMode ? 'bg-slate-700 text-slate-300' : 'bg-slate-100 text-slate-600'
+              }`}
+            >
+              {stock}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Investment Insight Card Component
+function InsightCard({
+  insight,
+  darkMode,
+}: {
+  insight: InvestmentInsight;
+  darkMode: boolean;
+}) {
+  const typeConfig = {
+    opportunity: {
+      icon: Eye,
+      label: '기회',
+      color: 'text-emerald-500',
+      bg: darkMode ? 'bg-emerald-500/10' : 'bg-emerald-50',
+      border: 'border-emerald-500/20',
+    },
+    risk: {
+      icon: AlertTriangle,
+      label: '리스크',
+      color: 'text-rose-500',
+      bg: darkMode ? 'bg-rose-500/10' : 'bg-rose-50',
+      border: 'border-rose-500/20',
+    },
+    watch: {
+      icon: Target,
+      label: '관심',
+      color: 'text-amber-500',
+      bg: darkMode ? 'bg-amber-500/10' : 'bg-amber-50',
+      border: 'border-amber-500/20',
+    },
+  };
+
+  const config = typeConfig[insight.type];
+  const Icon = config.icon;
+
+  return (
+    <div className={`flex items-start gap-3 p-3 rounded-lg border ${config.border} ${config.bg}`}>
+      <Icon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${config.color}`} />
+      <div className="flex-1">
+        <div className="flex items-center gap-2">
+          <span className={`font-medium text-sm ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
+            {insight.title}
+          </span>
+          <span className={`text-xs font-medium ${config.color}`}>
+            {config.label}
+          </span>
+        </div>
+        <p className={`text-xs mt-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+          {insight.description}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// News List Component
+function NewsList({
   news,
   darkMode,
 }: {
-  title: string;
-  icon: React.ElementType;
   news: NewsItem[];
   darkMode: boolean;
 }) {
-  const [expanded, setExpanded] = React.useState(false);
+  const [expanded, setExpanded] = useState(false);
   const displayNews = expanded ? news : news.slice(0, 3);
 
   return (
     <div>
-      <div className="flex items-center gap-2 mb-2">
-        <Icon className={`w-4 h-4 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`} />
-        <h4 className={`text-sm font-bold ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-          {title}
-        </h4>
-        <span className={`text-xs ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-          ({news.length}건)
-        </span>
-      </div>
       <div className="space-y-1">
         {displayNews.map((item: NewsItem, idx: number) => (
           <a

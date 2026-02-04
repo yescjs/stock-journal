@@ -28,13 +28,8 @@ export function EconomicReportsView({ darkMode, currentUser }: EconomicReportsVi
   const { preferences, updatePreferences } = useUserPreferences(currentUser);
   const [generating, setGenerating] = useState(false);
 
-  // 수동 보고서 생성
+  // 수동 보고서 생성 (게스트/로그인 모두 지원)
   const handleGenerateReport = async () => {
-    if (!currentUser) {
-      alert('보고서 생성은 로그인 후 사용 가능합니다.');
-      return;
-    }
-
     setGenerating(true);
     try {
       await generateManualReport();
@@ -100,7 +95,7 @@ export function EconomicReportsView({ darkMode, currentUser }: EconomicReportsVi
                 일일 보고서 수신
               </span>
               {!currentUser && (
-                <span className="text-xs text-amber-500">(로그인 필요)</span>
+                <span className="text-xs text-amber-500">(자동 수신은 로그인 후 가능)</span>
               )}
             </div>
             <button
@@ -130,28 +125,31 @@ export function EconomicReportsView({ darkMode, currentUser }: EconomicReportsVi
       </div>
 
       {/* Generate Button (Manual) */}
-      {currentUser && (
-        <div className="p-4">
-          <Button
-            onClick={handleGenerateReport}
-            disabled={generating}
-            className="w-full"
-            variant="secondary"
-          >
-            {generating ? (
-              <>
-                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                보고서 생성 중...
-              </>
-            ) : (
-              <>
-                <Plus className="w-4 h-4 mr-2" />
-                지금 보고서 생성하기
-              </>
-            )}
-          </Button>
-        </div>
-      )}
+      <div className="p-4">
+        <Button
+          onClick={handleGenerateReport}
+          disabled={generating}
+          className="w-full"
+          variant="secondary"
+        >
+          {generating ? (
+            <>
+              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              보고서 생성 중...
+            </>
+          ) : (
+            <>
+              <Plus className="w-4 h-4 mr-2" />
+              지금 보고서 생성하기
+            </>
+          )}
+        </Button>
+        {!currentUser && (
+          <p className="text-xs text-amber-500 mt-2 text-center">
+            게스트 모드: 보고서가 이 기기에만 저장됩니다
+          </p>
+        )}
+      </div>
 
       {/* Reports List */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -211,16 +209,14 @@ function EmptyState({
         아직 보고서가 없습니다
       </h3>
       <p className={`text-sm mb-4 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-        {hasUser 
+        {hasUser
           ? '매일 아침 9시에 AI가 자동으로 경제 보고서를 생성합니다.'
-          : '로그인 후 매일 아침 9시에 AI가 자동으로 경제 보고서를 생성합니다.'}
+          : '아래 버튼을 눌러 지금 바로 경제 보고서를 생성해보세요.'}
       </p>
-      {hasUser && (
-        <Button onClick={onGenerate} variant="secondary">
-          <Plus className="w-4 h-4 mr-2" />
-          지금 보고서 생성하기
-        </Button>
-      )}
+      <Button onClick={onGenerate} variant="secondary">
+        <Plus className="w-4 h-4 mr-2" />
+        지금 보고서 생성하기
+      </Button>
     </Card>
   );
 }

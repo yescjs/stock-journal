@@ -126,40 +126,48 @@ export function useEconomicReports(user: User | null): UseEconomicReportsReturn 
     }
   };
 
-  // 수동 보고서 생성 (테스트/즉시 생성용)
+  // 수동 보고서 생성 (게스트/로그인 모두 지원)
   const generateManualReport = async (): Promise<DailyEconomicReport | null> => {
-    if (!user) {
-      // 게스트 모드에서는 API 호출 불가
-      return null;
-    }
-
     try {
       setLoading(true);
-      
-      const response = await fetch('/api/cron/generate-economic-report', {
+      setError(null);
+
+      const response = await fetch('/api/economic-reports/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ userId: user.id }),
+        body: JSON.stringify({ userId: user?.id || null }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate report');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate report');
       }
 
       const result = await response.json();
-      
+
       if (result.success && result.report) {
-        // 생성된 보고서를 목록에 추가
-        setReports(prev => [result.report, ...prev]);
-        return result.report;
+        const report = result.report as DailyEconomicReport;
+
+        // id가 없으면 게스트용 id 할당
+        if (!report.id) {
+          report.id = `guest-report-${Date.now()}`;
+        }
+
+        // 이미 캐시된 보고서(중복)가 아닌 경우만 추가
+        if (!result.cached) {
+          setReports(prev => [report, ...prev]);
+        }
+
+        return report;
       }
 
       return null;
     } catch (err) {
       console.error('Error generating manual report:', err);
-      setError('보고서 생성에 실패했습니다.');
+      const message = err instanceof Error ? err.message : '보고서 생성에 실패했습니다.';
+      setError(message);
       return null;
     } finally {
       setLoading(false);
