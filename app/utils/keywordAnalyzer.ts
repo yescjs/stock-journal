@@ -88,7 +88,9 @@ export function extractKeywords(text: string): {
  */
 export function extractKeyIssuesFromNews(
   koreanNews: RawNewsItem[],
-  globalNews: RawNewsItem[]
+  globalNews: RawNewsItem[],
+  minIssues: number = 3,
+  maxIssues: number = 5
 ): KeyIssue[] {
   const allNews = [...koreanNews, ...globalNews];
   const allText = allNews.map(n => n.title + ' ' + (n.content || '')).join(' ');
@@ -96,25 +98,17 @@ export function extractKeyIssuesFromNews(
   // 키워드 추출
   const keywords = extractKeywords(allText);
   
-  // 감성 분석
-  const positiveCount = keywords
-    .filter(k => k.category === 'positive')
-    .reduce((sum, k) => sum + k.count, 0);
-  const negativeCount = keywords
-    .filter(k => k.category === 'negative')
-    .reduce((sum, k) => sum + k.count, 0);
-  
   // 주요 주제 식별
   const topicKeywords = keywords.filter(k => 
     ['markets', 'sectors', 'companies', 'events'].includes(k.category)
   );
   
-  // 핵심 이슈 생성 (최대 5개)
+  // 핵심 이슈 생성 (최대 maxIssues개)
   const keyIssues: KeyIssue[] = [];
   const usedTopics = new Set<string>();
   
   for (const topic of topicKeywords.slice(0, 10)) {
-    if (keyIssues.length >= 5) break;
+    if (keyIssues.length >= maxIssues) break;
     if (usedTopics.has(topic.keyword)) continue;
     
     usedTopics.add(topic.keyword);
@@ -152,8 +146,29 @@ export function extractKeyIssuesFromNews(
       stocks: extractRelatedStocks(relatedNews)
     });
   }
+
+  if (keyIssues.length < minIssues) {
+    const fallbackTopics = keywords.filter(k => !usedTopics.has(k.keyword)).slice(0, 10);
+    for (const topic of fallbackTopics) {
+      if (keyIssues.length >= minIssues) break;
+      usedTopics.add(topic.keyword);
+      keyIssues.push({
+        topic: `${topic.keyword} 동향`,
+        impact: topic.count >= 5 ? 'high' : topic.count <= 2 ? 'low' : 'medium',
+        description: `${topic.keyword} 관련 키워드가 반복적으로 등장해 주요 이슈로 분류했습니다.`,
+      });
+    }
+  }
+
+  while (keyIssues.length < minIssues) {
+    keyIssues.push({
+      topic: `시장 전반 흐름 ${keyIssues.length + 1}`,
+      impact: 'medium',
+      description: '뉴스가 제한적이어서 시장 전반 흐름 중심으로 정리했습니다.',
+    });
+  }
   
-  return keyIssues;
+  return keyIssues.slice(0, maxIssues);
 }
 
 /**

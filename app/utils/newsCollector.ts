@@ -1,28 +1,40 @@
 import { RawNewsItem } from '@/app/types/economicReports';
 
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
 // RSS 피드 소스 설정
 export const ECONOMIC_NEWS_SOURCES = {
-  // 한국 뉴스 - 조선일보 경제
-  chosunBiz: {
-    name: '조선일보 비즈',
-    url: 'https://rss.biz.chosun.com/service/rss/news.xml',
-    category: 'korean' as const,
-  },
-  // 한국 뉴스 - 중앙일보 경제
-  joinsEconomy: {
-    name: '중앙일보 경제',
-    url: 'https://rss.joins.com/joins_economy_list.xml',
-    category: 'korean' as const,
-  },
   // 한국 뉴스 - 연합뉴스
   yonhapEconomy: {
     name: '연합뉴스 경제',
     url: 'https://www.yna.co.kr/rss/economy.xml',
     category: 'korean' as const,
   },
-  yonhapStock: {
-    name: '연합뉴스 증권',
-    url: 'https://www.yna.co.kr/rss/stock.xml',
+  // 한국 뉴스 - 한국경제
+  hankyungEconomy: {
+    name: '한국경제 경제',
+    url: 'https://www.hankyung.com/feed/economy',
+    category: 'korean' as const,
+  },
+  hankyungFinance: {
+    name: '한국경제 증권',
+    url: 'https://www.hankyung.com/feed/finance',
+    category: 'korean' as const,
+  },
+  hankyungInternational: {
+    name: '한국경제 국제',
+    url: 'https://www.hankyung.com/feed/international',
+    category: 'korean' as const,
+  },
+  hankyungRealEstate: {
+    name: '한국경제 부동산',
+    url: 'https://www.hankyung.com/feed/realestate',
+    category: 'korean' as const,
+  },
+  // 한국 뉴스 - 연합뉴스TV 경제
+  yonhapNewsTvEconomy: {
+    name: '연합뉴스TV 경제',
+    url: 'http://www.yonhapnewstv.co.kr/category/news/economy/feed/',
     category: 'korean' as const,
   },
   // 글로벌 뉴스 - Yahoo Finance
@@ -174,11 +186,11 @@ export function filterNewsByDate(
   news: RawNewsItem[],
   targetDate: Date
 ): RawNewsItem[] {
-  const targetDateStr = targetDate.toISOString().split('T')[0];
+  const targetDateStr = getKstDateString(targetDate);
 
   return news.filter((item) => {
     if (!item.pubDate) return false;
-    const itemDate = new Date(item.pubDate).toISOString().split('T')[0];
+    const itemDate = getKstDateString(new Date(item.pubDate));
     return itemDate === targetDateStr;
   });
 }
@@ -189,16 +201,29 @@ export function filterNewsByDate(
 export function filterYesterdayNews(
   news: RawNewsItem[]
 ): { date: Date; items: RawNewsItem[] } {
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  yesterday.setHours(0, 0, 0, 0);
+  const now = new Date();
+  const kstNow = new Date(now.getTime() + KST_OFFSET_MS);
+  const kstTodayUtc = new Date(Date.UTC(
+    kstNow.getUTCFullYear(),
+    kstNow.getUTCMonth(),
+    kstNow.getUTCDate()
+  ));
+  const kstYesterdayUtc = new Date(kstTodayUtc.getTime() - 24 * 60 * 60 * 1000);
 
-  const filtered = filterNewsByDate(news, yesterday);
+  const filtered = filterNewsByDate(news, kstYesterdayUtc);
 
   return {
-    date: yesterday,
+    date: kstYesterdayUtc,
     items: filtered,
   };
+}
+
+export function getKstDateString(date: Date): string {
+  const kstDate = new Date(date.getTime() + KST_OFFSET_MS);
+  const year = kstDate.getUTCFullYear();
+  const month = String(kstDate.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(kstDate.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 /**

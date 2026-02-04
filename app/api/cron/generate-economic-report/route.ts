@@ -20,6 +20,30 @@ const supabaseAdmin = supabaseUrl && supabaseServiceKey
     })
   : null;
 
+function serializeReport(report: DailyEconomicReport) {
+  return JSON.parse(
+    JSON.stringify(report, (_key, value) => (typeof value === 'bigint' ? value.toString() : value))
+  );
+}
+
+function toSafeReport(report: DailyEconomicReport) {
+  return {
+    id: report.id,
+    user_id: report.user_id,
+    report_date: report.report_date,
+    title: report.title,
+    summary: report.summary,
+    korean_news: report.korean_news,
+    global_news: report.global_news,
+    key_issues: report.key_issues,
+    market_sentiment: report.market_sentiment,
+    ai_generated: report.ai_generated,
+    is_read: report.is_read,
+    created_at: report.created_at,
+    updated_at: report.updated_at,
+  };
+}
+
 /**
  * 사용자 목록 가져오기 (daily report 활성화된 사용자만)
  */
@@ -59,12 +83,19 @@ async function generateReportForUser(
   }
 
   try {
+    console.log('[EconomicReport] Generate start', { userId });
     // 1. 뉴스 수집
     const { korean, global } = await fetchAllNews();
+    console.log('[EconomicReport] News collected', { korean: korean.length, global: global.length });
 
     // 2. 어제 날짜 뉴스 필터링
     const yesterdayKorean = filterYesterdayNews(korean);
     const yesterdayGlobal = filterYesterdayNews(global);
+    console.log('[EconomicReport] Yesterday filter', {
+      korean: yesterdayKorean.items.length,
+      global: yesterdayGlobal.items.length,
+      date: yesterdayKorean.date.toISOString().split('T')[0],
+    });
 
     // 3. 뉴스가 없으면 전체 사용
     const koreanNews = yesterdayKorean.items.length > 0 
@@ -74,32 +105,37 @@ async function generateReportForUser(
       ? yesterdayGlobal.items 
       : global.slice(0, 15);
 
-    const reportDate = yesterdayKorean.items.length > 0 
-      ? yesterdayKorean.date 
-      : new Date();
+    const reportDate = yesterdayKorean.date;
 
     // 4. AI 분석
     let reportData = await analyzeEconomicNews(koreanNews, globalNews, reportDate);
+    console.log('[EconomicReport] AI analysis', { success: !!reportData });
 
     // 5. AI 분석 실패 시 Fallback 사용
     if (!reportData) {
       reportData = createFallbackReport(koreanNews, globalNews, reportDate);
+      console.log('[EconomicReport] Fallback report used');
     }
 
     // 6. 사용자 ID 추가
     reportData.user_id = userId;
 
     // 7. 중복 확인 (이미 생성된 보고서가 있는지)
-    const { data: existingReport } = await supabaseAdmin
+    const { data: existingReport, error: existingError } = await supabaseAdmin
       .from('daily_economic_reports')
-      .select('id')
+      .select('*')
       .eq('user_id', userId)
       .eq('report_date', reportData.report_date)
       .single();
 
+    if (existingError && existingError.code !== 'PGRST116') {
+      console.error('[EconomicReport] Existing report check failed', existingError);
+      return null;
+    }
+
     if (existingReport) {
       console.log(`Report already exists for user ${userId} on ${reportData.report_date}`);
-      return null;
+      return existingReport as DailyEconomicReport;
     }
 
     // 8. Supabase에 저장
@@ -110,13 +146,14 @@ async function generateReportForUser(
       .single();
 
     if (error) {
-      console.error('Error saving report:', error);
+      console.error('[EconomicReport] Error saving report', error);
       return null;
     }
 
+    console.log('[EconomicReport] Report saved', { reportId: savedReport?.id });
     return savedReport as DailyEconomicReport;
   } catch (error) {
-    console.error(`Error generating report for user ${userId}:`, error);
+    console.error(`[EconomicReport] Error generating report for user ${userId}:`, error);
     return null;
   }
 }
@@ -191,21 +228,56 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log('[EconomicReport] Manual generate request', { userId });
     const report = await generateReportForUser(userId);
 
     if (!report) {
+      console.error('[EconomicReport] Generate returned null, trying fallback fetch', { userId });
+      if (supabaseAdmin) {
+        const { data: latestReport, error: latestError } = await supabaseAdmin
+          .from('daily_economic_reports')
+          .select('*')
+          .eq('user_id', userId)
+          .order('report_date', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (latestError) {
+          console.error('[EconomicReport] Fallback fetch failed', latestError);
+        } else if (latestReport) {
+          console.log('[EconomicReport] Fallback fetch succeeded', { id: latestReport.id });
+          const safeReport = serializeReport(toSafeReport(latestReport as DailyEconomicReport));
+          return NextResponse.json({
+            success: true,
+            report: safeReport,
+            fallback: true,
+          });
+        }
+      } else {
+        console.error('[EconomicReport] Supabase admin client not initialized in POST');
+      }
+
       return NextResponse.json(
         { error: 'Failed to generate report' },
         { status: 500 }
       );
     }
 
+    console.log('[EconomicReport] Responding with report', { id: report.id });
+    let safeReport: ReturnType<typeof toSafeReport>;
+    try {
+      safeReport = serializeReport(toSafeReport(report));
+    } catch (error) {
+      console.error('[EconomicReport] Report serialization failed', error);
+      safeReport = toSafeReport(report);
+    }
+
     return NextResponse.json({
       success: true,
-      report,
+      report: safeReport,
     });
   } catch (error) {
-    console.error('Error generating report:', error);
+    console.error('[EconomicReport] Error generating report:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
