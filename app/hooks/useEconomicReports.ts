@@ -145,14 +145,20 @@ export function useEconomicReports(user: User | null): UseEconomicReportsReturn 
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate report');
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || 'Failed to generate report');
       }
 
       const result = await response.json();
       
       if (result.success && result.report) {
-        // 생성된 보고서를 목록에 추가
-        setReports(prev => [result.report, ...prev]);
+        // 생성된 보고서를 목록에 추가 (중복 방지)
+        setReports(prev => {
+          if (prev.some((report) => report.id === result.report.id)) {
+            return prev;
+          }
+          return [result.report, ...prev];
+        });
         return result.report;
       }
 
