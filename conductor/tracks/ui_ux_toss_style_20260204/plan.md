@@ -22,15 +22,15 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 2: 핵심 UI 컴포넌트 리뉴얼' (Protocol in workflow.md)
 
 ## Phase 3: 레이아웃 및 네비게이션 개편 (Layout & Navigation)
-- [ ] Task: 하이브리드 레이아웃(중앙 컨테이너) 구현
-    - [ ] Root Layout 구조를 변경하여 데스크탑에서 중앙 600px 컨테이너 적용
-    - [ ] 좌우 여백에 보조 정보를 표시할 사이드바 영역 확보
-- [ ] Task: 하단 탭 바 및 헤더 리뉴얼
-    - [ ] 모바일 최적화 하단 네비게이션 바 구현
-    - [ ] 스크롤 위치에 따라 반응하는 동적 헤더 인터렉션 적용
-- [ ] Task: 모달 및 바텀 시트 시스템 구축
-    - [ ] `Framer Motion`을 활용하여 아래에서 위로 올라오는 바텀 시트 구현
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: 레이아웃 및 네비게이션 개편' (Protocol in workflow.md)
+- [x] Task: 하이브리드 레이아웃(중앙 컨테이너) 구현
+    - [x] Root Layout 구조를 변경하여 데스크탑에서 중앙 600px 컨테이너 적용
+    - [x] 좌우 여백에 보조 정보를 표시할 사이드바 영역 확보
+- [x] Task: 하단 탭 바 및 헤더 리뉴얼
+    - [x] 모바일 최적화 하단 네비게이션 바 구현
+    - [x] 스크롤 위치에 따라 반응하는 동적 헤더 인터렉션 적용
+- [x] Task: 모달 및 바텀 시트 시스템 구축
+    - [x] `Framer Motion`을 활용하여 아래에서 위로 올라오는 바텀 시트 구현
+- [x] Task: Conductor - User Manual Verification 'Phase 3: 레이아웃 및 네비게이션 개편' (Protocol in workflow.md)
 
 ## Phase 4: 뷰 적용 및 애니메이션 (Views & Transitions)
 - [ ] Task: 주요 페이지 뷰(Dashboard, TradeList) 스타일 적용

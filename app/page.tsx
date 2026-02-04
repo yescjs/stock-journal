@@ -26,6 +26,8 @@ import { useDataCorrection } from '@/app/hooks/useDataCorrection';
 
 // Components
 import { Header } from '@/app/components/Header';
+import { BottomNav } from '@/app/components/BottomNav';
+import { BottomSheet } from '@/app/components/BottomSheet';
 import { LoginForm } from '@/app/components/LoginForm';
 import { LandingPage } from '@/app/components/LandingPage';
 import { TradeForm, TradeSubmitData } from '@/app/components/TradeForm';
@@ -291,8 +293,8 @@ export default function Home() {
             )}
 
             {/* Header */}
-            <div className="sticky top-0 z-50 flex-none w-full bg-slate-50/80 backdrop-blur-md dark:bg-slate-950/80 transition-colors duration-300 border-b border-slate-200/50 dark:border-slate-800/50">
-                <div className="max-w-7xl mx-auto px-4">
+            <div className="sticky top-0 z-50 flex-none w-full bg-background/80 backdrop-blur-md transition-colors duration-300 border-b border-border/50">
+                <div className="px-4">
                     <Header
                         darkMode={darkMode}
                         setDarkMode={setDarkMode}
@@ -315,11 +317,10 @@ export default function Home() {
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 min-h-0 w-full max-w-7xl mx-auto px-4 pt-4 pb-8">
-
+            <div className="flex-1 min-h-0 w-full px-4 pt-4 pb-24">
                 {activeTab === 'journal' ? (
-                    <div className="h-full lg:flex lg:gap-8 items-start">
-                        {/* LEFT: Feed View */}
+                    <div className="h-full flex flex-col">
+                        {/* Feed View */}
                         <div className="flex-1 h-full min-w-0 flex flex-col">
                             <TradeListView
                                 darkMode={darkMode}
@@ -337,67 +338,6 @@ export default function Home() {
                                 showConverted={showConverted}
                                 onToggleConverted={setShowConverted}
                             />
-                        </div>
-
-                        {/* RIGHT: Sidebar */}
-                        <div className="hidden lg:block w-80 xl:w-96 flex-none pl-4 pb-4 h-full overflow-y-auto scrollbar-thin">
-                            <div className="space-y-4 pr-2">
-                                {/* Guest Data Alert */}
-                                {currentUser && backupManager.hasGuestData && (
-                                    <div className="p-4 rounded-2xl border border-amber-500/30 bg-amber-500/10">
-                                        <h3 className="font-bold text-amber-600 dark:text-amber-500 mb-2 text-sm">게스트 데이터 발견</h3>
-                                        <p className="text-xs text-muted-foreground mb-3">로그인 전 작성한 데이터가 있습니다.</p>
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={backupManager.handleMigrateGuestToAccount}
-                                                disabled={backupManager.isMigrating}
-                                                className="flex-1 py-2 bg-primary text-white text-xs font-semibold rounded-xl shadow-toss-sm hover:bg-primary/90 transition-colors"
-                                            >
-                                                가져오기
-                                            </button>
-                                            <button
-                                                onClick={backupManager.handleDropGuestData}
-                                                className="px-3 py-2 border border-border text-muted-foreground text-xs font-semibold rounded-xl hover:bg-muted transition-colors"
-                                            >
-                                                삭제
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Summary Cards */}
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="p-4 rounded-2xl border border-border/50 bg-card shadow-toss-sm">
-                                        <div className="text-[10px] font-semibold uppercase text-muted-foreground mb-1">매수 합계</div>
-                                        <div className="font-bold text-base">{journalStats.buy.toLocaleString()}</div>
-                                    </div>
-                                    <div className="p-4 rounded-2xl border border-border/50 bg-card shadow-toss-sm">
-                                        <div className="text-[10px] font-semibold uppercase text-muted-foreground mb-1">순손익</div>
-                                        <div className={`font-bold text-base ${journalNetCash >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
-                                            {journalNetCash > 0 ? '+' : ''}{journalNetCash.toLocaleString()}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Trade Form */}
-                                <div ref={addFormRef} className="rounded-2xl border border-border/50 bg-card shadow-toss overflow-hidden">
-                                    <div className="px-4 py-3 border-b border-border/50 bg-muted/30 font-semibold text-xs flex items-center gap-2 text-foreground">
-                                        <PenLine size={16} /> ??? ??? ???
-
-                                    </div>
-                                    <div className="p-4">
-                                        <TradeForm
-                                            darkMode={darkMode}
-                                            currentUser={currentUser}
-                                            baseTrades={trades}
-                                            onAddTrade={handleAddTrade}
-                                            allTags={allTags}
-                                            strategies={strategies}
-                                            isCompact={true}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 ) : activeTab === 'diary' ? (
@@ -467,78 +407,59 @@ export default function Home() {
                 </button>
             )}
 
-            {/* Login Modal - Toss Style */}
-            {showLoginModal && (
-                <div
-                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
-                    onClick={(e) => e.target === e.currentTarget && setShowLoginModal(false)}
-                >
-                    <div className={`relative w-full max-w-md rounded-3xl p-6 shadow-toss-lg ${darkMode ? 'bg-card border border-border' : 'bg-card'}`}>
-                        <button
-                            onClick={() => setShowLoginModal(false)}
-                            aria-label="닫기"
-                            className="absolute right-4 top-4 p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                        >
-                            ✕
-                        </button>
-                        <div className="mb-6 text-center">
-                            <h2 className="text-2xl font-bold text-foreground">로그인</h2>
-                            <p className="text-sm mt-1 text-muted-foreground">데이터 동기화를 위해 로그인하세요</p>
-                        </div>
-                        <LoginForm
-                            darkMode={darkMode}
-                            onDone={() => setShowLoginModal(false)}
-                        />
-                    </div>
+            {/* Login BottomSheet - Toss Style */}
+            <BottomSheet
+                isOpen={showLoginModal}
+                onClose={() => setShowLoginModal(false)}
+                title="로그인"
+            >
+                <div className="mb-4">
+                    <p className="text-sm text-grey-500">데이터 동기화를 위해 로그인하세요</p>
                 </div>
-            )}
+                <LoginForm
+                    darkMode={darkMode}
+                    onDone={() => setShowLoginModal(false)}
+                />
+                <div className="mt-6 text-center">
+                    <button
+                        onClick={() => {
+                            setShowLoginModal(false);
+                            handleStartAsGuest();
+                        }}
+                        className="text-sm font-bold text-grey-500 hover:text-foreground transition-colors"
+                    >
+                        로그인 없이 게스트로 시작하기
+                    </button>
+                </div>
+            </BottomSheet>
 
-            {/* Add/Edit Trade Modal - Toss Style */}
-            {(editingTrade || showAddModal) && (
-                <div
-                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
-                    onClick={(e) => {
-                        if (e.target === e.currentTarget) {
-                            setEditingTrade(null);
-                            setShowAddModal(false);
-                        }
+            {/* Add/Edit Trade BottomSheet - Toss Style */}
+            <BottomSheet
+                isOpen={!!(editingTrade || showAddModal)}
+                onClose={() => {
+                    setEditingTrade(null);
+                    setShowAddModal(false);
+                }}
+                title={editingTrade ? '매매 기록 수정' : '새로운 매매 기록'}
+            >
+                <TradeForm
+                    darkMode={darkMode}
+                    currentUser={currentUser}
+                    baseTrades={trades}
+                    onAddTrade={async (data, file) => {
+                        await handleAddTrade(data, file);
+                        setShowAddModal(false);
                     }}
-                >
-                    <div className={`relative w-full max-w-lg rounded-3xl p-0 shadow-toss-lg overflow-hidden flex flex-col max-h-[90vh] ${darkMode ? 'bg-card border border-border' : 'bg-card'}`}>
-                        <div className="px-6 py-4 flex items-center justify-between border-b border-border bg-card">
-                            <h3 className="text-lg font-bold text-foreground">
-                                {editingTrade ? '매매 기록 수정' : '새로운 매매 기록'}
-                            </h3>
-                            <button
-                                onClick={() => {
-                                    setEditingTrade(null);
-                                    setShowAddModal(false);
-                                }}
-                                aria-label="닫기"
-                                className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                            >
-                                ✕
-                            </button>
+                    onUpdateTrade={handleUpdateTrade}
+                    allTags={allTags}
+                    strategies={strategies}
+                    isCompact={false}
+                    initialData={editingTrade || undefined}
+                                />
+                            </BottomSheet>
+                
+                            <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
                         </div>
-                        <div className="p-6 overflow-y-auto custom-scrollbar">
-                            <TradeForm
-                                darkMode={darkMode}
-                                currentUser={currentUser}
-                                baseTrades={trades}
-                                onAddTrade={async (data, file) => {
-                                    await handleAddTrade(data, file);
-                                    setShowAddModal(false);
-                                }}
-                                onUpdateTrade={handleUpdateTrade}
-                                allTags={allTags}
-                                strategies={strategies}
-                                 isCompact={false}
-                                 initialData={editingTrade || undefined}
-                             />
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-}
+                    );
+                }
+                
