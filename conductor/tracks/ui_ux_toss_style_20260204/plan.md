@@ -9,7 +9,7 @@
     - [x] `globals.css`에 테마별 기본 배경색 및 텍스트 색상 정의
 - [x] Task: Conductor - User Manual Verification 'Phase 1: 디자인 시스템 및 기초 설정' (Protocol in workflow.md)
 
-## Phase 2: 핵심 UI 컴포넌트 리뉴얼 (Core UI Components - TDD)
+## Phase 2: 핵심 UI 컴포넌트 리뉴얼 (Core UI Components - TDD) [checkpoint: 1aa1ffb]
 - [x] Task: Button 컴포넌트 리뉴얼
     - [x] Button 컴포넌트의 스타일 및 상태(hover, active, disabled) 테스트 작성
     - [x] 토스 스타일(둥근 모서리, 클릭 애니메이션)을 적용하여 구현
