@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Strategy, DEFAULT_STRATEGIES, EMOTION_TAG_LABELS, EMOTION_TAG_COLORS } from '@/app/types/strategies';
-import { Plus, Edit2, Trash2, X, Check, ChevronDown, ChevronUp, Zap } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Check, ChevronDown, ChevronUp, Zap, Loader2, AlertTriangle } from 'lucide-react';
 
 interface StrategyManagerProps {
     strategies: Strategy[];
@@ -117,7 +117,7 @@ export function StrategyManager({ strategies, darkMode, onAdd, onUpdate, onRemov
             ? 'bg-slate-700 border-slate-600 text-slate-100 placeholder-slate-400 focus:ring-indigo-500 focus:border-indigo-500'
             : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 focus:ring-indigo-500 focus:border-indigo-500'
         }`;
-    const labelClass = `block text-xs font-bold uppercase tracking-wider mb-1.5 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`;
+    const labelClass = `block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`;
 
     const renderForm = (isEdit: boolean = false) => (
         <div className={`${cardClass} p-4 space-y-4`}>
@@ -214,7 +214,7 @@ export function StrategyManager({ strategies, darkMode, onAdd, onUpdate, onRemov
                         } disabled:opacity-50`}
                 >
                     {loading ? (
-                        <span className="animate-spin">⏳</span>
+                        <Loader2 size={14} className="animate-spin" />
                     ) : (
                         <Check size={14} />
                     )}
@@ -334,8 +334,8 @@ export function StrategyManager({ strategies, darkMode, onAdd, onUpdate, onRemov
                                                 <div className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
                                                     리스크 노트
                                                 </div>
-                                                <div className={`text-sm whitespace-pre-wrap ${darkMode ? 'text-amber-400/80' : 'text-amber-600'}`}>
-                                                    ⚠️ {strategy.risk_notes}
+                                                <div className={`text-sm whitespace-pre-wrap flex items-start gap-1.5 ${darkMode ? 'text-amber-400/80' : 'text-amber-600'}`}>
+                                                    <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" /> {strategy.risk_notes}
                                                 </div>
                                             </div>
                                         )}

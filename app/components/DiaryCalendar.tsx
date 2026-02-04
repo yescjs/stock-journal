@@ -14,7 +14,7 @@ import {
     subMonths
 } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Smile, Meh, Frown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Smile, Meh, Frown, TrendingUp, TrendingDown, Minus, Zap } from 'lucide-react';
 import { MarketDiary } from '@/app/types/diary';
 import { Trade } from '@/app/types/trade';
 import { clsx, type ClassValue } from 'clsx';
@@ -77,12 +77,12 @@ export function DiaryCalendar({
     const nextMonth = () => onDateChange(addMonths(currentDate, 1));
     const prevMonth = () => onDateChange(subMonths(currentDate, 1));
 
-    const getSentimentIcon = (sentiment: string) => {
+    const getSentimentIcon = (sentiment: string): React.ReactNode => {
         switch (sentiment) {
-            case 'bullish': return '🔥';
-            case 'bearish': return '💧';
-            case 'neutral': return '☁️';
-            case 'volatile': return '⚡';
+            case 'bullish': return <TrendingUp size={12} className="text-rose-500" />;
+            case 'bearish': return <TrendingDown size={12} className="text-blue-500" />;
+            case 'neutral': return <Minus size={12} className="text-slate-500" />;
+            case 'volatile': return <Zap size={12} className="text-amber-500" />;
             default: return null;
         }
     };
@@ -193,7 +193,7 @@ export function DiaryCalendar({
                             <div className="flex-1 flex flex-col items-center justify-center gap-0.5 md:gap-1">
                                 {diary ? (
                                     <>
-                                        <div className="text-lg md:text-2xl animate-in zoom-in duration-300">
+                                        <div className="flex items-center justify-center animate-in zoom-in duration-300">
                                             {getSentimentIcon(diary.market_sentiment)}
                                         </div>
                                         {diary.market_issue && (

@@ -80,7 +80,7 @@ export function InsightsWidget({ insights, darkMode }: InsightsWidgetProps) {
                     {insights.currentStreak.count > 0 ? (
                         <>
                             {insights.currentStreak.count}연{insights.currentStreak.type === 'win' ? '승' : '패'}
-                            {insights.currentStreak.type === 'win' && <span className="text-lg animate-pulse">🔥</span>}
+                            {insights.currentStreak.type === 'win' && <Flame size={18} className="animate-pulse" />}
                         </>
                     ) : '-'}
                 </div>

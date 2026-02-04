@@ -105,8 +105,9 @@ export function TradeListView({
         <Button
           variant="ghost"
           onClick={resetFilters}
+          size="md"
           className={`
-            h-[52px] px-4 rounded-xl text-sm font-bold flex items-center gap-2
+            px-4 rounded-xl text-sm font-bold flex items-center gap-2
             ${darkMode
               ? 'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20'
               : 'bg-rose-50 text-rose-500 hover:bg-rose-100 shadow-sm'}
@@ -152,7 +153,7 @@ export function TradeListView({
             size="sm"
             onClick={() => onToggleConverted(!showConverted)}
             className={`
-                backdrop-blur-md border h-[38px]
+                backdrop-blur-md border
                 ${showConverted
                 ? (darkMode ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-600')
                 : (darkMode ? 'bg-card/60 border-slate-700/50 text-slate-400 hover:bg-slate-800' : 'bg-white/60 border-white/60 text-slate-500 hover:bg-white')}
@@ -165,18 +166,18 @@ export function TradeListView({
           <div className={`flex p-1 rounded-2xl border backdrop-blur-md ${darkMode ? 'bg-card/60 border-slate-700/50' : 'bg-white/60 border-white/60 shadow-lg shadow-indigo-100/20'}`}>
             <Button
               variant={viewMode === 'list' ? 'primary' : 'ghost'}
-              size="sm"
+              size="xs"
               onClick={() => setViewMode('list')}
-              className={`h-[30px] px-3 text-xs ${viewMode === 'list' ? 'shadow-sm' : 'text-slate-500 hover:bg-transparent'}`}
+              className={`px-3 text-xs ${viewMode === 'list' ? 'shadow-sm' : 'text-slate-500 hover:bg-transparent'}`}
             >
               <ListIcon size={14} strokeWidth={2.5} className="mr-1.5" />
               <span className="hidden sm:inline">목록</span>
             </Button>
             <Button
               variant={viewMode === 'calendar' ? 'primary' : 'ghost'}
-              size="sm"
+              size="xs"
               onClick={() => setViewMode('calendar')}
-              className={`h-[30px] px-3 text-xs ${viewMode === 'calendar' ? 'shadow-sm' : 'text-slate-500 hover:bg-transparent'}`}
+              className={`px-3 text-xs ${viewMode === 'calendar' ? 'shadow-sm' : 'text-slate-500 hover:bg-transparent'}`}
             >
               <LayoutGrid size={14} strokeWidth={2.5} className="mr-1.5" />
               <span className="hidden sm:inline">캘린더</span>

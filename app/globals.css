@@ -247,3 +247,20 @@
 .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: rgba(148, 163, 184, 0.4);
 }
+
+/* Design Token Utility Classes */
+.label-toss {
+  @apply text-[10px] font-bold uppercase tracking-wider text-muted-foreground;
+}
+
+.label-toss-lg {
+  @apply text-xs font-bold uppercase tracking-wider text-muted-foreground;
+}
+
+.section-title {
+  @apply text-2xl font-black tracking-tight text-foreground;
+}
+
+.section-subtitle {
+  @apply text-lg font-bold text-foreground;
+}

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { MarketDiary } from '@/app/types/diary';
 import { useDiary } from '@/app/hooks/useDiary';
-import { Edit2, Trash2, Smile, Frown, Activity, ArrowLeft, PenLine } from 'lucide-react';
+import { Edit2, Trash2, Smile, Frown, Meh, Activity, ArrowLeft, PenLine, BookOpen, TrendingUp, TrendingDown, Minus, Zap, FileText } from 'lucide-react';
 import { DiaryCalendar } from '@/app/components/DiaryCalendar';
 import { Button } from '@/app/components/ui/Button';
 import { Input } from '@/app/components/ui/Input';
@@ -108,14 +108,21 @@ export function MarketDiaryView({
         volatile: 'text-amber-500 bg-amber-500/10 border-amber-500/20'
     };
 
-    const sentimentLabels = {
-        bullish: '🔥 강세장',
-        bearish: '💧 약세장',
-        neutral: '☁️ 횡보장',
-        volatile: '⚡ 변동성'
+    const sentimentIcons: Record<string, React.ReactNode> = {
+        bullish: <TrendingUp size={14} />,
+        bearish: <TrendingDown size={14} />,
+        neutral: <Minus size={14} />,
+        volatile: <Zap size={14} />,
     };
 
-    const labelClass = `block text-xs font-bold uppercase tracking-wider mb-2 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`;
+    const sentimentLabels = {
+        bullish: '강세장',
+        bearish: '약세장',
+        neutral: '횡보장',
+        volatile: '변동성'
+    };
+
+    const labelClass = `block text-[10px] font-bold uppercase tracking-wider mb-2 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`;
 
 
     // --- Render ---
@@ -126,8 +133,10 @@ export function MarketDiaryView({
                 <div className="flex-1 h-full min-h-0">
                     <div className="flex items-center justify-between mb-2">
                         <div>
-                            <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-                                <span className="text-3xl">📖</span>
+                            <h2 className="text-2xl font-black tracking-tight flex items-center gap-3">
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${darkMode ? 'bg-indigo-500/20 text-indigo-400' : 'bg-indigo-50 text-indigo-600'}`}>
+                                    <BookOpen size={24} />
+                                </div>
                                 시장 복기
                             </h2>
                             <p className={`mt-1 text-sm ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
@@ -170,7 +179,7 @@ export function MarketDiaryView({
                         // --- EDIT FORM ---
                         <Card className="p-6">
                             <div className="flex items-center justify-between mb-6 pb-4 border-b border-dashed border-slate-700">
-                                <h3 className="font-bold text-lg">📝 일지 작성/수정</h3>
+                                <h3 className="font-bold text-lg flex items-center gap-2"><FileText size={20} /> 일지 작성/수정</h3>
                             </div>
 
                             <div className="space-y-6">
@@ -189,7 +198,7 @@ export function MarketDiaryView({
                                                         : (darkMode ? 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100')
                                                         }`}
                                                 >
-                                                    {sentimentLabels[s]}
+                                                    <span className="flex items-center justify-center gap-1">{sentimentIcons[s]} {sentimentLabels[s]}</span>
                                                 </button>
                                             ))}
                                         </div>
@@ -204,9 +213,9 @@ export function MarketDiaryView({
                                             className="w-full accent-indigo-500 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer dark:bg-slate-700 mt-3"
                                         />
                                         <div className="flex justify-between text-xs text-slate-500 mt-2 font-bold">
-                                            <span>🤢 최악</span>
-                                            <span>😐 보통</span>
-                                            <span>🤩 최상</span>
+                                            <span className="flex items-center gap-1"><Frown size={12} /> 최악</span>
+                                            <span className="flex items-center gap-1"><Meh size={12} /> 보통</span>
+                                            <span className="flex items-center gap-1"><Smile size={12} /> 최상</span>
                                         </div>
                                     </div>
                                 </div>
@@ -316,7 +325,7 @@ export function MarketDiaryView({
                                             <div>
                                                 <div className={labelClass}>시장 분위기</div>
                                                 <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold border ${sentimentColors[currentDiary.market_sentiment]}`}>
-                                                    {sentimentLabels[currentDiary.market_sentiment]}
+                                                    {sentimentIcons[currentDiary.market_sentiment]} {sentimentLabels[currentDiary.market_sentiment]}
                                                 </div>
                                             </div>
 

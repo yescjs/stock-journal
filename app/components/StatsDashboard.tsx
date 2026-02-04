@@ -26,7 +26,7 @@ import { RiskManagementWidget } from './RiskManagementWidget';
 import { InsightsWidget } from './InsightsWidget';
 import { SymbolSortKey, TagSortKey } from '@/app/types/ui';
 import { formatNumber, formatQuantity } from '@/app/utils/format';
-import { TrendingUp, Wallet, Target, ChevronUp, ChevronDown, RefreshCw, Loader2, Download, Trophy, AlertTriangle, Zap, Activity, Calendar } from 'lucide-react';
+import { TrendingUp, Wallet, Target, ChevronUp, ChevronDown, RefreshCw, Loader2, Download, Trophy, AlertTriangle, Zap, Activity, Calendar, BarChart3, Tag } from 'lucide-react';
 import { fetchStockChart } from '@/app/utils/stockApi';
 import { Card } from '@/app/components/ui/Card';
 import { Button } from '@/app/components/ui/Button';
@@ -340,7 +340,7 @@ export function StatsDashboard({
         return (
             <div className={'flex flex-col items-center justify-center py-24 rounded-2xl border-2 border-dashed ' + (darkMode ? 'bg-muted/30 border-slate-800' : 'bg-slate-50 border-slate-200')}>
                 <div className={'w-16 h-16 rounded-2xl flex items-center justify-center mb-4 ' + (darkMode ? 'bg-slate-800' : 'bg-slate-100')}>
-                    <span className="text-3xl">📊</span>
+                    <BarChart3 size={32} className={darkMode ? 'text-slate-500' : 'text-slate-400'} />
                 </div>
                 <p className={'font-bold text-lg mb-1 ' + (darkMode ? 'text-slate-300' : 'text-slate-700')}>데이터가 없습니다</p>
                 <p className={'text-sm ' + (darkMode ? 'text-muted-foreground' : 'text-slate-400')}>
@@ -836,7 +836,7 @@ export function StatsDashboard({
                         <Card id="section-symbols" className="p-6 scroll-mt-28">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className={sectionTitleClass}>
-                                    📈 종목별 성과
+                                    <TrendingUp size={20} className={darkMode ? 'text-slate-400' : 'text-slate-500'} /> 종목별 성과
                                 </h2>
                                 <button
                                     onClick={fetchAllCurrentPrices}
@@ -979,7 +979,7 @@ export function StatsDashboard({
                         {/* Tag Table */}
                         <Card className="p-6">
                             <h2 className={sectionTitleClass + ' mb-4'}>
-                                🏷️ 태그 통계
+                                <Tag size={20} className={darkMode ? 'text-slate-400' : 'text-slate-500'} /> 태그 통계
                             </h2>
                             <div className={`${tableWrapperClass} max-w-[calc(100vw-2rem)]`}>
                                 <table className="w-full text-left min-w-[600px]">

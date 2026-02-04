@@ -6,7 +6,7 @@ import { StockChartData, ChartPeriod } from '@/app/types/stock';
 import { Trade } from '@/app/types/trade';
 import { fetchStockChart } from '@/app/utils/stockApi';
 import { formatNumber } from '@/app/utils/format';
-import { TrendingUp, Activity } from 'lucide-react';
+import { TrendingUp, Activity, BarChart3 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ChartSkeleton } from '@/app/components/ui/ChartSkeleton';
 
@@ -333,7 +333,7 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
                     <div className={`px-4 pb-4`}>
                         <div className={`rounded-xl p-4 ${darkMode ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
                             <div className={`text-[10px] font-bold uppercase tracking-wider mb-3 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                                📊 거래 기록 요약
+                                <span className="inline-flex items-center gap-1"><BarChart3 size={16} /> 거래 기록 요약</span>
                             </div>
                             <div className="grid grid-cols-3 gap-3">
                                 <div className="text-center">

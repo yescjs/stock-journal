@@ -1,7 +1,7 @@
 import React from 'react';
 import { User } from '@supabase/supabase-js';
 import { ActiveTab } from '@/app/types/ui';
-import { Sun, Moon, LogOut, LogIn, TrendingUp, BookOpen } from 'lucide-react';
+import { Sun, Moon, LogOut, LogIn, TrendingUp, BookOpen, FileText, BarChart3, Settings } from 'lucide-react';
 import { Button } from '@/app/components/ui/Button';
 
 interface HeaderProps {
@@ -25,11 +25,11 @@ export function Header({
     setActiveTab,
     onShowGuide,
 }: HeaderProps) {
-    const tabs: { id: ActiveTab; label: string; icon: string }[] = [
-        { id: 'journal', label: '매매일지', icon: '📝' },
-        { id: 'diary', label: '시장복기', icon: '📖' },
-        { id: 'stats', label: '통계', icon: '📊' },
-        { id: 'settings', label: '설정', icon: '⚙️' },
+    const tabs: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
+        { id: 'journal', label: '매매일지', icon: <FileText size={18} /> },
+        { id: 'diary', label: '시장복기', icon: <BookOpen size={18} /> },
+        { id: 'stats', label: '통계', icon: <BarChart3 size={18} /> },
+        { id: 'settings', label: '설정', icon: <Settings size={18} /> },
     ];
 
     return (
@@ -117,7 +117,7 @@ export function Header({
                                         className={`flex-1 gap-2 text-xs md:text-sm font-bold ${isActive ? 'shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                                         size="sm"
                                     >
-                                        <span className={`text-sm md:text-base transition-transform duration-300 ${isActive ? 'scale-110' : 'scale-100 grayscale opacity-70'}`} aria-hidden="true">{tab.icon}</span>
+                                        <span className={`transition-all duration-300 ${isActive ? 'text-foreground' : 'opacity-50 text-muted-foreground'}`} aria-hidden="true">{tab.icon}</span>
                                         <span className="hidden leading-none sm:inline">{tab.label}</span>
                                     </Button>
                                 );

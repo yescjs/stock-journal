@@ -15,6 +15,12 @@ import { EquityPoint } from '@/app/types/stats';
 import { formatNumber } from '@/app/utils/format';
 import { TrendingUp, Activity } from 'lucide-react';
 
+// Chart color constants matching CSS variables
+const CHART_COLORS = {
+    up: '#F04452',      // --color-up
+    down: '#3182F6',    // --color-down
+} as const;
+
 interface EquityCurveProps {
     data: EquityPoint[]; // Daily data
     monthlyData?: EquityPoint[];
@@ -49,14 +55,14 @@ const CustomTooltip = ({ active, payload, showDrawdown, darkMode }: CustomToolti
             <div className="font-medium mb-1">{pt.date}</div>
             <div className="flex items-center gap-2">
                 <span className="text-slate-500">누적 손익:</span>
-                <span className={pt.cumulativePnL >= 0 ? 'text-[#F04452] font-bold' : 'text-[#3182F6] font-bold'}>
+                <span className={pt.cumulativePnL >= 0 ? 'text-[color:var(--color-up)] font-bold' : 'text-[color:var(--color-down)] font-bold'}>
                     {pt.cumulativePnL >= 0 ? '+' : ''}{formatNumber(pt.cumulativePnL)}
                 </span>
             </div>
             {showDrawdown && pt.drawdown < 0 && (
                 <div className="flex items-center gap-2 mt-1">
                     <span className="text-slate-500">낙폭:</span>
-                    <span className="text-[#3182F6] font-bold">
+                    <span className="text-[color:var(--color-down)] font-bold">
                         {formatNumber(pt.drawdown)} ({pt.drawdownPercent.toFixed(1)}%)
                     </span>
                 </div>
@@ -238,7 +244,7 @@ export function EquityCurve({ data, monthlyData, darkMode }: EquityCurveProps) {
                     <div className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
                         현재 누적 손익
                     </div>
-                    <div className={`text-lg font-black ${summary.currentPnL >= 0 ? 'text-[#F04452]' : 'text-[#3182F6]'}`}>
+                    <div className={`text-lg font-black ${summary.currentPnL >= 0 ? 'text-[color:var(--color-up)]' : 'text-[color:var(--color-down)]'}`}>
                         {summary.currentPnL >= 0 ? '+' : ''}{formatNumber(summary.currentPnL)}
                     </div>
                 </div>
@@ -255,10 +261,10 @@ export function EquityCurve({ data, monthlyData, darkMode }: EquityCurveProps) {
                         최대 낙폭
                     </div>
                     <div className="flex items-baseline gap-1">
-                        <span className="text-lg font-black text-[#3182F6]">
+                        <span className="text-lg font-black text-[color:var(--color-down)]">
                             {formatNumber(summary.maxDrawdown)}
                         </span>
-                        <span className="text-xs text-[#3182F6]">
+                        <span className="text-xs text-[color:var(--color-down)]">
                             ({summary.maxDrawdownPercent.toFixed(1)}%)
                         </span>
                     </div>
@@ -271,12 +277,12 @@ export function EquityCurve({ data, monthlyData, darkMode }: EquityCurveProps) {
                     <ComposedChart data={filteredData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                         <defs>
                             <linearGradient id="equityGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#F04452" stopOpacity={0.3} />
-                                <stop offset="95%" stopColor="#F04452" stopOpacity={0} />
+                                <stop offset="5%" stopColor={CHART_COLORS.up} stopOpacity={0.3} />
+                                <stop offset="95%" stopColor={CHART_COLORS.up} stopOpacity={0} />
                             </linearGradient>
                             <linearGradient id="drawdownGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#3182F6" stopOpacity={0} />
-                                <stop offset="95%" stopColor="#3182F6" stopOpacity={0.3} />
+                                <stop offset="5%" stopColor={CHART_COLORS.down} stopOpacity={0} />
+                                <stop offset="95%" stopColor={CHART_COLORS.down} stopOpacity={0.3} />
                             </linearGradient>
                         </defs>
                         <CartesianGrid
@@ -308,7 +314,7 @@ export function EquityCurve({ data, monthlyData, darkMode }: EquityCurveProps) {
                         <Area
                             type="monotone"
                             dataKey="cumulativePnL"
-                            stroke="#F04452"
+                            stroke={CHART_COLORS.up}
                             strokeWidth={2}
                             fill="url(#equityGradient)"
                             animationDuration={300}
@@ -319,7 +325,7 @@ export function EquityCurve({ data, monthlyData, darkMode }: EquityCurveProps) {
                             <Area
                                 type="monotone"
                                 dataKey="drawdown"
-                                stroke="#3182F6"
+                                stroke={CHART_COLORS.down}
                                 strokeWidth={1}
                                 fill="url(#drawdownGradient)"
                                 strokeDasharray="3 3"

@@ -10,7 +10,7 @@ function cn(...inputs: ClassValue[]) {
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "primary" | "secondary" | "ghost" | "destructive";
-  size?: "lg" | "md" | "sm";
+  size?: "lg" | "md" | "sm" | "xs";
   fullWidth?: boolean;
   loading?: boolean;
   children: React.ReactNode;
@@ -39,6 +39,7 @@ export function Button({
     lg: "h-[56px] px-6 text-lg",
     md: "h-[48px] px-5 text-base",
     sm: "h-[36px] px-3 text-sm",
+    xs: "h-[28px] px-2.5 text-xs",
   };
 
   return (

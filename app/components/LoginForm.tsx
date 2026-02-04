@@ -2,7 +2,7 @@
 
 import React, { useState, FormEvent } from 'react';
 import { supabase } from '@/app/lib/supabaseClient';
-import { Mail, Lock, ArrowRight, KeyRound, UserPlus, LogIn } from 'lucide-react';
+import { Mail, Lock, ArrowRight, KeyRound, UserPlus, LogIn, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 interface LoginFormProps {
     onDone?: () => void;
@@ -396,7 +396,7 @@ export function LoginForm({ onDone, darkMode = false }: LoginFormProps) {
                             ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                             : 'bg-emerald-50 text-emerald-600 border border-emerald-100'
                         }`}>
-                        <span className="text-lg">{msgType === 'error' ? '⚠️' : '✅'}</span>
+                        <span className="flex-shrink-0">{msgType === 'error' ? <AlertTriangle size={18} /> : <CheckCircle2 size={18} />}</span>
                         <p className="flex-1 leading-relaxed">{msg}</p>
                     </div>
                 )}

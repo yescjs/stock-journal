@@ -36,6 +36,8 @@ import { MarketDiaryView } from '@/app/components/views/MarketDiaryView';
 import { UserGuide } from '@/app/components/UserGuide';
 
 // Styles & Icons
+import { BarChart3, AlertTriangle, PenLine } from 'lucide-react';
+
 const THEME_KEY = 'stock-journal-theme-v1';
 const OPEN_MONTHS_KEY = 'stock-journal-open-months-v1';
 
@@ -192,7 +194,7 @@ export default function Home() {
             <div className="relative">
                 <div className="absolute inset-0 bg-indigo-500 blur-lg opacity-20 rounded-full animate-pulse"></div>
                 <div className="relative w-16 h-16 rounded-2xl flex items-center justify-center bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-600 shadow-xl">
-                    <span className="text-white text-2xl animate-pulse">📊</span>
+                    <BarChart3 size={28} className="text-white animate-pulse" />
                 </div>
             </div>
             <p className="mt-4 text-slate-500 text-sm font-medium animate-pulse">불러오는 중...</p>
@@ -253,7 +255,7 @@ export default function Home() {
             {authError && (
                 <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-xl shadow-lg text-sm font-bold animate-in fade-in slide-in-from-top-4 bg-rose-500 text-white max-w-md">
                     <div className="flex items-center gap-2">
-                        <span>⚠️</span>
+                        <AlertTriangle size={18} />
                         <span>{authError}</span>
                     </div>
                 </div>
@@ -366,7 +368,7 @@ export default function Home() {
                                 {/* Trade Form */}
                                 <div ref={addFormRef} className={`rounded-xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
                                     <div className={`px-3 py-2 border-b font-bold text-xs flex items-center gap-2 ${darkMode ? 'border-slate-800 bg-slate-800/50' : 'border-slate-100 bg-slate-50'}`}>
-                                        <span>✍️</span> 매매 기록 작성
+                                        <PenLine size={16} /> 매매 기록 작성
                                     </div>
                                     <div className="p-3">
                                         <TradeForm
