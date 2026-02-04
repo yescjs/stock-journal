@@ -27,14 +27,11 @@ export function Header({
     onShowGuide,
 }: HeaderProps) {
     const tabs: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
-        { id: 'journal', label: '??????', icon: <FileText size={18} /> },
-        { id: 'diary', label: '??????', icon: <BookOpen size={18} /> },
-        { id: 'reports', label: 'AI ???', icon: <TrendingUp size={18} /> },
-        { id: 'stats', label: '???', icon: <BarChart3 size={18} /> },
-        { id: 'settings', label: '???', icon: <Settings size={18} /> },
-    ];
-
-
+        { id: 'journal', label: '매매일지', icon: <FileText size={18} /> },
+        { id: 'diary', label: '시장복기', icon: <BookOpen size={18} /> },
+        { id: 'reports', label: 'AI 일보', icon: <TrendingUp size={18} /> },
+        { id: 'stats', label: '통계', icon: <BarChart3 size={18} /> },
+        { id: 'settings', label: '설정', icon: <Settings size={18} /> },
     ];
 
     return (

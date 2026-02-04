@@ -208,9 +208,6 @@ export default function Home() {
                 <div className="relative w-14 h-14 rounded-2xl flex items-center justify-center bg-primary shadow-toss-md">
                     <BarChart3 size={24} className="text-primary-foreground animate-pulse" />
                 </div>
-
-
-                </div>
             </div>
             <p className="mt-4 text-muted-foreground text-sm font-medium">불러오는 중...</p>
         </div>
