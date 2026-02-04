@@ -16,13 +16,15 @@ interface StockChartProps {
     trades?: Trade[];
     compact?: boolean;
     onCurrentPriceLoad?: (price: number) => void;
+    period?: ChartPeriod;
+    onPeriodChange?: (period: ChartPeriod) => void;
 }
 
 const PERIOD_OPTIONS: Array<{ label: string; value: ChartPeriod }> = [
     { label: '1개월', value: '1mo' },
     { label: '3개월', value: '3mo' },
     { label: '1년', value: '1y' },
-    { label: '3년', value: '3y' as ChartPeriod },
+    { label: '3년', value: '3y' },
 ];
 
 // 이동평균 계산 함수
@@ -34,12 +36,20 @@ function calculateMA(data: StockChartData[], period: number): (number | null)[] 
     });
 }
 
-export function StockChart({ symbol, darkMode, trades = [], compact = false, onCurrentPriceLoad }: StockChartProps) {
-    const [period, setPeriod] = useState<ChartPeriod>('1y');
+export function StockChart({ symbol, darkMode, trades = [], compact = false, onCurrentPriceLoad, period: periodProp, onPeriodChange }: StockChartProps) {
+    const [internalPeriod, setInternalPeriod] = useState<ChartPeriod>(periodProp ?? '1y');
     const [chartData, setChartData] = useState<StockChartData[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [showMA, setShowMA] = useState({ ma5: true, ma20: true, ma60: true });
+
+    const period = periodProp ?? internalPeriod;
+
+    useEffect(() => {
+        if (periodProp) {
+            setInternalPeriod(periodProp);
+        }
+    }, [periodProp]);
 
     useEffect(() => {
         loadChartData();
@@ -416,7 +426,10 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
                     {PERIOD_OPTIONS.map((option) => (
                         <button
                             key={option.value}
-                            onClick={() => setPeriod(option.value)}
+                            onClick={() => {
+                                if (!periodProp) setInternalPeriod(option.value);
+                                if (onPeriodChange) onPeriodChange(option.value);
+                            }}
                             className={`px-2 py-1 rounded text-[10px] font-bold transition-all ${period === option.value
                                 ? 'bg-indigo-600 text-white shadow-sm'
                                 : darkMode

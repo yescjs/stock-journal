@@ -3,7 +3,10 @@ import { Trade } from '@/app/types/trade';
 import { formatNumber, formatQuantity, isKRWSymbol } from '@/app/utils/format';
 import { TrendingUp, TrendingDown, DollarSign, Activity, BarChart2 } from 'lucide-react';
 import { StockChart } from '@/app/components/charts/StockChart';
+import { StockAnalysisCard } from '@/app/components/charts/StockAnalysisCard';
 import { TradeList } from '@/app/components/TradeList';
+import { useStockAnalysis } from '@/app/hooks/useStockAnalysis';
+import { ChartPeriod } from '@/app/types/stock';
 
 interface SymbolDetailCardProps {
     symbol: string;
@@ -18,6 +21,7 @@ interface SymbolDetailCardProps {
 export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, onClose, darkMode, exchangeRate, showConverted }: SymbolDetailCardProps) {
     const [dynamicPrice, setDynamicPrice] = useState<number | undefined>(initialPrice);
     const [openMonths, setOpenMonths] = useState<Record<string, boolean>>({});
+    const [analysisPeriod, setAnalysisPeriod] = useState<ChartPeriod>('1y');
 
     useEffect(() => {
         if (initialPrice) {
@@ -36,6 +40,7 @@ export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, o
     const currencyUnit = isKRW || shouldConvert ? '원' : '$';
 
     const displayedPrice = dynamicPrice ? dynamicPrice * activeExchangeRate : undefined;
+    const analysis = useStockAnalysis(symbol, analysisPeriod);
 
     // ... stats calculation code ...
     const stats = useMemo(() => {
@@ -169,6 +174,15 @@ export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, o
                         trades={trades}
                         compact={true}
                         onCurrentPriceLoad={(price) => setDynamicPrice(price)}
+                        period={analysisPeriod}
+                        onPeriodChange={setAnalysisPeriod}
+                    />
+                    <StockAnalysisCard
+                        analysis={analysis.data}
+                        loading={analysis.loading}
+                        error={analysis.error}
+                        darkMode={darkMode}
+                        currentPrice={displayedPrice}
                     />
                     <div className="px-2 pb-2">
                          <TradeList
