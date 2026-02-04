@@ -1,6 +1,6 @@
 # Implementation Plan: UI/UX 전면 개편 (토스 스타일)
 
-## Phase 1: 디자인 시스템 및 기초 설정 (Design System & Foundation)
+## Phase 1: 디자인 시스템 및 기초 설정 (Design System & Foundation) [checkpoint: 98e5c2d]
 - [x] Task: 전역 타이포그래피 및 컬러 팔레트 설정
     - [x] Pretendard 등 산세리프 폰트 설치 및 tailwind 설정 업데이트
     - [x] `tailwind.config.ts`에 Toss Blue 및 단계별 그레이 스케일 컬러 정의
