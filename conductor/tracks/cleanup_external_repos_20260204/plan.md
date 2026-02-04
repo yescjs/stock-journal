@@ -14,6 +14,6 @@
 ## Phase 2: 안전한 삭제 수행
 사용자의 최종 승인 후 폴더를 삭제하고 프로젝트 상태를 점검합니다.
 
-- [ ] Task: 대상 폴더 4개 삭제 실행
-- [ ] Task: 삭제 후 프로젝트 빌드 및 실행 테스트 (영향도 확인)
-- [ ] Task: Conductor - User Manual Verification 'Phase 2' (Protocol in workflow.md)
+- [x] Task: 대상 폴더 4개 삭제 실행
+- [x] Task: 삭제 후 프로젝트 빌드 및 실행 테스트 (영향도 확인)
+- [~] Task: Conductor - User Manual Verification 'Phase 2' (Protocol in workflow.md)
