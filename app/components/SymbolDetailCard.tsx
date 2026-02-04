@@ -20,7 +20,9 @@ export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, o
     const [openMonths, setOpenMonths] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
-        if (initialPrice) setDynamicPrice(initialPrice);
+        if (initialPrice) {
+            setTimeout(() => setDynamicPrice(initialPrice), 0);
+        }
     }, [initialPrice]);
 
     const stockTrades = useMemo(() => {
@@ -169,15 +171,14 @@ export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, o
                         onCurrentPriceLoad={(price) => setDynamicPrice(price)}
                     />
                     <div className="px-2 pb-2">
-                        <TradeList
-                            trades={stockTrades}
-                            currentUser={null} // Read-only
-                            toggleMonth={(key) => setOpenMonths(prev => ({ ...prev, [key]: !prev[key] }))}
-                            darkMode={darkMode}
-                            exchangeRate={exchangeRate}
-                            showConverted={showConverted}
-                            openMonths={openMonths}
-                        />
+                         <TradeList
+                             trades={stockTrades}
+                             toggleMonth={(key) => setOpenMonths(prev => ({ ...prev, [key]: !prev[key] }))}
+                             darkMode={darkMode}
+                             exchangeRate={exchangeRate}
+                             showConverted={showConverted}
+                             openMonths={openMonths}
+                         />
 
                     </div>
                 </div>
@@ -187,7 +188,17 @@ export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, o
 }
 
 
-function StatItem({ label, value, icon, valueClass, colorClass, bgClass, darkMode }: any) {
+interface StatItemProps {
+    label: string;
+    value: string | number;
+    icon: React.ReactNode;
+    valueClass?: string;
+    colorClass: string;
+    bgClass: string;
+    darkMode: boolean;
+}
+
+function StatItem({ label, value, icon, valueClass, colorClass, bgClass, darkMode }: StatItemProps) {
     return (
         <div className={`
             p-4 rounded-2xl border transition-all flex flex-col justify-between

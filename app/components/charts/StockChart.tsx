@@ -114,9 +114,9 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
                 onCurrentPriceLoad(latestPrice);
             }
 
-        } catch (err: any) {
-            // console.warn('Chart loading error:', err);
-            setError(err.message || '차트 데이터를 불러올 수 없습니다');
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : '차트 데이터를 불러올 수 없습니다';
+            setError(errorMessage);
             setChartData([]);
         } finally {
             setLoading(false);
@@ -124,8 +124,16 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
     };
 
     // Candlestick Shape using range data [low, high]
-    const Candlestick = (props: any) => {
-        const { x, y, width, height, payload } = props;
+    interface CandlestickProps {
+        x?: number;
+        y?: number;
+        width?: number;
+        height?: number;
+        payload?: StockChartData;
+    }
+
+    const Candlestick = (props: CandlestickProps) => {
+        const { x = 0, y = 0, width = 0, height = 0, payload } = props;
 
         if (!payload || payload.open == null || payload.close == null || payload.high == null || payload.low == null) {
             return null;
@@ -182,8 +190,17 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
     };
 
     // 매수/매도 마커 커스텀 셰이프
-    const TradeMarker = (props: any) => {
-        const { cx, cy, payload } = props;
+    interface TradeMarkerProps {
+        cx?: number;
+        cy?: number;
+        payload?: {
+            markerSide?: string;
+            markerPrice?: number;
+        };
+    }
+
+    const TradeMarker = (props: TradeMarkerProps) => {
+        const { cx = 0, cy = 0, payload } = props;
         if (!payload || !payload.markerSide || !payload.markerPrice) return null;
 
         const isBuy = payload.markerSide === 'BUY';
@@ -202,7 +219,18 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
     };
 
     // Custom Tooltip
-    const CustomTooltip = ({ active, payload }: any) => {
+    interface CustomTooltipProps {
+        active?: boolean;
+        payload?: Array<{
+            payload: StockChartData & {
+                markerSide?: string;
+                markerPrice?: number;
+                markerQty?: number;
+            };
+        }>;
+    }
+
+    const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
         if (!active || !payload || !payload[0]) return null;
 
         const data = payload[0].payload;
@@ -236,7 +264,7 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
                 </div>
 
                 {/* 매수/매도 거래 정보 */}
-                {markerSide && (
+                {markerSide && markerPrice != null && (
                     <div className={`mt-1.5 pt-1.5 border-t ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
                         <div className={`font-bold ${markerSide === 'BUY' ? 'text-rose-500' : 'text-blue-500'}`}>
                             {markerSide === 'BUY' ? '▲ 매수' : '▼ 매도'} {formatNumber(markerPrice)}원

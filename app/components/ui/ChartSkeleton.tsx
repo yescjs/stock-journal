@@ -40,7 +40,8 @@ export function ChartSkeleton({ darkMode, compact = false }: ChartSkeletonProps)
                     {/* Simulated Bars/Candles */}
                     <div className="absolute inset-0 flex items-end justify-around px-2 pb-2 opacity-50">
                         {[...Array(12)].map((_, i) => {
-                            const height = Math.random() * 60 + 20 + '%';
+                            // Use deterministic height based on index instead of random to avoid hydration mismatch
+                            const height = (30 + (i * 7 * 13) % 50) + '%';
                             return (
                                 <div
                                     key={i}

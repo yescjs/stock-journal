@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, isSameMonth, isSameDay, getDay } from 'date-fns';
-import { ko } from 'date-fns/locale';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, getDay, isSameMonth } from 'date-fns';
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 
 interface DatePickerProps {
@@ -12,13 +11,26 @@ interface DatePickerProps {
 
 export function DatePicker({ selectedDate, onChange, darkMode, className = '' }: DatePickerProps) {
     const [isOpen, setIsOpen] = useState(false);
-    const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate));
+    const selectedDateObj = useMemo(() => new Date(selectedDate), [selectedDate]);
+    // Derive currentMonth from selectedDate for sync
+    const derivedMonth = useMemo(() => {
+        return new Date(selectedDateObj.getFullYear(), selectedDateObj.getMonth(), 1);
+    }, [selectedDateObj]);
+    const [currentMonthOffset, setCurrentMonthOffset] = useState(0);
+    const currentMonth = useMemo(() => {
+        const result = new Date(derivedMonth);
+        result.setMonth(result.getMonth() + currentMonthOffset);
+        return result;
+    }, [derivedMonth, currentMonthOffset]);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    // Sync currentMonth if selectedDate changes externally
+    // Reset offset when selectedDate changes to a different month
     useEffect(() => {
-        setCurrentMonth(new Date(selectedDate));
-    }, [selectedDate]);
+        const newDate = new Date(selectedDate);
+        if (!isSameMonth(newDate, currentMonth)) {
+            setTimeout(() => setCurrentMonthOffset(0), 0);
+        }
+    }, [selectedDate, currentMonth]);
 
     // Close on click outside
     useEffect(() => {
@@ -55,8 +67,8 @@ export function DatePicker({ selectedDate, onChange, darkMode, className = '' }:
         setIsOpen(false);
     };
 
-    const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
-    const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
+    const nextMonth = () => setCurrentMonthOffset(prev => prev + 1);
+    const prevMonth = () => setCurrentMonthOffset(prev => prev - 1);
 
     const displayDate = typeof selectedDate === 'string' ? new Date(selectedDate) : selectedDate;
     const formattedDate = format(displayDate, 'yyyy-MM-dd');
@@ -84,7 +96,9 @@ export function DatePicker({ selectedDate, onChange, darkMode, className = '' }:
             {/* Dropdown Calendar */}
             {isOpen && (
                 <div className={`
-                    absolute top-full left-0 mt-2 z-50 p-4 rounded-2xl border shadow-xl animate-in fade-in zoom-in-95 w-[320px]
+                    absolute top-full mt-2 z-50 p-4 rounded-2xl border shadow-xl animate-in fade-in zoom-in-95 w-[320px]
+                    left-0 right-auto sm:left-0
+                    max-w-[calc(100vw-2rem)]
                     ${darkMode
                         ? 'bg-slate-900 border-slate-700'
                         : 'bg-white border-slate-200'}
@@ -126,8 +140,6 @@ export function DatePicker({ selectedDate, onChange, darkMode, className = '' }:
                             const isSelected = isSameDay(day, displayDate);
                             const isToday = isSameDay(day, new Date());
                             const dayNum = getDay(day);
-                            const isWeekend = dayNum === 0 || dayNum === 6;
-
                             return (
                                 <button
                                     key={day.toISOString()}

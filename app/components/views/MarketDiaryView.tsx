@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { MarketDiary } from '@/app/types/diary';
 import { useDiary } from '@/app/hooks/useDiary';
-import { BookOpen, Edit2, Trash2, Save, X, Smile, Frown, Meh, Activity, ArrowLeft } from 'lucide-react';
+import { Edit2, Trash2, Smile, Frown, Activity, ArrowLeft, PenLine } from 'lucide-react';
 import { DiaryCalendar } from '@/app/components/DiaryCalendar';
-import { parseISO } from 'date-fns';
+import { Button } from '@/app/components/ui/Button';
+import { Input } from '@/app/components/ui/Input';
+import { Card } from '@/app/components/ui/Card';
 
 import { Trade } from '@/app/types/trade';
 
@@ -19,11 +21,10 @@ type ViewMode = 'calendar' | 'detail' | 'edit';
 
 export function MarketDiaryView({
     darkMode,
-    currentUser,
     diaryData,
     trades
 }: MarketDiaryViewProps) {
-    const { diaries, saveDiary, deleteDiary, loading } = diaryData;
+    const { diaries, saveDiary, deleteDiary } = diaryData;
     const [viewMode, setViewMode] = useState<ViewMode>('calendar');
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
     const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
@@ -78,10 +79,11 @@ export function MarketDiaryView({
                 date: formData.date,
                 market_sentiment: formData.market_sentiment || 'neutral',
                 my_condition: formData.my_condition || 3
-            } as any);
+            } as MarketDiary);
             setViewMode('detail');
-        } catch (e: any) {
-            alert(`저장 실패: ${e.message || '알 수 없는 오류'}`);
+        } catch (e: unknown) {
+            const errorMessage = e instanceof Error ? e.message : '알 수 없는 오류';
+            alert(`저장 실패: ${errorMessage}`);
             console.error(e);
         }
     };
@@ -99,11 +101,12 @@ export function MarketDiaryView({
     };
 
     // --- Styles ---
+    // Toss Design System - Sentiment Colors
     const sentimentColors = {
-        bullish: 'text-rose-500 bg-rose-500/10',
-        bearish: 'text-blue-500 bg-blue-500/10',
-        neutral: 'text-slate-500 bg-slate-500/10',
-        volatile: 'text-amber-500 bg-amber-500/10'
+        bullish: 'text-color-up bg-color-up/10 border-color-up/30',
+        bearish: 'text-color-down bg-color-down/10 border-color-down/30',
+        neutral: 'text-muted-foreground bg-muted border-muted/30',
+        volatile: 'text-amber-600 bg-amber-500/10 border-amber-500/30'
     };
 
     const sentimentLabels = {
@@ -113,12 +116,8 @@ export function MarketDiaryView({
         volatile: '⚡ 변동성'
     };
 
-    const cardClass = `rounded-2xl border p-6 transition-all ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`;
-    const inputClass = `w-full px-4 py-2.5 rounded-xl border text-sm transition-all outline-none ${darkMode
-        ? 'bg-slate-800 border-slate-700 text-slate-100 placeholder-slate-500 focus:border-indigo-500'
-        : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-indigo-500'
-        }`;
-    const labelClass = `block text-xs font-bold uppercase tracking-wider mb-2 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`;
+    // Toss Design System - Label Class
+    const labelClass = "block text-xs font-semibold uppercase tracking-wide mb-2 text-muted-foreground";
 
 
     // --- Render ---
@@ -130,10 +129,10 @@ export function MarketDiaryView({
                     <div className="flex items-center justify-between mb-2">
                         <div>
                             <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-                                <span className="text-3xl">📖</span>
+                                <span className="text-2xl">📖</span>
                                 시장 복기
                             </h2>
-                            <p className={`mt-1 text-sm ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                            <p className="mt-1 text-sm text-muted-foreground">
                                 월별 흐름을 한눈에 파악하세요
                             </p>
                         </div>
@@ -153,26 +152,28 @@ export function MarketDiaryView({
             )}
 
             {(viewMode === 'detail' || viewMode === 'edit') && (
-                // Detail/Edit View Container
+                // Detail/Edit View Container - Toss Style
                 <div>
                     {/* Back Button Header */}
                     <div className="flex items-center gap-3 mb-6">
-                        <button
+                        <Button
                             onClick={handleBack}
-                            className={`p-2 rounded-xl transition-all ${darkMode ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-200'}`}
+                            variant="ghost"
+                            size="sm"
+                            className="p-2 h-auto aspect-square rounded-xl"
                         >
                             <ArrowLeft size={20} />
-                        </button>
-                        <h2 className="text-xl font-bold">
+                        </Button>
+                        <h2 className="text-xl font-bold text-foreground">
                             {selectedDate} 복기
                         </h2>
                     </div>
 
                     {viewMode === 'edit' ? (
                         // --- EDIT FORM ---
-                        <div className={cardClass}>
-                            <div className="flex items-center justify-between mb-6 pb-4 border-b border-dashed border-slate-700">
-                                <h3 className="font-bold text-lg">📝 일지 작성/수정</h3>
+                        <Card className="p-6">
+                            <div className="flex items-center justify-between mb-6 pb-4 border-b border-border/50">
+                                <h3 className="font-bold text-lg text-foreground">📝 일지 작성/수정</h3>
                             </div>
 
                             <div className="space-y-6">
@@ -184,10 +185,11 @@ export function MarketDiaryView({
                                             {(['bullish', 'bearish', 'neutral', 'volatile'] as const).map(s => (
                                                 <button
                                                     key={s}
+                                                    type="button"
                                                     onClick={() => setFormData({ ...formData, market_sentiment: s })}
-                                                    className={`py-2 rounded-xl text-xs font-bold transition-all border ${formData.market_sentiment === s
-                                                        ? 'border-transparent ring-2 ring-indigo-500 ' + sentimentColors[s]
-                                                        : (darkMode ? 'bg-slate-800 border-slate-700 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500')
+                                                    className={`py-2 rounded-xl text-xs font-semibold transition-all duration-150 border ${formData.market_sentiment === s
+                                                        ? 'ring-2 ring-primary ' + sentimentColors[s]
+                                                        : 'bg-muted/50 text-muted-foreground border-transparent hover:bg-muted'}
                                                         }`}
                                                 >
                                                     {sentimentLabels[s]}
@@ -202,9 +204,9 @@ export function MarketDiaryView({
                                             min="1" max="5"
                                             value={formData.my_condition || 3}
                                             onChange={(e) => setFormData({ ...formData, my_condition: Number(e.target.value) })}
-                                            className="w-full accent-indigo-500"
+                                            className="w-full accent-indigo-500 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer dark:bg-slate-700 mt-3"
                                         />
-                                        <div className="flex justify-between text-xs text-slate-500 mt-1 font-bold">
+                                        <div className="flex justify-between text-xs text-slate-500 mt-2 font-bold">
                                             <span>🤢 최악</span>
                                             <span>😐 보통</span>
                                             <span>🤩 최상</span>
@@ -214,25 +216,23 @@ export function MarketDiaryView({
 
                                 {/* Row 2: Market Issue */}
                                 <div>
-                                    <label className={labelClass}>오늘의 시장 이슈 / 주도 테마</label>
-                                    <input
+                                    <Input
+                                        label="오늘의 시장 이슈 / 주도 테마"
                                         type="text"
                                         value={formData.market_issue || ''}
                                         onChange={(e) => setFormData({ ...formData, market_issue: e.target.value })}
                                         placeholder="예: 반도체 섹터 강세, 금리 인상 발표..."
-                                        className={inputClass}
                                     />
                                 </div>
 
                                 {/* Row 3: Emotion */}
                                 <div>
-                                    <label className={labelClass}>나의 심리 상태</label>
-                                    <input
+                                    <Input
+                                        label="나의 심리 상태"
                                         type="text"
                                         value={formData.my_emotion || ''}
                                         onChange={(e) => setFormData({ ...formData, my_emotion: e.target.value })}
                                         placeholder="예: 뇌동매매 참음, 손실로 인한 분노..."
-                                        className={inputClass}
                                     />
                                 </div>
 
@@ -240,28 +240,31 @@ export function MarketDiaryView({
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div>
                                         <label className={labelClass + " text-emerald-500"}>잘한 점 (Good)</label>
-                                        <textarea
+                                        <Input
+                                            multiline
                                             value={formData.good_points || ''}
                                             onChange={(e) => setFormData({ ...formData, good_points: e.target.value })}
-                                            className={inputClass + " min-h-[120px] resize-none"}
+                                            className="min-h-[120px]"
                                             placeholder="원칙을 지킨 매매는?"
                                         />
                                     </div>
                                     <div>
                                         <label className={labelClass + " text-rose-500"}>잘못한 점 (Bad)</label>
-                                        <textarea
+                                        <Input
+                                            multiline
                                             value={formData.bad_points || ''}
                                             onChange={(e) => setFormData({ ...formData, bad_points: e.target.value })}
-                                            className={inputClass + " min-h-[120px] resize-none"}
+                                            className="min-h-[120px]"
                                             placeholder="뇌동/감정적 매매는?"
                                         />
                                     </div>
                                     <div>
                                         <label className={labelClass + " text-blue-500"}>개선할 점 (Improvement)</label>
-                                        <textarea
+                                        <Input
+                                            multiline
                                             value={formData.improvement || ''}
                                             onChange={(e) => setFormData({ ...formData, improvement: e.target.value })}
-                                            className={inputClass + " min-h-[120px] resize-none"}
+                                            className="min-h-[120px]"
                                             placeholder="내일의 다짐"
                                         />
                                     </div>
@@ -269,40 +272,45 @@ export function MarketDiaryView({
 
                                 {/* Actions */}
                                 <div className="flex justify-end gap-3 pt-4 border-t border-dashed border-slate-700">
-                                    <button
+                                    <Button
+                                        variant="ghost"
                                         onClick={handleBack}
-                                        className={`px-5 py-2.5 rounded-xl font-bold text-sm ${darkMode ? 'text-slate-400 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-100'}`}
                                     >
                                         취소
-                                    </button>
-                                    <button
+                                    </Button>
+                                    <Button
+                                        variant="primary"
                                         onClick={handleSave}
-                                        className="px-5 py-2.5 rounded-xl font-bold text-sm text-white bg-indigo-600 hover:bg-indigo-500 shadow-lg shadow-indigo-500/30 transition-all"
+                                        className="shadow-lg shadow-indigo-500/30"
                                     >
                                         저장하기
-                                    </button>
+                                    </Button>
                                 </div>
                             </div>
-                        </div>
+                        </Card>
                     ) : (
                         // --- DETAIL VIEW ---
-                        <div className={cardClass + " min-h-[400px] flex flex-col justify-center items-center text-center relative"}>
+                        <Card className="min-h-[400px] flex flex-col justify-center items-center text-center relative p-0">
                             {currentDiary ? (
-                                <div className="w-full h-full p-2 text-left">
+                                <div className="w-full h-full p-6 text-left">
                                     {/* Toolbar */}
                                     <div className="absolute top-6 right-6 flex gap-2">
-                                        <button
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
                                             onClick={handleEdit}
-                                            className={`p-2 rounded-lg transition-colors ${darkMode ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
+                                            className="h-9 w-9 p-0"
                                         >
                                             <Edit2 size={18} />
-                                        </button>
-                                        <button
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
                                             onClick={handleDelete}
-                                            className={`p-2 rounded-lg transition-colors ${darkMode ? 'hover:bg-rose-900/30 text-rose-500' : 'hover:bg-rose-50 text-rose-500'}`}
+                                            className="h-9 w-9 p-0 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20"
                                         >
                                             <Trash2 size={18} />
-                                        </button>
+                                        </Button>
                                     </div>
 
                                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-8">
@@ -310,7 +318,7 @@ export function MarketDiaryView({
                                         <div className="lg:col-span-4 space-y-6">
                                             <div>
                                                 <div className={labelClass}>시장 분위기</div>
-                                                <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold ${sentimentColors[currentDiary.market_sentiment]}`}>
+                                                <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold border ${sentimentColors[currentDiary.market_sentiment]}`}>
                                                     {sentimentLabels[currentDiary.market_sentiment]}
                                                 </div>
                                             </div>
@@ -334,7 +342,7 @@ export function MarketDiaryView({
                                             <div>
                                                 <div className={labelClass}>오늘의 감정</div>
                                                 <p className={`text-lg font-medium ${darkMode ? 'text-slate-200' : 'text-slate-700'}`}>
-                                                    "{currentDiary.my_emotion || '기록 없음'}"
+                                                    &quot;{currentDiary.my_emotion || '기록 없음'}&quot;
                                                 </p>
                                             </div>
                                         </div>
@@ -375,19 +383,21 @@ export function MarketDiaryView({
                                 // Empty State Detail
                                 <div className="py-12">
                                     <div className="mx-auto w-16 h-16 rounded-full bg-slate-800/50 flex items-center justify-center mb-4 text-3xl">
-                                        📝
+                                        <PenLine className="text-slate-400" size={32} />
                                     </div>
                                     <h3 className="text-xl font-bold mb-2">작성된 일지가 없습니다</h3>
                                     <p className="text-slate-500 mb-6">오늘 매매는 어떠셨나요? 복기를 남겨보세요.</p>
-                                    <button
+                                    <Button
                                         onClick={handleEdit}
-                                        className="px-6 py-3 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-lg shadow-indigo-600/20 transition-all transform hover:scale-105"
+                                        variant="primary"
+                                        size="lg"
+                                        className="shadow-lg shadow-indigo-600/20"
                                     >
                                         일지 작성하기
-                                    </button>
+                                    </Button>
                                 </div>
                             )}
-                        </div>
+                        </Card>
                     )}
                 </div>
             )}

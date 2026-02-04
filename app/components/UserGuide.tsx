@@ -50,7 +50,13 @@ export function UserGuide({ isOpen, onClose, darkMode }: UserGuideProps) {
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+            onClick={(e) => e.target === e.currentTarget && onClose()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="guide-title"
+        >
             <div className={`w-full max-w-md rounded-3xl overflow-hidden shadow-2xl transition-all ${darkMode ? 'bg-slate-900 border border-slate-700' : 'bg-white'}`}>
 
                 {/* Image Area */}
@@ -58,7 +64,8 @@ export function UserGuide({ isOpen, onClose, darkMode }: UserGuideProps) {
                     <img src={currentStep.image} alt="Guide" className="w-full h-full object-cover opacity-90 hover:scale-105 transition-transform duration-700" />
                     <button
                         onClick={onClose}
-                        className="absolute top-4 right-4 p-2 rounded-full bg-black/20 hover:bg-black/40 text-white transition-all backdrop-blur-md"
+                        aria-label="닫기"
+                        className="absolute top-4 right-4 p-2 rounded-full bg-black/20 hover:bg-black/40 text-white transition-all backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-white"
                     >
                         <X size={20} />
                     </button>
@@ -75,7 +82,7 @@ export function UserGuide({ isOpen, onClose, darkMode }: UserGuideProps) {
                         ))}
                     </div>
 
-                    <h3 className={`text-2xl font-black mb-3 ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                    <h3 id="guide-title" className={`text-2xl font-black mb-3 ${darkMode ? 'text-white' : 'text-slate-900'}`}>
                         {currentStep.title}
                     </h3>
                     <p className={`text-sm leading-relaxed mb-8 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>

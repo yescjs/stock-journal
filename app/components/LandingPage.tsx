@@ -7,9 +7,10 @@ import { ArrowRight, ChevronDown, Activity, Shield, TrendingUp } from 'lucide-re
 interface LandingPageProps {
     onStart: () => void;
     onStartAsGuest: () => void;
+    darkMode?: boolean;
 }
 
-export function LandingPage({ onStart, onStartAsGuest }: LandingPageProps) {
+export function LandingPage({ onStart, onStartAsGuest, darkMode = false }: LandingPageProps) {
     const scrollRef = useRef<HTMLDivElement>(null);
     const { scrollYProgress } = useScroll({ target: scrollRef });
 
@@ -18,17 +19,31 @@ export function LandingPage({ onStart, onStartAsGuest }: LandingPageProps) {
     const heroScale = useTransform(scrollYProgress, [0, 0.2], [1, 0.95]);
 
     return (
-        <div ref={scrollRef} className="min-h-screen bg-white text-slate-900 font-sans selection:bg-blue-100 overflow-x-hidden">
+        <div ref={scrollRef} className={`min-h-screen font-sans overflow-x-hidden transition-colors duration-300 ${
+            darkMode 
+                ? 'bg-slate-950 text-slate-100 selection:bg-blue-900/30' 
+                : 'bg-white text-slate-900 selection:bg-blue-100'
+        }`}>
 
             {/* Nav */}
-            <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-slate-100 transition-all">
+            <nav className={`fixed top-0 w-full z-50 backdrop-blur-md border-b transition-all ${
+                darkMode 
+                    ? 'bg-slate-950/80 border-slate-800' 
+                    : 'bg-white/80 border-slate-100'
+            }`}>
                 <div className="max-w-[1080px] mx-auto px-6 h-16 flex items-center justify-between">
-                    <div className="font-bold text-xl tracking-tighter text-slate-900 flex items-center gap-1.5">
+                    <div className={`font-bold text-xl tracking-tighter flex items-center gap-1.5 ${
+                        darkMode ? 'text-slate-100' : 'text-slate-900'
+                    }`}>
                         <span className="text-blue-600">Stock</span>Journal
                     </div>
                     <button
                         onClick={onStart}
-                        className="px-4 py-2 rounded-lg bg-blue-50 text-blue-600 font-bold text-sm hover:bg-blue-100 transition-colors"
+                        className={`px-4 py-2 rounded-lg font-bold text-sm transition-colors ${
+                            darkMode
+                                ? 'bg-blue-900/30 text-blue-400 hover:bg-blue-900/50'
+                                : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                        }`}
                     >
                         로그인
                     </button>
@@ -46,7 +61,9 @@ export function LandingPage({ onStart, onStartAsGuest }: LandingPageProps) {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8, ease: "easeOut" }}
                     >
-                        <h1 className="text-6xl md:text-[5.5rem] font-bold leading-[1.1] tracking-tighter mb-8 text-slate-900">
+                        <h1 className={`text-6xl md:text-[5.5rem] font-bold leading-[1.1] tracking-tighter mb-8 ${
+                            darkMode ? 'text-slate-100' : 'text-slate-900'
+                        }`}>
                             금융이 <br className="md:hidden" />
                             쉬워진다.
                         </h1>
@@ -56,7 +73,9 @@ export function LandingPage({ onStart, onStartAsGuest }: LandingPageProps) {
                         initial={{ opacity: 0, y: 40 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
-                        className="text-xl md:text-2xl text-slate-500 font-medium mb-12 leading-relaxed"
+                        className={`text-xl md:text-2xl font-medium mb-12 leading-relaxed ${
+                            darkMode ? 'text-slate-400' : 'text-slate-500'
+                        }`}
                     >
                         복잡한 주식 투자, <br className="md:hidden" />
                         이제 직관적인 매매일지로 시작하세요.
@@ -77,7 +96,11 @@ export function LandingPage({ onStart, onStartAsGuest }: LandingPageProps) {
                         </button>
                         <button
                             onClick={onStartAsGuest}
-                            className="inline-flex items-center gap-2 px-8 py-4 rounded-3xl bg-white text-slate-700 font-bold text-xl hover:bg-slate-50 transition-all border-2 border-slate-200 active:scale-95"
+                            className={`inline-flex items-center gap-2 px-8 py-4 rounded-3xl font-bold text-xl transition-all active:scale-95 border-2 ${
+                                darkMode
+                                    ? 'bg-slate-900 text-slate-300 hover:bg-slate-800 border-slate-700'
+                                    : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'
+                            }`}
                         >
                             게스트로 둘러보기
                         </button>
@@ -111,30 +134,38 @@ export function LandingPage({ onStart, onStartAsGuest }: LandingPageProps) {
             </section>
 
             {/* Feature 1: Analytics */}
-            <section className="py-32 px-6 bg-slate-50">
+            <section className={`py-32 px-6 transition-colors ${darkMode ? 'bg-slate-900' : 'bg-slate-50'}`}>
                 <div className="max-w-[1080px] mx-auto grid grid-cols-1 md:grid-cols-2 gap-20 items-center">
                     <ScrollAnimationWrapper>
-                        <h2 className="text-4xl md:text-6xl font-bold leading-tight mb-6">
+                        <h2 className={`text-4xl md:text-6xl font-bold leading-tight mb-6 ${darkMode ? 'text-slate-100' : ''}`}>
                             내 자산의 흐름, <br />
                             <span className="text-blue-600">한눈에 파악</span>
                         </h2>
-                        <p className="text-xl text-slate-500 leading-relaxed font-medium">
+                        <p className={`text-xl leading-relaxed font-medium ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                             매일매일 변하는 승률과 수익금을 <br />
                             실시간 차트로 확인하세요.
                         </p>
                     </ScrollAnimationWrapper>
                     <ScrollAnimationWrapper delay={0.2} className="relative">
-                        <div className="bg-white rounded-[2.5rem] p-8 shadow-2xl shadow-slate-200/50 border border-slate-100 rotate-2 hover:rotate-0 transition-transform duration-500">
+                        <div className={`rounded-[2.5rem] p-8 shadow-2xl border rotate-2 hover:rotate-0 transition-transform duration-500 ${
+                            darkMode 
+                                ? 'bg-slate-800 border-slate-700 shadow-black/20' 
+                                : 'bg-white border-slate-100 shadow-slate-200/50'
+                        }`}>
                             <div className="flex items-center gap-4 mb-6">
-                                <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600">
+                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
+                                    darkMode ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-50 text-blue-600'
+                                }`}>
                                     <TrendingUp size={24} />
                                 </div>
                                 <div>
-                                    <div className="text-sm font-bold text-slate-400">이번 달 수익률</div>
-                                    <div className="text-2xl font-black text-slate-900">+24.5%</div>
+                                    <div className={`text-sm font-bold ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>이번 달 수익률</div>
+                                    <div className={`text-2xl font-black ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>+24.5%</div>
                                 </div>
                             </div>
-                            <div className="h-32 bg-slate-50 rounded-2xl flex items-end justify-between p-4 px-6 gap-2">
+                            <div className={`h-32 rounded-2xl flex items-end justify-between p-4 px-6 gap-2 ${
+                                darkMode ? 'bg-slate-900/50' : 'bg-slate-50'
+                            }`}>
                                 {[40, 60, 45, 70, 85, 65, 90].map((h, i) => (
                                     <div key={i} className="w-full bg-blue-500 rounded-t-lg opacity-80" style={{ height: `${h}%` }}></div>
                                 ))}
@@ -145,30 +176,44 @@ export function LandingPage({ onStart, onStartAsGuest }: LandingPageProps) {
             </section>
 
             {/* Feature 2: Risk Management */}
-            <section className="py-32 px-6 bg-white overflow-hidden">
+            <section className={`py-32 px-6 overflow-hidden transition-colors ${darkMode ? 'bg-slate-950' : 'bg-white'}`}>
                 <div className="max-w-[1080px] mx-auto grid grid-cols-1 md:grid-cols-2 gap-20 items-center">
                     <ScrollAnimationWrapper className="order-2 md:order-1 relative">
                         {/* Blob */}
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-rose-50 rounded-full blur-3xl z-0" />
+                        <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] rounded-full blur-3xl z-0 ${
+                            darkMode ? 'bg-rose-900/20' : 'bg-rose-50'
+                        }`} />
 
-                        <div className="relative z-10 bg-white rounded-[2.5rem] p-10 shadow-2xl shadow-slate-200/50 border border-slate-100 flex flex-col gap-6 max-w-sm mx-auto md:mr-auto">
-                            <div className="flex items-center gap-4 p-4 rounded-2xl bg-rose-50 border border-rose-100">
+                        <div className={`relative z-10 rounded-[2.5rem] p-10 shadow-2xl border flex flex-col gap-6 max-w-sm mx-auto md:mr-auto ${
+                            darkMode 
+                                ? 'bg-slate-900 border-slate-800 shadow-black/20' 
+                                : 'bg-white border-slate-100 shadow-slate-200/50'
+                        }`}>
+                            <div className={`flex items-center gap-4 p-4 rounded-2xl border ${
+                                darkMode 
+                                    ? 'bg-rose-900/20 border-rose-900/30' 
+                                    : 'bg-rose-50 border-rose-100'
+                            }`}>
                                 <Activity className="text-rose-500" />
-                                <span className="font-bold text-rose-600">손실 한도 도달 알림</span>
+                                <span className={`font-bold ${darkMode ? 'text-rose-400' : 'text-rose-600'}`}>손실 한도 도달 알림</span>
                             </div>
-                            <div className="flex items-center gap-4 p-4 rounded-2xl bg-emerald-50 border border-emerald-100">
+                            <div className={`flex items-center gap-4 p-4 rounded-2xl border ${
+                                darkMode 
+                                    ? 'bg-emerald-900/20 border-emerald-900/30' 
+                                    : 'bg-emerald-50 border-emerald-100'
+                            }`}>
                                 <Shield className="text-emerald-500" />
-                                <span className="font-bold text-emerald-600">원칙 준수 성공</span>
+                                <span className={`font-bold ${darkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>원칙 준수 성공</span>
                             </div>
                         </div>
                     </ScrollAnimationWrapper>
 
                     <ScrollAnimationWrapper delay={0.2} className="order-1 md:order-2">
-                        <h2 className="text-4xl md:text-6xl font-bold leading-tight mb-6">
+                        <h2 className={`text-4xl md:text-6xl font-bold leading-tight mb-6 ${darkMode ? 'text-slate-100' : ''}`}>
                             리스크는 막고, <br />
                             <span className="text-rose-500">원칙은 지키고</span>
                         </h2>
-                        <p className="text-xl text-slate-500 leading-relaxed font-medium">
+                        <p className={`text-xl leading-relaxed font-medium ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                             뇌동매매를 방지하는 리스크 관리 시스템으로 <br />
                             계좌를 안전하게 보호하세요.
                         </p>
@@ -194,9 +239,11 @@ export function LandingPage({ onStart, onStartAsGuest }: LandingPageProps) {
 
 
             {/* CTA */}
-            <section className="py-40 px-6 bg-slate-50 text-center">
+            <section className={`py-40 px-6 text-center transition-colors ${darkMode ? 'bg-slate-900' : 'bg-slate-50'}`}>
                 <ScrollAnimationWrapper>
-                    <h2 className="text-5xl md:text-7xl font-bold tracking-tighter text-slate-900 mb-10">
+                    <h2 className={`text-5xl md:text-7xl font-bold tracking-tighter mb-10 ${
+                        darkMode ? 'text-slate-100' : 'text-slate-900'
+                    }`}>
                         이제, 기록할 시간입니다.
                     </h2>
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
@@ -208,20 +255,28 @@ export function LandingPage({ onStart, onStartAsGuest }: LandingPageProps) {
                         </button>
                         <button
                             onClick={onStartAsGuest}
-                            className="inline-flex items-center justify-center px-10 py-5 rounded-3xl bg-white text-slate-700 font-bold text-2xl hover:bg-slate-50 transition-all border-2 border-slate-200 active:scale-95"
+                            className={`inline-flex items-center justify-center px-10 py-5 rounded-3xl font-bold text-2xl transition-all border-2 active:scale-95 ${
+                                darkMode
+                                    ? 'bg-slate-900 text-slate-300 hover:bg-slate-800 border-slate-700'
+                                    : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'
+                            }`}
                         >
                             게스트로 둘러보기
                         </button>
                     </div>
-                    <p className="mt-6 text-slate-500 font-medium">
+                    <p className={`mt-6 font-medium ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                         로그인 없이도 바로 시작할 수 있습니다.
                     </p>
                 </ScrollAnimationWrapper>
             </section>
 
-            <footer className="py-12 text-center text-slate-400 text-sm bg-white border-t border-slate-100">
+            <footer className={`py-12 text-center text-sm border-t transition-colors ${
+                darkMode 
+                    ? 'bg-slate-950 text-slate-500 border-slate-800' 
+                    : 'bg-white text-slate-400 border-slate-100'
+            }`}>
                 <div className="max-w-[1080px] mx-auto px-6">
-                    © 2024 Stock Journal. All rights reserved.
+                    © {new Date().getFullYear()} Stock Journal. All rights reserved.
                 </div>
             </footer>
         </div>

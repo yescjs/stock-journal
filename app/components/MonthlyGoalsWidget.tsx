@@ -92,27 +92,24 @@ export function MonthlyGoalsWidget({
         setShowForm(true);
     };
 
-    // Style Classes reflecting Glassmorphism
-    const cardClass = `glass-card p-4 sm:p-6 rounded-3xl max-w-full ${darkMode ? 'bg-slate-900/40 border-slate-700/50' : 'bg-white/60 border-white/60 shadow-sm'}`;
-    const dateBadgeClass = `text-xs font-bold px-2.5 py-1 rounded-lg ${darkMode ? 'bg-slate-700/50 text-slate-300' : 'bg-indigo-50 text-indigo-600'}`;
-    const labelClass = `text-[10px] font-bold uppercase tracking-wider ${darkMode ? 'text-slate-500' : 'text-slate-400'}`;
-    const inputClass = `w-full px-4 py-2.5 text-sm font-medium rounded-xl outline-none transition-all ${darkMode
-        ? 'bg-slate-800/50 border border-slate-700 text-white placeholder-slate-500 focus:bg-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'
-        : 'bg-white/50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100'
-        }`;
+    // Toss Design System - Style Classes
+    const cardClass = `p-4 sm:p-6 rounded-2xl max-w-full bg-card border border-border/50 shadow-toss-sm`;
+    const dateBadgeClass = "text-xs font-semibold px-2.5 py-1 rounded-lg bg-primary/10 text-primary";
+    const labelClass = "text-[10px] font-semibold uppercase tracking-wide text-muted-foreground";
+    const inputClass = `w-full px-4 py-2.5 text-sm font-semibold rounded-xl outline-none transition-all duration-150 bg-muted/50 text-foreground placeholder:text-muted-foreground border border-border/50 focus:bg-background focus:border-primary focus:ring-1 focus:ring-primary/20`;
 
     return (
         <div className={cardClass + ' overflow-hidden'}>
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+            {/* Header - Toss Style */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                 <div>
                     <h3 className="text-xl font-bold flex items-center gap-2.5">
-                        <div className={`p-2 rounded-xl ${darkMode ? 'bg-violet-500/20 text-violet-300' : 'bg-violet-100 text-violet-600'}`}>
-                            <Target size={22} strokeWidth={2.5} />
+                        <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                            <Target size={20} strokeWidth={2} />
                         </div>
-                        <span className={darkMode ? 'text-slate-100' : 'text-slate-800'}>월별 목표</span>
+                        <span className="text-foreground">월별 목표</span>
                     </h3>
-                    <p className={`text-sm mt-1.5 ml-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                    <p className="text-sm mt-1.5 ml-1 text-muted-foreground">
                         수익 목표를 설정하고 달성률을 추적하세요
                     </p>
                 </div>
@@ -131,12 +128,10 @@ export function MonthlyGoalsWidget({
                         setShowForm(!showForm);
                     }}
                     className={`
-                        flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl transition-all btn-press
+                        flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl transition-all duration-150
                         ${showForm
-                            ? (darkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-600')
-                            : (darkMode
-                                ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/20'
-                                : 'bg-gradient-to-r from-violet-500 to-indigo-500 text-white shadow-lg shadow-violet-500/30')}
+                            ? 'bg-muted text-foreground'
+                            : 'bg-primary text-primary-foreground hover:bg-primary/90'}
                     `}
                 >
                     {showForm ? <X size={16} /> : <Plus size={16} />}
@@ -144,9 +139,9 @@ export function MonthlyGoalsWidget({
                 </button>
             </div>
 
-            {/* Form */}
+            {/* Form - Toss Style */}
             {showForm && (
-                <div className={`mb-8 p-6 rounded-2xl border transition-all animate-scale-in ${darkMode ? 'bg-slate-800/40 border-slate-700/50' : 'bg-white/60 border-indigo-100 shadow-inner'}`}>
+                <div className="mb-6 p-6 rounded-xl border border-border/50 bg-muted/20 transition-all animate-in fade-in">
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <div className="grid grid-cols-2 gap-5">
                             <div>
@@ -280,7 +275,7 @@ export function MonthlyGoalsWidget({
                                 <span className={dateBadgeClass}>
                                     {progress.month.split('-')[1]}월
                                 </span>
-                                {isCurrentMonth && <span className="ml-2 text-[10px] font-bold text-violet-500 animate-pulse">THIS MONTH</span>}
+                                {isCurrentMonth && <span className="ml-2 text-[10px] font-bold text-violet-500 animate-pulse">이번 달</span>}
                             </div>
 
                             {hasGoal ? (

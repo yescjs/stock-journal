@@ -42,22 +42,18 @@ export function RiskManagementWidget({
     const [withdrawalInput, setWithdrawalInput] = useState('0');
     const [saving, setSaving] = useState(false);
 
-    // Modern Styles
-    const cardClass = `glass-card p-6 rounded-3xl ${darkMode ? 'bg-slate-900/40 border-slate-700/50' : 'bg-white/60 border-white/60 shadow-sm'}`;
-    const labelClass = `text-[10px] font-bold uppercase tracking-wider ${darkMode ? 'text-slate-500' : 'text-slate-400'}`;
-    const inputClass = `w-full px-4 py-2.5 text-sm font-medium rounded-xl outline-none transition-all ${
-        darkMode
-            ? 'bg-slate-800/50 border border-slate-700 text-white placeholder-slate-500 focus:bg-slate-800 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500'
-            : 'bg-white/50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100'
-    }`;
-    
-    // Risk Level Styles
+    // Toss Design System - Style Classes
+    const cardClass = `p-6 rounded-2xl bg-card border border-border/50 shadow-toss-sm`;
+    const labelClass = "text-[10px] font-semibold uppercase tracking-wide text-muted-foreground";
+    const inputClass = `w-full px-4 py-2.5 text-sm font-semibold rounded-xl outline-none transition-all duration-150 bg-muted/50 text-foreground placeholder:text-muted-foreground border border-border/50 focus:bg-background focus:border-primary focus:ring-1 focus:ring-primary/20`;
+
+    // Toss Design System - Risk Level Colors
     const getRiskColor = (level: PositionRisk['riskLevel']) => {
         switch (level) {
-            case 'critical': return darkMode ? 'text-rose-400 bg-rose-500/20 border-rose-500/30' : 'text-rose-600 bg-rose-50 border-rose-200';
-            case 'high': return darkMode ? 'text-orange-400 bg-orange-500/20 border-orange-500/30' : 'text-orange-600 bg-orange-50 border-orange-200';
-            case 'medium': return darkMode ? 'text-amber-400 bg-amber-500/20 border-amber-500/30' : 'text-amber-600 bg-amber-50 border-amber-200';
-            default: return darkMode ? 'text-emerald-400 bg-emerald-500/20 border-emerald-500/30' : 'text-emerald-600 bg-emerald-50 border-emerald-200';
+            case 'critical': return 'text-destructive bg-destructive/10 border-destructive/30';
+            case 'high': return 'text-orange-600 bg-orange-500/10 border-orange-500/30';
+            case 'medium': return 'text-amber-600 bg-amber-500/10 border-amber-500/30';
+            default: return 'text-emerald-600 bg-emerald-500/10 border-emerald-500/30';
         }
     };
 
@@ -87,16 +83,16 @@ export function RiskManagementWidget({
 
     return (
         <div className={cardClass}>
-            {/* Header */}
+            {/* Header - Toss Style */}
             <div className="flex items-center justify-between mb-6">
                 <div>
                     <h3 className="text-xl font-bold flex items-center gap-2.5">
-                        <div className={`p-2 rounded-xl ${darkMode ? 'bg-cyan-500/20 text-cyan-300' : 'bg-cyan-100 text-cyan-600'}`}>
-                            <Shield size={22} strokeWidth={2.5} />
+                        <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                            <Shield size={22} strokeWidth={2} />
                         </div>
-                        <span className={darkMode ? 'text-slate-100' : 'text-slate-800'}>리스크 매니저</span>
+                        <span className="text-foreground">리스크 매니저</span>
                     </h3>
-                    <p className={`text-sm mt-1.5 ml-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                    <p className="text-sm mt-1.5 ml-1 text-muted-foreground">
                         자산을 보호하고 최적의 포지션을 유지하세요
                     </p>
                 </div>
@@ -166,9 +162,9 @@ export function RiskManagementWidget({
                 {/* Left: Account Overview */}
                 <div className={`rounded-2xl p-6 ${darkMode ? 'bg-slate-800/30' : 'bg-slate-50 border border-slate-100'}`}>
                     <div className="flex items-center justify-between mb-6">
-                        <span className={labelClass}>현재 총 자산 (EQUITY)</span>
+                        <span className={labelClass}>현재 총 자산</span>
                         <div className={`px-2 py-1 rounded text-[10px] font-bold ${darkMode ? 'bg-slate-700 text-slate-300' : 'bg-white text-slate-500 border border-slate-200'}`}>
-                            LAST SYNCED
+                            마지막 동기화
                         </div>
                     </div>
                     
@@ -245,7 +241,7 @@ export function RiskManagementWidget({
                     {/* Position Allocation */}
                     <div className={`flex-1 rounded-2xl p-6 ${darkMode ? 'bg-slate-800/30' : 'bg-slate-50 border border-slate-100'}`}>
                          <div className="flex items-center justify-between mb-4">
-                            <span className={labelClass}>포지션 비중 (POSITION SIZING)</span>
+                            <span className={labelClass}>포지션 비중</span>
                             <button onClick={() => setExpandedPositions(!expandedPositions)} className="text-xs font-bold text-cyan-500 hover:underline">
                                 {expandedPositions ? '접기' : '더 보기'}
                             </button>

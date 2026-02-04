@@ -24,11 +24,11 @@ export function useSupabaseAuth() {
                         setAuthError(null); // Clear any previous errors
                     }
                 }
-            } catch (error: any) {
+            } catch (error: unknown) {
                 console.error('Error getting session:', error);
 
                 // Enhanced JWT error handling
-                const errorMessage = error.message || '';
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
                 const isJWTError = errorMessage.includes('JWT') ||
                     errorMessage.includes('json') ||
                     errorMessage.includes('token') ||

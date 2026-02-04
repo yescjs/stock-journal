@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/app/lib/supabaseClient';
 import { Trade, TradeSide } from '@/app/types/trade';
@@ -33,7 +33,10 @@ export function useTrades(user: User | null) {
                     if (mounted) setError(`데이터 로딩 실패: ${errorMsg}`);
                 } else {
                     if (mounted) {
-                        const strategiesData = data as any[];
+                        interface TradeWithStrategy extends Trade {
+                            strategies?: { name: string };
+                        }
+                        const strategiesData = data as TradeWithStrategy[];
                         const mappedTrades = strategiesData.map(t => ({
                             ...t,
                             strategy_name: t.strategies?.name,

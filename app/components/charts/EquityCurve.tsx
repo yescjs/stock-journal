@@ -3,7 +3,6 @@
 import React, { useMemo, useState } from 'react';
 import {
     ComposedChart,
-    Line,
     Area,
     XAxis,
     YAxis,
@@ -14,7 +13,7 @@ import {
 } from 'recharts';
 import { EquityPoint } from '@/app/types/stats';
 import { formatNumber } from '@/app/utils/format';
-import { TrendingUp, TrendingDown, Activity } from 'lucide-react';
+import { TrendingUp, Activity } from 'lucide-react';
 
 interface EquityCurveProps {
     data: EquityPoint[]; // Daily data
@@ -32,6 +31,39 @@ const PERIOD_OPTIONS: Array<{ label: string; value: PeriodOption }> = [
     { label: '1년', value: '1y' },
     { label: '전체', value: 'all' },
 ];
+
+interface CustomTooltipProps {
+    active?: boolean;
+    payload?: Array<{ payload: EquityPoint }>;
+    showDrawdown: boolean;
+    darkMode: boolean;
+}
+
+const CustomTooltip = ({ active, payload, showDrawdown, darkMode }: CustomTooltipProps) => {
+    if (!active || !payload || payload.length === 0) return null;
+
+    const pt = payload[0].payload;
+
+    return (
+        <div className={`px-3 py-2 rounded-lg shadow-lg border text-xs ${darkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'}`}>
+            <div className="font-medium mb-1">{pt.date}</div>
+            <div className="flex items-center gap-2">
+                <span className="text-slate-500">누적 손익:</span>
+                <span className={pt.cumulativePnL >= 0 ? 'text-[#F04452] font-bold' : 'text-[#3182F6] font-bold'}>
+                    {pt.cumulativePnL >= 0 ? '+' : ''}{formatNumber(pt.cumulativePnL)}
+                </span>
+            </div>
+            {showDrawdown && pt.drawdown < 0 && (
+                <div className="flex items-center gap-2 mt-1">
+                    <span className="text-slate-500">낙폭:</span>
+                    <span className="text-[#3182F6] font-bold">
+                        {formatNumber(pt.drawdown)} ({pt.drawdownPercent.toFixed(1)}%)
+                    </span>
+                </div>
+            )}
+        </div>
+    );
+};
 
 export function EquityCurve({ data, monthlyData, darkMode }: EquityCurveProps) {
     const [period, setPeriod] = useState<PeriodOption>('all');
@@ -114,31 +146,7 @@ export function EquityCurve({ data, monthlyData, darkMode }: EquityCurveProps) {
         );
     }
 
-    const CustomTooltip = ({ active, payload }: any) => {
-        if (!active || !payload || payload.length === 0) return null;
 
-        const pt = payload[0].payload as EquityPoint;
-
-        return (
-            <div className={`px-3 py-2 rounded-lg shadow-lg border text-xs ${darkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'}`}>
-                <div className="font-medium mb-1">{pt.date}</div>
-                <div className="flex items-center gap-2">
-                    <span className="text-slate-500">누적 손익:</span>
-                    <span className={pt.cumulativePnL >= 0 ? 'text-emerald-500 font-bold' : 'text-rose-500 font-bold'}>
-                        {pt.cumulativePnL >= 0 ? '+' : ''}{formatNumber(pt.cumulativePnL)}
-                    </span>
-                </div>
-                {showDrawdown && pt.drawdown < 0 && (
-                    <div className="flex items-center gap-2 mt-1">
-                        <span className="text-slate-500">낙폭:</span>
-                        <span className="text-rose-500 font-bold">
-                            {formatNumber(pt.drawdown)} ({pt.drawdownPercent.toFixed(1)}%)
-                        </span>
-                    </div>
-                )}
-            </div>
-        );
-    };
 
     const formatYAxis = (value: number) => {
         if (Math.abs(value) >= 100000000) { // 1억 이상
@@ -230,7 +238,7 @@ export function EquityCurve({ data, monthlyData, darkMode }: EquityCurveProps) {
                     <div className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
                         현재 누적 손익
                     </div>
-                    <div className={`text-lg font-black ${summary.currentPnL >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                    <div className={`text-lg font-black ${summary.currentPnL >= 0 ? 'text-[#F04452]' : 'text-[#3182F6]'}`}>
                         {summary.currentPnL >= 0 ? '+' : ''}{formatNumber(summary.currentPnL)}
                     </div>
                 </div>
@@ -247,10 +255,10 @@ export function EquityCurve({ data, monthlyData, darkMode }: EquityCurveProps) {
                         최대 낙폭
                     </div>
                     <div className="flex items-baseline gap-1">
-                        <span className="text-lg font-black text-rose-500">
+                        <span className="text-lg font-black text-[#3182F6]">
                             {formatNumber(summary.maxDrawdown)}
                         </span>
-                        <span className="text-xs text-rose-400">
+                        <span className="text-xs text-[#3182F6]">
                             ({summary.maxDrawdownPercent.toFixed(1)}%)
                         </span>
                     </div>
@@ -263,12 +271,12 @@ export function EquityCurve({ data, monthlyData, darkMode }: EquityCurveProps) {
                     <ComposedChart data={filteredData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                         <defs>
                             <linearGradient id="equityGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                                <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                                <stop offset="5%" stopColor="#F04452" stopOpacity={0.3} />
+                                <stop offset="95%" stopColor="#F04452" stopOpacity={0} />
                             </linearGradient>
                             <linearGradient id="drawdownGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#ef4444" stopOpacity={0} />
-                                <stop offset="95%" stopColor="#ef4444" stopOpacity={0.3} />
+                                <stop offset="5%" stopColor="#3182F6" stopOpacity={0} />
+                                <stop offset="95%" stopColor="#3182F6" stopOpacity={0.3} />
                             </linearGradient>
                         </defs>
                         <CartesianGrid
@@ -292,14 +300,15 @@ export function EquityCurve({ data, monthlyData, darkMode }: EquityCurveProps) {
                             tickLine={false}
                             width={50}
                         />
-                        <Tooltip content={<CustomTooltip />} />
+                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                        <Tooltip content={(props: any) => <CustomTooltip {...props} showDrawdown={showDrawdown} darkMode={darkMode} />} />
                         <ReferenceLine y={0} stroke={darkMode ? '#475569' : '#cbd5e1'} strokeDasharray="3 3" />
 
                         {/* 에쿼티 커브 */}
                         <Area
                             type="monotone"
                             dataKey="cumulativePnL"
-                            stroke="#10b981"
+                            stroke="#F04452"
                             strokeWidth={2}
                             fill="url(#equityGradient)"
                             animationDuration={300}
@@ -310,7 +319,7 @@ export function EquityCurve({ data, monthlyData, darkMode }: EquityCurveProps) {
                             <Area
                                 type="monotone"
                                 dataKey="drawdown"
-                                stroke="#ef4444"
+                                stroke="#3182F6"
                                 strokeWidth={1}
                                 fill="url(#drawdownGradient)"
                                 strokeDasharray="3 3"
