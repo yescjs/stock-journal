@@ -26,6 +26,17 @@
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   
+  --color-grey-50: var(--grey-50);
+  --color-grey-100: var(--grey-100);
+  --color-grey-200: var(--grey-200);
+  --color-grey-300: var(--grey-300);
+  --color-grey-400: var(--grey-400);
+  --color-grey-500: var(--grey-500);
+  --color-grey-600: var(--grey-600);
+  --color-grey-700: var(--grey-700);
+  --color-grey-800: var(--grey-800);
+  --color-grey-900: var(--grey-900);
+  
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -50,33 +61,45 @@
   --popover-foreground: hsl(216 23% 13%);
 
   /* Primary - Toss Blue */
-  --primary: hsl(215 91% 58%); /* #3182F6 */
-  --primary-foreground: hsl(0 0% 100%);
+  --primary: #3182F6;
+  --primary-foreground: #FFFFFF;
+
+  /* Toss Gray Scale */
+  --grey-50: #F9FAFB;
+  --grey-100: #F2F4F6;
+  --grey-200: #E5E8EB;
+  --grey-300: #D1D6DB;
+  --grey-400: #B0B8C1;
+  --grey-500: #8B95A1;
+  --grey-600: #6B7684;
+  --grey-700: #4E5968;
+  --grey-800: #333D4B;
+  --grey-900: #191F28;
 
   /* Secondary */
-  --secondary: hsl(210 20% 96%); /* Same as bg for subtle buttons */
-  --secondary-foreground: hsl(216 23% 13%);
+  --secondary: var(--grey-100);
+  --secondary-foreground: var(--grey-800);
 
   /* Muted & Subtext */
-  --muted: hsl(210 14% 91%); /* #E5E8EB */
-  --muted-foreground: hsl(213 13% 59%); /* #8B95A1 */
+  --muted: var(--grey-100);
+  --muted-foreground: var(--grey-500);
 
   /* Accent */
-  --accent: hsl(210 20% 96%);
-  --accent-foreground: hsl(216 23% 13%);
+  --accent: var(--grey-100);
+  --accent-foreground: var(--grey-900);
 
   /* Destructive - Toss Red */
   --destructive: hsl(355 84% 60%); /* #F04452 */
   --destructive-foreground: hsl(0 0% 100%);
 
   /* Borders & Inputs */
-  --border: hsl(210 14% 91%); /* #E5E8EB */
-  --input: hsl(210 14% 91%);
-  --ring: hsl(215 91% 58%); /* Primary Blue */
+  --border: var(--grey-200);
+  --input: var(--grey-200);
+  --ring: var(--primary);
 
   /* Korean Stock Market Colors */
   --color-up: hsl(355 84% 60%); /* Red = UP */
-  --color-down: hsl(215 91% 58%); /* Blue = DOWN */
+  --color-down: #3182F6; /* Blue = DOWN */
 
   --radius: 1.5rem; /* 24px */
   
@@ -88,31 +111,43 @@
 
 .dark {
   /* Backgrounds - Deep Dark Gray */
-  --background: hsl(228 16% 13%); /* #1B1D25 */
-  --foreground: hsl(210 10% 91%); /* #E5E7EB */
+  --background: #17171C;
+  --foreground: #F9FAFB;
 
   /* Cards & Surfaces */
-  --card: hsl(229 11% 19%); /* #2B2D36 */
-  --card-foreground: hsl(210 20% 98%); /* #F9FAFB */
+  --card: #202027;
+  --card-foreground: #F9FAFB;
 
-  --popover: hsl(229 11% 19%);
-  --popover-foreground: hsl(210 20% 98%);
+  --popover: #202027;
+  --popover-foreground: #F9FAFB;
 
-  /* Primary - Toss Blue (Slightly adjusted for dark mode if needed, but keeping brand color) */
-  --primary: hsl(215 91% 58%);
-  --primary-foreground: hsl(0 0% 100%);
+  /* Primary - Toss Blue */
+  --primary: #3182F6;
+  --primary-foreground: #FFFFFF;
+
+  /* Toss Gray Scale for Dark Mode (Inverted/Adjusted) */
+  --grey-50: #17171C;
+  --grey-100: #202027;
+  --grey-200: #2C2C34;
+  --grey-300: #3C3C47;
+  --grey-400: #4E5968;
+  --grey-500: #8B95A1;
+  --grey-600: #B0B8C1;
+  --grey-700: #D1D6DB;
+  --grey-800: #E5E8EB;
+  --grey-900: #F9FAFB;
 
   /* Secondary */
-  --secondary: hsl(229 11% 25%);
-  --secondary-foreground: hsl(210 20% 98%);
+  --secondary: var(--grey-100);
+  --secondary-foreground: var(--grey-800);
 
   /* Muted */
-  --muted: hsl(229 11% 25%);
-  --muted-foreground: hsl(215 20% 65%);
+  --muted: var(--grey-100);
+  --muted-foreground: var(--grey-500);
 
   /* Accent */
-  --accent: hsl(229 11% 25%);
-  --accent-foreground: hsl(210 20% 98%);
+  --accent: var(--grey-100);
+  --accent-foreground: var(--grey-900);
 
   /* Destructive */
   --destructive: hsl(355 84% 60%);
@@ -121,11 +156,11 @@
   /* Borders */
   --border: hsl(229 11% 25%);
   --input: hsl(229 11% 25%);
-  --ring: hsl(215 91% 58%);
+  --ring: #3182F6;
 
   /* Korean Stock Market Colors */
   --color-up: hsl(355 84% 60%);
-  --color-down: hsl(215 91% 58%);
+  --color-down: #3182F6;
   
   /* Dark Glassmorphism Variables */
   --glass-bg: rgba(27, 29, 37, 0.6);

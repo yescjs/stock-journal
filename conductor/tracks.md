@@ -6,3 +6,8 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 - [~] **Track: npm run lint 실행 시 멈춤 현상 해결**
 *Link: [./tracks/npm_run_lint_hang_20260204/](./tracks/npm_run_lint_hang_20260204/)*
+
+---
+
+- [~] **Track: UI/UX 가 마음에 안들어. 토스 스타일로 전체를 적용하고 싶어.**
+*Link: [./tracks/ui_ux_toss_style_20260204/](./tracks/ui_ux_toss_style_20260204/)*

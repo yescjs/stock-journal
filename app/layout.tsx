@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { ThemeProvider } from "./components/ThemeProvider";
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
@@ -23,14 +24,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" dir="ltr" className={`${jetbrainsMono.variable}`}>
+    <html lang="ko" dir="ltr" className={`${jetbrainsMono.variable}`} suppressHydrationWarning>
       <body
         className="antialiased tracking-tight bg-background text-foreground min-h-screen"
       >
-        <div className="mx-auto max-w-screen-xl min-h-screen p-3 sm:p-6 lg:p-8">
-
-          {children}
-        </div>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <div className="mx-auto max-w-screen-xl min-h-screen p-3 sm:p-6 lg:p-8">
+            {children}
+          </div>
+        </ThemeProvider>
       </body>
     </html>
   );
