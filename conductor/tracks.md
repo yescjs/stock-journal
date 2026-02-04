@@ -9,5 +9,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [~] **Track: 외부 레퍼지토리 및 임시 폴더 정리**
+- [x] **Track: 외부 레퍼지토리 및 임시 폴더 정리**
 *Link: [./tracks/cleanup_external_repos_20260204/](./tracks/cleanup_external_repos_20260204/)*
