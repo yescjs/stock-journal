@@ -2,6 +2,7 @@ import React from 'react';
 import { User } from '@supabase/supabase-js';
 import { ActiveTab } from '@/app/types/ui';
 import { Sun, Moon, LogOut, LogIn, TrendingUp, BookOpen, FileText, BarChart3, Settings } from 'lucide-react';
+
 import { Button } from '@/app/components/ui/Button';
 
 interface HeaderProps {
@@ -33,12 +34,14 @@ export function Header({
         { id: 'settings', label: '???', icon: <Settings size={18} /> },
     ];
 
+
     ];
 
     return (
         <div className="z-40">
-            <header className="transition-all duration-300 py-4 text-foreground">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <header className="transition-all duration-300 py-2 md:py-4 text-foreground">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-4">
+
 
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4 group cursor-default">
@@ -115,8 +118,10 @@ export function Header({
                                         onClick={() => setActiveTab(tab.id)}
                                         className={`flex-1 gap-2 text-xs md:text-sm font-semibold ${isActive ? 'shadow-toss-sm' : 'text-muted-foreground hover:text-foreground'}`}
                                         size="sm"
+                                        aria-label={tab.label}
                                     >
                                         <span className={`transition-all duration-300 ${isActive ? 'text-foreground' : 'opacity-50 text-muted-foreground'}`} aria-hidden="true">{tab.icon}</span>
+
 
                                         <span className="hidden leading-none sm:inline">{tab.label}</span>
                                     </Button>

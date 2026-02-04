@@ -26,7 +26,7 @@ import { RiskManagementWidget } from './RiskManagementWidget';
 import { InsightsWidget } from './InsightsWidget';
 import { SymbolSortKey, TagSortKey } from '@/app/types/ui';
 import { formatNumber, formatQuantity } from '@/app/utils/format';
-import { TrendingUp, Wallet, Target, ChevronUp, ChevronDown, RefreshCw, Loader2, Download, Trophy, AlertTriangle, Zap, Activity, Calendar, BarChart3, Tag } from 'lucide-react';
+import { TrendingUp, Wallet, Target, ChevronUp, ChevronDown, RefreshCw, Loader2, Download, Trophy, AlertTriangle, Zap, Activity, Calendar } from 'lucide-react';
 import { fetchStockChart } from '@/app/utils/stockApi';
 import { Card } from '@/app/components/ui/Card';
 import { Button } from '@/app/components/ui/Button';
@@ -340,9 +340,7 @@ export function StatsDashboard({
         return (
             <Card variant="default" className="flex flex-col items-center justify-center py-24 border-2 border-dashed border-border/50">
                 <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 bg-muted">
-                    <BarChart3 size={32} className="text-muted-foreground" />
-                </div>
-
+                    <span className="text-3xl">📊</span>
                 </div>
                 <p className="font-bold text-lg mb-1 text-foreground">데이터가 없습니다</p>
                 <p className="text-sm text-muted-foreground">
@@ -482,7 +480,7 @@ export function StatsDashboard({
                             <div className="flex items-center gap-2 mb-6">
                                 <h3 className="text-lg font-bold text-foreground">핵심 지표</h3>
                             </div>
-                            <div className="grid grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                 {/* Win Rate */}
                                 <div className="flex flex-col gap-1">
                                     <div className="flex items-center gap-2 mb-1">
@@ -824,7 +822,7 @@ export function StatsDashboard({
                         <Card id="section-symbols" className="p-6 scroll-mt-28">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className={sectionTitleClass}>
-                                    <TrendingUp size={20} className={darkMode ? 'text-slate-400' : 'text-slate-500'} /> 종목별 성과
+                                    📈 종목별 성과
                                 </h2>
                                 <button
                                     onClick={fetchAllCurrentPrices}
@@ -967,7 +965,7 @@ export function StatsDashboard({
                         {/* Tag Table */}
                         <Card className="p-6">
                             <h2 className={sectionTitleClass + ' mb-4'}>
-                                <Tag size={20} className={darkMode ? 'text-slate-400' : 'text-slate-500'} /> 태그 통계
+                                🏷️ 태그 통계
                             </h2>
                             <div className={`${tableWrapperClass} max-w-[calc(100vw-2rem)]`}>
                                 <table className="w-full text-left min-w-[600px]">

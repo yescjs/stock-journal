@@ -24,7 +24,6 @@ export function Badge({
     red: "bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive-foreground",
     gray: "bg-muted text-muted-foreground dark:bg-muted/50 dark:text-muted-foreground",
     green: "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300",
-
   };
 
   return (

@@ -58,13 +58,6 @@ export function TradeListView({
     resetFilters
   } = filterState;
 
-  // Reset selected symbol when user logs out
-  React.useEffect(() => {
-    if (!currentUser) {
-      setSelectedSymbol('');
-    }
-  }, [currentUser, setSelectedSymbol]);
-
   // Derive Daily Data for Calendar
   const dailyData: PnLPoint[] = React.useMemo(() => {
     const map = new Map<string, number>();
@@ -107,7 +100,6 @@ export function TradeListView({
           size="md"
           onClick={resetFilters}
           className="gap-2"
-
         >
           <RefreshCw size={16} />
           초기화
@@ -148,7 +140,6 @@ export function TradeListView({
             size="sm"
             onClick={() => onToggleConverted(!showConverted)}
             className={showConverted ? 'border-primary/30 bg-primary/10 text-primary' : ''}
-
           >
             <RefreshCw size={14} className="mr-2" />
             <span>{showConverted ? `₩ ${exchangeRate.toLocaleString()}원` : '$ USD'}</span>
@@ -160,7 +151,6 @@ export function TradeListView({
               size="sm"
               onClick={() => setViewMode('list')}
               className={`h-8 px-3 text-xs ${viewMode === 'list' ? 'shadow-toss-sm' : 'text-muted-foreground hover:bg-transparent'}`}
-
             >
               <ListIcon size={14} strokeWidth={2} className="mr-1.5" />
               <span className="hidden sm:inline">목록</span>
@@ -170,7 +160,6 @@ export function TradeListView({
               size="sm"
               onClick={() => setViewMode('calendar')}
               className={`h-8 px-3 text-xs ${viewMode === 'calendar' ? 'shadow-toss-sm' : 'text-muted-foreground hover:bg-transparent'}`}
-
             >
               <LayoutGrid size={14} strokeWidth={2} className="mr-1.5" />
               <span className="hidden sm:inline">캘린더</span>

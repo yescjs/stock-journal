@@ -125,7 +125,7 @@ export function TradeList({
                         {isOpen && (
                             <div className="animate-in fade-in duration-200">
                                 {/* Desktop Table View - Toss Style */}
-                                <div className="hidden md:block overflow-x-auto custom-scrollbar">
+                                <div className="hidden md:block overflow-x-auto custom-scrollbar" data-testid="trade-list-desktop">
                                     <table className="w-full text-sm text-left border-collapse">
                                         <thead className="text-xs font-semibold uppercase tracking-wide border-b border-border/50 bg-muted/20 text-muted-foreground">
                                             <tr>
@@ -261,7 +261,7 @@ export function TradeList({
                                 </div>
 
                                 {/* Mobile Card View */}
-                                <div className={`md:hidden p-4 space-y-4`}>
+                                <div className={`md:hidden p-4 space-y-4`} data-testid="trade-list-mobile">
                                     {group.trades.map((t) => {
                                         const amount = t.price * t.quantity;
                                         const dayOfWeek = getKoreanWeekdayLabel(t.date);
@@ -275,28 +275,27 @@ export function TradeList({
                                                     ${darkMode ? 'bg-slate-800/40 border-slate-700/50' : 'bg-white border-slate-100 shadow-sm'}
                                                 `}
                                             >
-                                                {/* Header: Type, Stock, Price */}
-                                                <div className="flex justify-between items-start">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className={`
-                                                            w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black shrink-0
-                                                            ${t.side === 'BUY'
-                                                                ? (darkMode ? 'bg-rose-500/20 text-rose-400' : 'bg-rose-50 text-rose-600')
-                                                                : (darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-50 text-blue-600')}
-                                                        `}>
-                                                            {t.side === 'BUY' ? 'L' : 'S'}
-                                                        </div>
-                                                        <div>
-                                                            <div className={`font-black text-lg leading-tight ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
-                                                                {t.symbol_name || t.symbol}
-                                                            </div>
-                                                            <div className={`text-xs font-medium flex items-center gap-1 mt-0.5 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                                                                {t.date} <span className="w-1 h-1 rounded-full bg-current opacity-50" /> {dayOfWeek}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div className="text-right shrink-0 ml-2">
-                                                        <div className={`font-black text-base ${darkMode ? 'text-foreground' : 'text-slate-900'}`}>{displayPrice(amount, t.symbol)}</div>
+                                                                                                {/* Header: Type, Stock, Price */}
+                                                                                                <div className="flex justify-between items-start">
+                                                                                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                                                                        <div className={`
+                                                                                                            w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black shrink-0
+                                                                                                            ${t.side === 'BUY'
+                                                                                                                ? (darkMode ? 'bg-rose-500/20 text-rose-400' : 'bg-rose-50 text-rose-600')
+                                                                                                                : (darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-50 text-blue-600')}
+                                                                                                        `}>
+                                                                                                            {t.side === 'BUY' ? 'L' : 'S'}
+                                                                                                        </div>
+                                                                                                        <div className="min-w-0 flex-1">
+                                                                                                            <div className={`font-black text-lg leading-tight truncate ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
+                                                                                                                {t.symbol_name || t.symbol}
+                                                                                                            </div>
+                                                                                                            <div className={`text-xs font-medium flex items-center gap-1 mt-0.5 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                                                                                                                {t.date} <span className="w-1 h-1 rounded-full bg-current opacity-50" /> {dayOfWeek}    
+                                                                                                            </div>
+                                                                                                        </div>
+                                                                                                    </div>
+                                                                                                    <div className="text-right shrink-0 ml-2">                                                        <div className={`font-black text-base ${darkMode ? 'text-foreground' : 'text-slate-900'}`}>{displayPrice(amount, t.symbol)}</div>
                                                         <div className={`text-xs font-medium ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>
                                                             {displayPrice(t.price, t.symbol)}
                                                         </div>

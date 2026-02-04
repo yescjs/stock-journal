@@ -62,15 +62,15 @@ function parseRSSItems(xmlText: string): RSSItem[] {
     const titleMatch = itemXml.match(/<title[^>]*>([^<]*)<\/title>/);
     const linkMatch = itemXml.match(/<link[^>]*>([^<]*)<\/link>/);
     const pubDateMatch = itemXml.match(/<pubDate[^>]*>([^<]*)<\/pubDate>/);
-    const descMatch = itemXml.match(/<description[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/);
+    const descMatch = itemXml.match(/<description[^>]*>([^<]*)<\/description>/);
 
     if (titleMatch && linkMatch) {
       items.push({
         title: titleMatch[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim(),
         link: linkMatch[1].trim(),
         pubDate: pubDateMatch ? pubDateMatch[1].trim() : undefined,
-        description: descMatch
-          ? descMatch[1].replace(/<!\[CDATA\[|\]\]>/g, '').replace(/<[^>]+>/g, '').trim()
+        description: descMatch 
+          ? descMatch[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim() 
           : undefined,
       });
     }
@@ -88,19 +88,13 @@ export async function fetchRSSFeed(
   const config = ECONOMIC_NEWS_SOURCES[source];
   
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
-
     const response = await fetch(config.url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; StockJournal/1.0)',
         'Accept': 'application/rss+xml, application/xml, text/xml',
       },
-      cache: 'no-store',
-      signal: controller.signal,
+      next: { revalidate: 300 }, // 5분 캐싱
     });
-
-    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -191,7 +185,6 @@ export function filterNewsByDate(
 
 /**
  * 어제 날짜의 뉴스 필터링
- * 어제 뉴스가 없으면 최근 24시간 뉴스로 확대
  */
 export function filterYesterdayNews(
   news: RawNewsItem[]
@@ -202,21 +195,9 @@ export function filterYesterdayNews(
 
   const filtered = filterNewsByDate(news, yesterday);
 
-  if (filtered.length > 0) {
-    return { date: yesterday, items: filtered };
-  }
-
-  // 어제 뉴스가 없으면 최근 24시간 뉴스로 확대
-  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const recentNews = news.filter((item) => {
-    if (!item.pubDate) return true; // 날짜 없는 뉴스는 포함
-    const itemDate = new Date(item.pubDate);
-    return itemDate >= oneDayAgo;
-  });
-
   return {
     date: yesterday,
-    items: recentNews.length > 0 ? recentNews : news.slice(0, 20),
+    items: filtered,
   };
 }
 

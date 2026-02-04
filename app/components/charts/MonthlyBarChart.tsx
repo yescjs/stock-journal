@@ -4,12 +4,6 @@ import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { PnLPoint } from '@/app/types/stats';
 
-// Chart color constants matching CSS variables
-const CHART_COLORS = {
-    up: '#F04452',      // --color-up
-    down: '#3182F6',    // --color-down
-} as const;
-
 interface MonthlyBarChartProps {
     data: PnLPoint[];
     darkMode: boolean;
@@ -33,7 +27,7 @@ const CustomTooltip = ({ active, payload, label, darkMode }: CustomTooltipProps)
                 : 'bg-popover/80 border-white/50 text-popover-foreground'
             }`}>
                 <p className={`text-xs font-bold mb-1 ${darkMode ? 'text-muted-foreground' : 'text-muted-foreground'}`}>{label}</p>
-                <p className={`text-sm font-black ${payload[0].value >= 0 ? 'text-[color:var(--color-up)]' : 'text-[color:var(--color-down)]'}`}>
+                <p className={`text-sm font-black ${payload[0].value >= 0 ? 'text-[#F04452]' : 'text-[#3182F6]'}`}>
                     {payload[0].value >= 0 ? '+' : ''}{payload[0].value.toLocaleString()} 원
                 </p>
             </div>
@@ -73,11 +67,11 @@ export function MonthlyBarChart({ data, darkMode, title }: MonthlyBarChartProps)
                     <Tooltip content={(props: any) => <CustomTooltip {...props} darkMode={darkMode} />} cursor={{ fill: darkMode ? '#ffffff05' : '#00000005', radius: 4 }} />
                     <Bar dataKey="value" radius={[6, 6, 6, 6]}>
                         {data.map((entry, index) => (
-                            <Cell
-                                key={`cell-${index}`}
-                                fill={entry.value >= 0 ? CHART_COLORS.up : CHART_COLORS.down}
+                            <Cell 
+                                key={`cell-${index}`} 
+                                fill={entry.value >= 0 ? '#F04452' : '#3182F6'} 
                                 fillOpacity={0.9}
-                                stroke={entry.value >= 0 ? CHART_COLORS.up : CHART_COLORS.down}
+                                stroke={entry.value >= 0 ? '#F04452' : '#3182F6'}
                                 strokeWidth={0}
                             />
                         ))}

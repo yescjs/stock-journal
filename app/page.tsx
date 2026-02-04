@@ -45,7 +45,7 @@ const OPEN_MONTHS_KEY = 'stock-journal-open-months-v1';
 export default function Home() {
     const [showGuide, setShowGuide] = useState(false);
     // --- 1. Auth & Data Hooks ---
-    const { user: currentUser, loading: authLoading, logout, authError } = useSupabaseAuth();
+    const { user: currentUser, loading: authLoading, logout: supabaseLogout, authError } = useSupabaseAuth();
 
     // Data Logic
     const { trades, loading: tradesLoading, addTrade, removeTrade, updateTrade, clearAllTrades, setTrades } = useTrades(currentUser);
@@ -60,10 +60,21 @@ export default function Home() {
 
     // Filters
     const filterState = useTradeFilter(trades);
-    const { filteredTrades, allTags } = filterState;
+    const { filteredTrades, allTags, setSelectedSymbol } = filterState;
 
     // Stats Logic
     const dashboardStats = useStats(trades, currentPrices, exchangeRate);
+
+    // Navigation Handler
+    const handleSymbolClick = (symbol: string) => {
+        setSelectedSymbol(symbol);
+        setActiveTab('journal');
+    };
+
+    const handleLogout = async () => {
+        await supabaseLogout();
+        setSelectedSymbol('');
+    };
 
     // Risk Management
     const today = new Date().toISOString().split('T')[0];
@@ -198,6 +209,7 @@ export default function Home() {
                     <BarChart3 size={24} className="text-primary-foreground animate-pulse" />
                 </div>
 
+
                 </div>
             </div>
             <p className="mt-4 text-muted-foreground text-sm font-medium">불러오는 중...</p>
@@ -288,7 +300,8 @@ export default function Home() {
                         darkMode={darkMode}
                         setDarkMode={setDarkMode}
                         currentUser={currentUser}
-                        onLogout={logout}
+                        onLogout={handleLogout}
+
                         onShowLogin={() => setShowLoginModal(true)}
                         activeTab={activeTab}
                         setActiveTab={setActiveTab}
@@ -416,6 +429,7 @@ export default function Home() {
                             goalsData={goalsData}
                             currentPrices={currentPrices}
                             onCurrentPriceChange={handleCurrentPriceChange}
+                            onSymbolClick={handleSymbolClick}
                             tagColors={tagColors}
                             exchangeRate={exchangeRate}
                             onExchangeRateChange={setExchangeRate}

@@ -13,25 +13,6 @@ export interface KeyIssue {
   description?: string;
 }
 
-export interface SectorAnalysis {
-  sector: string;
-  trend: 'up' | 'down' | 'neutral';
-  summary: string;
-  relatedStocks?: string[];
-}
-
-export interface MarketIndicator {
-  name: string;
-  direction: 'up' | 'down' | 'stable';
-  description: string;
-}
-
-export interface InvestmentInsight {
-  type: 'opportunity' | 'risk' | 'watch';
-  title: string;
-  description: string;
-}
-
 export interface DailyEconomicReport {
   id: string;
   user_id?: string;
@@ -42,10 +23,6 @@ export interface DailyEconomicReport {
   global_news: NewsItem[];
   key_issues: KeyIssue[];
   market_sentiment: 'bullish' | 'bearish' | 'neutral' | 'volatile';
-  market_overview?: string;
-  sector_analysis?: SectorAnalysis[];
-  market_indicators?: MarketIndicator[];
-  investment_insights?: InvestmentInsight[];
   ai_generated: boolean;
   is_read: boolean;
   created_at?: string;

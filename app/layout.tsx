@@ -1,5 +1,13 @@
 import type { Metadata } from "next";
+import { JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  display: "swap",
+});
+
 
 export const metadata: Metadata = {
   title: "Stock Journal",
@@ -15,11 +23,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" dir="ltr">
+    <html lang="ko" dir="ltr" className={`${jetbrainsMono.variable}`}>
       <body
         className="antialiased tracking-tight bg-background text-foreground min-h-screen"
       >
-        <div className="mx-auto max-w-screen-xl min-h-screen p-4 sm:p-6 lg:p-8">
+        <div className="mx-auto max-w-screen-xl min-h-screen p-3 sm:p-6 lg:p-8">
+
           {children}
         </div>
       </body>

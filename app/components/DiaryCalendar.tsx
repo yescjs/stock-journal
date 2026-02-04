@@ -193,7 +193,8 @@ export function DiaryCalendar({
                             <div className="flex-1 flex flex-col items-center justify-center gap-0.5 md:gap-1">
                                 {diary ? (
                                     <>
-                                        <div className="flex items-center justify-center animate-in zoom-in duration-300">
+                                        <div className="flex items-center justify-center text-lg md:text-2xl animate-in zoom-in duration-300">
+
                                             {getSentimentIcon(diary.market_sentiment)}
                                         </div>
                                         {diary.market_issue && (
