@@ -27,20 +27,20 @@ export function Button({
   ...props
 }: ButtonProps) {
   // Toss Design System - Button Styles
-  const baseStyles = "inline-flex items-center justify-center font-semibold transition-all duration-150 active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none btn-press";
+  const baseStyles = "inline-flex items-center justify-center font-semibold transition-all duration-200 active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none btn-press";
 
   const variants = {
     primary: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-toss-sm",
-    secondary: "bg-secondary text-secondary-foreground hover:bg-muted border border-border",
-    ghost: "bg-transparent text-foreground hover:bg-muted/50",
+    secondary: "bg-secondary text-secondary-foreground hover:bg-grey-200 border border-transparent",
+    ghost: "bg-transparent text-foreground hover:bg-grey-100",
     destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-toss-sm",
   };
 
-  // Toss Design System - Size Scale
+  // Toss Design System - Size Scale (Increased Radius)
   const sizes = {
     lg: "h-14 px-6 text-base rounded-2xl",
     md: "h-12 px-5 text-sm rounded-xl",
-    sm: "h-9 px-3.5 text-xs rounded-lg",
+    sm: "h-9 px-4 text-xs rounded-lg",
   };
 
   return (

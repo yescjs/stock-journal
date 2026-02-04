@@ -20,12 +20,12 @@ export const Input = React.forwardRef<HTMLInputElement | HTMLTextAreaElement, In
   ({ className, label, error, leftIcon, rightIcon, multiline = false, ...props }, ref: React.ForwardedRef<HTMLInputElement | HTMLTextAreaElement>) => {
     // Toss Design System - Input Styles
     const baseInputStyles = cn(
-      "w-full bg-muted/50 text-foreground placeholder:text-muted-foreground",
-      "border border-border/50 outline-none transition-all duration-150",
-      "focus:bg-background focus:border-primary focus:ring-1 focus:ring-primary/20",
-      "dark:bg-muted/30 dark:text-foreground dark:placeholder:text-muted-foreground dark:focus:bg-muted/50 dark:focus:border-primary",
+      "w-full bg-grey-100 text-foreground placeholder:text-grey-400",
+      "border-none outline-none transition-all duration-200 shadow-toss-sm",
+      "focus:bg-card focus:ring-2 focus:ring-primary/20",
+      "dark:bg-grey-100 dark:text-foreground dark:placeholder:text-grey-400 dark:focus:bg-card",
       "rounded-xl text-sm h-12 px-4",
-      error && "bg-red-50 text-red-900 placeholder:text-red-300 border-red-200 focus:border-red-500 focus:ring-red-500/20 dark:bg-red-900/10 dark:text-red-100 dark:border-red-800",
+      error && "bg-red-50 text-red-900 placeholder:text-red-300 focus:ring-red-500/20 dark:bg-red-900/10 dark:text-red-100",
       leftIcon && "pl-11",
       rightIcon && "pr-11",
       className

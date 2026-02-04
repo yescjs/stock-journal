@@ -10,16 +10,16 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 1: 디자인 시스템 및 기초 설정' (Protocol in workflow.md)
 
 ## Phase 2: 핵심 UI 컴포넌트 리뉴얼 (Core UI Components - TDD)
-- [ ] Task: Button 컴포넌트 리뉴얼
-    - [ ] Button 컴포넌트의 스타일 및 상태(hover, active, disabled) 테스트 작성
-    - [ ] 토스 스타일(둥근 모서리, 클릭 애니메이션)을 적용하여 구현
-- [ ] Task: Input 및 Badge 컴포넌트 리뉴얼
-    - [ ] Input/Badge 컴포넌트 테스트 작성
-    - [ ] 테두리를 최소화하고 배경색을 활용한 깔끔한 스타일로 구현
-- [ ] Task: Card 컴포넌트 리뉴얼
-    - [ ] Card 컴포넌트의 Elevation(그림자) 및 패딩 테스트 작성
-    - [ ] 부드러운 그림자와 `rounded-3xl` 이상의 곡률 적용
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: 핵심 UI 컴포넌트 리뉴얼' (Protocol in workflow.md)
+- [x] Task: Button 컴포넌트 리뉴얼
+    - [x] Button 컴포넌트의 스타일 및 상태(hover, active, disabled) 테스트 작성
+    - [x] 토스 스타일(둥근 모서리, 클릭 애니메이션)을 적용하여 구현
+- [x] Task: Input 및 Badge 컴포넌트 리뉴얼
+    - [x] Input/Badge 컴포넌트 테스트 작성
+    - [x] 테두리를 최소화하고 배경색을 활용한 깔끔한 스타일로 구현
+- [x] Task: Card 컴포넌트 리뉴얼
+    - [x] Card 컴포넌트의 Elevation(그림자) 및 패딩 테스트 작성
+    - [x] 부드러운 그림자와 `rounded-3xl` 이상의 곡률 적용
+- [x] Task: Conductor - User Manual Verification 'Phase 2: 핵심 UI 컴포넌트 리뉴얼' (Protocol in workflow.md)
 
 ## Phase 3: 레이아웃 및 네비게이션 개편 (Layout & Navigation)
 - [ ] Task: 하이브리드 레이아웃(중앙 컨테이너) 구현

@@ -23,9 +23,9 @@ export function Card({
   const baseStyles = "transition-all duration-200 overflow-hidden flex flex-col";
 
   const variants = {
-    default: "bg-card text-card-foreground shadow-toss border border-border/50 rounded-2xl",
-    elevated: "bg-card text-card-foreground shadow-toss-md border border-border/50 rounded-2xl",
-    glass: "glass-card text-card-foreground rounded-2xl",
+    default: "bg-card text-card-foreground shadow-toss border border-border/10 rounded-3xl",
+    elevated: "bg-card text-card-foreground shadow-toss-md border border-border/10 rounded-3xl",
+    glass: "glass-card text-card-foreground rounded-3xl",
   };
 
   return (

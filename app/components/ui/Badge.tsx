@@ -20,10 +20,10 @@ export function Badge({
   const baseStyles = "inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-semibold";
 
   const variants = {
-    blue: "bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground",
-    red: "bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive-foreground",
-    gray: "bg-muted text-muted-foreground dark:bg-muted/50 dark:text-muted-foreground",
-    green: "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300",
+    blue: "bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary",
+    red: "bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive",
+    gray: "bg-grey-100 text-grey-600 dark:bg-grey-100 dark:text-grey-600",
+    green: "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-500",
   };
 
   return (
