@@ -21,7 +21,7 @@
     - [x] 부드러운 그림자와 `rounded-3xl` 이상의 곡률 적용
 - [x] Task: Conductor - User Manual Verification 'Phase 2: 핵심 UI 컴포넌트 리뉴얼' (Protocol in workflow.md)
 
-## Phase 3: 레이아웃 및 네비게이션 개편 (Layout & Navigation)
+## Phase 3: 레이아웃 및 네비게이션 개편 (Layout & Navigation) [checkpoint: 1faccdf]
 - [x] Task: 하이브리드 레이아웃(중앙 컨테이너) 구현
     - [x] Root Layout 구조를 변경하여 데스크탑에서 중앙 600px 컨테이너 적용
     - [x] 좌우 여백에 보조 정보를 표시할 사이드바 영역 확보
