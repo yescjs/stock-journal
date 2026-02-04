@@ -72,14 +72,14 @@ export function TradeList({
     if (trades.length === 0) {
         return (
             <Card
-                variant="glass"
-                className="flex flex-col items-center justify-center py-24 border-2 border-dashed"
+                variant="default"
+                className="flex flex-col items-center justify-center py-24 border-2 border-dashed border-border/50"
             >
-                <div className={`w-20 h-20 rounded-3xl flex items-center justify-center mb-6 shadow-sm ${darkMode ? 'bg-slate-800' : 'bg-white'}`}>
-                    <ListTodo className="text-slate-400" size={40} />
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 bg-muted">
+                    <ListTodo className="text-muted-foreground" size={32} />
                 </div>
-                <h3 className={`font-bold text-xl mb-2 ${darkMode ? 'text-slate-300' : 'text-slate-900'}`}>아직 작성된 매매 일지가 없습니다</h3>
-                <p className={`text-sm ${darkMode ? 'text-muted-foreground' : 'text-slate-400'}`}>
+                <h3 className="font-bold text-lg mb-2 text-foreground">아직 작성된 매매 일지가 없습니다</h3>
+                <p className="text-sm text-muted-foreground">
                     우측의 &apos;일지 작성&apos; 버튼을 눌러 첫 기록을 남겨보세요!
                 </p>
             </Card>
@@ -94,57 +94,40 @@ export function TradeList({
                 return (
                     <div
                         key={group.key}
-                        className={`
-                            rounded-3xl border overflow-hidden transition-all duration-300 glass-card
-                            ${darkMode
-                                ? 'bg-card/40 border-slate-700/50 hover:bg-card/50'
-                                : 'bg-white/60 border-white/60 shadow-sm hover:shadow-lg hover:bg-white/80'}
-                        `}
+                        className="rounded-2xl border border-border/50 overflow-hidden transition-all duration-200 bg-card shadow-toss hover:shadow-toss-md"
                     >
-                        {/* Month Header */}
+                        {/* Month Header - Toss Style */}
                         <div
                             onClick={() => toggleMonth(group.key)}
-                            className={`
-                                flex items-center justify-between px-6 py-5 cursor-pointer select-none transition-all duration-200
-                                ${darkMode
-                                    ? 'bg-accent/30 hover:bg-accent/50'
-                                    : 'bg-indigo-50/30 hover:bg-indigo-50/60'}
-                            `}
+                            className="flex items-center justify-between px-5 py-4 cursor-pointer select-none transition-colors duration-150 hover:bg-muted/50 bg-muted/30"
                         >
-                            <div className="flex items-center gap-4">
-                                <div className={`
-                                    w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-inner
-                                    ${darkMode ? 'bg-indigo-500/20 text-indigo-300' : 'bg-white text-indigo-600 shadow-indigo-100'}
-                                `}>
-                                    <Calendar size={20} strokeWidth={2.5} />
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-primary/10 text-primary">
+                                    <Calendar size={18} strokeWidth={2} />
                                 </div>
                                 <div>
-                                    <h3 className={`text-lg font-black tracking-tight ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
+                                    <h3 className="text-base font-bold text-foreground">
                                         {group.label}
                                     </h3>
-                                    <span className={`text-xs font-bold ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>
+                                    <span className="text-xs font-medium text-muted-foreground">
                                         총 {group.count}건의 매매 기록
                                     </span>
                                 </div>
                             </div>
                             <div className={`
-                                p-2.5 rounded-xl transition-all duration-300
+                                p-2 rounded-xl transition-transform duration-200 bg-muted text-muted-foreground
                                 ${isOpen ? 'rotate-180' : 'rotate-0'}
-                                ${darkMode ? 'bg-slate-800 text-slate-400' : 'bg-white text-slate-400 border border-slate-100 shadow-sm'}
                             `}>
-                                <ChevronDown size={18} strokeWidth={2.5} />
+                                <ChevronDown size={16} strokeWidth={2} />
                             </div>
                         </div>
 
                         {isOpen && (
-                            <div className="animate-fade-in">
-                                {/* Desktop Table View */}
+                            <div className="animate-in fade-in duration-200">
+                                {/* Desktop Table View - Toss Style */}
                                 <div className="hidden md:block overflow-x-auto custom-scrollbar">
                                     <table className="w-full text-sm text-left border-collapse">
-                                        <thead className={`
-                                            text-xs font-bold uppercase tracking-wider border-b
-                                            ${darkMode ? 'bg-muted/20 text-muted-foreground border-slate-800' : 'bg-slate-50/50 text-slate-500 border-slate-100'}
-                                        `}>
+                                        <thead className="text-xs font-semibold uppercase tracking-wide border-b border-border/50 bg-muted/20 text-muted-foreground">
                                             <tr>
                                                 <th className="px-4 py-3 whitespace-nowrap w-[100px]">날짜</th>
                                                 <th className="px-4 py-3 w-[250px]">종목 / 태그</th>
@@ -153,11 +136,11 @@ export function TradeList({
                                                 <th className="px-4 py-3 text-right">총액</th>
                                                 <th className="px-4 py-3 w-[200px] hidden lg:table-cell">메모</th>
                                                 {(onDelete || onEdit) && (
-                                                    <th className={`px-4 py-3 z-10 sticky right-0 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)] text-center w-[80px] ${darkMode ? 'bg-card' : 'bg-slate-50'}`}>관리</th>
+                                                    <th className="px-4 py-3 z-10 sticky right-0 text-center w-[80px] bg-card">관리</th>
                                                 )}
                                             </tr>
                                         </thead>
-                                        <tbody className={`divide-y ${darkMode ? 'divide-slate-800' : 'divide-slate-100'}`}>
+                                        <tbody className="divide-y divide-border/50">
                                             {group.trades.map((t) => {
                                                 const dateObj = new Date(t.date);
                                                 const dayOfWeek = isNaN(dateObj.getTime()) ? '' : new Intl.DateTimeFormat('ko-KR', { weekday: 'short' }).format(dateObj);
@@ -167,39 +150,36 @@ export function TradeList({
                                                     <tr
                                                         key={t.id}
                                                         onClick={() => onSymbolClick?.(t.symbol)}
-                                                        className={`
-                                                            group transition-all duration-200 cursor-pointer h-[64px]
-                                                            ${darkMode ? 'hover:bg-indigo-900/10' : 'hover:bg-indigo-50/40'}
-                                                        `}
+                                                        className="group transition-colors duration-150 cursor-pointer h-14 hover:bg-muted/30"
                                                     >
                                                         {/* Date */}
                                                         <td className="px-4 py-3">
-                                                            <div className={`font-bold tabular-nums text-sm ${darkMode ? 'text-slate-200' : 'text-slate-700'}`}>
-                                                                {t.date.slice(5)} <span className="text-xs font-normal text-slate-500">({dayOfWeek})</span>
+                                                            <div className="font-semibold tabular-nums text-sm text-foreground">
+                                                                {t.date.slice(5)} <span className="text-xs font-normal text-muted-foreground">({dayOfWeek})</span>
                                                             </div>
                                                         </td>
 
                                                         {/* Symbol & Position & Tags */}
                                                         <td className="px-4 py-3">
                                                             <div className="flex items-start gap-2 mb-1">
-                                                                {/* Position Badge (Merged) */}
+                                                                {/* Position Badge - Toss Style */}
                                                                 <span className={`
-                                                                    mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wide border shadow-sm whitespace-nowrap shrink-0
+                                                                    mt-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide whitespace-nowrap shrink-0
                                                                     ${t.side === 'BUY'
-                                                                        ? (darkMode ? 'bg-rose-500/10 border-rose-500/20 text-rose-400' : 'bg-white border-rose-100 text-rose-600')
-                                                                        : (darkMode ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : 'bg-white border-blue-100 text-blue-600')}
+                                                                        ? 'bg-color-up/10 text-color-up'
+                                                                        : 'bg-color-down/10 text-color-down'}
                                                                 `}>
                                                                     {t.side === 'BUY' ? '매수' : '매도'}
                                                                 </span>
 
-                                                                <div className={`font-bold text-sm ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
+                                                                <div className="font-semibold text-sm text-foreground">
                                                                     {t.symbol_name || t.symbol}
                                                                 </div>
 
                                                                 {t.image && (
                                                                     <button
                                                                         onClick={(e) => { e.stopPropagation(); onImagePreview?.(t.image!); }}
-                                                                        className={`p-1 rounded transition-colors ${darkMode ? 'bg-slate-800 hover:bg-slate-700 text-slate-400' : 'bg-slate-100 hover:bg-slate-200 text-slate-500'}`}
+                                                                        className="p-1 rounded-lg transition-colors bg-muted hover:bg-muted/70 text-muted-foreground"
                                                                     >
                                                                         <Camera size={12} />
                                                                     </button>
@@ -208,7 +188,7 @@ export function TradeList({
 
                                                             <div className="flex flex-wrap gap-1">
                                                                 {t.strategy_name && (
-                                                                    <span className={`inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded font-bold ${darkMode ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-50 text-purple-600'}`}>
+                                                                    <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded font-bold bg-primary/10 text-primary">
                                                                         <Zap size={8} fill="currentColor" /> {t.strategy_name}
                                                                     </span>
                                                                 )}
@@ -225,39 +205,39 @@ export function TradeList({
                                                         </td>
 
                                                         {/* Price */}
-                                                        <td className={`px-4 py-3 text-right font-bold tabular-nums whitespace-nowrap ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                                                        <td className="px-4 py-3 text-right font-semibold tabular-nums whitespace-nowrap text-foreground">
                                                             {displayPrice(t.price, t.symbol)}
                                                         </td>
 
                                                         {/* Quantity */}
-                                                        <td className={`px-4 py-3 text-right font-bold tabular-nums ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                                                        <td className="px-4 py-3 text-right font-semibold tabular-nums text-foreground">
                                                             {formatQuantity(t.quantity, t.symbol)}
                                                         </td>
 
                                                         {/* Total */}
-                                                        <td className={`px-4 py-3 text-right font-black tabular-nums whitespace-nowrap ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
+                                                        <td className="px-4 py-3 text-right font-bold tabular-nums whitespace-nowrap text-foreground">
                                                             {displayPrice(amount, t.symbol)}
                                                         </td>
 
-                                                        {/* Memo (Hidden on smaller screens, can use responsive utilities or hidden) */}
+                                                        {/* Memo */}
                                                         <td className="px-4 py-3 hidden lg:table-cell">
                                                             {t.memo ? (
-                                                                <div className={`text-xs line-clamp-2 leading-relaxed ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                                                                <div className="text-xs line-clamp-2 leading-relaxed text-muted-foreground">
                                                                     {t.memo}
                                                                 </div>
                                                             ) : (
-                                                                <span className="text-[10px] opacity-30 italic">메모 없음</span>
+                                                                <span className="text-[10px] text-muted-foreground/50 italic">메모 없음</span>
                                                             )}
                                                         </td>
 
                                                         {/* Actions */}
                                                         {(onDelete || onEdit) && (
-                                                            <td className={`px-4 py-3 sticky right-0 z-10 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)] ${darkMode ? 'bg-card/95 backdrop-blur-sm' : 'bg-white/95 backdrop-blur-sm'}`}>
-                                                                <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <td className="px-4 py-3 sticky right-0 z-10 bg-card/95 backdrop-blur-sm">
+                                                                <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
                                                                     {onEdit && (
                                                                         <button
                                                                             onClick={(e) => { e.stopPropagation(); onEdit?.(t); }}
-                                                                            className={`p-1.5 rounded-lg transition-all ${darkMode ? 'bg-slate-800 hover:bg-indigo-600 hover:text-white text-slate-400' : 'bg-white border border-slate-200 hover:bg-indigo-50 hover:border-indigo-200 text-slate-500'}`}
+                                                                            className="p-1.5 rounded-lg transition-colors bg-muted hover:bg-primary/10 hover:text-primary text-muted-foreground"
                                                                         >
                                                                             <Pencil size={14} />
                                                                         </button>
@@ -265,7 +245,7 @@ export function TradeList({
                                                                     {onDelete && (
                                                                         <button
                                                                             onClick={(e) => { e.stopPropagation(); onDelete?.(t.id); }}
-                                                                            className={`p-1.5 rounded-lg transition-all ${darkMode ? 'bg-slate-800 hover:bg-rose-600 hover:text-white text-slate-400' : 'bg-white border border-slate-200 hover:bg-rose-50 hover:border-rose-200 text-slate-500'}`}
+                                                                            className="p-1.5 rounded-lg transition-colors bg-muted hover:bg-destructive/10 hover:text-destructive text-muted-foreground"
                                                                         >
                                                                             <Trash2 size={14} />
                                                                         </button>

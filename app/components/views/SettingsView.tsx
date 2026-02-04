@@ -70,22 +70,22 @@ export function SettingsView({
   };
 
   return (
-    <div className="space-y-8 w-full animate-in fade-in duration-500 pb-20">
+    <div className="space-y-6 w-full animate-in fade-in duration-500 pb-20">
       <div className="flex items-center gap-3">
-        <div className={`p-2 rounded-xl ${darkMode ? 'bg-slate-800 text-indigo-400' : 'bg-white text-indigo-600 shadow-sm'}`}>
-          <Sliders size={24} strokeWidth={2.5} />
+        <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
+          <Sliders size={22} strokeWidth={2} />
         </div>
         <div>
-          <h2 className={`text-2xl font-black tracking-tight ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>환경 설정</h2>
-          <p className={`text-sm font-medium ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>전략 및 데이터 관리, 백업 설정</p>
+          <h2 className="text-2xl font-bold text-foreground">환경 설정</h2>
+          <p className="text-sm font-medium text-muted-foreground">전략 및 데이터 관리, 백업 설정</p>
         </div>
       </div>
 
-      {/* Strategy Management Section */}
-      <Card variant="glass" className="overflow-hidden">
+      {/* Strategy Management Section - Toss Style */}
+      <Card variant="elevated" className="overflow-hidden">
         <div className="p-6 md:p-8">
-          <h3 className={`text-lg font-black mb-6 flex items-center gap-2 ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
-            <Target size={20} className="text-indigo-500" />
+          <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-foreground">
+            <Target size={20} className="text-primary" />
             매매 전략 관리
           </h3>
           <StrategyManager

@@ -162,36 +162,76 @@
 
 /* Custom Utilities */
 
-/* Toss Shadow */
+/* ============================================
+   TOSS DESIGN SYSTEM - Unified Shadow Scale
+   ============================================ */
+
+/* Shadow Scale - Consistent elevation system */
+.shadow-toss-sm {
+  box-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.04);
+}
 .shadow-toss {
-  box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.04);
+  box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.06);
+}
+.shadow-toss-md {
+  box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.08);
+}
+.shadow-toss-lg {
+  box-shadow: 0 12px 32px 0 rgba(0, 0, 0, 0.12);
+}
+
+.dark .shadow-toss-sm {
+  box-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.2);
 }
 .dark .shadow-toss {
-  box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.25);
 }
+.dark .shadow-toss-md {
+  box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.3);
+}
+.dark .shadow-toss-lg {
+  box-shadow: 0 12px 32px 0 rgba(0, 0, 0, 0.4);
+}
+
+/* ============================================
+   TOSS DESIGN SYSTEM - Radius Scale
+   ============================================ */
+.radius-toss-sm {
+  border-radius: 8px;
+}
+.radius-toss {
+  border-radius: 12px;
+}
+.radius-toss-md {
+  border-radius: 16px;
+}
+.radius-toss-lg {
+  border-radius: 20px;
+}
+.radius-toss-xl {
+  border-radius: 24px;
+}
+
+/* ============================================
+   TOSS DESIGN SYSTEM - Spacing Scale
+   ============================================ */
+/* Using Tailwind's default spacing (4px base) 
+   xs: 4px, sm: 8px, md: 12px, base: 16px, 
+   lg: 20px, xl: 24px, 2xl: 32px, 3xl: 40px */
 
 /* Custom Scrollbar */
-.scrollbar-thin::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-.scrollbar-thin::-webkit-scrollbar-track {
-  background: transparent;
-}
-.scrollbar-thin::-webkit-scrollbar-thumb {
-  @apply bg-slate-300 dark:bg-slate-700 rounded-full hover:bg-slate-400 dark:hover:bg-slate-600;
-}
-
-/* Glassmorphism Utilities */
+/* ============================================
+   TOSS DESIGN SYSTEM - Glassmorphism
+   ============================================ */
 .glass-panel {
     @apply backdrop-blur-xl border transition-all duration-300;
     background: var(--glass-bg);
     border-color: var(--glass-border);
-    box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.04);
+    box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.06);
 }
 
 .dark .glass-panel {
-    box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.25);
 }
 
 .glass-card {
@@ -206,13 +246,38 @@
 }
 
 .hover-glass:hover {
-    @apply transform -translate-y-0.5 shadow-lg;
+    @apply transform -translate-y-0.5;
+    box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.08);
     border-color: var(--ring);
 }
 
-/* Button Press Effect - Toss Style (Subtle scale) */
+.dark .hover-glass:hover {
+    box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* ============================================
+   TOSS DESIGN SYSTEM - Interactive States
+   ============================================ */
+/* Button Press Effect - Subtle scale like Toss */
 .btn-press:active {
-    @apply transform scale-[0.96] opacity-90 transition-transform duration-100;
+    @apply transform scale-[0.97] transition-transform duration-75;
+}
+
+/* Hover lift effect for cards */
+.hover-lift {
+    @apply transition-all duration-200;
+}
+.hover-lift:hover {
+    @apply transform -translate-y-0.5;
+    box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.08);
+}
+.dark .hover-lift:hover {
+    box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* Focus states */
+.focus-toss:focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
 }
 
 /* Animations */

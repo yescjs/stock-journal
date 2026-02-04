@@ -4,8 +4,12 @@ import { StatsDashboard } from '@/app/components/StatsDashboard';
 import { useStats } from '@/app/hooks/useStats';
 import { useRiskManagement } from '@/app/hooks/useRiskManagement';
 import { useMonthlyGoals } from '@/app/hooks/useMonthlyGoals';
-import { useStrategies } from '@/app/hooks/useStrategies'; // For strategy stats if needed?
-// Actually StatsDashboard receives strategyStats from useStats.
+import { useStrategies } from '@/app/hooks/useStrategies';
+import { useAchievements } from '@/app/hooks/useAchievements';
+import { AchievementsWidget } from '@/app/components/AchievementsWidget';
+import { DailyReminder } from '@/app/components/DailyReminder';
+import { CelebrationEffects } from '@/app/components/CelebrationEffects';
+import { Trade } from '@/app/types/trade';
 
 interface DashboardViewProps {
   darkMode: boolean;
@@ -19,6 +23,8 @@ interface DashboardViewProps {
   tagColors: Record<string, string>;
   exchangeRate: number;
   onExchangeRateChange: (rate: number) => void;
+  trades: Trade[]; // 업적 계산을 위해 추가
+  lastTradeDate?: string;
 }
 
 export function DashboardView({
@@ -32,7 +38,9 @@ export function DashboardView({
   onSymbolClick,
   tagColors,
   exchangeRate,
-  onExchangeRateChange
+  onExchangeRateChange,
+  trades,
+  lastTradeDate
 }: DashboardViewProps) {
   const {
     symbolSummaries,
@@ -61,8 +69,30 @@ export function DashboardView({
 
   const { goals: monthlyGoals, setGoal: setMonthlyGoal, removeGoal: removeMonthlyGoal } = goalsData;
 
+  // 업적 시스템
+  const dailyTradeDates = dailyRealizedPoints.map(p => p.key).filter(d => d.includes('-'));
+  const { achievements, stats: achievementStats } = useAchievements(
+    trades,
+    overallStats,
+    insights,
+    dailyTradeDates
+  );
+
   return (
     <div className="animate-in fade-in duration-500">
+      {/* 일일 리마인더 */}
+      <DailyReminder 
+        darkMode={darkMode} 
+        lastTradeDate={lastTradeDate || dailyTradeDates[dailyTradeDates.length - 1]}
+      />
+
+      {/* 업적 위젯 */}
+      <AchievementsWidget
+        achievements={achievements}
+        stats={achievementStats}
+        darkMode={darkMode}
+      />
+
        <StatsDashboard
           darkMode={darkMode}
           symbolSummaries={symbolSummaries}

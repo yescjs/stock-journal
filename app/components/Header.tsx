@@ -26,44 +26,43 @@ export function Header({
     onShowGuide,
 }: HeaderProps) {
     const tabs: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
-        { id: 'journal', label: '매매일지', icon: <FileText size={18} /> },
-        { id: 'diary', label: '시장복기', icon: <BookOpen size={18} /> },
-        { id: 'stats', label: '통계', icon: <BarChart3 size={18} /> },
-        { id: 'settings', label: '설정', icon: <Settings size={18} /> },
+        { id: 'journal', label: '??????', icon: <FileText size={18} /> },
+        { id: 'diary', label: '??????', icon: <BookOpen size={18} /> },
+        { id: 'reports', label: 'AI ???', icon: <TrendingUp size={18} /> },
+        { id: 'stats', label: '???', icon: <BarChart3 size={18} /> },
+        { id: 'settings', label: '???', icon: <Settings size={18} /> },
+    ];
+
     ];
 
     return (
         <div className="z-40">
-            <header className={`transition-all duration-300 py-4 ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
+            <header className="transition-all duration-300 py-4 text-foreground">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
 
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4 group cursor-default">
                             <div className="relative">
-                                <div className="absolute inset-0 bg-primary/20 blur-lg opacity-20 group-hover:opacity-40 transition-opacity rounded-full"></div>
-                                <div className="relative w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-primary-foreground shadow-xl bg-primary transform group-hover:scale-105 transition-transform duration-300">
-                                    <TrendingUp size={24} strokeWidth={2.5} />
+                                <div className="absolute inset-0 bg-primary/20 blur-xl opacity-30 group-hover:opacity-50 transition-opacity rounded-full"></div>
+                                <div className="relative w-12 h-12 rounded-2xl flex items-center justify-center text-primary-foreground shadow-toss bg-primary transform group-hover:scale-105 transition-transform duration-200">
+                                    <TrendingUp size={24} strokeWidth={2} />
                                 </div>
                             </div>
 
                             <div>
-                                <h1 className="text-xl md:text-2xl font-black tracking-tight flex items-center gap-1.5 font-sans">
-                                    <span className="text-primary">
-                                        Stock
-                                    </span>
-                                    <span className="text-foreground">
-                                        Journal
-                                    </span>
+                                <h1 className="text-xl md:text-2xl font-bold tracking-tight flex items-center gap-1.5">
+                                    <span className="text-primary">Stock</span>
+                                    <span className="text-foreground">Journal</span>
                                 </h1>
-                                <p className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 mt-0.5">
+                                <p className="text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5 mt-0.5">
                                     {currentUser ? (
                                         <>
-                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"></span>
+                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                             <span className="text-muted-foreground">프로 트레이더</span>
                                         </>
                                     ) : (
                                         <>
-                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"></span>
+                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                                             <span className="text-amber-600 dark:text-amber-500">게스트 모드</span>
                                             <span className="text-muted-foreground">•</span>
                                             <span className="text-muted-foreground text-xs normal-case">로그인하여 데이터 보관하세요</span>
@@ -106,7 +105,7 @@ export function Header({
                     </div>
 
                     <nav className="flex-1 max-w-lg mx-auto md:mx-0">
-                        <div className={`flex p-1.5 rounded-2xl w-full gap-1 shadow-inner ${darkMode ? 'bg-slate-950/50' : 'bg-slate-100/80'}`}>
+                        <div className={`flex p-1.5 rounded-2xl w-full gap-1 ${darkMode ? 'bg-muted/30' : 'bg-muted/50'}`}>
                             {tabs.map((tab) => {
                                 const isActive = activeTab === tab.id;
                                 return (
@@ -114,10 +113,11 @@ export function Header({
                                         key={tab.id}
                                         variant={isActive ? 'secondary' : 'ghost'}
                                         onClick={() => setActiveTab(tab.id)}
-                                        className={`flex-1 gap-2 text-xs md:text-sm font-bold ${isActive ? 'shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                                        className={`flex-1 gap-2 text-xs md:text-sm font-semibold ${isActive ? 'shadow-toss-sm' : 'text-muted-foreground hover:text-foreground'}`}
                                         size="sm"
                                     >
                                         <span className={`transition-all duration-300 ${isActive ? 'text-foreground' : 'opacity-50 text-muted-foreground'}`} aria-hidden="true">{tab.icon}</span>
+
                                         <span className="hidden leading-none sm:inline">{tab.label}</span>
                                     </Button>
                                 );
@@ -125,15 +125,13 @@ export function Header({
                         </div>
                     </nav>
 
-                    <div className="hidden md:flex items-center gap-3">
-                        <div className={`h-8 w-px mx-2 ${darkMode ? 'bg-slate-800' : 'bg-slate-200'}`}></div>
-
+                    <div className="hidden md:flex items-center gap-2">
                         <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => setDarkMode(!darkMode)}
                         >
-                            {darkMode ? <Sun size={18} strokeWidth={2.5} /> : <Moon size={18} strokeWidth={2.5} />}
+                            {darkMode ? <Sun size={18} strokeWidth={2} /> : <Moon size={18} strokeWidth={2} />}
                         </Button>
 
                         <Button
@@ -143,8 +141,10 @@ export function Header({
                             title="이용 가이드"
                             aria-label="이용 가이드"
                         >
-                            <BookOpen size={18} strokeWidth={2.5} />
+                            <BookOpen size={18} strokeWidth={2} />
                         </Button>
+
+                        <div className="h-6 w-px bg-border mx-1"></div>
 
                         {currentUser ? (
                             <Button
@@ -153,7 +153,7 @@ export function Header({
                                 onClick={onLogout}
                                 className="gap-2 hover:text-destructive hover:bg-destructive/10"
                             >
-                                <LogOut size={16} strokeWidth={2.5} />
+                                <LogOut size={16} strokeWidth={2} />
                                 <span>로그아웃</span>
                             </Button>
                         ) : (
@@ -163,7 +163,7 @@ export function Header({
                                 onClick={onShowLogin}
                                 className="gap-2"
                             >
-                                <LogIn size={16} strokeWidth={2.5} />
+                                <LogIn size={16} strokeWidth={2} />
                                 <span>로그인</span>
                             </Button>
                         )}

@@ -18,12 +18,14 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement | HTMLTe
 
 export const Input = React.forwardRef<HTMLInputElement | HTMLTextAreaElement, InputProps>(
   ({ className, label, error, leftIcon, rightIcon, multiline = false, ...props }, ref: React.ForwardedRef<HTMLInputElement | HTMLTextAreaElement>) => {
+    // Toss Design System - Input Styles
     const baseInputStyles = cn(
-      "w-full rounded-2xl bg-secondary/50 px-4 py-3.5 text-base text-foreground placeholder:text-muted-foreground",
-      "border border-transparent outline-none transition-all",
-      "focus:bg-background focus:border-primary",
-      "dark:bg-secondary/50 dark:text-foreground dark:placeholder:text-muted-foreground dark:focus:bg-secondary dark:focus:border-primary",
-      error && "bg-red-50 text-red-900 placeholder:text-red-300 focus:border-red-500 dark:bg-red-900/10 dark:text-red-100",
+      "w-full bg-muted/50 text-foreground placeholder:text-muted-foreground",
+      "border border-border/50 outline-none transition-all duration-150",
+      "focus:bg-background focus:border-primary focus:ring-1 focus:ring-primary/20",
+      "dark:bg-muted/30 dark:text-foreground dark:placeholder:text-muted-foreground dark:focus:bg-muted/50 dark:focus:border-primary",
+      "rounded-xl text-sm h-12 px-4",
+      error && "bg-red-50 text-red-900 placeholder:text-red-300 border-red-200 focus:border-red-500 focus:ring-red-500/20 dark:bg-red-900/10 dark:text-red-100 dark:border-red-800",
       leftIcon && "pl-11",
       rightIcon && "pr-11",
       className

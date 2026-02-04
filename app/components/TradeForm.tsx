@@ -240,29 +240,30 @@ export function TradeForm({
         }
     };
 
-    // Glassmorphism Styles
+    // Toss Design System - Input Styles
     const inputBaseClass = `
-        w-full ${isCompact ? 'px-3 py-2' : 'px-4 py-3'} text-sm font-bold rounded-xl outline-none transition-all
-        ${darkMode
-            ? 'bg-slate-800/40 text-white placeholder-slate-500 border border-slate-700/50 focus:bg-slate-800 focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20'
-            : 'bg-white/50 text-slate-900 placeholder-slate-400 border border-indigo-50/50 focus:bg-white focus:border-indigo-200 focus:ring-2 focus:ring-indigo-100 shadow-sm'}
+        w-full ${isCompact ? 'px-3 py-2 h-10' : 'px-4 py-3 h-12'} text-sm font-semibold rounded-xl outline-none transition-all duration-150
+        bg-muted/50 text-foreground placeholder:text-muted-foreground border border-border/50
+        focus:bg-background focus:border-primary focus:ring-1 focus:ring-primary/20
+        dark:bg-muted/30 dark:focus:bg-muted/50
     `;
 
-    const labelClass = `block mb-1.5 text-xs font-bold uppercase tracking-wider ${darkMode ? 'text-slate-400' : 'text-slate-500'}`;
+    // Toss Design System - Label Styles
+    const labelClass = "block mb-1.5 text-xs font-semibold text-muted-foreground";
 
     return (
-        <Card variant="glass" className={!isCompact ? 'p-6' : 'border-none bg-transparent shadow-none backdrop-blur-none'}>
+        <Card variant={isCompact ? "default" : "elevated"} className={!isCompact ? 'p-6' : 'border-none bg-transparent shadow-none'}>
             {!isCompact && (
                 <div className="mb-6 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-inner ${darkMode ? 'bg-gradient-to-br from-indigo-500/20 to-purple-500/20' : 'bg-white shadow-indigo-100'}`}>
-                            <Plus size={20} className={darkMode ? 'text-indigo-400' : 'text-indigo-600'} strokeWidth={3} />
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-primary/10 text-primary">
+                            <Plus size={20} strokeWidth={2} />
                         </div>
                         <div>
-                            <h2 className={`text-lg font-bold tracking-normal ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                            <h2 className="text-lg font-bold text-foreground">
                                 {initialData ? '매매 기록 수정' : '새 매매 기록'}
                             </h2>
-                            <p className={`text-xs font-bold ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                            <p className="text-xs font-medium text-muted-foreground">
                                 오늘도 원칙을 지키는 매매 하세요!
                             </p>
                         </div>
@@ -282,13 +283,13 @@ export function TradeForm({
                         />
                     </div>
                     <div className="sm:col-span-5">
-                        <div className="flex gap-2 h-[46px]">
+                        <div className="flex gap-2 h-12">
                             <Button
                                 type="button"
                                 fullWidth
                                 onClick={() => setForm(prev => ({ ...prev, side: 'BUY' }))}
                                 variant={form.side === 'BUY' ? 'primary' : 'secondary'}
-                                className={form.side === 'BUY' ? 'bg-rose-500 hover:bg-rose-600 text-white border-none' : ''}
+                                className={form.side === 'BUY' ? 'bg-color-up hover:bg-color-up/90 text-white border-none' : ''}
                             >
                                 매수
                             </Button>
@@ -297,7 +298,7 @@ export function TradeForm({
                                 fullWidth
                                 onClick={() => setForm(prev => ({ ...prev, side: 'SELL' }))}
                                 variant={form.side === 'SELL' ? 'primary' : 'secondary'}
-                                className={form.side === 'SELL' ? 'bg-blue-500 hover:bg-blue-600 text-white border-none' : ''}
+                                className={form.side === 'SELL' ? 'bg-color-down hover:bg-color-down/90 text-white border-none' : ''}
                             >
                                 매도
                             </Button>
@@ -359,14 +360,14 @@ export function TradeForm({
                     </div>
                 </div>
 
-                {/* Advanced Options Toggle */}
+                {/* Advanced Options Toggle - Toss Style */}
                 <div className="pt-2">
                     <button
                         type="button"
                         onClick={() => setShowAdvanced(!showAdvanced)}
-                        className={`w-full py-2.5 flex items-center justify-center gap-2 text-xs font-bold transition-all rounded-xl border ${darkMode ? 'bg-slate-900/40 border-slate-700 text-slate-400 hover:bg-slate-800 hover:border-slate-500 text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200'}`}
+                        className="w-full py-2.5 flex items-center justify-center gap-2 text-xs font-semibold transition-all duration-150 rounded-xl border border-border/50 bg-muted/30 text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                     >
-                        <ChevronDown size={14} className={`transform transition-transform duration-300 ${showAdvanced ? 'rotate-180' : ''}`} />
+                        <ChevronDown size={14} className={`transform transition-transform duration-200 ${showAdvanced ? 'rotate-180' : ''}`} />
                         {showAdvanced ? '간단히 보기' : '태그/전략/메모 입력하기'}
                     </button>
                 </div>
@@ -492,13 +493,13 @@ export function TradeForm({
                                     <button
                                         type="button"
                                         onClick={() => chartInputRef.current?.click()}
-                                        className={`w-full h-[46px] rounded-xl flex items-center justify-center transition-all border border-dashed ${darkMode ? 'bg-slate-800/40 border-slate-700 hover:bg-slate-800 hover:border-slate-500 text-slate-500' : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-indigo-300 text-slate-400'}`}
+                                        className="w-full h-12 rounded-xl flex items-center justify-center transition-all duration-150 border border-dashed border-border/50 bg-muted/30 text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                                         title="이미지 업로드"
                                     >
                                         <ImageIcon size={18} />
                                     </button>
                                 ) : (
-                                    <div className="relative w-full h-[46px] rounded-xl overflow-hidden group shadow-md cursor-pointer" onClick={() => chartInputRef.current?.click()}>
+                                    <div className="relative w-full h-12 rounded-xl overflow-hidden group shadow-toss-sm cursor-pointer" onClick={() => chartInputRef.current?.click()}>
                                         <img src={chartPreview} alt="Preview" className="w-full h-full object-cover" />
                                         <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button
@@ -509,7 +510,7 @@ export function TradeForm({
                                                     setChartPreview(null);
                                                     if (chartInputRef.current) chartInputRef.current.value = '';
                                                 }}
-                                                className="text-white text-[10px] font-bold uppercase tracking-wider bg-rose-500 px-2 py-1 rounded"
+                                                className="text-white text-xs font-semibold bg-destructive px-2.5 py-1 rounded-lg"
                                             >
                                                 삭제
                                             </button>
@@ -522,28 +523,16 @@ export function TradeForm({
                 )}
 
                 <div className="pt-2">
-                    <button
+                    <Button
                         type="submit"
-                        disabled={isSubmitting}
-                        className={
-                            `w-full py-4 rounded-xl font-black text-sm text-white transition-all transform active:scale-[0.98] btn-press flex items-center justify-center gap-2
-                            ${isSubmitting
-                                ? 'bg-slate-400 cursor-not-allowed'
-                                : darkMode
-                                    ? 'bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 shadow-lg shadow-indigo-900/40'
-                                    : 'bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 shadow-lg shadow-indigo-200'}
-                            `
-                        }
+                        fullWidth
+                        size="lg"
+                        loading={isSubmitting}
+                        className="gap-2"
                     >
-                        {isSubmitting ? (
-                            <>저장 중...</>
-                        ) : (
-                            <>
-                                <Save size={18} strokeWidth={2.5} />
-                                {initialData ? '수정 완료' : '기록 저장하기'}
-                            </>
-                        )}
-                    </button>
+                        <Save size={18} strokeWidth={2} />
+                        {initialData ? '수정 완료' : '기록 저장하기'}
+                    </Button>
                 </div>
             </form>
         </Card>

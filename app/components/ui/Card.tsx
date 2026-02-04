@@ -19,12 +19,13 @@ export function Card({
   children,
   ...props
 }: CardProps) {
-  const baseStyles = "rounded-[var(--radius)] transition-all duration-200 overflow-hidden flex flex-col";
-  
+  // Toss Design System - Card Styles
+  const baseStyles = "transition-all duration-200 overflow-hidden flex flex-col";
+
   const variants = {
-    default: "bg-card text-card-foreground shadow-toss border-none",
-    elevated: "bg-card text-card-foreground shadow-lg shadow-black/5 dark:shadow-black/20 border-none",
-    glass: "glass-card text-card-foreground",
+    default: "bg-card text-card-foreground shadow-toss border border-border/50 rounded-2xl",
+    elevated: "bg-card text-card-foreground shadow-toss-md border border-border/50 rounded-2xl",
+    glass: "glass-card text-card-foreground rounded-2xl",
   };
 
   return (
@@ -32,7 +33,7 @@ export function Card({
       className={cn(
         baseStyles,
         variants[variant],
-        hover && "hover:scale-[1.02] hover:shadow-xl cursor-pointer active:scale-[0.98]",
+        hover && "hover-lift cursor-pointer active:scale-[0.99]",
         className
       )}
       {...props}

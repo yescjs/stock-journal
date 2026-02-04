@@ -3,7 +3,7 @@
 import React from 'react';
 import { InsightData } from '@/app/types/stats';
 import { formatNumber } from '@/app/utils/format';
-import { TrendingUp, TrendingDown, Calendar, Tag, Target, Flame, Award, AlertTriangle } from 'lucide-react';
+import { TrendingUp, TrendingDown, Calendar, Tag, Target, Flame, Award, AlertTriangle, Brain, Activity, BarChart3 } from 'lucide-react';
 
 interface InsightsWidgetProps {
     insights: InsightData;
@@ -11,33 +11,31 @@ interface InsightsWidgetProps {
 }
 
 export function InsightsWidget({ insights, darkMode }: InsightsWidgetProps) {
-    const cardClass = `glass-card p-5 rounded-2xl border transition-all hover:-translate-y-1 duration-300 ${
-        darkMode ? 'bg-slate-900/40 border-slate-700/50 hover:bg-slate-800/60' : 'bg-white/60 border-white/60 shadow-sm hover:shadow-lg hover:bg-white/80'
-    }`;
+    // Toss Design System - Card Style
+    const cardClass = `p-5 rounded-xl bg-card border border-border/50 shadow-toss-sm transition-all duration-200 hover:shadow-toss hover:-translate-y-0.5`;
 
-    // Helper to render the header (Icon Box + Title)
-    const renderHeader = (icon: React.ReactNode, title: string, colorClass: string, bgClass: string) => (
+    // Toss Design System - Helper to render header
+    const renderHeader = (icon: React.ReactNode, title: string, colorClass: string) => (
         <div className="flex items-center gap-3 mb-3">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors shadow-inner ${bgClass} ${colorClass}`}>
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${colorClass}`}>
                 {icon}
             </div>
-            <span className={`text-xs font-bold tracking-wider uppercase ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {title}
             </span>
         </div>
     );
 
     return (
-        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-4 gap-5 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-4 gap-4 mb-6">
             {/* Best Day */}
             <div className={cardClass}>
                 {renderHeader(
-                    <Calendar size={20} strokeWidth={2.5} />,
+                    <Calendar size={18} strokeWidth={2} />,
                     '최고의 요일',
-                    darkMode ? 'text-indigo-300' : 'text-indigo-600',
-                    darkMode ? 'bg-indigo-500/20' : 'bg-indigo-50'
+                    'bg-primary/10 text-primary'
                 )}
-                <div className={`text-2xl font-black tracking-tight ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
+                <div className="text-xl font-bold text-foreground">
                     {insights.bestDay || '-'}
                 </div>
             </div>
@@ -45,12 +43,11 @@ export function InsightsWidget({ insights, darkMode }: InsightsWidgetProps) {
             {/* Best Tag */}
             <div className={cardClass}>
                 {renderHeader(
-                    <Tag size={20} strokeWidth={2.5} />,
+                    <Tag size={18} strokeWidth={2} />,
                     '최고의 전략',
-                    darkMode ? 'text-purple-300' : 'text-purple-600',
-                    darkMode ? 'bg-purple-500/20' : 'bg-purple-50'
+                    'bg-primary/10 text-primary'
                 )}
-                <div className={`text-xl font-black tracking-tight truncate ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
+                <div className="text-lg font-bold text-foreground truncate">
                     {insights.bestTag ? `#${insights.bestTag}` : '-'}
                 </div>
             </div>
@@ -58,12 +55,11 @@ export function InsightsWidget({ insights, darkMode }: InsightsWidgetProps) {
             {/* Win Rate (Long) */}
             <div className={cardClass}>
                 {renderHeader(
-                    <Target size={20} strokeWidth={2.5} />,
+                    <Target size={18} strokeWidth={2} />,
                     '매수 승률',
-                    darkMode ? 'text-emerald-300' : 'text-emerald-600',
-                    darkMode ? 'bg-emerald-500/20' : 'bg-emerald-50'
+                    'bg-primary/10 text-primary'
                 )}
-                <div className={`text-2xl font-black tracking-tight ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
+                <div className="text-xl font-bold text-foreground">
                     {insights.longWinRate.toFixed(1)}%
                 </div>
             </div>
@@ -71,16 +67,16 @@ export function InsightsWidget({ insights, darkMode }: InsightsWidgetProps) {
             {/* Current Streak */}
             <div className={cardClass}>
                 {renderHeader(
-                    <Flame size={20} strokeWidth={2.5} />,
+                    <Flame size={18} strokeWidth={2} />,
                     '현재 연속',
-                    insights.currentStreak.type === 'win' ? (darkMode ? 'text-orange-300' : 'text-orange-600') : (darkMode ? 'text-slate-400' : 'text-slate-500'),
-                    insights.currentStreak.type === 'win' ? (darkMode ? 'bg-orange-500/20' : 'bg-orange-50') : (darkMode ? 'bg-slate-700/50' : 'bg-slate-100')
+                    insights.currentStreak.type === 'win' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
                 )}
-                <div className={`text-2xl font-black tracking-tight flex items-center gap-1 ${insights.currentStreak.type === 'win' ? 'text-emerald-500' : insights.currentStreak.type === 'loss' ? 'text-rose-500' : (darkMode ? 'text-slate-400' : 'text-slate-500')}`}>
+                <div className="text-xl font-bold text-foreground flex items-center gap-1">
                     {insights.currentStreak.count > 0 ? (
                         <>
                             {insights.currentStreak.count}연{insights.currentStreak.type === 'win' ? '승' : '패'}
                             {insights.currentStreak.type === 'win' && <Flame size={18} className="animate-pulse" />}
+
                         </>
                     ) : '-'}
                 </div>
@@ -89,12 +85,11 @@ export function InsightsWidget({ insights, darkMode }: InsightsWidgetProps) {
             {/* Max Win Streak */}
             <div className={cardClass}>
                 {renderHeader(
-                    <Award size={20} strokeWidth={2.5} />,
+                    <Award size={18} strokeWidth={2} />,
                     '최대 연승',
-                    darkMode ? 'text-amber-300' : 'text-amber-600',
-                    darkMode ? 'bg-amber-500/20' : 'bg-amber-50'
+                    'bg-primary/10 text-primary'
                 )}
-                <div className="text-2xl font-black tracking-tight text-amber-500">
+                <div className="text-xl font-bold text-primary">
                     {insights.maxWinStreak > 0 ? `${insights.maxWinStreak}연승` : '-'}
                 </div>
             </div>
@@ -102,12 +97,11 @@ export function InsightsWidget({ insights, darkMode }: InsightsWidgetProps) {
             {/* Max Win */}
             <div className={cardClass}>
                 {renderHeader(
-                    <TrendingUp size={20} strokeWidth={2.5} />,
+                    <TrendingUp size={18} strokeWidth={2} />,
                     '최대 수익',
-                    darkMode ? 'text-teal-300' : 'text-teal-600',
-                    darkMode ? 'bg-teal-500/20' : 'bg-teal-50'
+                    'bg-primary/10 text-primary'
                 )}
-                <div className="text-2xl font-black tracking-tight text-teal-500">
+                <div className="text-xl font-bold text-primary">
                     +{formatNumber(insights.maxWin)}
                 </div>
             </div>
@@ -115,12 +109,11 @@ export function InsightsWidget({ insights, darkMode }: InsightsWidgetProps) {
             {/* Max Loss */}
             <div className={cardClass}>
                 {renderHeader(
-                    <TrendingDown size={20} strokeWidth={2.5} />,
+                    <TrendingDown size={18} strokeWidth={2} />,
                     '최대 손실',
-                    darkMode ? 'text-rose-300' : 'text-rose-600',
-                    darkMode ? 'bg-rose-500/20' : 'bg-rose-50'
+                    'bg-primary/10 text-primary'
                 )}
-                <div className="text-2xl font-black tracking-tight text-rose-500">
+                <div className="text-xl font-bold text-destructive">
                     {insights.maxLoss === 0 ? '-' : formatNumber(insights.maxLoss)}
                 </div>
             </div>
@@ -128,20 +121,55 @@ export function InsightsWidget({ insights, darkMode }: InsightsWidgetProps) {
             {/* Max Drawdown */}
             <div className={cardClass}>
                 {renderHeader(
-                    <AlertTriangle size={20} strokeWidth={2.5} />,
+                    <AlertTriangle size={18} strokeWidth={2} />,
                     '최대 드로다운',
-                    darkMode ? 'text-red-300' : 'text-red-600',
-                    darkMode ? 'bg-red-500/20' : 'bg-red-50'
+                    'bg-primary/10 text-primary'
                 )}
                 <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black tracking-tight text-red-500">
+                    <span className="text-xl font-bold text-destructive">
                         {insights.maxDrawdown === 0 ? '-' : formatNumber(insights.maxDrawdown)}
                     </span>
                     {insights.maxDrawdownPercent !== 0 && (
-                        <span className="text-xs font-bold text-red-400 opacity-80">
+                        <span className="text-xs text-muted-foreground">
                             ({insights.maxDrawdownPercent.toFixed(1)}%)
                         </span>
                     )}
+                </div>
+            </div>
+
+            {/* Expectancy */}
+            <div className={cardClass}>
+                {renderHeader(
+                    <Brain size={18} strokeWidth={2} />,
+                    '기대값',
+                    insights.expectancy >= 0 ? 'bg-primary/10 text-primary' : 'bg-destructive/10 text-destructive'
+                )}
+                <div className={`text-xl font-bold ${insights.expectancy >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                    {insights.expectancy === 0 && insights.maxWin === 0 ? '-' : `${insights.expectancy >= 0 ? '+' : ''}${formatNumber(insights.expectancy)}`}
+                </div>
+            </div>
+
+            {/* Average R-Multiple */}
+            <div className={cardClass}>
+                {renderHeader(
+                    <Activity size={18} strokeWidth={2} />,
+                    '평균 R-Multiple',
+                    'bg-primary/10 text-primary'
+                )}
+                <div className="text-xl font-bold text-primary">
+                    {insights.avgRMultiple === 0 && insights.maxWin === 0 ? '-' : `R${insights.avgRMultiple >= 0 ? '+' : ''}${insights.avgRMultiple.toFixed(2)}`}
+                </div>
+            </div>
+
+            {/* Best R-Multiple */}
+            <div className={cardClass}>
+                {renderHeader(
+                    <BarChart3 size={18} strokeWidth={2} />,
+                    '최고 R-Multiple',
+                    'bg-primary/10 text-primary'
+                )}
+                <div className="text-xl font-bold text-primary">
+                    {insights.bestRMultiple === 0 && insights.maxWin === 0 ? '-' : `R${insights.bestRMultiple.toFixed(1)}`}
                 </div>
             </div>
         </div>
