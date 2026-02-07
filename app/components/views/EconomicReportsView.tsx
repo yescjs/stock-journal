@@ -6,7 +6,7 @@ import { useEconomicReports, useUserPreferences } from '@/app/hooks/useEconomicR
 import { EconomicReportCard } from '@/app/components/EconomicReportCard';
 import { Card } from '@/app/components/ui/Card';
 import { Button } from '@/app/components/ui/Button';
-import { FileText, RefreshCw, Settings, Bell, BellOff, Plus, Loader2 } from 'lucide-react';
+import { FileText, RefreshCw, Settings, Bell, BellOff, Plus } from 'lucide-react';
 
 interface EconomicReportsViewProps {
   darkMode: boolean;
@@ -28,10 +28,9 @@ export function EconomicReportsView({ darkMode, currentUser }: EconomicReportsVi
   const { preferences, updatePreferences } = useUserPreferences(currentUser);
   const [generating, setGenerating] = useState(false);
 
-  // 수동 보고서 생성
   const handleGenerateReport = async () => {
     if (!currentUser) {
-      alert('보고서 생성은 로그인 후 사용 가능합니다.');
+      alert('AI 일보 생성은 로그인 사용자만 가능합니다.');
       return;
     }
 
@@ -53,51 +52,48 @@ export function EconomicReportsView({ darkMode, currentUser }: EconomicReportsVi
 
   return (
     <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className={`flex items-center justify-between p-4 border-b ${
-        darkMode ? 'border-slate-800' : 'border-slate-200'
-      }`}>
+      <div
+        className={`flex items-center justify-between p-4 border-b ${
+          darkMode ? 'border-slate-800' : 'border-slate-200'
+        }`}
+      >
         <div className="flex items-center gap-3">
           <div className={`p-2 rounded-xl ${darkMode ? 'bg-indigo-500/20' : 'bg-indigo-100'}`}>
             <FileText className="w-5 h-5 text-indigo-500" />
           </div>
           <div>
             <h2 className={`font-bold text-lg ${darkMode ? 'text-white' : 'text-slate-900'}`}>
-              AI 경제 일보
+              AI 일보 브리프
             </h2>
             <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-              매일 아침 9시, AI가 정리하는 경제 소식
+              매일 오전 9시, 핵심 시장 요약과 주요 이슈를 제공합니다.
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           {unreadCount > 0 && (
-            <div className={`px-3 py-1 rounded-full text-sm font-bold ${
-              darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600'
-            }`}>
-              {unreadCount}개 읽지 않음
+            <div
+              className={`px-3 py-1 rounded-full text-sm font-bold ${
+                darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600'
+              }`}
+            >
+              {unreadCount}건 미읽음
             </div>
           )}
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={refreshReports}
-            disabled={loading}
-          >
+          <Button size="sm" variant="ghost" onClick={refreshReports} disabled={loading}>
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
         </div>
       </div>
 
-      {/* Settings */}
       <div className={`p-4 border-b ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>
         <Card className={`p-4 ${darkMode ? 'bg-slate-900' : 'bg-slate-50'}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Settings className={`w-4 h-4 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`} />
               <span className={`text-sm font-medium ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-                일일 보고서 수신
+                일보 자동 수신
               </span>
               {!currentUser && (
                 <span className="text-xs text-amber-500">(로그인 필요)</span>
@@ -129,31 +125,24 @@ export function EconomicReportsView({ darkMode, currentUser }: EconomicReportsVi
         </Card>
       </div>
 
-      {/* Generate Button (Manual) */}
       {currentUser && (
         <div className="p-4">
-          <Button
-            onClick={handleGenerateReport}
-            disabled={generating}
-            className="w-full"
-            variant="secondary"
-          >
+          <Button onClick={handleGenerateReport} disabled={generating} className="w-full" variant="secondary">
             {generating ? (
               <>
                 <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                보고서 생성 중...
+                AI 일보 생성 중...
               </>
             ) : (
               <>
                 <Plus className="w-4 h-4 mr-2" />
-                지금 보고서 생성하기
+                수동으로 AI 일보 생성
               </>
             )}
           </Button>
         </div>
       )}
 
-      {/* Reports List */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {error && (
           <div className={`p-4 rounded-xl ${darkMode ? 'bg-rose-500/20' : 'bg-rose-100'}`}>
@@ -179,46 +168,46 @@ export function EconomicReportsView({ darkMode, currentUser }: EconomicReportsVi
   );
 }
 
-// Loading Skeleton
 function LoadingSkeleton({ darkMode }: { darkMode: boolean }) {
   return (
     <div className="w-full max-w-2xl space-y-4 p-4">
       <div className={`h-8 w-48 rounded ${darkMode ? 'bg-slate-800' : 'bg-slate-200'} animate-pulse`} />
-      <div className={`h-32 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-slate-200'} animate-pulse`} />
-      <div className={`h-32 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-slate-200'} animate-pulse`} />
+      <div className={`h-40 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-slate-200'} animate-pulse`} />
+      <div className={`h-40 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-slate-200'} animate-pulse`} />
     </div>
   );
 }
 
-// Empty State
-function EmptyState({ 
-  darkMode, 
-  onGenerate, 
-  hasUser 
-}: { 
-  darkMode: boolean; 
+function EmptyState({
+  darkMode,
+  onGenerate,
+  hasUser,
+}: {
+  darkMode: boolean;
   onGenerate: () => void;
   hasUser: boolean;
 }) {
   return (
     <Card className={`p-8 text-center ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white'}`}>
-      <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center ${
-        darkMode ? 'bg-slate-800' : 'bg-slate-100'
-      }`}>
+      <div
+        className={`w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center ${
+          darkMode ? 'bg-slate-800' : 'bg-slate-100'
+        }`}
+      >
         <FileText className={`w-8 h-8 ${darkMode ? 'text-slate-600' : 'text-slate-400'}`} />
       </div>
       <h3 className={`font-bold text-lg mb-2 ${darkMode ? 'text-white' : 'text-slate-900'}`}>
-        아직 보고서가 없습니다
+        아직 생성된 일보가 없어요
       </h3>
       <p className={`text-sm mb-4 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-        {hasUser 
-          ? '매일 아침 9시에 AI가 자동으로 경제 보고서를 생성합니다.'
-          : '로그인 후 매일 아침 9시에 AI가 자동으로 경제 보고서를 생성합니다.'}
+        {hasUser
+          ? '매일 오전 9시에 최신 시장 브리프가 자동으로 생성됩니다.'
+          : '로그인하면 매일 오전 9시에 최신 시장 브리프를 받아볼 수 있습니다.'}
       </p>
       {hasUser && (
         <Button onClick={onGenerate} variant="secondary">
           <Plus className="w-4 h-4 mr-2" />
-          지금 보고서 생성하기
+          수동으로 AI 일보 생성
         </Button>
       )}
     </Card>
