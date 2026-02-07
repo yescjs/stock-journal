@@ -12,7 +12,8 @@ interface DailyReminderProps {
 }
 
 export function DailyReminder({ darkMode, lastTradeDate, onDismiss }: DailyReminderProps) {
-    const [isVisible, setIsVisible] = useState(true);
+    const [isVisible, setIsVisible] = useState(false);
+    const [isLoaded, setIsLoaded] = useState(false);
     
     // 날짜 차이를 렌더링 중에 계산
     const daysSinceLastTrade = React.useMemo(() => {
@@ -24,13 +25,16 @@ export function DailyReminder({ darkMode, lastTradeDate, onDismiss }: DailyRemin
         return Math.floor(diffTime / (1000 * 60 * 60 * 24));
     }, [lastTradeDate]);
     
-    // 이미 닫았는지 확인
+    // 마운트 시점에 로컬 스토리지 확인
     useEffect(() => {
         const dismissed = localStorage.getItem('daily-reminder-dismissed');
         const today = new Date().toDateString();
-        if (dismissed === today) {
-            setIsVisible(false);
+        if (dismissed !== today) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setIsVisible(true);
         }
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setIsLoaded(true);
     }, []);
 
     const handleDismiss = () => {
@@ -40,7 +44,7 @@ export function DailyReminder({ darkMode, lastTradeDate, onDismiss }: DailyRemin
         localStorage.setItem('daily-reminder-dismissed', new Date().toDateString());
     };
 
-    if (!isVisible) return null;
+    if (!isLoaded || !isVisible) return null;
 
     const isFirstTrade = daysSinceLastTrade === 999;
     const isStreakAtRisk = daysSinceLastTrade >= 2;

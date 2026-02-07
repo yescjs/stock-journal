@@ -70,30 +70,101 @@ export function CelebrationEffects({ events, darkMode, onComplete }: Celebration
     const [isShowing, setIsShowing] = useState(false);
     const [showConfetti, setShowConfetti] = useState(false);
 
-    const triggerConfetti = React.useCallback(() => {
-        setShowConfetti(true);
-        setTimeout(() => setShowConfetti(false), 4000);
-    }, []);
+        const triggerConfetti = React.useCallback(() => {
 
-    useEffect(() => {
-        if (events.length > 0 && !isShowing) {
-            setQueue(events);
-        }
-    }, [events, isShowing]);
+            setShowConfetti(true);
 
-    useEffect(() => {
-        if (queue.length > 0 && !isShowing && !currentEvent) {
-            const [next, ...rest] = queue;
-            setCurrentEvent(next);
-            setQueue(rest);
-            setIsShowing(true);
-            triggerConfetti();
-        }
-    }, [queue, isShowing, currentEvent, triggerConfetti]);
+            setTimeout(() => setShowConfetti(false), 4000);
 
+        }, []);
 
+    
 
-    const handleDismiss = () => {
+            // 큐 관리 및 다음 이벤트 설정 통합
+
+    
+
+            useEffect(() => {
+
+    
+
+                // 새 이벤트가 들어왔을 때
+
+    
+
+                if (events.length > 0 && !isShowing && queue.length === 0) {
+
+    
+
+                    // eslint-disable-next-line react-hooks/set-state-in-effect
+
+    
+
+                    setQueue(events);
+
+    
+
+                    return;
+
+    
+
+                }
+
+    
+
+        
+
+    
+
+                // 큐에 이벤트가 있고 현재 보여주는 것이 없을 때
+
+    
+
+                if (queue.length > 0 && !isShowing && !currentEvent) {
+
+    
+
+                    const [next, ...rest] = queue;
+
+    
+
+                    // eslint-disable-next-line react-hooks/set-state-in-effect
+
+    
+
+                    setCurrentEvent(next);
+
+    
+
+                    // eslint-disable-next-line react-hooks/set-state-in-effect
+
+    
+
+                    setQueue(rest);
+
+    
+
+                    // eslint-disable-next-line react-hooks/set-state-in-effect
+
+    
+
+                    setIsShowing(true);
+
+    
+
+                    triggerConfetti();
+
+    
+
+                }
+
+    
+
+            }, [events, queue, isShowing, currentEvent, triggerConfetti]);
+
+    
+
+        const handleDismiss = () => {
         setIsShowing(false);
         setCurrentEvent(null);
         
