@@ -8,8 +8,8 @@
 ## 2. Frontend Development
 - **UI Library**: React (v19.0+)
 - **Styling**: Tailwind CSS (v4.0+)
-- **Typography**: JetBrains Mono (via Google Fonts)
-- **Animations**: Framer Motion
+- **Typography**: Pretendard (Primary), JetBrains Mono (Code/Numbers)
+- **Animations**: Framer Motion (Page Transitions, Bottom Sheets)
 - **Icons**: Lucide React
 - **Data Visualization**: Recharts
 
