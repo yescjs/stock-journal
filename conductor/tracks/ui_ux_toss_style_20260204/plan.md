@@ -39,7 +39,7 @@
     - [x] `Framer Motion`의 `AnimatePresence`를 활용한 페이지 간 부드러운 전환 추가
 - [x] Task: Conductor - User Manual Verification 'Phase 4: 뷰 적용 및 애니메이션' (Protocol in workflow.md)
 
-## Phase 5: 최종 폴리싱 및 검증 (Polishing & Final Check)
+## Phase 5: 최종 폴리싱 및 검증 (Polishing & Final Check) [checkpoint: ce1933d]
 - [x] Task: 전체 다크/라이트 모드 색상 대비 및 시인성 최종 점검
 - [x] Task: 성능 최적화 (애니메이션 부하 및 Lighthouse 점수 확인)
 - [x] Task: Conductor - User Manual Verification 'Phase 5: 최종 폴리싱 및 검증' (Protocol in workflow.md)
