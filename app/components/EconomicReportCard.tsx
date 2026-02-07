@@ -5,7 +5,20 @@ import { DailyEconomicReport, KeyIssue, NewsItem } from '@/app/types/economicRep
 import { Card } from '@/app/components/ui/Card';
 import { Badge } from '@/app/components/ui/Badge';
 import { Button } from '@/app/components/ui/Button';
-import { TrendingUp, TrendingDown, Minus, AlertCircle, Newspaper, Globe, ExternalLink, Check, Trash2 } from 'lucide-react';
+import {
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  AlertCircle,
+  Newspaper,
+  Globe,
+  ExternalLink,
+  Check,
+  Trash2,
+  FileText,
+  Target,
+  Flag,
+} from 'lucide-react';
 
 interface EconomicReportCardProps {
   report: DailyEconomicReport;
@@ -15,8 +28,8 @@ interface EconomicReportCardProps {
 }
 
 const sentimentConfig = {
-  bullish: { icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-500/10', label: '긍정적' },
-  bearish: { icon: TrendingDown, color: 'text-rose-500', bg: 'bg-rose-500/10', label: '부정적' },
+  bullish: { icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-500/10', label: '상승' },
+  bearish: { icon: TrendingDown, color: 'text-rose-500', bg: 'bg-rose-500/10', label: '하락' },
   neutral: { icon: Minus, color: 'text-slate-500', bg: 'bg-slate-500/10', label: '중립' },
   volatile: { icon: AlertCircle, color: 'text-amber-500', bg: 'bg-amber-500/10', label: '변동성' },
 };
@@ -27,14 +40,26 @@ const impactConfig = {
   low: { color: 'bg-blue-500', label: '낮음' },
 };
 
+function extractCheckpoint(summary?: string | null) {
+  if (!summary) return '';
+  const sentences = summary
+    .match(/[^.!?]+[.!?]?/g)
+    ?.map((sentence) => sentence.trim())
+    .filter(Boolean);
+
+  if (!sentences || sentences.length === 0) return summary.trim();
+  return sentences.slice(-2).join(' ').trim();
+}
+
 export function EconomicReportCard({
   report,
   darkMode,
   onMarkAsRead,
   onDelete,
 }: EconomicReportCardProps) {
-  const sentiment = sentimentConfig[report.market_sentiment];
+  const sentiment = sentimentConfig[report.market_sentiment] ?? sentimentConfig.neutral;
   const SentimentIcon = sentiment.icon;
+  const checkpoint = extractCheckpoint(report.summary);
 
   return (
     <Card
@@ -42,12 +67,10 @@ export function EconomicReportCard({
         report.is_read ? 'opacity-70' : ''
       } ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}
     >
-      {/* Unread Indicator */}
       {!report.is_read && (
         <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
       )}
 
-      {/* Header */}
       <div className="p-4 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
@@ -63,35 +86,47 @@ export function EconomicReportCard({
               })}
               {report.ai_generated && (
                 <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-500">
-                  AI 생성
+                  AI 분석
                 </span>
               )}
             </p>
           </div>
-          
-          {/* Sentiment Badge */}
-          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${sentiment.bg}`}>
+
+          <div
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border ${
+              darkMode ? 'border-slate-700' : 'border-slate-200'
+            } ${sentiment.bg}`}
+          >
             <SentimentIcon className={`w-4 h-4 ${sentiment.color}`} />
-            <span className={`text-sm font-medium ${sentiment.color}`}>
+            <span className={`text-sm font-semibold ${sentiment.color}`}>
               {sentiment.label}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Summary */}
-      <div className="p-4">
-        <p className={`text-sm leading-relaxed ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-          {report.summary}
-        </p>
-      </div>
+      {report.summary && (
+        <div className="p-4 border-b border-slate-200 dark:border-slate-800">
+          <div className="flex items-center gap-2 mb-2">
+            <FileText className={`w-4 h-4 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`} />
+            <h4 className={`text-sm font-bold ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+              시장 개요
+            </h4>
+          </div>
+          <p className={`text-base leading-relaxed ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
+            {report.summary}
+          </p>
+        </div>
+      )}
 
-      {/* Key Issues */}
       {report.key_issues && report.key_issues.length > 0 && (
-        <div className="px-4 pb-4">
-          <h4 className={`text-sm font-bold mb-3 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-            핵심 이슈
-          </h4>
+        <div className="px-4 py-4 border-b border-slate-200 dark:border-slate-800">
+          <div className="flex items-center gap-2 mb-3">
+            <Target className={`w-4 h-4 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`} />
+            <h4 className={`text-sm font-bold ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+              주요 동인
+            </h4>
+          </div>
           <div className="space-y-2">
             {report.key_issues.map((issue: KeyIssue, idx: number) => (
               <div
@@ -122,22 +157,19 @@ export function EconomicReportCard({
         </div>
       )}
 
-      {/* News Sections */}
-      <div className="px-4 pb-4 space-y-4">
-        {/* Korean News */}
+      <div className="px-4 py-4 space-y-4 border-b border-slate-200 dark:border-slate-800">
         {report.korean_news && report.korean_news.length > 0 && (
           <NewsSection
-            title="국내 뉴스"
+            title="국내 주요 뉴스"
             icon={Newspaper}
             news={report.korean_news}
             darkMode={darkMode}
           />
         )}
 
-        {/* Global News */}
         {report.global_news && report.global_news.length > 0 && (
           <NewsSection
-            title="해외 뉴스"
+            title="해외 주요 뉴스"
             icon={Globe}
             news={report.global_news}
             darkMode={darkMode}
@@ -145,17 +177,34 @@ export function EconomicReportCard({
         )}
       </div>
 
-      {/* Actions */}
+      {checkpoint && (
+        <div className="px-4 py-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Flag className={`w-4 h-4 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`} />
+            <h4 className={`text-sm font-bold ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+              체크포인트
+            </h4>
+          </div>
+          <div
+            className={`p-3 rounded-lg border-l-4 ${
+              darkMode ? 'bg-slate-800 border-slate-600 text-slate-200' : 'bg-slate-50 border-slate-300 text-slate-700'
+            }`}
+          >
+            <p className="text-sm leading-relaxed">{checkpoint}</p>
+          </div>
+        </div>
+      )}
+
       <div className="px-4 py-3 border-t border-slate-200 dark:border-slate-800 flex gap-2">
-          {!report.is_read && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => onMarkAsRead(report.id)}
-              className="flex-1"
-            >
-              <Check className="w-4 h-4 mr-1.5" />
-            읽음 표시
+        {!report.is_read && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => onMarkAsRead(report.id)}
+            className="flex-1"
+          >
+            <Check className="w-4 h-4 mr-1.5" />
+            읽음 처리
           </Button>
         )}
         <Button
@@ -171,7 +220,6 @@ export function EconomicReportCard({
   );
 }
 
-// News Section Component
 function NewsSection({
   title,
   icon: Icon,
@@ -190,7 +238,7 @@ function NewsSection({
     <div>
       <div className="flex items-center gap-2 mb-2">
         <Icon className={`w-4 h-4 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`} />
-        <h4 className={`text-sm font-bold ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+        <h4 className={`text-sm font-bold ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
           {title}
         </h4>
         <span className={`text-xs ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
@@ -239,7 +287,7 @@ function NewsSection({
               : 'text-slate-500 hover:text-slate-600 hover:bg-slate-100'
           }`}
         >
-          {expanded ? '접기' : `+${news.length - 3}개 더보기`}
+          {expanded ? '접기' : `+${news.length - 3}건 더보기`}
         </button>
       )}
     </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/app/lib/supabaseClient';
 import { DailyEconomicReport, UserPreferences } from '@/app/types/economicReports';
@@ -23,7 +23,7 @@ export function useEconomicReports(user: User | null): UseEconomicReportsReturn 
   const [error, setError] = useState<string | null>(null);
 
   // 보고서 불러오기
-  const loadReports = async () => {
+  const loadReports = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -62,12 +62,12 @@ export function useEconomicReports(user: User | null): UseEconomicReportsReturn 
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   // 초기 로드
   useEffect(() => {
     loadReports();
-  }, [user?.id]);
+  }, [loadReports]);
 
   // 게스트 모드 저장
   useEffect(() => {
@@ -198,7 +198,7 @@ export function useUserPreferences(user: User | null): UseUserPreferencesReturn 
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const loadPreferences = async () => {
+  const loadPreferences = useCallback(async () => {
     if (!user) {
       // 게스트: LocalStorage에서 기본값 사용
       const saved = localStorage.getItem(GUEST_PREFERENCES_KEY);
@@ -253,7 +253,7 @@ export function useUserPreferences(user: User | null): UseUserPreferencesReturn 
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   const setDefaultGuestPreferences = () => {
     setPreferences({
@@ -265,7 +265,7 @@ export function useUserPreferences(user: User | null): UseUserPreferencesReturn 
 
   useEffect(() => {
     loadPreferences();
-  }, [user?.id]);
+  }, [loadPreferences]);
 
   const updatePreferences = async (prefs: Partial<UserPreferences>) => {
     try {
