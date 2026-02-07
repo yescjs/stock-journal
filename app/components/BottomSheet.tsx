@@ -42,7 +42,7 @@ export function BottomSheet({ isOpen, onClose, title, children }: BottomSheetPro
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[600px] z-[70] bg-card rounded-t-[32px] shadow-toss-lg overflow-hidden flex flex-col max-h-[90vh]"
+            className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg z-[70] bg-card rounded-t-[32px] shadow-toss-lg overflow-hidden flex flex-col max-h-[90vh] md:bottom-10 md:rounded-[32px]"
           >
             {/* Handle */}
             <div className="flex justify-center pt-3 pb-2 cursor-pointer" onClick={onClose}>

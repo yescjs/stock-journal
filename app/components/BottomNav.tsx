@@ -3,7 +3,7 @@
 import React from 'react';
 import { ActiveTab } from '@/app/types/ui';
 import { TrendingUp, BookOpen, FileText, BarChart3, Settings } from 'lucide-react';
-import { cn } from '@/app/components/ui/Button'; // Assuming cn is exported from Button or use a util
+import { cn } from '@/app/components/ui/Button';
 
 interface BottomNavProps {
   activeTab: ActiveTab;
@@ -20,7 +20,7 @@ export function BottomNav({ activeTab, setActiveTab }: BottomNavProps) {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[600px] bg-background/80 backdrop-blur-lg border-t border-border/50 pb-safe z-50">
+    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-screen-xl bg-background/80 backdrop-blur-lg border-t border-border/50 pb-safe z-50">
       <div className="flex items-center justify-around h-16">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;

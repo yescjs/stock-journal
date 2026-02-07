@@ -34,10 +34,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {/* 하이브리드 레이아웃: 데스크탑 중앙 컨테이너, 모바일 전체 너비 */}
+          {/* 반응형 웹 레이아웃: 데스크탑 너비 확장 */}
           <div className="min-h-screen bg-background flex justify-center">
-            {/* 메인 모바일 컨테이너 (데스크탑에서는 600px 고정) */}
-            <div className="w-full max-w-[600px] min-h-screen bg-background flex flex-col relative shadow-toss-lg lg:shadow-none lg:border-x lg:border-border/50">
+            <div className="w-full max-w-screen-xl min-h-screen bg-background flex flex-col relative">
               {children}
             </div>
           </div>

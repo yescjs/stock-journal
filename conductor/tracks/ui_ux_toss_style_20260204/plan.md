@@ -33,11 +33,11 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 3: 레이아웃 및 네비게이션 개편' (Protocol in workflow.md)
 
 ## Phase 4: 뷰 적용 및 애니메이션 (Views & Transitions)
-- [ ] Task: 주요 페이지 뷰(Dashboard, TradeList) 스타일 적용
-    - [ ] 기존 뷰 컴포넌트에 리뉴얼된 UI 요소 적용 및 레이아웃 최적화
-- [ ] Task: 페이지 전환 애니메이션 적용
-    - [ ] `Framer Motion`의 `AnimatePresence`를 활용한 페이지 간 부드러운 전환 추가
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: 뷰 적용 및 애니메이션' (Protocol in workflow.md)
+- [x] Task: 주요 페이지 뷰(Dashboard, TradeList) 스타일 적용
+    - [x] 기존 뷰 컴포넌트에 리뉴얼된 UI 요소 적용 및 레이아웃 최적화
+- [x] Task: 페이지 전환 애니메이션 적용
+    - [x] `Framer Motion`의 `AnimatePresence`를 활용한 페이지 간 부드러운 전환 추가
+- [x] Task: Conductor - User Manual Verification 'Phase 4: 뷰 적용 및 애니메이션' (Protocol in workflow.md)
 
 ## Phase 5: 최종 폴리싱 및 검증 (Polishing & Final Check)
 - [ ] Task: 전체 다크/라이트 모드 색상 대비 및 시인성 최종 점검

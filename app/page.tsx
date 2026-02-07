@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Types
 import { ActiveTab, NotifyType } from '@/app/types/ui';
@@ -28,6 +29,7 @@ import { useDataCorrection } from '@/app/hooks/useDataCorrection';
 import { Header } from '@/app/components/Header';
 import { BottomNav } from '@/app/components/BottomNav';
 import { BottomSheet } from '@/app/components/BottomSheet';
+import { Card } from '@/app/components/ui/Card';
 import { LoginForm } from '@/app/components/LoginForm';
 import { LandingPage } from '@/app/components/LandingPage';
 import { TradeForm, TradeSubmitData } from '@/app/components/TradeForm';
@@ -317,82 +319,127 @@ export default function Home() {
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 min-h-0 w-full px-4 pt-4 pb-24">
-                {activeTab === 'journal' ? (
-                    <div className="h-full flex flex-col">
-                        {/* Feed View */}
-                        <div className="flex-1 h-full min-w-0 flex flex-col">
-                            <TradeListView
-                                darkMode={darkMode}
-                                currentUser={currentUser}
-                                trades={trades}
-                                filteredTrades={filteredTrades}
-                                filterState={filterState}
-                                onDelete={removeTrade}
-                                onEdit={(t) => setEditingTrade(t)}
-                                openMonths={openMonths}
-                                toggleMonth={toggleMonth}
-                                tagColors={tagColors}
-                                currentPrices={currentPrices}
-                                exchangeRate={exchangeRate}
-                                showConverted={showConverted}
-                                onToggleConverted={setShowConverted}
-                            />
-                        </div>
-                    </div>
-                ) : activeTab === 'diary' ? (
-                    <div className="h-full overflow-y-auto scrollbar-thin pb-4">
-                        <MarketDiaryView
-                            darkMode={darkMode}
-                            currentUser={currentUser}
-                            diaryData={diaryData}
-                            trades={trades}
-                        />
-                    </div>
-                ) : activeTab === 'reports' ? (
-                    <div className="h-full overflow-y-auto scrollbar-thin pb-4">
-                        <EconomicReportsView
-                            darkMode={darkMode}
-                            currentUser={currentUser}
-                        />
-                    </div>
-                ) : activeTab === 'stats' ? (
-                    <div className="h-full overflow-y-auto scrollbar-thin pb-4">
-                        <DashboardView
-                            darkMode={darkMode}
-                            currentUser={currentUser}
-                            statsData={dashboardStats}
-                            riskData={riskData}
-                            goalsData={goalsData}
-                            currentPrices={currentPrices}
-                            onCurrentPriceChange={handleCurrentPriceChange}
-                            onSymbolClick={handleSymbolClick}
-                            tagColors={tagColors}
-                            exchangeRate={exchangeRate}
-                            onExchangeRateChange={setExchangeRate}
-                            trades={trades}
-                            lastTradeDate={trades.length > 0
-                                ? [...trades].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]?.date
-                                : undefined}
-                        />
-                    </div>
-                ) : activeTab === 'settings' ? (
-                    <div className="h-full overflow-y-auto scrollbar-thin pb-4">
-                        <SettingsView
-                            darkMode={darkMode}
-                            setDarkMode={setDarkMode}
-                            currentUser={currentUser}
-                            backupManager={backupManager}
-                            strategies={strategies}
-                            onAddStrategy={addStrategy}
-                            onUpdateStrategy={updateStrategy}
-                            onRemoveStrategy={removeStrategy}
-                            onUpdateSymbolNames={dataCorrection.updateMissingSymbolNames}
-                            isUpdating={dataCorrection.isCorrecting}
-                        />
-                    </div>
-                ) : null}
+            <div className="flex-1 min-h-0 w-full px-4 pt-4 pb-24 relative overflow-hidden">
+                <AnimatePresence mode="wait">
+                    <motion.div
+                        key={activeTab}
+                        initial={{ opacity: 0, x: 10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -10 }}
+                        transition={{ duration: 0.2, ease: "easeOut" }}
+                        className="h-full"
+                    >
+                        {activeTab === 'journal' ? (
+                            <div className="h-full lg:flex lg:gap-8 items-start">
+                                {/* LEFT: Feed View */}
+                                <div className="flex-1 h-full min-w-0 flex flex-col">
+                                    <TradeListView
+                                        darkMode={darkMode}
+                                        currentUser={currentUser}
+                                        trades={trades}
+                                        filteredTrades={filteredTrades}
+                                        filterState={filterState}
+                                        onDelete={removeTrade}
+                                        onEdit={(t) => setEditingTrade(t)}
+                                        openMonths={openMonths}
+                                        toggleMonth={toggleMonth}
+                                        tagColors={tagColors}
+                                        currentPrices={currentPrices}
+                                        exchangeRate={exchangeRate}
+                                        showConverted={showConverted}
+                                        onToggleConverted={setShowConverted}
+                                    />
+                                </div>
 
+                                {/* RIGHT: Sidebar (Desktop) */}
+                                <div className="hidden lg:block w-80 xl:w-96 flex-none space-y-6">
+                                    {/* Summary Cards */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <Card className="p-5">
+                                            <div className="text-[10px] font-bold uppercase text-grey-400 mb-1">매수 합계</div>
+                                            <div className="font-bold text-lg">{journalStats.buy.toLocaleString()}</div>
+                                        </Card>
+                                        <Card className="p-5">
+                                            <div className="text-[10px] font-bold uppercase text-grey-400 mb-1">순손익</div>
+                                            <div className={`font-bold text-lg ${journalNetCash >= 0 ? 'text-color-up' : 'text-color-down'}`}>
+                                                {journalNetCash > 0 ? '+' : ''}{journalNetCash.toLocaleString()}
+                                            </div>
+                                        </Card>
+                                    </div>
+
+                                    {/* Quick Form */}
+                                    <Card className="overflow-hidden">
+                                        <div className="px-5 py-4 border-b border-border/10 bg-grey-50 font-bold text-sm text-foreground">
+                                            빠른 기록
+                                        </div>
+                                        <div className="p-5">
+                                            <TradeForm
+                                                darkMode={darkMode}
+                                                currentUser={currentUser}
+                                                baseTrades={trades}
+                                                onAddTrade={handleAddTrade}
+                                                allTags={allTags}
+                                                strategies={strategies}
+                                                isCompact={true}
+                                            />
+                                        </div>
+                                    </Card>
+                                </div>
+                            </div>
+                        ) : activeTab === 'diary' ? (
+                            <div className="h-full overflow-y-auto scrollbar-thin pb-4">
+                                <MarketDiaryView
+                                    darkMode={darkMode}
+                                    currentUser={currentUser}
+                                    diaryData={diaryData}
+                                    trades={trades}
+                                />
+                            </div>
+                        ) : activeTab === 'reports' ? (
+                            <div className="h-full overflow-y-auto scrollbar-thin pb-4">
+                                <EconomicReportsView
+                                    darkMode={darkMode}
+                                    currentUser={currentUser}
+                                />
+                            </div>
+                        ) : activeTab === 'stats' ? (
+                            <div className="h-full overflow-y-auto scrollbar-thin pb-4">
+                                <DashboardView
+                                    darkMode={darkMode}
+                                    currentUser={currentUser}
+                                    statsData={dashboardStats}
+                                    riskData={riskData}
+                                    goalsData={goalsData}
+                                    currentPrices={currentPrices}
+                                    onCurrentPriceChange={handleCurrentPriceChange}
+                                    onSymbolClick={handleSymbolClick}
+                                    tagColors={tagColors}
+                                    exchangeRate={exchangeRate}
+                                    onExchangeRateChange={setExchangeRate}
+                                    trades={trades}
+                                    lastTradeDate={trades.length > 0
+                                        ? [...trades].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]?.date
+                                        : undefined}
+                                />
+                            </div>
+                        ) : activeTab === 'settings' ? (
+                            <div className="h-full overflow-y-auto scrollbar-thin pb-4">
+                                <SettingsView
+                                    darkMode={darkMode}
+                                    setDarkMode={setDarkMode}
+                                    currentUser={currentUser}
+                                    backupManager={backupManager}
+                                    strategies={strategies}
+                                    onAddStrategy={addStrategy}
+                                    onUpdateStrategy={updateStrategy}
+                                    onRemoveStrategy={removeStrategy}
+                                    onUpdateSymbolNames={dataCorrection.updateMissingSymbolNames}
+                                    isUpdating={dataCorrection.isCorrecting}
+                                />
+                            </div>
+                        ) : null}
+                    </motion.div>
+                </AnimatePresence>
             </div>
 
             {/* Mobile Add Trade FAB - Toss Style */}

@@ -475,55 +475,55 @@ export function StatsDashboard({
                             />
                         </Card>
 
-                        {/* Key Metrics Consolidated Card (2x1) - Toss Style */}
+                        {/* Consolidated Metrics Card (2x1) - Toss Style */}
                         <Card className="col-span-1 md:col-span-2 p-6 flex flex-col justify-between h-full">
                             <div className="flex items-center gap-2 mb-6">
-                                <h3 className="text-lg font-bold text-foreground">핵심 지표</h3>
+                                <h3 className="text-base font-bold text-foreground">핵심 지표</h3>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                 {/* Win Rate */}
                                 <div className="flex flex-col gap-1">
                                     <div className="flex items-center gap-2 mb-1">
-                                        <div className="p-1.5 rounded-lg bg-muted text-muted-foreground">
+                                        <div className="p-1.5 rounded-lg bg-grey-100 text-grey-500">
                                             <Target size={16} />
                                         </div>
-                                        <span className="text-sm text-muted-foreground">승률</span>
-                                </div>
-                                <div className={`text-2xl font-black ${overallStats.winRate >= 50 ? 'text-[color:var(--color-up)]' : 'text-[color:var(--color-down)]'}`}>
-                                    {overallStats.winRate.toFixed(1)}%
-                                </div>
-                            </div>
-
-                            {/* Profit Factor */}
-                            <div className="flex flex-col gap-1 border-l pl-4 border-slate-200/50 dark:border-slate-700/50">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <div className={`p-1.5 rounded-lg ${darkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-600'}`}>
-                                        <TrendingUp size={16} />
+                                        <span className="text-xs font-bold text-grey-500">승률</span>
                                     </div>
-                                    <span className="text-sm text-muted-foreground">손익비</span>
-                                </div>
-                                <div className={`text-2xl font-black ${overallStats.profitFactor >= 2.0 ? 'text-[color:var(--color-up)]' : overallStats.profitFactor >= 1 ? 'text-foreground' : 'text-[color:var(--color-down)]'}`}>
-                                    {overallStats.profitFactor.toFixed(2)}
-                                </div>
-                            </div>
-
-                            {/* Streak - Toss Style */}
-                            <div className="flex flex-col gap-1 border-l pl-4 border-border/30">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <div className="p-1.5 rounded-lg bg-muted text-muted-foreground">
-                                        <Zap size={16} />
+                                    <div className={`text-2xl font-bold ${overallStats.winRate >= 50 ? 'text-color-up' : 'text-color-down'}`}>
+                                        {overallStats.winRate.toFixed(1)}%
                                     </div>
-                                    <span className="text-sm text-muted-foreground">연속</span>
                                 </div>
-                                <div className={`text-2xl font-bold ${overallStats.currentStreak > 0 ? 'text-color-up' : overallStats.currentStreak < 0 ? 'text-color-down' : 'text-muted-foreground'}`}>
-                                    {Math.abs(overallStats.currentStreak)}
-                                    <span className="text-xs font-semibold ml-1 text-muted-foreground">
-                                        {overallStats.currentStreak > 0 ? "승" : "패"}
-                                    </span>
+
+                                {/* Profit Factor */}
+                                <div className="flex flex-col gap-1 border-l pl-4 border-border/10">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <div className="p-1.5 rounded-lg bg-grey-100 text-grey-500">
+                                            <TrendingUp size={16} />
+                                        </div>
+                                        <span className="text-xs font-bold text-grey-500">손익비</span>
+                                    </div>
+                                    <div className={`text-2xl font-bold ${overallStats.profitFactor >= 2.0 ? 'text-color-up' : overallStats.profitFactor >= 1 ? 'text-foreground' : 'text-color-down'}`}>
+                                        {overallStats.profitFactor.toFixed(2)}
+                                    </div>
+                                </div>
+
+                                {/* Streak */}
+                                <div className="flex flex-col gap-1 border-l pl-4 border-border/10">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <div className="p-1.5 rounded-lg bg-grey-100 text-grey-500">
+                                            <Zap size={16} />
+                                        </div>
+                                        <span className="text-xs font-bold text-grey-500">연속</span>
+                                    </div>
+                                    <div className={`text-2xl font-bold ${overallStats.currentStreak > 0 ? 'text-color-up' : overallStats.currentStreak < 0 ? 'text-color-down' : 'text-grey-400'}`}>
+                                        {Math.abs(overallStats.currentStreak)}
+                                        <span className="text-xs font-semibold ml-1 text-grey-400">
+                                            {overallStats.currentStreak > 0 ? "승" : "패"}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </Card>
+                        </Card>
 
                     {/* Risk Status (Summary) - Toss Style */}
                     {dailyLossAlert && (

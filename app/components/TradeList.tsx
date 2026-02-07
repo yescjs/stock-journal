@@ -270,33 +270,31 @@ export function TradeList({
                                             <div
                                                 key={t.id}
                                                 onClick={() => onSymbolClick?.(t.symbol)}
-                                                className={`
-                                                    p-5 rounded-2xl border flex flex-col gap-4 transition-all active:scale-95
-                                                    ${darkMode ? 'bg-slate-800/40 border-slate-700/50' : 'bg-white border-slate-100 shadow-sm'}
-                                                `}
+                                                className="p-5 rounded-3xl border border-border/10 bg-card shadow-toss flex flex-col gap-4 transition-all active:scale-[0.98]"
                                             >
-                                                                                                {/* Header: Type, Stock, Price */}
-                                                                                                <div className="flex justify-between items-start">
-                                                                                                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                                                                                                        <div className={`
-                                                                                                            w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black shrink-0
-                                                                                                            ${t.side === 'BUY'
-                                                                                                                ? (darkMode ? 'bg-rose-500/20 text-rose-400' : 'bg-rose-50 text-rose-600')
-                                                                                                                : (darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-50 text-blue-600')}
-                                                                                                        `}>
-                                                                                                            {t.side === 'BUY' ? 'L' : 'S'}
-                                                                                                        </div>
-                                                                                                        <div className="min-w-0 flex-1">
-                                                                                                            <div className={`font-black text-lg leading-tight truncate ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
-                                                                                                                {t.symbol_name || t.symbol}
-                                                                                                            </div>
-                                                                                                            <div className={`text-xs font-medium flex items-center gap-1 mt-0.5 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                                                                                                                {t.date} <span className="w-1 h-1 rounded-full bg-current opacity-50" /> {dayOfWeek}    
-                                                                                                            </div>
-                                                                                                        </div>
-                                                                                                    </div>
-                                                                                                    <div className="text-right shrink-0 ml-2">                                                        <div className={`font-black text-base ${darkMode ? 'text-foreground' : 'text-slate-900'}`}>{displayPrice(amount, t.symbol)}</div>
-                                                        <div className={`text-xs font-medium ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>
+                                                {/* Header: Type, Stock, Price */}
+                                                <div className="flex justify-between items-start">
+                                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                        <div className={`
+                                                            w-10 h-10 rounded-xl flex items-center justify-center text-[10px] font-bold shrink-0
+                                                            ${t.side === 'BUY'
+                                                                ? 'bg-color-up/10 text-color-up'
+                                                                : 'bg-color-down/10 text-color-down'}
+                                                        `}>
+                                                            {t.side === 'BUY' ? '매수' : '매도'}
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="font-bold text-base leading-tight truncate text-foreground">
+                                                                {t.symbol_name || t.symbol}
+                                                            </div>
+                                                            <div className="text-xs font-semibold text-grey-400 flex items-center gap-1 mt-0.5">
+                                                                {t.date} <span className="w-1 h-1 rounded-full bg-current opacity-50" /> {dayOfWeek}    
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right shrink-0 ml-2">
+                                                        <div className="font-bold text-base text-foreground">{displayPrice(amount, t.symbol)}</div>
+                                                        <div className="text-xs font-semibold text-grey-400">
                                                             {displayPrice(t.price, t.symbol)}
                                                         </div>
                                                     </div>
@@ -304,18 +302,18 @@ export function TradeList({
 
                                                 {/* Tags & Reasons */}
                                                 {(t.tags?.length || t.strategy_name || t.entry_reason || t.exit_reason) ? (
-                                                    <div className={`p-4 rounded-xl space-y-3 ${darkMode ? 'bg-slate-900/50' : 'bg-slate-50'}`}>
+                                                    <div className="p-4 rounded-2xl space-y-3 bg-grey-100">
                                                         <div className="flex flex-wrap gap-2">
                                                             {t.strategy_name && (
-                                                                <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-md font-bold ${darkMode ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-100 text-purple-700'}`}>
-                                                                    <Zap size={10} /> {t.strategy_name}
+                                                                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg font-bold bg-primary/10 text-primary">
+                                                                    <Zap size={10} fill="currentColor" /> {t.strategy_name}
                                                                 </span>
                                                             )}
                                                             {t.tags?.map(tag => (
                                                                 <span
                                                                     key={tag}
-                                                                    className="text-[10px] px-2 py-1 rounded-md font-bold text-white shadow-sm"
-                                                                    style={{ backgroundColor: tagColors[tag] || '#6366f1' }}
+                                                                    className="text-[10px] px-2 py-1 rounded-lg font-bold text-white shadow-sm"
+                                                                    style={{ backgroundColor: tagColors[tag] || '#8B95A1' }}
                                                                 >
                                                                     #{tag}
                                                                 </span>
@@ -326,14 +324,14 @@ export function TradeList({
                                                             <div className="flex flex-col gap-2 pt-1">
                                                                 {t.entry_reason && (
                                                                     <div className="flex gap-2">
-                                                                        <span className="text-[10px] font-black text-slate-400 min-w-[30px] uppercase mt-0.5">In</span>
-                                                                        <span className={`text-xs ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>{t.entry_reason}</span>
+                                                                        <span className="text-[10px] font-bold text-grey-400 min-w-[30px] uppercase mt-0.5">In</span>
+                                                                        <span className="text-xs font-medium text-grey-700">{t.entry_reason}</span>
                                                                     </div>
                                                                 )}
                                                                 {t.exit_reason && (
                                                                     <div className="flex gap-2">
-                                                                        <span className="text-[10px] font-black text-slate-400 min-w-[30px] uppercase mt-0.5">Out</span>
-                                                                        <span className={`text-xs ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>{t.exit_reason}</span>
+                                                                        <span className="text-[10px] font-bold text-grey-400 min-w-[30px] uppercase mt-0.5">Out</span>
+                                                                        <span className="text-xs font-medium text-grey-700">{t.exit_reason}</span>
                                                                     </div>
                                                                 )}
                                                             </div>
@@ -342,27 +340,33 @@ export function TradeList({
                                                 ) : null}
 
                                                 {/* Actions */}
-                                                <div className={`flex items-center justify-end gap-3 pt-2 border-t ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+                                                <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/10">
                                                     {t.image && (
-                                                        <button
+                                                        <Button
+                                                            variant="secondary"
+                                                            size="sm"
                                                             onClick={(e) => { e.stopPropagation(); onImagePreview?.(t.image!); }}
-                                                            className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl transition-all ${darkMode ? 'bg-slate-700 text-slate-300' : 'bg-white border border-slate-200 text-slate-600'}`}
+                                                            className="h-9 px-3 rounded-xl gap-1.5 text-xs font-bold"
                                                         >
                                                             <Camera size={14} /> 차트
-                                                        </button>
+                                                        </Button>
                                                     )}
-                                                    <button
+                                                    <Button
+                                                        variant="secondary"
+                                                        size="sm"
                                                         onClick={(e) => { e.stopPropagation(); onEdit?.(t); }}
-                                                        className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl transition-all ${darkMode ? 'bg-indigo-500/20 text-indigo-400' : 'bg-indigo-50 text-indigo-600'}`}
+                                                        className="h-9 px-3 rounded-xl gap-1.5 text-xs font-bold"
                                                     >
                                                         <Pencil size={14} /> 수정
-                                                    </button>
-                                                    <button
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
                                                         onClick={(e) => { e.stopPropagation(); onDelete?.(t.id); }}
-                                                        className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl transition-all ${darkMode ? 'bg-rose-500/20 text-rose-400' : 'bg-rose-50 text-rose-600'}`}
+                                                        className="h-9 px-3 rounded-xl gap-1.5 text-xs font-bold text-destructive hover:bg-destructive/10"
                                                     >
                                                         <Trash2 size={14} /> 삭제
-                                                    </button>
+                                                    </Button>
                                                 </div>
                                             </div>
                                         );
