@@ -1,8 +1,0 @@
-{
-  "track_id": "npm_run_lint_hang_20260204",
-  "type": "bug",
-  "status": "new",
-  "created_at": "2026-02-04T00:00:00Z",
-  "updated_at": "2026-02-04T00:00:00Z",
-  "description": "npm run lint 실행 시 멈춤 현상 해결"
-}
