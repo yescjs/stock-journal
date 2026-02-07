@@ -1,4 +1,5 @@
 import React, { useState, useRef, ChangeEvent, FormEvent } from 'react';
+import NextImage from 'next/image';
 import { User } from '@supabase/supabase-js';
 import { TradeSide, Trade } from '@/app/types/trade';
 import { Strategy, EmotionTag, EMOTION_TAG_LABELS, EMOTION_TAG_COLORS } from '@/app/types/strategies';
@@ -500,7 +501,15 @@ export function TradeForm({
                                     </button>
                                 ) : (
                                     <div className="relative w-full h-12 rounded-xl overflow-hidden group shadow-toss-sm cursor-pointer" onClick={() => chartInputRef.current?.click()}>
-                                        <img src={chartPreview} alt="Preview" className="w-full h-full object-cover" />
+                                    <div className="relative w-full h-full">
+                                        <NextImage 
+                                            src={chartPreview} 
+                                            alt="Preview" 
+                                            fill
+                                            className="object-cover"
+                                            unoptimized // Data URL이므로 최적화 불필요
+                                        />
+                                    </div>
                                         <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button
                                                 type="button"

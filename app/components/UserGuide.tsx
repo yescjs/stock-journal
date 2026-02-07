@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import NextImage from 'next/image';
 import { X, BookOpen, ChevronRight, PenTool, BarChart2, Calendar, Settings } from 'lucide-react';
 
 interface UserGuideProps {
@@ -61,7 +62,13 @@ export function UserGuide({ isOpen, onClose, darkMode }: UserGuideProps) {
 
                 {/* Image Area */}
                 <div className="relative h-48 bg-slate-100 overflow-hidden">
-                    <img src={currentStep.image} alt="Guide" className="w-full h-full object-cover opacity-90 hover:scale-105 transition-transform duration-700" />
+                    <NextImage 
+                        src={currentStep.image} 
+                        alt="Guide" 
+                        fill
+                        unoptimized
+                        className="object-cover opacity-90 hover:scale-105 transition-transform duration-700" 
+                    />
                     <button
                         onClick={onClose}
                         aria-label="닫기"

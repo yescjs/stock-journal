@@ -114,20 +114,20 @@
   --background: #17171C;
   --foreground: #F9FAFB;
 
-  /* Cards & Surfaces */
-  --card: #202027;
+  /* Cards & Surfaces - Slightly lighter than background */
+  --card: #1C1C24;
   --card-foreground: #F9FAFB;
 
-  --popover: #202027;
+  --popover: #1C1C24;
   --popover-foreground: #F9FAFB;
 
   /* Primary - Toss Blue */
   --primary: #3182F6;
   --primary-foreground: #FFFFFF;
 
-  /* Toss Gray Scale for Dark Mode (Inverted/Adjusted) */
+  /* Toss Gray Scale for Dark Mode - Optimized for Contrast */
   --grey-50: #17171C;
-  --grey-100: #202027;
+  --grey-100: #1C1C24;
   --grey-200: #2C2C34;
   --grey-300: #3C3C47;
   --grey-400: #4E5968;
@@ -138,16 +138,16 @@
   --grey-900: #F9FAFB;
 
   /* Secondary */
-  --secondary: var(--grey-100);
-  --secondary-foreground: var(--grey-800);
+  --secondary: #2C2C34;
+  --secondary-foreground: #F9FAFB;
 
   /* Muted */
-  --muted: var(--grey-100);
-  --muted-foreground: var(--grey-500);
+  --muted: #1C1C24;
+  --muted-foreground: #8B95A1;
 
   /* Accent */
-  --accent: var(--grey-100);
-  --accent-foreground: var(--grey-900);
+  --accent: #2C2C34;
+  --accent-foreground: #F9FAFB;
 
   /* Destructive */
   --destructive: hsl(355 84% 60%);
@@ -307,14 +307,14 @@
 
 /* Hover lift effect for cards */
 .hover-lift {
-    @apply transition-all duration-200;
+    @apply transition-all duration-200 will-change-transform;
 }
 .hover-lift:hover {
-    @apply transform -translate-y-0.5;
-    box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.08);
+    @apply transform -translate-y-1;
+    box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.15);
 }
 .dark .hover-lift:hover {
-    box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.3);
+    box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.45);
 }
 
 /* Focus states */

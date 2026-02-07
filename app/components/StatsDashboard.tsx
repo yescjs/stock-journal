@@ -484,10 +484,10 @@ export function StatsDashboard({
                                 {/* Win Rate */}
                                 <div className="flex flex-col gap-1">
                                     <div className="flex items-center gap-2 mb-1">
-                                        <div className="p-1.5 rounded-lg bg-grey-100 text-grey-500">
+                                        <div className="p-1.5 rounded-lg bg-secondary text-muted-foreground">
                                             <Target size={16} />
                                         </div>
-                                        <span className="text-xs font-bold text-grey-500">승률</span>
+                                        <span className="text-xs font-bold text-muted-foreground">승률</span>
                                     </div>
                                     <div className={`text-2xl font-bold ${overallStats.winRate >= 50 ? 'text-color-up' : 'text-color-down'}`}>
                                         {overallStats.winRate.toFixed(1)}%
@@ -495,12 +495,12 @@ export function StatsDashboard({
                                 </div>
 
                                 {/* Profit Factor */}
-                                <div className="flex flex-col gap-1 border-l pl-4 border-border/10">
+                                <div className="flex flex-col gap-1 border-l pl-4 border-border/40 dark:border-border/20">
                                     <div className="flex items-center gap-2 mb-1">
-                                        <div className="p-1.5 rounded-lg bg-grey-100 text-grey-500">
+                                        <div className="p-1.5 rounded-lg bg-secondary text-muted-foreground">
                                             <TrendingUp size={16} />
                                         </div>
-                                        <span className="text-xs font-bold text-grey-500">손익비</span>
+                                        <span className="text-xs font-bold text-muted-foreground">손익비</span>
                                     </div>
                                     <div className={`text-2xl font-bold ${overallStats.profitFactor >= 2.0 ? 'text-color-up' : overallStats.profitFactor >= 1 ? 'text-foreground' : 'text-color-down'}`}>
                                         {overallStats.profitFactor.toFixed(2)}
@@ -508,16 +508,16 @@ export function StatsDashboard({
                                 </div>
 
                                 {/* Streak */}
-                                <div className="flex flex-col gap-1 border-l pl-4 border-border/10">
+                                <div className="flex flex-col gap-1 border-l pl-4 border-border/40 dark:border-border/20">
                                     <div className="flex items-center gap-2 mb-1">
-                                        <div className="p-1.5 rounded-lg bg-grey-100 text-grey-500">
+                                        <div className="p-1.5 rounded-lg bg-secondary text-muted-foreground">
                                             <Zap size={16} />
                                         </div>
-                                        <span className="text-xs font-bold text-grey-500">연속</span>
+                                        <span className="text-xs font-bold text-muted-foreground">연속</span>
                                     </div>
-                                    <div className={`text-2xl font-bold ${overallStats.currentStreak > 0 ? 'text-color-up' : overallStats.currentStreak < 0 ? 'text-color-down' : 'text-grey-400'}`}>
+                                    <div className={`text-2xl font-bold ${overallStats.currentStreak > 0 ? 'text-color-up' : overallStats.currentStreak < 0 ? 'text-color-down' : 'text-muted-foreground'}`}>
                                         {Math.abs(overallStats.currentStreak)}
-                                        <span className="text-xs font-semibold ml-1 text-grey-400">
+                                        <span className="text-xs font-semibold ml-1 text-muted-foreground">
                                             {overallStats.currentStreak > 0 ? "승" : "패"}
                                         </span>
                                     </div>
