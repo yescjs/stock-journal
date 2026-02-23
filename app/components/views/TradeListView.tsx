@@ -109,7 +109,7 @@ export function TradeListView({
   );
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col px-4 md:px-6">
       {/* Header Controls - Toss Style */}
       <div className="flex-none flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>

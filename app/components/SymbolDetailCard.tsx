@@ -3,9 +3,7 @@ import { Trade } from '@/app/types/trade';
 import { formatNumber, formatQuantity, isKRWSymbol } from '@/app/utils/format';
 import { TrendingUp, TrendingDown, DollarSign, Activity, BarChart2 } from 'lucide-react';
 import { StockChart } from '@/app/components/charts/StockChart';
-import { StockAnalysisCard } from '@/app/components/charts/StockAnalysisCard';
 import { TradeList } from '@/app/components/TradeList';
-import { useStockAnalysis } from '@/app/hooks/useStockAnalysis';
 import { ChartPeriod } from '@/app/types/stock';
 
 interface SymbolDetailCardProps {
@@ -40,7 +38,6 @@ export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, o
     const currencyUnit = isKRW || shouldConvert ? '원' : '$';
 
     const displayedPrice = dynamicPrice ? dynamicPrice * activeExchangeRate : undefined;
-    const analysis = useStockAnalysis(symbol, analysisPeriod);
 
     // ... stats calculation code ...
     const stats = useMemo(() => {
@@ -177,22 +174,15 @@ export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, o
                         period={analysisPeriod}
                         onPeriodChange={setAnalysisPeriod}
                     />
-                    <StockAnalysisCard
-                        analysis={analysis.data}
-                        loading={analysis.loading}
-                        error={analysis.error}
-                        darkMode={darkMode}
-                        currentPrice={displayedPrice}
-                    />
                     <div className="px-2 pb-2">
-                         <TradeList
-                             trades={stockTrades}
-                             toggleMonth={(key) => setOpenMonths(prev => ({ ...prev, [key]: !prev[key] }))}
-                             darkMode={darkMode}
-                             exchangeRate={exchangeRate}
-                             showConverted={showConverted}
-                             openMonths={openMonths}
-                         />
+                        <TradeList
+                            trades={stockTrades}
+                            toggleMonth={(key) => setOpenMonths(prev => ({ ...prev, [key]: !prev[key] }))}
+                            darkMode={darkMode}
+                            exchangeRate={exchangeRate}
+                            showConverted={showConverted}
+                            openMonths={openMonths}
+                        />
 
                     </div>
                 </div>

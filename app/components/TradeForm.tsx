@@ -2,7 +2,26 @@ import React, { useState, useRef, ChangeEvent, FormEvent } from 'react';
 import NextImage from 'next/image';
 import { User } from '@supabase/supabase-js';
 import { TradeSide, Trade } from '@/app/types/trade';
-import { Strategy, EmotionTag, EMOTION_TAG_LABELS, EMOTION_TAG_COLORS } from '@/app/types/strategies';
+
+// strategies.ts 제거 후 인라인 정의
+export interface Strategy { id: string; name: string; }
+export type EmotionTag = 'fear' | 'greed' | 'fomo' | 'revenge' | 'calm' | 'confident';
+export const EMOTION_TAG_LABELS: Record<EmotionTag, string> = {
+    fear: '공포',
+    greed: '탐욕',
+    fomo: '포모',
+    revenge: '복수매매',
+    calm: '침착',
+    confident: '확신',
+};
+export const EMOTION_TAG_COLORS: Record<EmotionTag, string> = {
+    fear: '#ef4444',
+    greed: '#f97316',
+    fomo: '#a855f7',
+    revenge: '#ec4899',
+    calm: '#22c55e',
+    confident: '#3b82f6',
+};
 import { getKoreanWeekdayLabel, parseTagString, getCurrencySymbol } from '@/app/utils/format';
 import { StockSymbolInput } from '@/app/components/StockSymbolInput';
 import { Zap, ChevronDown, Image as ImageIcon, Plus, Save, Info } from 'lucide-react';
@@ -501,15 +520,15 @@ export function TradeForm({
                                     </button>
                                 ) : (
                                     <div className="relative w-full h-12 rounded-xl overflow-hidden group shadow-toss-sm cursor-pointer" onClick={() => chartInputRef.current?.click()}>
-                                    <div className="relative w-full h-full">
-                                        <NextImage 
-                                            src={chartPreview} 
-                                            alt="Preview" 
-                                            fill
-                                            className="object-cover"
-                                            unoptimized // Data URL이므로 최적화 불필요
-                                        />
-                                    </div>
+                                        <div className="relative w-full h-full">
+                                            <NextImage
+                                                src={chartPreview}
+                                                alt="Preview"
+                                                fill
+                                                className="object-cover"
+                                                unoptimized // Data URL이므로 최적화 불필요
+                                            />
+                                        </div>
                                         <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button
                                                 type="button"

@@ -1,24 +1,5 @@
-export type ActiveTab = 'journal' | 'stats' | 'diary' | 'settings' | 'reports';
+export type ActiveTab = 'journal';
 export type SortKey = 'date' | 'symbol' | 'amount';
-
-export type SymbolSortKey =
-    | 'symbol'
-    | 'positionQty'
-    | 'avgCost'
-    | 'totalBuyAmount'
-    | 'totalSellAmount'
-    | 'realizedPnL'
-    | 'currentPrice'
-    | 'positionValue'
-    | 'unrealizedPnL'
-    | 'winRate';
-
-export type TagSortKey =
-    | 'tag'
-    | 'tradeCount'
-    | 'winRate'
-    | 'realizedPnL'
-    | 'avgPnLPerTrade';
 
 export type SortState = {
     key: SortKey;

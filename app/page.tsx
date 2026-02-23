@@ -1,147 +1,77 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 
 // Types
-import { ActiveTab, NotifyType } from '@/app/types/ui';
+import { NotifyType } from '@/app/types/ui';
 import { Trade } from '@/app/types/trade';
-
-// Utils
-import { isKRWSymbol } from '@/app/utils/format';
 
 // Hooks
 import { useSupabaseAuth } from '@/app/hooks/useSupabaseAuth';
 import { useTrades } from '@/app/hooks/useTrades';
-import { useStats } from '@/app/hooks/useStats';
-import { useStrategies } from '@/app/hooks/useStrategies';
-import { useMonthlyGoals } from '@/app/hooks/useMonthlyGoals';
-import { useRiskManagement } from '@/app/hooks/useRiskManagement';
 import { useTagColors } from '@/app/hooks/useTagColors';
-import { useBackupManager } from '@/app/hooks/useBackupManager';
 import { useTradeFilter } from '@/app/hooks/useTradeFilter';
-import { useMarketData } from '@/app/hooks/useMarketData';
-import { useDiary } from '@/app/hooks/useDiary';
-
-import { useDataCorrection } from '@/app/hooks/useDataCorrection';
 
 // Components
 import { Header } from '@/app/components/Header';
-import { BottomNav } from '@/app/components/BottomNav';
 import { BottomSheet } from '@/app/components/BottomSheet';
-import { Card } from '@/app/components/ui/Card';
 import { LoginForm } from '@/app/components/LoginForm';
 import { LandingPage } from '@/app/components/LandingPage';
 import { TradeForm, TradeSubmitData } from '@/app/components/TradeForm';
-import { DashboardView } from '@/app/components/views/DashboardView';
 import { TradeListView } from '@/app/components/views/TradeListView';
-import { SettingsView } from '@/app/components/views/SettingsView';
-import { MarketDiaryView } from '@/app/components/views/MarketDiaryView';
-import { EconomicReportsView } from '@/app/components/views/EconomicReportsView';
-import { UserGuide } from '@/app/components/UserGuide';
 
-// Styles & Icons
-import { BarChart3, AlertTriangle, PenLine } from 'lucide-react';
+// Icons
+import { BarChart3, AlertTriangle } from 'lucide-react';
 
 const THEME_KEY = 'stock-journal-theme-v1';
 const OPEN_MONTHS_KEY = 'stock-journal-open-months-v1';
 
+
+
 export default function Home() {
-    const [showGuide, setShowGuide] = useState(false);
-    // --- 1. Auth & Data Hooks ---
+    // --- 인증 & 데이터 ---
     const { user: currentUser, loading: authLoading, logout: supabaseLogout, authError } = useSupabaseAuth();
+    const { trades, loading: tradesLoading, addTrade, removeTrade, updateTrade } = useTrades(currentUser);
 
-    // Data Logic
-    const { trades, loading: tradesLoading, addTrade, removeTrade, updateTrade, clearAllTrades, setTrades } = useTrades(currentUser);
-    const { strategies, addStrategy, updateStrategy, removeStrategy } = useStrategies(currentUser);
-
-    // Market Data (Prices, Exchange Rate)
-    const {
-        currentPrices, setCurrentPrices, handleCurrentPriceChange,
-        exchangeRate, setExchangeRate,
-        showConverted, setShowConverted
-    } = useMarketData();
-
-    // Filters
+    // --- 필터 ---
     const filterState = useTradeFilter(trades);
-    const { filteredTrades, allTags, setSelectedSymbol } = filterState;
+    const { filteredTrades, allTags } = filterState;
 
-    // Stats Logic
-    const dashboardStats = useStats(trades, currentPrices, exchangeRate);
+    // --- 태그 색상 ---
+    const { tagColors } = useTagColors();
 
-    // Navigation Handler
-    const handleSymbolClick = (symbol: string) => {
-        setSelectedSymbol(symbol);
-        setActiveTab('journal');
-    };
-
-    const handleLogout = async () => {
-        await supabaseLogout();
-        setSelectedSymbol('');
-    };
-
-    // Risk Management
-    const today = new Date().toISOString().split('T')[0];
-    const todayPnL = dashboardStats.dailyRealizedPoints.find(p => p.key === today)?.value || 0;
-
-    const riskData = useRiskManagement(currentUser, dashboardStats.symbolSummaries, currentPrices, todayPnL);
-    const goalsData = useMonthlyGoals(currentUser);
-
-    // Diary Data
-    const diaryData = useDiary(currentUser);
-
-    // Backup Manager
-    const [notify, setNotify] = useState<{ type: NotifyType; message: string } | null>(null);
-    const showNotify = (type: NotifyType, message: string) => {
-        setNotify({ type, message });
-        setTimeout(() => setNotify(null), 3000); // reduced to 3s
-    };
-
-    const backupManager = useBackupManager({
-        trades, setTrades, currentUser, currentPrices, setCurrentPrices,
-        onNotify: (t, m) => showNotify(t as NotifyType, m)
-    });
-
-    const dataCorrection = useDataCorrection(currentUser, (t, m) => showNotify(t as NotifyType, m));
-
-    // --- 2. UI State ---
-    const [activeTab, setActiveTab] = useState<ActiveTab>('journal');
+    // --- UI 상태 ---
     const [darkMode, setDarkMode] = useState(false);
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
+    const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
+    const [notify, setNotify] = useState<{ type: NotifyType; message: string } | null>(null);
+    // 앱 진입 여부 — 비로그인 상태에서 랜딩페이지를 항상 먼저 표시
+    const [enteredApp, setEnteredApp] = useState(false);
 
-    // Tag Colors
-    const { tagColors } = useTagColors();
-
-    // UI Ref for Scroll
-    const addFormRef = useRef<HTMLDivElement>(null);
-
-    // Persist Open Months State
+    // 월별 펼침 상태
     const [openMonths, setOpenMonths] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const saved = localStorage.getItem(OPEN_MONTHS_KEY);
-            if (saved) { 
-                try { 
-                    const parsed = JSON.parse(saved);
-                    setTimeout(() => setOpenMonths(parsed), 0);
-                } catch { } 
+            if (saved) {
+                try { setOpenMonths(JSON.parse(saved)); } catch { }
             }
         }
     }, []);
-    useEffect(() => { localStorage.setItem(OPEN_MONTHS_KEY, JSON.stringify(openMonths)); }, [openMonths]);
 
-    const toggleMonth = (key: string) => setOpenMonths(prev => ({ ...prev, [key]: !prev[key] }));
+    useEffect(() => {
+        localStorage.setItem(OPEN_MONTHS_KEY, JSON.stringify(openMonths));
+    }, [openMonths]);
 
-    // Theme Init & Sync
+    // 테마 초기화 & 동기화
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const savedTheme = localStorage.getItem(THEME_KEY);
-            setTimeout(() => {
-                if (savedTheme) setDarkMode(savedTheme === 'true');
-                else setDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches);
-            }, 0);
+            if (savedTheme) setDarkMode(savedTheme === 'true');
+            else setDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches);
         }
     }, []);
 
@@ -151,38 +81,37 @@ export default function Home() {
         else document.documentElement.classList.remove('dark');
     }, [darkMode]);
 
+    // --- 알림 ---
+    const showNotify = (type: NotifyType, message: string) => {
+        setNotify({ type, message });
+        setTimeout(() => setNotify(null), 3000);
+    };
 
-    // Journal Side Stats (Simple Cache)
-    const journalStats = React.useMemo(() => {
-        return filteredTrades.reduce(
-            (acc, t) => {
-                const amtRaw = t.price * t.quantity;
-                const isKRW = isKRWSymbol(t.symbol);
-                const multiplier = isKRW ? 1 : exchangeRate;
-                const amt = amtRaw * multiplier;
+    // --- 핸들러 ---
+    const handleLogout = async () => {
+        await supabaseLogout();
+        filterState.setSelectedSymbol('');
+    };
 
-                if (t.side === 'BUY') acc.buy += amt;
-                else acc.sell += amt;
-                return acc;
-            },
-            { buy: 0, sell: 0 }
-        );
-    }, [filteredTrades, exchangeRate]);
+    const handleStartAsGuest = () => {
+        if (typeof window !== 'undefined') {
+            // 게스트 데이터가 없으면 빈 배열로 초기화
+            if (!localStorage.getItem('stock-journal-guest-trades-v1')) {
+                localStorage.setItem('stock-journal-guest-trades-v1', JSON.stringify([]));
+            }
+        }
+        setEnteredApp(true);
+    };
 
-    const journalNetCash = journalStats.sell - journalStats.buy;
-
-    // Handlers
     const handleAddTrade = async (data: TradeSubmitData, imageFile: File | null) => {
         try {
             await addTrade(data, imageFile);
             showNotify('success', '기록이 저장되었습니다.');
         } catch (e: unknown) {
-            const errorMessage = e instanceof Error ? e.message : '알 수 없는 오류';
-            alert(`저장 실패: ${errorMessage}`);
+            const msg = e instanceof Error ? e.message : '알 수 없는 오류';
+            alert(`저장 실패: ${msg}`);
         }
     };
-
-    const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
 
     const handleUpdateTrade = async (id: string, data: TradeSubmitData, imageFile: File | null) => {
         try {
@@ -190,21 +119,14 @@ export default function Home() {
             showNotify('success', '수정이 완료되었습니다.');
             setEditingTrade(null);
         } catch (e: unknown) {
-            const errorMessage = e instanceof Error ? e.message : '알 수 없는 오류';
-            alert(`수정 실패: ${errorMessage}`);
+            const msg = e instanceof Error ? e.message : '알 수 없는 오류';
+            alert(`수정 실패: ${msg}`);
         }
     };
 
-    // Handler to start as guest (create empty guest data)
-    const handleStartAsGuest = () => {
-        if (typeof window !== 'undefined') {
-            // Create empty guest data array to enable guest mode
-            localStorage.setItem('stock-journal-guest-trades-v1', JSON.stringify([]));
-            // Force re-render by reloading
-            window.location.reload();
-        }
-    };
+    const toggleMonth = (key: string) => setOpenMonths(prev => ({ ...prev, [key]: !prev[key] }));
 
+    // --- 로딩 ---
     if (authLoading) return (
         <div className="h-screen flex flex-col items-center justify-center bg-background">
             <div className="relative">
@@ -217,8 +139,8 @@ export default function Home() {
         </div>
     );
 
-    // Show Landing Page for guests without data
-    if (!currentUser && !backupManager.hasGuestData) {
+    // --- 랜딩 페이지: 비로그인 상태이고 아직 앱에 진입하지 않은 경우 항상 표시 ---
+    if (!currentUser && !enteredApp) {
         return (
             <>
                 <LandingPage
@@ -243,16 +165,10 @@ export default function Home() {
                                 <h2 className="text-2xl font-bold text-foreground">로그인</h2>
                                 <p className="text-sm mt-1 text-muted-foreground">데이터 동기화를 위해 로그인하세요</p>
                             </div>
-                            <LoginForm
-                                darkMode={darkMode}
-                                onDone={() => setShowLoginModal(false)}
-                            />
+                            <LoginForm darkMode={darkMode} onDone={() => setShowLoginModal(false)} />
                             <div className="mt-4 text-center">
                                 <button
-                                    onClick={() => {
-                                        setShowLoginModal(false);
-                                        handleStartAsGuest();
-                                    }}
+                                    onClick={() => { setShowLoginModal(false); handleStartAsGuest(); }}
                                     className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                                 >
                                     로그인 없이 게스트로 시작하기
@@ -265,10 +181,11 @@ export default function Home() {
         );
     }
 
+    // --- 메인 앱 ---
     return (
         <div className={`min-h-screen flex flex-col ${darkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} transition-colors duration-300`}>
 
-            {/* Auth Error Notification */}
+            {/* 인증 오류 */}
             {authError && (
                 <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-xl shadow-lg text-sm font-bold animate-in fade-in slide-in-from-top-4 bg-rose-500 text-white max-w-md">
                     <div className="flex items-center gap-2">
@@ -278,15 +195,13 @@ export default function Home() {
                 </div>
             )}
 
-            {/* Toast Notification - Bottom center on mobile, top center on desktop */}
+            {/* 토스트 알림 */}
             {notify && (
                 <div className={`fixed z-50 px-4 py-2.5 rounded-xl shadow-lg text-sm font-bold animate-in fade-in duration-200
-                    left-1/2 -translate-x-1/2
-                    bottom-24 md:bottom-auto md:top-4
+                    left-1/2 -translate-x-1/2 bottom-6
                     ${notify.type === 'success' ? 'bg-emerald-500 text-white' :
-                    notify.type === 'error' ? 'bg-rose-500 text-white' :
-                        'bg-blue-500 text-white'
-                    }`}>
+                        notify.type === 'error' ? 'bg-rose-500 text-white' :
+                            'bg-blue-500 text-white'}`}>
                     <div className="flex items-center gap-2">
                         <span>{notify.type === 'success' ? '✓' : notify.type === 'error' ? '✕' : 'ℹ'}</span>
                         <span>{notify.message}</span>
@@ -294,167 +209,63 @@ export default function Home() {
                 </div>
             )}
 
-            {/* Header */}
+            {/* 헤더 */}
             <div className="sticky top-0 z-50 flex-none w-full bg-background/80 backdrop-blur-md transition-colors duration-300 border-b border-border/50">
-                <div className="px-4">
+                <div className="px-6 md:px-10">
                     <Header
                         darkMode={darkMode}
                         setDarkMode={setDarkMode}
                         currentUser={currentUser}
                         onLogout={handleLogout}
-
                         onShowLogin={() => setShowLoginModal(true)}
-                        activeTab={activeTab}
-                        setActiveTab={setActiveTab}
-                        onShowGuide={() => setShowGuide(true)}
+                        activeTab="journal"
+                        setActiveTab={() => { }}
+                        onShowGuide={() => { }}
                     />
                 </div>
-
-                <UserGuide
-                    isOpen={showGuide}
-                    onClose={() => setShowGuide(false)}
-                    darkMode={darkMode}
-                />
-
             </div>
 
-            {/* Main Content */}
-            <div className="flex-1 min-h-0 w-full px-4 pt-4 pb-24 relative overflow-hidden">
+            {/* 메인 콘텐츠 */}
+            <div className="flex-1 min-h-0 w-full pt-4 pb-8">
                 <AnimatePresence mode="wait">
                     <motion.div
-                        key={activeTab}
+                        key="journal"
                         initial={{ opacity: 0, x: 10 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -10 }}
-                        transition={{ duration: 0.2, ease: "easeOut" }}
+                        transition={{ duration: 0.2, ease: 'easeOut' }}
                         className="h-full"
                     >
-                        {activeTab === 'journal' ? (
-                            <div className="h-full lg:flex lg:gap-8 items-start">
-                                {/* LEFT: Feed View */}
-                                <div className="flex-1 h-full min-w-0 flex flex-col">
-                                    <TradeListView
-                                        darkMode={darkMode}
-                                        currentUser={currentUser}
-                                        trades={trades}
-                                        filteredTrades={filteredTrades}
-                                        filterState={filterState}
-                                        onDelete={removeTrade}
-                                        onEdit={(t) => setEditingTrade(t)}
-                                        openMonths={openMonths}
-                                        toggleMonth={toggleMonth}
-                                        tagColors={tagColors}
-                                        currentPrices={currentPrices}
-                                        exchangeRate={exchangeRate}
-                                        showConverted={showConverted}
-                                        onToggleConverted={setShowConverted}
-                                    />
-                                </div>
-
-                                {/* RIGHT: Sidebar (Desktop) */}
-                                <div className="hidden lg:block w-80 xl:w-96 flex-none space-y-6">
-                                    {/* Summary Cards */}
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <Card className="p-5">
-                                            <div className="text-[10px] font-bold uppercase text-grey-400 mb-1">매수 합계</div>
-                                            <div className="font-bold text-lg">{journalStats.buy.toLocaleString()}</div>
-                                        </Card>
-                                        <Card className="p-5">
-                                            <div className="text-[10px] font-bold uppercase text-grey-400 mb-1">순손익</div>
-                                            <div className={`font-bold text-lg ${journalNetCash >= 0 ? 'text-color-up' : 'text-color-down'}`}>
-                                                {journalNetCash > 0 ? '+' : ''}{journalNetCash.toLocaleString()}
-                                            </div>
-                                        </Card>
-                                    </div>
-
-                                    {/* Quick Form */}
-                                    <Card className="overflow-hidden">
-                                        <div className="px-5 py-4 border-b border-border/10 bg-grey-50 font-bold text-sm text-foreground">
-                                            빠른 기록
-                                        </div>
-                                        <div className="p-5">
-                                            <TradeForm
-                                                darkMode={darkMode}
-                                                currentUser={currentUser}
-                                                baseTrades={trades}
-                                                onAddTrade={handleAddTrade}
-                                                allTags={allTags}
-                                                strategies={strategies}
-                                                isCompact={true}
-                                            />
-                                        </div>
-                                    </Card>
-                                </div>
-                            </div>
-                        ) : activeTab === 'diary' ? (
-                            <div className="h-full overflow-y-auto scrollbar-thin pb-4">
-                                <MarketDiaryView
-                                    darkMode={darkMode}
-                                    currentUser={currentUser}
-                                    diaryData={diaryData}
-                                    trades={trades}
-                                />
-                            </div>
-                        ) : activeTab === 'reports' ? (
-                            <div className="h-full overflow-y-auto scrollbar-thin pb-4">
-                                <EconomicReportsView
-                                    darkMode={darkMode}
-                                    currentUser={currentUser}
-                                />
-                            </div>
-                        ) : activeTab === 'stats' ? (
-                            <div className="h-full overflow-y-auto scrollbar-thin pb-4">
-                                <DashboardView
-                                    darkMode={darkMode}
-                                    currentUser={currentUser}
-                                    statsData={dashboardStats}
-                                    riskData={riskData}
-                                    goalsData={goalsData}
-                                    currentPrices={currentPrices}
-                                    onCurrentPriceChange={handleCurrentPriceChange}
-                                    onSymbolClick={handleSymbolClick}
-                                    tagColors={tagColors}
-                                    exchangeRate={exchangeRate}
-                                    onExchangeRateChange={setExchangeRate}
-                                    trades={trades}
-                                    lastTradeDate={trades.length > 0
-                                        ? [...trades].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]?.date
-                                        : undefined}
-                                />
-                            </div>
-                        ) : activeTab === 'settings' ? (
-                            <div className="h-full overflow-y-auto scrollbar-thin pb-4">
-                                <SettingsView
-                                    darkMode={darkMode}
-                                    setDarkMode={setDarkMode}
-                                    currentUser={currentUser}
-                                    backupManager={backupManager}
-                                    strategies={strategies}
-                                    onAddStrategy={addStrategy}
-                                    onUpdateStrategy={updateStrategy}
-                                    onRemoveStrategy={removeStrategy}
-                                    onUpdateSymbolNames={dataCorrection.updateMissingSymbolNames}
-                                    isUpdating={dataCorrection.isCorrecting}
-                                />
-                            </div>
-                        ) : null}
+                        <TradeListView
+                            darkMode={darkMode}
+                            currentUser={currentUser}
+                            trades={trades}
+                            filteredTrades={filteredTrades}
+                            filterState={filterState}
+                            onDelete={removeTrade}
+                            onEdit={(t) => setEditingTrade(t)}
+                            openMonths={openMonths}
+                            toggleMonth={toggleMonth}
+                            tagColors={tagColors}
+                            currentPrices={{}}
+                            exchangeRate={1}
+                            showConverted={false}
+                            onToggleConverted={() => { }}
+                        />
                     </motion.div>
                 </AnimatePresence>
             </div>
 
-            {/* Mobile Add Trade FAB - Toss Style */}
-            {activeTab === 'journal' && (
-                <button
-                    onClick={() => setShowAddModal(true)}
-                    aria-label="새 매매 기록 추가"
-                    title="새 매매 기록 추가"
-                    className="lg:hidden fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-primary text-white shadow-toss-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2"
-                >
-                    <span className="text-2xl font-light">+</span>
-                </button>
-            )}
+            {/* 모바일 FAB — 매매 기록 추가 */}
+            <button
+                onClick={() => setShowAddModal(true)}
+                aria-label="새 매매 기록 추가"
+                className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-primary text-white shadow-toss-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2"
+            >
+                <span className="text-2xl font-light">+</span>
+            </button>
 
-            {/* Login BottomSheet - Toss Style */}
+            {/* 로그인 BottomSheet */}
             <BottomSheet
                 isOpen={showLoginModal}
                 onClose={() => setShowLoginModal(false)}
@@ -463,16 +274,10 @@ export default function Home() {
                 <div className="mb-4">
                     <p className="text-sm text-grey-500">데이터 동기화를 위해 로그인하세요</p>
                 </div>
-                <LoginForm
-                    darkMode={darkMode}
-                    onDone={() => setShowLoginModal(false)}
-                />
+                <LoginForm darkMode={darkMode} onDone={() => setShowLoginModal(false)} />
                 <div className="mt-6 text-center">
                     <button
-                        onClick={() => {
-                            setShowLoginModal(false);
-                            handleStartAsGuest();
-                        }}
+                        onClick={() => { setShowLoginModal(false); handleStartAsGuest(); }}
                         className="text-sm font-bold text-grey-500 hover:text-foreground transition-colors"
                     >
                         로그인 없이 게스트로 시작하기
@@ -480,13 +285,10 @@ export default function Home() {
                 </div>
             </BottomSheet>
 
-            {/* Add/Edit Trade BottomSheet - Toss Style */}
+            {/* 매매 추가/수정 BottomSheet */}
             <BottomSheet
                 isOpen={!!(editingTrade || showAddModal)}
-                onClose={() => {
-                    setEditingTrade(null);
-                    setShowAddModal(false);
-                }}
+                onClose={() => { setEditingTrade(null); setShowAddModal(false); }}
                 title={editingTrade ? '매매 기록 수정' : '새로운 매매 기록'}
             >
                 <TradeForm
@@ -499,14 +301,11 @@ export default function Home() {
                     }}
                     onUpdateTrade={handleUpdateTrade}
                     allTags={allTags}
-                    strategies={strategies}
+                    strategies={[]}
                     isCompact={false}
                     initialData={editingTrade || undefined}
-                                />
-                            </BottomSheet>
-                
-                            <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
-                        </div>
-                    );
-                }
-                
+                />
+            </BottomSheet>
+        </div>
+    );
+}

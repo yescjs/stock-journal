@@ -34,12 +34,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {/* 반응형 웹 레이아웃: 데스크탑 너비 확장 */}
-          <div className="min-h-screen bg-background flex justify-center">
-            <div className="w-full max-w-screen-xl min-h-screen bg-background flex flex-col relative">
-              {children}
-            </div>
-          </div>
+          {children}
         </ThemeProvider>
       </body>
     </html>
