@@ -58,16 +58,6 @@ export function LoginForm({ onDone, darkMode = false }: LoginFormProps) {
         }
     };
 
-    // Naver Login Handler
-    const [naverLoginLoading, setNaverLoginLoading] = useState(false);
-
-    const handleNaverLogin = () => {
-        setNaverLoginLoading(true);
-        setSending(true);
-        resetMsg();
-        // 네이버 로그인 API 라우트로 리다이렉트
-        window.location.href = '/api/auth/naver/login';
-    };
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
@@ -289,31 +279,6 @@ export function LoginForm({ onDone, darkMode = false }: LoginFormProps) {
                             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                         </svg>
                         Google로 계속하기
-                    </button>
-
-                    {/* Naver Login */}
-                    <button
-                        type="button"
-                        onClick={handleNaverLogin}
-                        disabled={sending}
-                        className={`w-full py-3.5 px-4 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-3 ${sending
-                            ? 'opacity-50 cursor-not-allowed'
-                            : 'hover:scale-[1.02] active:scale-[0.98]'
-                            } bg-[#03A94D] text-white hover:bg-[#028A3D] shadow-md`}
-                    >
-                        {naverLoginLoading ? (
-                            <>
-                                <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                네이버 로그인 중...
-                            </>
-                        ) : (
-                            <>
-                                <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M4 16V4H8L12 10V4H16V16H12L8 10V16H4Z" fill="currentColor"/>
-                                </svg>
-                                네이버로 계속하기
-                            </>
-                        )}
                     </button>
 
 
