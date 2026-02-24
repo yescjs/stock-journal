@@ -1,12 +1,32 @@
 import type { Metadata } from "next";
-import { JetBrains_Mono } from "next/font/google";
+import { Inter, Noto_Sans_KR, JetBrains_Mono, Orbitron } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "./components/ThemeProvider";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+});
+
+const notoSansKR = Noto_Sans_KR({
+  subsets: ["latin"],
+  variable: "--font-kr",
+  display: "swap",
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
+});
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
   display: "swap",
+});
+
+const orbitron = Orbitron({
+  subsets: ["latin"],
+  variable: "--font-logo",
+  display: "swap",
+  weight: ["400", "500", "600", "700", "800", "900"],
 });
 
 
@@ -24,14 +44,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" dir="ltr" className={`${jetbrainsMono.variable}`} suppressHydrationWarning>
+    <html lang="ko" dir="ltr" className={`${inter.variable} ${notoSansKR.variable} ${jetbrainsMono.variable} ${orbitron.variable}`} suppressHydrationWarning>
       <body
         className="antialiased tracking-tight bg-background text-foreground min-h-screen"
       >
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
-          enableSystem
+          defaultTheme="dark"
+          forcedTheme="dark"
           disableTransitionOnChange
         >
           {children}

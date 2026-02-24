@@ -1,28 +1,43 @@
 import { useState, useMemo } from 'react';
 import { Trade } from '@/app/types/trade';
-import { TagFilterMode } from '@/app/types/ui';
+
+/**
+ * Calculate held symbols: symbols where total BUY qty > total SELL qty.
+ */
+function getHeldSymbols(trades: Trade[]): Set<string> {
+    const netQty = new Map<string, number>();
+    for (const t of trades) {
+        const current = netQty.get(t.symbol) ?? 0;
+        netQty.set(t.symbol, current + (t.side === 'BUY' ? t.quantity : -t.quantity));
+    }
+    const held = new Set<string>();
+    for (const [symbol, qty] of netQty) {
+        if (qty > 0) held.add(symbol);
+    }
+    return held;
+}
 
 export function useTradeFilter(trades: Trade[]) {
     // Basic Filters
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
     const [filterSymbol, setFilterSymbol] = useState('');
-    const [filterTag, setFilterTag] = useState('');
-    const [tagFilterMode, setTagFilterMode] = useState<TagFilterMode>('OR');
+    const [holdingOnly, setHoldingOnly] = useState(false);
 
     // Drill-down State
     const [selectedSymbol, setSelectedSymbol] = useState<string>('');
 
-    // Available tags for autocomplete
-    const allTags = useMemo(() => {
-        const set = new Set<string>();
-        trades.forEach(t => t.tags?.forEach(tag => set.add(tag)));
-        return Array.from(set).sort((a, b) => a.localeCompare(b));
-    }, [trades]);
+    // Pre-compute held symbols for filtering
+    const heldSymbols = useMemo(() => getHeldSymbols(trades), [trades]);
 
     // Computed Filtered List
     const filteredTrades = useMemo(() => {
         let result = trades;
+
+        // Holding Only Filter
+        if (holdingOnly) {
+            result = result.filter(t => heldSymbols.has(t.symbol));
+        }
 
         // Symbol Filter (Input)
         if (filterSymbol) {
@@ -31,22 +46,6 @@ export function useTradeFilter(trades: Trade[]) {
                 t.symbol.toLowerCase().includes(lower) ||
                 (t.symbol_name && t.symbol_name.toLowerCase().includes(lower))
             );
-        }
-
-        // Tag Filter
-        if (filterTag) {
-            const keywords = filterTag.split(/[,\s]+/).map(t => t.trim().toLowerCase()).filter(Boolean);
-            if (keywords.length > 0) {
-                result = result.filter(t => {
-                    const tTags = (t.tags ?? []).map(tag => tag.toLowerCase());
-                    if (tTags.length === 0) return false;
-                    if (tagFilterMode === 'AND') {
-                        return keywords.every(kw => tTags.some(tag => tag.includes(kw)));
-                    } else {
-                        return keywords.some(kw => tTags.some(tag => tag.includes(kw)));
-                    }
-                });
-            }
         }
 
         // Selected Symbol (Drill-down)
@@ -63,32 +62,30 @@ export function useTradeFilter(trades: Trade[]) {
         }
 
         return result;
-    }, [trades, filterSymbol, filterTag, tagFilterMode, selectedSymbol, dateFrom, dateTo]);
+    }, [trades, filterSymbol, selectedSymbol, dateFrom, dateTo, holdingOnly, heldSymbols]);
 
     const resetFilters = () => {
         setFilterSymbol('');
-        setFilterTag('');
         setDateFrom('');
         setDateTo('');
-        setTagFilterMode('OR');
         setSelectedSymbol('');
+        setHoldingOnly(false);
     };
 
     return {
         filteredTrades,
-        allTags,
         filterSymbol,
         setFilterSymbol,
-        filterTag,
-        setFilterTag,
-        tagFilterMode,
-        setTagFilterMode,
         dateFrom,
         setDateFrom,
         dateTo,
         setDateTo,
         selectedSymbol,
         setSelectedSymbol,
+        holdingOnly,
+        setHoldingOnly,
+        heldSymbols,
         resetFilters
     };
 }
+
