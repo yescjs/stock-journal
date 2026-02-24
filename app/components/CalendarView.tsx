@@ -22,10 +22,16 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+interface DailyCalendarData {
+  key: string;        // YYYY-MM-DD
+  krwValue: number;   // KRW P&L
+  usdValue: number;   // USD P&L
+}
+
 interface CalendarViewProps {
   currentDate: Date;
   onDateChange: (date: Date) => void;
-  dailyData: { key: string; value: number }[]; // key is YYYY-MM-DD
+  dailyData: DailyCalendarData[];
   onSelectDate: (dateStr: string) => void;
   selectedDateStr?: string;
   darkMode: boolean;
@@ -40,10 +46,10 @@ export function CalendarView({
   darkMode
 }: CalendarViewProps) {
 
-  // 1. Data Map
+  // 1. Data Map: stores { krw, usd } per day
   const dataMap = useMemo(() => {
-    const map = new Map<string, number>();
-    dailyData.forEach(d => map.set(d.key, d.value));
+    const map = new Map<string, { krw: number; usd: number }>();
+    dailyData.forEach(d => map.set(d.key, { krw: d.krwValue, usd: d.usdValue }));
     return map;
   }, [dailyData]);
 
@@ -59,24 +65,32 @@ export function CalendarView({
   const nextMonth = () => onDateChange(addMonths(currentDate, 1));
   const prevMonth = () => onDateChange(subMonths(currentDate, 1));
 
-  const getHeatmapColor = (pnl: number) => {
-    if (pnl === 0) return darkMode ? 'bg-slate-800/40' : 'bg-slate-50/50';
+  // Heatmap color using Korean stock convention: red=profit, blue=loss
+  const getHeatmapColor = (totalPnl: number) => {
+    if (totalPnl === 0) return darkMode ? 'bg-slate-800/40' : 'bg-slate-50/50';
 
-    const abs = Math.abs(pnl);
+    const abs = Math.abs(totalPnl);
 
-    if (pnl > 0) {
-      if (abs > 1000000) return 'bg-emerald-500 text-white shadow-[0_0_10px_rgba(16,185,129,0.3)]';
-      if (abs > 300000) return 'bg-emerald-400 text-white';
-      return 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30';
+    if (totalPnl > 0) {
+      // Profit: Red (Korean convention)
+      if (abs > 1000000) return 'bg-red-600 text-white shadow-[0_0_10px_rgba(239,68,68,0.4)]';
+      if (abs > 300000) return 'bg-red-500/80 text-white';
+      return 'bg-red-500/15 text-red-500 dark:text-red-400 border-red-500/30';
     } else {
-      if (abs > 1000000) return 'bg-rose-500 text-white shadow-[0_0_10px_rgba(244,63,94,0.3)]';
-      if (abs > 300000) return 'bg-rose-400 text-white';
-      return 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30';
+      // Loss: Blue (Korean convention)
+      if (abs > 1000000) return 'bg-blue-600 text-white shadow-[0_0_10px_rgba(59,130,246,0.4)]';
+      if (abs > 300000) return 'bg-blue-500/80 text-white';
+      return 'bg-blue-500/15 text-blue-500 dark:text-blue-400 border-blue-500/30';
     }
   };
 
-  const formatMoney = (val: number) => {
-    return Math.abs(val).toLocaleString();
+  // Format currency values
+  const formatKRW = (val: number) => {
+    return Math.round(val).toLocaleString();
+  };
+
+  const formatUSD = (val: number) => {
+    return `$${Math.abs(val).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
   }
 
   return (
@@ -118,7 +132,11 @@ export function CalendarView({
       <div className="grid grid-cols-7 gap-1 md:gap-3 flex-1">
         {calendarDays.map((day) => {
           const dateKey = format(day, 'yyyy-MM-dd');
-          const pnl = dataMap.get(dateKey) ?? 0;
+          const dayData = dataMap.get(dateKey);
+          const krw = dayData?.krw ?? 0;
+          const usd = dayData?.usd ?? 0;
+          const totalPnl = krw + usd; // Combined for heatmap color
+          const hasData = krw !== 0 || usd !== 0;
           const isCurrentMonth = isSameMonth(day, currentDate);
           const isSelected = selectedDateStr === dateKey;
           const isToday = isSameDay(day, new Date());
@@ -130,13 +148,13 @@ export function CalendarView({
               onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelectDate(dateKey)}
               role="button"
               tabIndex={isCurrentMonth ? 0 : -1}
-              aria-label={`${format(day, 'yyyy년 M월 d일', { locale: ko })}${pnl !== 0 ? `, 손익: ${pnl > 0 ? '+' : ''}${formatMoney(pnl)}원` : ''}`}
+              aria-label={`${format(day, 'yyyy년 M월 d일', { locale: ko })}${hasData ? `, KRW: ${krw > 0 ? '+' : ''}${formatKRW(krw)}, USD: ${usd > 0 ? '+' : ''}${formatUSD(usd)}` : ''}`}
               className={cn(
                 "group relative min-h-[60px] md:min-h-[100px] rounded-xl md:rounded-2xl flex flex-col p-1.5 md:p-3 cursor-pointer transition-all duration-300 border backdrop-blur-sm touch-manipulation focus:outline-none focus:ring-2 focus:ring-indigo-400",
                 // Base styles
                 !isSelected && (darkMode ? "border-slate-800/50 hover:border-slate-700" : "border-slate-100 hover:border-indigo-200 hover:shadow-md"),
-                // Background color
-                getHeatmapColor(pnl),
+                // Background color based on combined P&L
+                getHeatmapColor(totalPnl),
                 // Opacity for non-current month
                 !isCurrentMonth && "opacity-20 grayscale scale-95 border-none bg-transparent",
                 // Selection state
@@ -150,7 +168,7 @@ export function CalendarView({
               <div className="flex justify-between items-start mb-1">
                 <span className={cn(
                   "text-xs font-bold transition-colors",
-                  pnl !== 0 && Math.abs(pnl) > 300000 ? "text-white/90" : (darkMode ? "text-slate-400 group-hover:text-slate-200" : "text-slate-500 group-hover:text-indigo-600"),
+                  hasData && Math.abs(totalPnl) > 300000 ? "text-white/90" : (darkMode ? "text-slate-400 group-hover:text-slate-200" : "text-slate-500 group-hover:text-indigo-600"),
                   isToday && "text-indigo-500"
                 )}>
                   {format(day, 'd')}
@@ -159,14 +177,26 @@ export function CalendarView({
               </div>
 
               <div className="flex-1 flex items-center justify-center">
-                {pnl !== 0 && (
-                  <div className="text-center w-full">
-                    <div className={cn(
-                        "text-xs md:text-[13px] font-black tracking-tight truncate",
-                        Math.abs(pnl) > 300000 ? "text-white" : (darkMode ? "text-slate-200" : "text-slate-800")
-                    )}>
-                      {pnl > 0 ? '+' : ''}{formatMoney(pnl)}
-                    </div>
+                {hasData && (
+                  <div className="text-center w-full space-y-0.5">
+                    {/* KRW line */}
+                    {krw !== 0 && (
+                      <div className={cn(
+                        "text-[10px] md:text-xs font-black tracking-tight truncate",
+                        Math.abs(totalPnl) > 300000 ? "text-white" : (darkMode ? "text-slate-200" : "text-slate-800")
+                      )}>
+                        {krw > 0 ? '+' : ''}<span className="opacity-60">₩</span>{formatKRW(krw)}
+                      </div>
+                    )}
+                    {/* USD line */}
+                    {usd !== 0 && (
+                      <div className={cn(
+                        "text-[10px] md:text-xs font-black tracking-tight truncate",
+                        Math.abs(totalPnl) > 300000 ? "text-white/80" : (darkMode ? "text-slate-300" : "text-slate-600")
+                      )}>
+                        {usd > 0 ? '+' : '-'}{formatUSD(usd)}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

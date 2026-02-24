@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Trade } from '@/app/types/trade';
 import { formatMonthLabel, formatQuantity, formatPrice, getKoreanWeekdayLabel } from '@/app/utils/format';
-import { Pencil, Trash2, Camera, ChevronDown, Zap, Calendar, ListTodo } from 'lucide-react';
+import { Pencil, Trash2, ChevronDown, Calendar, ListTodo, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { Card } from '@/app/components/ui/Card';
 import { Button } from '@/app/components/ui/Button';
 
@@ -13,11 +13,48 @@ interface TradeListProps {
     openMonths: Record<string, boolean>;
     toggleMonth: (key: string) => void;
     darkMode: boolean;
-    tagColors?: Record<string, string>;
     onSymbolClick?: (symbol: string) => void;
-    onImagePreview?: (imageUrl: string) => void;
     exchangeRate: number;
     showConverted: boolean;
+    currentPrices?: Record<string, number>;
+}
+
+// Calculate profit/loss percentage
+function calcPnlPercent(entryPrice: number, currentPrice: number): number {
+    if (entryPrice <= 0) return 0;
+    return ((currentPrice - entryPrice) / entryPrice) * 100;
+}
+
+// Calculate profit/loss amount
+function calcPnlAmount(entryPrice: number, currentPrice: number, quantity: number): number {
+    return (currentPrice - entryPrice) * quantity;
+}
+
+// Get PnL color class
+function getPnlColorClass(value: number): string {
+    if (value > 0) return 'text-color-up';   // Red = profit (Korean convention)
+    if (value < 0) return 'text-color-down'; // Blue = loss
+    return 'text-muted-foreground';
+}
+
+// Get PnL background class for badges
+function getPnlBgClass(value: number): string {
+    if (value > 0) return 'bg-color-up/10';
+    if (value < 0) return 'bg-color-down/10';
+    return 'bg-muted';
+}
+
+// Format PnL percentage with sign
+function formatPnlPercent(pct: number): string {
+    const sign = pct > 0 ? '+' : '';
+    return `${sign}${pct.toFixed(2)}%`;
+}
+
+// Get PnL icon
+function PnlIcon({ value, size = 12 }: { value: number; size?: number }) {
+    if (value > 0) return <TrendingUp size={size} />;
+    if (value < 0) return <TrendingDown size={size} />;
+    return <Minus size={size} />;
 }
 
 export function TradeList({
@@ -27,11 +64,10 @@ export function TradeList({
     openMonths,
     toggleMonth,
     darkMode,
-    tagColors = {},
     onSymbolClick,
-    onImagePreview,
     exchangeRate,
     showConverted,
+    currentPrices = {},
 }: TradeListProps) {
     // Group by Month
     const monthGroups = useMemo(() => {
@@ -60,6 +96,9 @@ export function TradeList({
             count: map.get(key)!.length,
         }));
     }, [trades]);
+
+    // Check if any BUY trade has a current price available
+    const hasCurrentPrices = Object.keys(currentPrices).length > 0;
 
     // Format helper that handles conversion
     const displayPrice = (price: number, symbol: string) => {
@@ -130,11 +169,17 @@ export function TradeList({
                                         <thead className="text-xs font-semibold uppercase tracking-wide border-b border-border/50 bg-muted/20 text-muted-foreground">
                                             <tr>
                                                 <th className="px-4 py-3 whitespace-nowrap w-[100px]">날짜</th>
-                                                <th className="px-4 py-3 w-[250px]">종목 / 태그</th>
+                                                <th className="px-4 py-3 w-[200px]">종목</th>
                                                 <th className="px-4 py-3 text-right">진입가</th>
+                                                {hasCurrentPrices && (
+                                                    <>
+                                                        <th className="px-4 py-3 text-right">현재가</th>
+                                                        <th className="px-4 py-3 text-right">수익률</th>
+                                                        <th className="px-4 py-3 text-right">평가손익</th>
+                                                    </>
+                                                )}
                                                 <th className="px-4 py-3 text-right">수량</th>
                                                 <th className="px-4 py-3 text-right">총액</th>
-                                                <th className="px-4 py-3 w-[200px] hidden lg:table-cell">메모</th>
                                                 {(onDelete || onEdit) && (
                                                     <th className="px-4 py-3 z-10 sticky right-0 text-center w-[80px] bg-card">관리</th>
                                                 )}
@@ -145,12 +190,21 @@ export function TradeList({
                                                 const dateObj = new Date(t.date);
                                                 const dayOfWeek = isNaN(dateObj.getTime()) ? '' : new Intl.DateTimeFormat('ko-KR', { weekday: 'short' }).format(dateObj);
                                                 const amount = t.price * t.quantity;
+                                                const cp = currentPrices[t.symbol];
+                                                const isBuy = t.side === 'BUY';
+                                                const hasCp = isBuy && cp !== undefined && cp > 0;
+                                                const pnlPct = hasCp ? calcPnlPercent(t.price, cp) : 0;
+                                                const pnlAmt = hasCp ? calcPnlAmount(t.price, cp, t.quantity) : 0;
 
                                                 return (
                                                     <tr
                                                         key={t.id}
                                                         onClick={() => onSymbolClick?.(t.symbol)}
-                                                        className="group transition-colors duration-150 cursor-pointer h-14 hover:bg-muted/30"
+                                                        className={`group transition-colors duration-150 cursor-pointer h-14 hover:bg-muted/30 border-l-3 ${
+                                                            t.side === 'BUY'
+                                                                ? 'border-l-color-up/80 bg-color-up/5'
+                                                                : 'border-l-color-down/80 bg-color-down/5'
+                                                        }`}
                                                     >
                                                         {/* Date */}
                                                         <td className="px-4 py-3">
@@ -159,15 +213,15 @@ export function TradeList({
                                                             </div>
                                                         </td>
 
-                                                        {/* Symbol & Position & Tags */}
+                                                        {/* Symbol & Position */}
                                                         <td className="px-4 py-3">
-                                                            <div className="flex items-start gap-2 mb-1">
-                                                                {/* Position Badge - Toss Style */}
+                                                            <div className="flex items-start gap-2">
+                                                                {/* Position Badge - Enhanced */}
                                                                 <span className={`
-                                                                    mt-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide whitespace-nowrap shrink-0
+                                                                    mt-0.5 px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wide whitespace-nowrap shrink-0 border
                                                                     ${t.side === 'BUY'
-                                                                        ? 'bg-color-up/10 text-color-up'
-                                                                        : 'bg-color-down/10 text-color-down'}
+                                                                        ? 'bg-color-up/15 text-color-up border-color-up/30'
+                                                                        : 'bg-color-down/15 text-color-down border-color-down/30'}
                                                                 `}>
                                                                     {t.side === 'BUY' ? '매수' : '매도'}
                                                                 </span>
@@ -175,39 +229,51 @@ export function TradeList({
                                                                 <div className="font-semibold text-sm text-foreground">
                                                                     {t.symbol_name || t.symbol}
                                                                 </div>
-
-                                                                {t.image && (
-                                                                    <button
-                                                                        onClick={(e) => { e.stopPropagation(); onImagePreview?.(t.image!); }}
-                                                                        className="p-1 rounded-lg transition-colors bg-muted hover:bg-muted/70 text-muted-foreground"
-                                                                    >
-                                                                        <Camera size={12} />
-                                                                    </button>
-                                                                )}
-                                                            </div>
-
-                                                            <div className="flex flex-wrap gap-1">
-                                                                {t.strategy_name && (
-                                                                    <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded font-bold bg-primary/10 text-primary">
-                                                                        <Zap size={8} fill="currentColor" /> {t.strategy_name}
-                                                                    </span>
-                                                                )}
-                                                                {t.tags?.slice(0, 2).map(tag => (
-                                                                    <span
-                                                                        key={tag}
-                                                                        className="text-[9px] px-1.5 py-0.5 rounded font-bold text-white opacity-90"
-                                                                        style={{ backgroundColor: tagColors[tag] || '#94a3b8' }}
-                                                                    >
-                                                                        #{tag}
-                                                                    </span>
-                                                                ))}
                                                             </div>
                                                         </td>
 
-                                                        {/* Price */}
+                                                        {/* Entry Price */}
                                                         <td className="px-4 py-3 text-right font-semibold tabular-nums whitespace-nowrap text-foreground">
                                                             {displayPrice(t.price, t.symbol)}
                                                         </td>
+
+                                                        {/* Current Price, PnL%, PnL Amount (only when prices available) */}
+                                                        {hasCurrentPrices && (
+                                                            <>
+                                                                {/* Current Price */}
+                                                                <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">
+                                                                    {hasCp ? (
+                                                                        <span className="font-semibold text-foreground">
+                                                                            {displayPrice(cp, t.symbol)}
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="text-muted-foreground text-xs">—</span>
+                                                                    )}
+                                                                </td>
+
+                                                                {/* PnL Percentage */}
+                                                                <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">
+                                                                    {hasCp ? (
+                                                                        <span className={`font-bold text-sm ${getPnlColorClass(pnlPct)}`}>
+                                                                            {formatPnlPercent(pnlPct)}
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="text-muted-foreground text-xs">—</span>
+                                                                    )}
+                                                                </td>
+
+                                                                {/* PnL Amount - Green(+) / Red(-) */}
+                                                                <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">
+                                                                    {hasCp ? (
+                                                                        <span className={`font-bold text-sm ${pnlAmt > 0 ? 'text-emerald-400' : pnlAmt < 0 ? 'text-red-400' : 'text-muted-foreground'}`}>
+                                                                            {pnlAmt > 0 ? '+' : ''}{displayPrice(pnlAmt, t.symbol)}
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="text-muted-foreground text-xs">—</span>
+                                                                    )}
+                                                                </td>
+                                                            </>
+                                                        )}
 
                                                         {/* Quantity */}
                                                         <td className="px-4 py-3 text-right font-semibold tabular-nums text-foreground">
@@ -217,17 +283,6 @@ export function TradeList({
                                                         {/* Total */}
                                                         <td className="px-4 py-3 text-right font-bold tabular-nums whitespace-nowrap text-foreground">
                                                             {displayPrice(amount, t.symbol)}
-                                                        </td>
-
-                                                        {/* Memo */}
-                                                        <td className="px-4 py-3 hidden lg:table-cell">
-                                                            {t.memo ? (
-                                                                <div className="text-xs line-clamp-2 leading-relaxed text-muted-foreground">
-                                                                    {t.memo}
-                                                                </div>
-                                                            ) : (
-                                                                <span className="text-[10px] text-muted-foreground/50 italic">메모 없음</span>
-                                                            )}
                                                         </td>
 
                                                         {/* Actions */}
@@ -265,21 +320,30 @@ export function TradeList({
                                     {group.trades.map((t) => {
                                         const amount = t.price * t.quantity;
                                         const dayOfWeek = getKoreanWeekdayLabel(t.date);
+                                        const cp = currentPrices[t.symbol];
+                                        const isBuy = t.side === 'BUY';
+                                        const hasCp = isBuy && cp !== undefined && cp > 0;
+                                        const pnlPct = hasCp ? calcPnlPercent(t.price, cp) : 0;
+                                        const pnlAmt = hasCp ? calcPnlAmount(t.price, cp, t.quantity) : 0;
 
                                         return (
                                             <div
                                                 key={t.id}
                                                 onClick={() => onSymbolClick?.(t.symbol)}
-                                                className="p-5 rounded-3xl border border-border/10 bg-card shadow-toss flex flex-col gap-4 transition-all active:scale-[0.98]"
+                                                className={`p-5 rounded-3xl border border-border/10 shadow-toss flex flex-col gap-4 transition-all active:scale-[0.98] border-l-4 ${
+                                                    t.side === 'BUY'
+                                                        ? 'border-l-color-up/80 bg-color-up/5'
+                                                        : 'border-l-color-down/80 bg-color-down/5'
+                                                }`}
                                             >
                                                 {/* Header: Type, Stock, Price */}
                                                 <div className="flex justify-between items-start">
                                                     <div className="flex items-center gap-3 min-w-0 flex-1">
                                                         <div className={`
-                                                            w-10 h-10 rounded-xl flex items-center justify-center text-[10px] font-bold shrink-0
+                                                            w-10 h-10 rounded-xl flex items-center justify-center text-[10px] font-extrabold shrink-0 border
                                                             ${t.side === 'BUY'
-                                                                ? 'bg-color-up/10 text-color-up'
-                                                                : 'bg-color-down/10 text-color-down'}
+                                                                ? 'bg-color-up/15 text-color-up border-color-up/30'
+                                                                : 'bg-color-down/15 text-color-down border-color-down/30'}
                                                         `}>
                                                             {t.side === 'BUY' ? '매수' : '매도'}
                                                         </div>
@@ -295,62 +359,31 @@ export function TradeList({
                                                     <div className="text-right shrink-0 ml-2">
                                                         <div className="font-bold text-base text-foreground">{displayPrice(amount, t.symbol)}</div>
                                                         <div className="text-xs font-semibold text-grey-400">
-                                                            {displayPrice(t.price, t.symbol)}
+                                                            {displayPrice(t.price, t.symbol)} × {formatQuantity(t.quantity, t.symbol)}
                                                         </div>
                                                     </div>
                                                 </div>
 
-                                                {/* Tags & Reasons */}
-                                                {(t.tags?.length || t.strategy_name || t.entry_reason || t.exit_reason) ? (
-                                                    <div className="p-4 rounded-2xl space-y-3 bg-grey-100">
-                                                        <div className="flex flex-wrap gap-2">
-                                                            {t.strategy_name && (
-                                                                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg font-bold bg-primary/10 text-primary">
-                                                                    <Zap size={10} fill="currentColor" /> {t.strategy_name}
-                                                                </span>
-                                                            )}
-                                                            {t.tags?.map(tag => (
-                                                                <span
-                                                                    key={tag}
-                                                                    className="text-[10px] px-2 py-1 rounded-lg font-bold text-white shadow-sm"
-                                                                    style={{ backgroundColor: tagColors[tag] || '#8B95A1' }}
-                                                                >
-                                                                    #{tag}
-                                                                </span>
-                                                            ))}
+                                                {/* PnL Row (BUY only, when current price available) */}
+                                                {hasCp && (
+                                                    <div className={`flex items-center justify-between px-3 py-2.5 rounded-xl ${getPnlBgClass(pnlPct)}`}>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs font-medium text-muted-foreground">현재가</span>
+                                                            <span className="text-sm font-bold text-foreground">{displayPrice(cp, t.symbol)}</span>
                                                         </div>
-
-                                                        {(t.entry_reason || t.exit_reason) && (
-                                                            <div className="flex flex-col gap-2 pt-1">
-                                                                {t.entry_reason && (
-                                                                    <div className="flex gap-2">
-                                                                        <span className="text-[10px] font-bold text-grey-400 min-w-[30px] uppercase mt-0.5">In</span>
-                                                                        <span className="text-xs font-medium text-grey-700">{t.entry_reason}</span>
-                                                                    </div>
-                                                                )}
-                                                                {t.exit_reason && (
-                                                                    <div className="flex gap-2">
-                                                                        <span className="text-[10px] font-bold text-grey-400 min-w-[30px] uppercase mt-0.5">Out</span>
-                                                                        <span className="text-xs font-medium text-grey-700">{t.exit_reason}</span>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        )}
+                                                        <div className="flex items-center gap-3">
+                                                            <span className={`text-sm font-bold ${getPnlColorClass(pnlPct)}`}>
+                                                                {formatPnlPercent(pnlPct)}
+                                                            </span>
+                                                            <span className={`text-sm font-bold ${pnlAmt > 0 ? 'text-emerald-400' : pnlAmt < 0 ? 'text-red-400' : 'text-muted-foreground'}`}>
+                                                                {pnlAmt > 0 ? '+' : ''}{displayPrice(pnlAmt, t.symbol)}
+                                                            </span>
+                                                        </div>
                                                     </div>
-                                                ) : null}
+                                                )}
 
                                                 {/* Actions */}
                                                 <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/10">
-                                                    {t.image && (
-                                                        <Button
-                                                            variant="secondary"
-                                                            size="sm"
-                                                            onClick={(e) => { e.stopPropagation(); onImagePreview?.(t.image!); }}
-                                                            className="h-9 px-3 rounded-xl gap-1.5 text-xs font-bold"
-                                                        >
-                                                            <Camera size={14} /> 차트
-                                                        </Button>
-                                                    )}
                                                     <Button
                                                         variant="secondary"
                                                         size="sm"

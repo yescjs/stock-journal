@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
 import {
-    ArrowRight, TrendingUp, BookOpen, Shield, Zap,
+    ArrowRight, LineChart, BookOpen, Shield, Zap,
     CheckCircle, ChevronDown, ChevronUp, BarChart2,
     Clock, Target, AlertCircle
 } from 'lucide-react';
@@ -34,7 +34,7 @@ const PAIN_POINTS = [
 
 const BENEFITS = [
     { icon: BookOpen, color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20', title: '30초 기록', desc: '날짜·종목·가격·수량만 입력하면 끝. 메모와 태그로 컨텍스트 보완.' },
-    { icon: TrendingUp, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', title: '패턴 발견', desc: '월별·종목별 분류로 반복 실수를 한눈에 파악. 승률 자동 계산.' },
+    { icon: LineChart, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', title: '패턴 발견', desc: '월별·종목별 분류로 반복 실수를 한눈에 파악. 승률 자동 계산.' },
     { icon: BarChart2, color: 'text-violet-400', bg: 'bg-violet-500/10', border: 'border-violet-500/20', title: '차트 즉시 확인', desc: '종목 클릭 한 번으로 캔들차트와 실현/미실현 손익 즉시 확인.' },
     { icon: Shield, color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20', title: '클라우드 동기화', desc: 'Supabase 기반 실시간 동기화. 어디서든 접근, 데이터 유실 없음.' },
     { icon: Zap, color: 'text-rose-400', bg: 'bg-rose-500/10', border: 'border-rose-500/20', title: '게스트 시작', desc: '회원가입 없이 즉시 시작. 준비되면 계정 연결로 데이터 유지.' },
@@ -108,12 +108,12 @@ export function LandingPage({ onStart, onStartAsGuest }: LandingPageProps) {
 
             {/* ═══════════════════════════════════ NAV */}
             <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-[#070a12]/85 backdrop-blur-xl">
-                <div className="w-full px-6 md:px-10 h-14 flex items-center justify-between">
+                <div className="max-w-6xl mx-auto px-6 md:px-10 h-14 flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-700 flex items-center justify-center shadow-lg shadow-blue-600/30">
-                            <TrendingUp size={15} className="text-white" strokeWidth={2.5} />
+                            <LineChart size={15} className="text-white" strokeWidth={2.5} />
                         </div>
-                        <span className="font-extrabold text-base tracking-tight"><span className="text-blue-400">Stock</span>Journal</span>
+                        <span className="font-logo font-extrabold text-base tracking-tight"><span className="text-blue-400">Stock</span>Journal</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <button onClick={onStartAsGuest} className="text-sm font-semibold text-white/40 hover:text-white/80 transition-colors px-3 py-2 hidden sm:block">게스트로 시작</button>
@@ -126,7 +126,7 @@ export function LandingPage({ onStart, onStartAsGuest }: LandingPageProps) {
 
             {/* ═══════════════════════════════════ 1. HERO */}
             <section className="relative w-full min-h-screen flex flex-col items-center justify-start pt-28 pb-12 px-6 md:px-10 z-10">
-                <motion.div style={{ y: heroY, opacity: heroOpacity }} className="w-full flex flex-col items-center">
+                <motion.div style={{ y: heroY, opacity: heroOpacity }} className="w-full max-w-6xl mx-auto flex flex-col items-center">
                     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
                         className="inline-flex items-center gap-2 mb-7 px-4 py-1.5 rounded-full border border-white/10 bg-white/4 backdrop-blur-sm text-[11px] font-bold text-white/50 uppercase tracking-[0.12em]">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -179,7 +179,7 @@ export function LandingPage({ onStart, onStartAsGuest }: LandingPageProps) {
 
             {/* ═══════════════════════════════════ 2. PAIN POINTS */}
             <section className="relative z-10 w-full py-24 px-6 md:px-10 border-t border-white/5">
-                <div className="w-full">
+                <div className="max-w-6xl mx-auto">
                     <ScrollIn className="text-center mb-12">
                         <SectionLabel text="Pain Points" />
                         <h2 className="text-3xl md:text-4xl xl:text-5xl font-extrabold tracking-tight">
@@ -207,7 +207,7 @@ export function LandingPage({ onStart, onStartAsGuest }: LandingPageProps) {
 
             {/* ═══════════════════════════════════ 3. SOLUTION */}
             <section className="relative z-10 w-full py-24 px-6 md:px-10 border-t border-white/5">
-                <div className="w-full flex flex-col xl:flex-row items-center gap-12 xl:gap-20">
+                <div className="max-w-6xl mx-auto flex flex-col xl:flex-row items-center gap-12 xl:gap-20">
                     <ScrollIn className="xl:flex-1 text-center xl:text-left">
                         <SectionLabel text="Solution" />
                         <h2 className="text-3xl md:text-4xl xl:text-5xl font-extrabold tracking-tight mb-6 leading-tight">
@@ -260,6 +260,7 @@ export function LandingPage({ onStart, onStartAsGuest }: LandingPageProps) {
 
             {/* ═══════════════════════════════════ 4. BENEFITS */}
             <section className="relative z-10 w-full py-24 px-6 md:px-10 border-t border-white/5">
+                <div className="max-w-6xl mx-auto">
                 <ScrollIn className="text-center mb-12">
                     <SectionLabel text="Benefits" />
                     <h2 className="text-3xl md:text-4xl xl:text-5xl font-extrabold tracking-tight">
@@ -282,10 +283,12 @@ export function LandingPage({ onStart, onStartAsGuest }: LandingPageProps) {
                         );
                     })}
                 </div>
+                </div>
             </section>
 
             {/* ═══════════════════════════════════ 5. SOCIAL PROOF */}
             <section className="relative z-10 w-full py-24 px-6 md:px-10 border-t border-white/5">
+                <div className="max-w-6xl mx-auto">
                 <ScrollIn className="text-center mb-12">
                     <SectionLabel text="Social Proof" />
                     <h2 className="text-3xl md:text-4xl xl:text-5xl font-extrabold tracking-tight">
@@ -324,10 +327,12 @@ export function LandingPage({ onStart, onStartAsGuest }: LandingPageProps) {
                         ))}
                     </div>
                 </ScrollIn>
+                </div>
             </section>
 
             {/* ═══════════════════════════════════ 6. FAQ */}
             <section className="relative z-10 w-full py-24 px-6 md:px-10 border-t border-white/5">
+                <div className="max-w-6xl mx-auto">
                 <ScrollIn className="text-center mb-12">
                     <SectionLabel text="FAQ" />
                     <h2 className="text-3xl md:text-4xl xl:text-5xl font-extrabold tracking-tight">
@@ -359,11 +364,13 @@ export function LandingPage({ onStart, onStartAsGuest }: LandingPageProps) {
                         </ScrollIn>
                     ))}
                 </div>
+                </div>
             </section>
 
             {/* ═══════════════════════════════════ 7. CTA */}
             <section className="relative z-10 w-full py-32 px-6 md:px-10 text-center border-t border-white/5">
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-600/4 to-transparent pointer-events-none" />
+                <div className="max-w-6xl mx-auto relative">
                 <ScrollIn>
                     <div className="inline-flex items-center gap-2 mb-6 px-3 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/8 text-[11px] font-bold text-emerald-400 uppercase tracking-widest">
                         <CheckCircle size={12} /> 무료 · 회원가입 선택 · 즉시 시작
@@ -382,11 +389,14 @@ export function LandingPage({ onStart, onStartAsGuest }: LandingPageProps) {
                         </button>
                     </div>
                 </ScrollIn>
+                </div>
             </section>
 
             {/* ═══════════════════════════════════ FOOTER */}
             <footer className="relative z-10 w-full border-t border-white/5 py-8 text-center">
+                <div className="max-w-6xl mx-auto px-6 md:px-10">
                 <p className="text-[11px] text-white/18">© {new Date().getFullYear()} StockJournal · 투자 권유 아님 · 시뮬레이션 데이터 포함</p>
+                </div>
             </footer>
         </div>
     );

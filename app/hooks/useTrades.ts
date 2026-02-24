@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/app/lib/supabaseClient';
 import { Trade, TradeSide } from '@/app/types/trade';
-import { fileToDataUrl } from '@/app/utils/file';
 
 const GUEST_TRADES_KEY = 'stock-journal-guest-trades-v1';
 
@@ -10,10 +9,15 @@ export function useTrades(user: User | null) {
     const [trades, setTrades] = useState<Trade[]>([]); // Current active trades (DB or Guest)
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    // Track whether data has been properly loaded for the current auth state
+    const dataLoadedForCurrentUser = useRef(false);
 
     // Initialize: Load trades based on auth state
     useEffect(() => {
         let mounted = true;
+        // Reset flag and clear stale data immediately on user change
+        dataLoadedForCurrentUser.current = false;
+        setTrades([]);
 
         async function load() {
             setLoading(true);
@@ -59,7 +63,10 @@ export function useTrades(user: User | null) {
                     if (mounted) setTrades([]);
                 }
             }
-            if (mounted) setLoading(false);
+            if (mounted) {
+                setLoading(false);
+                dataLoadedForCurrentUser.current = true;
+            }
         }
 
         load();
@@ -70,15 +77,12 @@ export function useTrades(user: User | null) {
     }, [user]);
 
     // Sync Guest Trades to LocalStorage
-    // We only save to LS if user is NOT logged in.
-    // Warning: If we setTrades when logged in, we shouldn't overwrite guest LS.
+    // Only save to LS if user is NOT logged in and data has been properly loaded.
     useEffect(() => {
-        if (!user && !loading) {
-            // Only save if not loading to avoid overwriting with empty array on initial render
+        if (!user && !loading && dataLoadedForCurrentUser.current) {
             localStorage.setItem(GUEST_TRADES_KEY, JSON.stringify(trades));
         }
     }, [trades, user, loading]);
-
 
     const addTrade = async (
         data: {
@@ -88,51 +92,12 @@ export function useTrades(user: User | null) {
             side: TradeSide;
             price: number;
             quantity: number;
-            memo: string;
-            tags: string[];
-            strategy_id?: string;
-            strategy_name?: string;
-            entry_reason?: string;
-            exit_reason?: string;
-            emotion_tag?: string;
         },
-        imageFile: File | null
+        _imageFile: File | null
     ) => {
-        let imageUrl: string | null = null;
-        const { date, symbol, symbol_name, side, price, quantity, memo, tags, strategy_id, strategy_name, entry_reason, exit_reason, emotion_tag } = data;
+        const { date, symbol, symbol_name, side, price, quantity } = data;
 
         try {
-            // 1. Image Upload / Processing
-            if (imageFile) {
-                if (user) {
-                    // Upload to Supabase Storage
-                    const fileExt = imageFile.name.split('.').pop()?.toLowerCase() || 'png';
-                    const fileName = `${Date.now()}.${fileExt}`;
-                    const filePath = `${user.id}/${fileName}`;
-
-                    const { error: uploadError } = await supabase.storage
-                        .from('trade-images')
-                        .upload(filePath, imageFile, {
-                            contentType: imageFile.type,
-                            upsert: false,
-                        });
-
-                    if (uploadError) {
-                        console.error('Image upload failed:', uploadError);
-                        throw new Error('이미지 업로드 실패');
-                    }
-
-                    const { data: publicUrlData } = supabase.storage
-                        .from('trade-images')
-                        .getPublicUrl(filePath);
-                    imageUrl = publicUrlData.publicUrl;
-                } else {
-                    // Guest: Convert to Base64
-                    imageUrl = await fileToDataUrl(imageFile);
-                }
-            }
-
-            // 2. Save Trade
             if (user) {
                 // DB Insert
                 const { data: newTrade, error: insertError } = await supabase
@@ -146,25 +111,13 @@ export function useTrades(user: User | null) {
                             side,
                             price,
                             quantity,
-                            memo,
-                            tags: tags, // Supabase handles array correctly if column is text[] or jsonb
-                            image: imageUrl,
-                            // Strategy ID Validation: Supabase expects UUID.
-                            // If strategy_id is "default-..." or "guest-...", it's a local/guest ID and cannot be saved to DB as UUID.
-                            // We should set it to null for DB insert.
-                            strategy_id: (strategy_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(strategy_id)) ? strategy_id : null,
-                            entry_reason: entry_reason || null,
-                            exit_reason: exit_reason || null,
-                            emotion_tag: emotion_tag || null,
                         },
                     ])
                     .select()
                     .single();
 
                 if (insertError) throw insertError;
-                // Add strategy_name to the returned trade for UI display
-                const tradeWithStrategyName = { ...newTrade, strategy_name } as Trade;
-                setTrades((prev) => [tradeWithStrategyName, ...prev]);
+                setTrades((prev) => [newTrade as Trade, ...prev]);
             } else {
                 // Guest Local Insert
                 const newTrade: Trade = {
@@ -175,14 +128,6 @@ export function useTrades(user: User | null) {
                     side,
                     price,
                     quantity,
-                    memo,
-                    tags,
-                    image: imageUrl ?? undefined,
-                    strategy_id: strategy_id || undefined,
-                    strategy_name: strategy_name || undefined,
-                    entry_reason: entry_reason || undefined,
-                    exit_reason: exit_reason || undefined,
-                    emotion_tag: emotion_tag || undefined,
                 };
                 setTrades((prev) => [newTrade, ...prev]);
             }
@@ -220,41 +165,8 @@ export function useTrades(user: User | null) {
         }
     };
 
-    const updateTrade = async (id: string, data: Partial<Trade>, imageFile: File | null) => {
-        let imageUrl: string | null | undefined = data.image;
-
+    const updateTrade = async (id: string, data: Partial<Trade>, _imageFile: File | null) => {
         try {
-            // 1. Image Upload / Processing
-            if (imageFile) {
-                if (user) {
-                    // Upload to Supabase Storage
-                    const fileExt = imageFile.name.split('.').pop()?.toLowerCase() || 'png';
-                    const fileName = `${Date.now()}.${fileExt}`;
-                    const filePath = `${user.id}/${fileName}`;
-
-                    const { error: uploadError } = await supabase.storage
-                        .from('trade-images')
-                        .upload(filePath, imageFile, {
-                            contentType: imageFile.type,
-                            upsert: false,
-                        });
-
-                    if (uploadError) {
-                        console.error('Image upload failed:', uploadError);
-                        throw new Error('이미지 업로드 실패');
-                    }
-
-                    const { data: publicUrlData } = supabase.storage
-                        .from('trade-images')
-                        .getPublicUrl(filePath);
-                    imageUrl = publicUrlData.publicUrl;
-                } else {
-                    // Guest: Convert to Base64
-                    imageUrl = await fileToDataUrl(imageFile);
-                }
-            }
-
-            // 2. Database Update
             if (user) {
                 const { error } = await supabase
                     .from('trades')
@@ -265,23 +177,16 @@ export function useTrades(user: User | null) {
                         side: data.side,
                         price: data.price,
                         quantity: data.quantity,
-                        memo: data.memo,
-                        tags: data.tags,
-                        image: imageUrl,
-                        strategy_id: (data.strategy_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.strategy_id)) ? data.strategy_id : null,
-                        entry_reason: data.entry_reason || null,
-                        exit_reason: data.exit_reason || null,
-                        emotion_tag: data.emotion_tag || null,
                     })
                     .eq('id', id)
                     .eq('user_id', user.id);
                 if (error) throw error;
             }
 
-            // 3. Local State Update
+            // Local State Update
             setTrades(prev => prev.map(t => {
                 if (t.id === id) {
-                    return { ...t, ...data, image: imageUrl ?? undefined, id }; // Ensure ID is preserved
+                    return { ...t, ...data, id }; // Ensure ID is preserved
                 }
                 return t;
             }));

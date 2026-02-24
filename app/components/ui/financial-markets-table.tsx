@@ -192,7 +192,7 @@ export function FinancialTable({
         visible: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 400, damping: 28 } }
     };
 
-    const GRID = "260px 90px 80px 80px 90px 80px 80px 80px 1fr";
+    const GRID = "2fr 1fr 1fr 1fr 1fr 1fr 80px 1fr 1.5fr";
 
     return (
         <div className={`w-full ${className}`}>
