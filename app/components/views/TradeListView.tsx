@@ -65,7 +65,7 @@ export function TradeListView({
   const [calendarDate, setCalendarDate] = useState(new Date());
 
   // Trade analysis engine
-  const { analysis, syncing, syncError, lastSyncedAt, syncToDatabase } = useTradeAnalysis(trades, currentUser);
+  const { analysis } = useTradeAnalysis(trades, currentUser);
 
   const {
     selectedSymbol, setSelectedSymbol,
@@ -363,11 +363,10 @@ export function TradeListView({
               {/* Holding Only Toggle */}
               <button
                 onClick={() => setHoldingOnly(!holdingOnly)}
-                className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border transition-all whitespace-nowrap ${
-                  holdingOnly
-                    ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
-                    : 'text-white/40 bg-white/5 border-white/8 hover:text-white/60 hover:bg-white/8'
-                }`}
+                className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border transition-all whitespace-nowrap ${holdingOnly
+                  ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+                  : 'text-white/40 bg-white/5 border-white/8 hover:text-white/60 hover:bg-white/8'
+                  }`}
               >
                 <Briefcase size={13} />
                 보유 종목
@@ -376,11 +375,10 @@ export function TradeListView({
               {/* KRW Conversion Toggle */}
               <button
                 onClick={() => onToggleConverted(!showConverted)}
-                className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border transition-all whitespace-nowrap ${
-                  showConverted
-                    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                    : 'text-white/40 bg-white/5 border-white/8 hover:text-white/60 hover:bg-white/8'
-                }`}
+                className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border transition-all whitespace-nowrap ${showConverted
+                  ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                  : 'text-white/40 bg-white/5 border-white/8 hover:text-white/60 hover:bg-white/8'
+                  }`}
               >
                 <DollarSign size={13} />
                 환율 적용
@@ -391,11 +389,10 @@ export function TradeListView({
                 <button
                   onClick={onRefreshPrices}
                   disabled={pricesLoading}
-                  className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border transition-all whitespace-nowrap ${
-                    pricesLoading
-                      ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30 cursor-wait'
-                      : 'text-white/40 bg-white/5 border-white/8 hover:text-white/60 hover:bg-white/8'
-                  }`}
+                  className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border transition-all whitespace-nowrap ${pricesLoading
+                    ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30 cursor-wait'
+                    : 'text-white/40 bg-white/5 border-white/8 hover:text-white/60 hover:bg-white/8'
+                    }`}
                 >
                   <RotateCw size={13} className={pricesLoading ? 'animate-spin' : ''} />
                   현재가 조회
@@ -489,11 +486,7 @@ export function TradeListView({
                 analysis={analysis}
                 darkMode={darkMode}
                 tradesCount={trades.length}
-                syncing={syncing}
-                syncError={syncError}
-                lastSyncedAt={lastSyncedAt}
-                isLoggedIn={!!currentUser}
-                onSync={syncToDatabase}
+                currentUser={currentUser}
               />
             ) : viewMode === 'calendar' ? (
               <div className="rounded-2xl p-6 border border-white/8 bg-white/3">

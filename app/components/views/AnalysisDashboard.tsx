@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { User } from '@supabase/supabase-js';
 import {
   TradeAnalysis,
   PatternStats,
@@ -13,20 +14,17 @@ import {
   Brain, TrendingUp, Zap, Shield,
   Calendar, Clock, Heart, Target,
   AlertTriangle, CheckCircle, Info, XCircle,
-  RefreshCw, Database, ChevronDown, MessageSquare,
+  ChevronDown, MessageSquare,
 } from 'lucide-react';
 import { AIReportCard } from '@/app/components/AIReportCard';
+import { AIReportHistory } from '@/app/components/AIReportHistory';
 import { useAIAnalysis } from '@/app/hooks/useAIAnalysis';
 
 interface AnalysisDashboardProps {
   analysis: TradeAnalysis | null;
   darkMode: boolean;
   tradesCount: number;
-  syncing: boolean;
-  syncError: string | null;
-  lastSyncedAt: string | null;
-  isLoggedIn: boolean;
-  onSync: () => void;
+  currentUser: User | null;
   username?: string; // For AI report personalization
 }
 
@@ -104,11 +102,10 @@ function ProfileCard({ analysis }: { analysis: TradeAnalysis }) {
 
         {/* Risk Level */}
         <div className="p-3 rounded-xl bg-white/3 border border-white/5 text-center">
-          <div className={`text-sm font-bold ${
-            profile.riskLevel === 'low' ? 'text-emerald-400' :
+          <div className={`text-sm font-bold ${profile.riskLevel === 'low' ? 'text-emerald-400' :
             profile.riskLevel === 'medium' ? 'text-yellow-400' :
-            profile.riskLevel === 'high' ? 'text-orange-400' : 'text-red-400'
-          }`}>
+              profile.riskLevel === 'high' ? 'text-orange-400' : 'text-red-400'
+            }`}>
             {profile.riskLevelLabel}
           </div>
           <div className="text-xs text-white/30 font-medium mt-1">위험 수준</div>
@@ -408,9 +405,8 @@ function RoundTripList({
           return (
             <div key={i} className="rounded-xl bg-white/3 hover:bg-white/4 transition-colors">
               <div className="flex items-center gap-3 p-3">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black flex-none ${
-                  trip.isWin ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'
-                }`}>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black flex-none ${trip.isWin ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'
+                  }`}>
                   {trip.pnlPercent >= 0 ? '+' : ''}{trip.pnlPercent.toFixed(0)}%
                 </div>
                 <div className="flex-1 min-w-0">
@@ -429,11 +425,10 @@ function RoundTripList({
                     onClick={() => onReviewTrade(trip)}
                     disabled={isLoadingThis}
                     title="AI 거래 리뷰"
-                    className={`p-1.5 rounded-lg transition-colors ${
-                      review ? 'text-indigo-400 bg-indigo-500/10' :
+                    className={`p-1.5 rounded-lg transition-colors ${review ? 'text-indigo-400 bg-indigo-500/10' :
                       isLoadingThis ? 'text-indigo-300 animate-pulse' :
-                      'text-white/20 hover:text-indigo-400 hover:bg-indigo-500/10'
-                    }`}
+                        'text-white/20 hover:text-indigo-400 hover:bg-indigo-500/10'
+                      }`}
                   >
                     <MessageSquare size={12} />
                   </button>
@@ -468,14 +463,10 @@ export function AnalysisDashboard({
   analysis,
   darkMode: _darkMode,
   tradesCount,
-  syncing,
-  syncError,
-  lastSyncedAt,
-  isLoggedIn,
-  onSync,
+  currentUser,
   username,
 }: AnalysisDashboardProps) {
-  // AI analysis state
+  // AI analysis state (with auto-save)
   const {
     weeklyReport,
     tradeReview,
@@ -485,7 +476,10 @@ export function AnalysisDashboard({
     generateWeeklyReport,
     reviewTrade,
     clearWeeklyReport,
-  } = useAIAnalysis();
+    savedReports,
+    loadingSavedReports,
+    deleteReport,
+  } = useAIAnalysis(currentUser);
 
   if (!analysis || analysis.roundTrips.length === 0) {
     return <EmptyState count={tradesCount} />;
@@ -493,31 +487,24 @@ export function AnalysisDashboard({
 
   return (
     <div className="space-y-4">
-      {/* DB Sync Bar */}
-      {isLoggedIn && (
-        <div className="flex items-center justify-between p-3 rounded-xl bg-white/3 border border-white/8">
-          <div className="flex items-center gap-2 text-xs text-white/40">
-            <Database size={13} />
-            {lastSyncedAt
-              ? <span>마지막 동기화: {new Date(lastSyncedAt).toLocaleString('ko-KR')}</span>
-              : <span>DB에 분석 결과를 저장하세요</span>
-            }
-            {syncError && <span className="text-red-400 ml-2">⚠ {syncError}</span>}
-          </div>
-          <button
-            onClick={onSync}
-            disabled={syncing}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
-              syncing
-                ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30 cursor-wait'
-                : 'text-white/40 bg-white/5 border-white/8 hover:text-white/60 hover:bg-white/8'
-            }`}
-          >
-            <RefreshCw size={12} className={syncing ? 'animate-spin' : ''} />
-            {syncing ? '동기화 중...' : 'DB 저장'}
-          </button>
-        </div>
-      )}
+      {/* AI Weekly Coach Report — 최상단 배치 */}
+      <AIReportCard
+        title="🤖 AI 투자 코치 리포트"
+        subtitle={`${analysis.roundTrips.length}건의 완결 거래를 종합 분석`}
+        report={weeklyReport?.report ?? null}
+        generatedAt={weeklyReport?.generatedAt ?? null}
+        loading={loadingWeekly}
+        error={aiError}
+        onGenerate={() => generateWeeklyReport(analysis, username)}
+        onClear={clearWeeklyReport}
+      />
+
+      {/* 저장된 AI 리포트 목록 */}
+      <AIReportHistory
+        reports={savedReports}
+        loading={loadingSavedReports}
+        onDelete={deleteReport}
+      />
 
       {/* Profile Card */}
       <ProfileCard analysis={analysis} />
@@ -573,18 +560,6 @@ export function AnalysisDashboard({
 
       {/* Concentration Chart */}
       <ConcentrationChart data={analysis.concentration} />
-
-      {/* AI Weekly Coach Report */}
-      <AIReportCard
-        title="🤖 AI 투자 코치 리포트"
-        subtitle={`${analysis.roundTrips.length}건의 완결 거래를 종합 분석`}
-        report={weeklyReport?.report ?? null}
-        generatedAt={weeklyReport?.generatedAt ?? null}
-        loading={loadingWeekly}
-        error={aiError}
-        onGenerate={() => generateWeeklyReport(analysis, username)}
-        onClear={clearWeeklyReport}
-      />
 
       {/* Recent Round Trips — with per-trade AI review */}
       <RoundTripList

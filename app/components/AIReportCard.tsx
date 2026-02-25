@@ -1,9 +1,9 @@
-// AI Report Card component — renders markdown reports from OpenAI
-// Uses react-markdown (already in package.json) for rich rendering
+// AI Report Card component — renders markdown reports with custom styled components
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Bot, RefreshCw, X, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+import { markdownComponents } from '@/app/components/AIReportHistory';
 
 interface AIReportCardProps {
   title: string;
@@ -31,17 +31,15 @@ export function AIReportCard({
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className={`rounded-2xl border transition-all ${
-      report
+    <div className={`rounded-2xl border transition-all ${report
         ? 'border-indigo-500/20 bg-gradient-to-b from-indigo-500/5 to-transparent'
         : 'border-white/8 bg-white/3'
-    }`}>
+      }`}>
       {/* Header */}
       <div className="flex items-center justify-between p-4 sm:p-5">
         <div className="flex items-center gap-3">
-          <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-none ${
-            loading ? 'bg-indigo-500/20 animate-pulse' : 'bg-indigo-500/15'
-          }`}>
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-none ${loading ? 'bg-indigo-500/20 animate-pulse' : 'bg-indigo-500/15'
+            }`}>
             {loading
               ? <RefreshCw size={16} className="text-indigo-400 animate-spin" />
               : <Bot size={16} className="text-indigo-400" />
@@ -88,13 +86,12 @@ export function AIReportCard({
           <button
             onClick={onGenerate}
             disabled={loading}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
-              loading
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${loading
                 ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/20 cursor-wait'
                 : report
                   ? 'text-white/40 bg-white/5 border-white/8 hover:text-white/70 hover:bg-white/8'
                   : 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30 hover:bg-indigo-500/30'
-            }`}
+              }`}
           >
             <Sparkles size={11} />
             {loading ? '생성 중...' : report ? '재생성' : 'AI 분석'}
@@ -109,21 +106,15 @@ export function AIReportCard({
         </div>
       )}
 
-      {/* Report Content */}
+      {/* Report Content — custom styled markdown */}
       {report && !collapsed && (
         <div className="px-4 sm:px-5 pb-5">
-          <div className={`prose prose-sm prose-invert max-w-none ${compact ? 'text-xs' : 'text-sm'}`}
-            style={{
-              '--tw-prose-body': 'rgba(255,255,255,0.65)',
-              '--tw-prose-headings': 'rgba(255,255,255,0.9)',
-              '--tw-prose-bold': 'rgba(255,255,255,0.85)',
-              '--tw-prose-bullets': 'rgba(255,255,255,0.3)',
-            } as React.CSSProperties}
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={markdownComponents}
           >
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {report}
-            </ReactMarkdown>
-          </div>
+            {report}
+          </ReactMarkdown>
         </div>
       )}
 
