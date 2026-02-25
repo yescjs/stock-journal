@@ -242,6 +242,7 @@ export default function TradePage() {
                     darkMode={true}
                     currentUser={currentUser}
                     baseTrades={trades}
+                    allTrades={trades}
                     onAddTrade={async (data, file) => {
                         await handleAddTrade(data, file);
                         setShowAddModal(false);

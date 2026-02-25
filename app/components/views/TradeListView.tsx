@@ -5,12 +5,14 @@ import { TradeList } from '@/app/components/TradeList';
 import { CalendarView } from '@/app/components/CalendarView';
 import { SymbolDetailCard } from '@/app/components/SymbolDetailCard';
 import { MotionWrapper } from '@/app/components/MotionWrapper';
+import { AnalysisDashboard } from '@/app/components/views/AnalysisDashboard';
 import { isKRWSymbol } from '@/app/utils/format';
 import {
-  LayoutGrid, List as ListIcon, Search, X, RefreshCw, ChevronDown,
-  TrendingUp, TrendingDown, Wallet, BarChart3, DollarSign, Briefcase, Calendar, RotateCw
+  LayoutGrid, List as ListIcon, Search, X, ChevronDown,
+  TrendingUp, TrendingDown, Wallet, BarChart3, DollarSign, Briefcase, Calendar, RotateCw, Brain
 } from 'lucide-react';
 import { useTradeFilter } from '@/app/hooks/useTradeFilter';
+import { useTradeAnalysis } from '@/app/hooks/useTradeAnalysis';
 
 interface TradeListViewProps {
   darkMode: boolean;
@@ -59,8 +61,11 @@ export function TradeListView({
   onRefreshPrices,
   pricesLoading
 }: TradeListViewProps) {
-  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'analysis'>('list');
   const [calendarDate, setCalendarDate] = useState(new Date());
+
+  // Trade analysis engine
+  const { analysis, syncing, syncError, lastSyncedAt, syncToDatabase } = useTradeAnalysis(trades, currentUser);
 
   const {
     selectedSymbol, setSelectedSymbol,
@@ -68,10 +73,9 @@ export function TradeListView({
     dateFrom, setDateFrom,
     dateTo, setDateTo,
     holdingOnly, setHoldingOnly,
-    resetFilters
   } = filterState;
 
-  // Derive Daily Data for Calendar (split by KRW/USD)
+  // Derive Daily Data for Calendar (evaluation P&L for held, realized P&L for sold)
   // Apply holding + symbol filters but NOT date filters (useless for calendar)
   const dailyData = useMemo(() => {
     const map = new Map<string, { krw: number; usd: number }>();
@@ -92,18 +96,60 @@ export function TradeListView({
       );
     }
 
-    source.forEach(t => {
-      const val = (t.side === 'SELL' ? 1 : -1) * t.price * t.quantity;
-      const existing = map.get(t.date) || { krw: 0, usd: 0 };
+    // Pre-compute avg buy price per symbol
+    const buyData = new Map<string, { totalQty: number; totalAmount: number }>();
+    for (const t of trades) {
+      if (t.side !== 'BUY') continue;
+      const existing = buyData.get(t.symbol) ?? { totalQty: 0, totalAmount: 0 };
+      existing.totalQty += t.quantity;
+      existing.totalAmount += t.price * t.quantity;
+      buyData.set(t.symbol, existing);
+    }
+    const avgBuyPriceMap = new Map<string, number>();
+    for (const [symbol, data] of buyData) {
+      avgBuyPriceMap.set(symbol, data.totalQty > 0 ? data.totalAmount / data.totalQty : 0);
+    }
 
-      if (isKRWSymbol(t.symbol)) {
-        existing.krw += val;
-      } else {
-        // Apply exchange rate conversion if showConverted is on
-        if (showConverted) {
-          existing.krw += val * exchangeRate;
-        } else {
-          existing.usd += val;
+    // Compute holding quantity per symbol
+    const holdingQtyMap = new Map<string, number>();
+    for (const t of trades) {
+      const curr = holdingQtyMap.get(t.symbol) ?? 0;
+      holdingQtyMap.set(t.symbol, t.side === 'BUY' ? curr + t.quantity : curr - t.quantity);
+    }
+
+    // Track which symbols' evaluation P&L we've already added (once per symbol per day computation)
+    const evaluationAdded = new Set<string>();
+
+    source.forEach(t => {
+      const existing = map.get(t.date) || { krw: 0, usd: 0 };
+      const isKR = isKRWSymbol(t.symbol);
+      const rate = isKR ? 1 : (showConverted ? exchangeRate : 1);
+
+      if (t.side === 'SELL') {
+        // Realized P&L for SELL: (sellPrice - avgBuyPrice) * quantity
+        const avgBuyPrice = avgBuyPriceMap.get(t.symbol) ?? 0;
+        if (avgBuyPrice > 0) {
+          const realizedPnl = (t.price - avgBuyPrice) * t.quantity * rate;
+          if (isKR || showConverted) {
+            existing.krw += realizedPnl;
+          } else {
+            existing.usd += realizedPnl;
+          }
+        }
+      } else if (t.side === 'BUY') {
+        // For BUY trades: show evaluation P&L if still held and current price available
+        // Only add once per symbol to avoid duplicate counting on the purchase date
+        const holdingQty = holdingQtyMap.get(t.symbol) ?? 0;
+        const cp = currentPrices[t.symbol];
+        if (holdingQty > 0 && cp && cp > 0 && !evaluationAdded.has(t.symbol)) {
+          evaluationAdded.add(t.symbol);
+          const avgBuyPrice = avgBuyPriceMap.get(t.symbol) ?? t.price;
+          const evalPnl = (cp - avgBuyPrice) * holdingQty * rate;
+          if (isKR || showConverted) {
+            existing.krw += evalPnl;
+          } else {
+            existing.usd += evalPnl;
+          }
         }
       }
 
@@ -115,7 +161,7 @@ export function TradeListView({
       krwValue: krw,
       usdValue: usd,
     }));
-  }, [trades, selectedSymbol, holdingOnly, filterSymbol, filterState.heldSymbols, showConverted, exchangeRate]);
+  }, [trades, selectedSymbol, holdingOnly, filterSymbol, filterState.heldSymbols, showConverted, exchangeRate, currentPrices]);
 
   // Portfolio Summary: calculate invested amount, unrealized/realized P&L
   const portfolioSummary = useMemo(() => {
@@ -194,8 +240,6 @@ export function TradeListView({
     };
   }, [trades, currentPrices, exchangeRate]);
 
-  // Active filter count
-  const activeFilterCount = [filterSymbol, dateFrom, holdingOnly].filter(Boolean).length;
 
   return (
     <div className="h-full flex flex-col">
@@ -212,7 +256,7 @@ export function TradeListView({
                   <ChevronDown size={24} className="rotate-90" />
                 </button>
               )}
-              {selectedSymbol ? '종목 상세 분석' : (viewMode === 'calendar' ? '매매 캘린더' : '매매 일지')}
+              {selectedSymbol ? '종목 상세 분석' : (viewMode === 'calendar' ? '매매 캘린더' : viewMode === 'analysis' ? 'AI 매매 분석' : '매매 일지')}
               {selectedSymbol && (
                 <span className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
                   {selectedSymbol}
@@ -220,7 +264,9 @@ export function TradeListView({
               )}
             </h2>
             <p className="text-sm text-white/30 mt-1 font-medium">
-              {trades.length > 0 ? `총 ${trades.length}건의 매매 기록` : '첫 번째 매매를 기록해보세요'}
+              {viewMode === 'analysis' && analysis
+                ? `${analysis.roundTrips.length}건의 완결된 거래 분석`
+                : trades.length > 0 ? `총 ${trades.length}건의 매매 기록` : '첫 번째 매매를 기록해보세요'}
             </p>
           </div>
         </div>
@@ -294,8 +340,9 @@ export function TradeListView({
       {!selectedSymbol && (
         <div className="flex-none flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5">
           {/* Search & Filter */}
-          <div className="flex items-center gap-2 flex-1 w-full sm:w-auto flex-wrap">
-            <div className="relative flex-1 sm:max-w-[280px] min-w-[160px]">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-1 w-full sm:w-auto">
+            {/* Row 1: Search Input */}
+            <div className="relative flex-1 w-full sm:max-w-[280px] min-w-[160px]">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
               <input
                 type="text"
@@ -311,65 +358,62 @@ export function TradeListView({
               )}
             </div>
 
-            {/* Holding Only Toggle */}
-            <button
-              onClick={() => setHoldingOnly(!holdingOnly)}
-              className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border transition-all whitespace-nowrap ${
-                holdingOnly
-                  ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
-                  : 'text-white/40 bg-white/5 border-white/8 hover:text-white/60 hover:bg-white/8'
-              }`}
-            >
-              <Briefcase size={13} />
-              보유 종목
-            </button>
-
-            {/* KRW Conversion Toggle */}
-            <button
-              onClick={() => onToggleConverted(!showConverted)}
-              className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border transition-all whitespace-nowrap ${
-                showConverted
-                  ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                  : 'text-white/40 bg-white/5 border-white/8 hover:text-white/60 hover:bg-white/8'
-              }`}
-            >
-              <DollarSign size={13} />
-              환율 적용
-            </button>
-
-            {activeFilterCount > 0 && (
-              <button onClick={resetFilters} className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold text-white/40 hover:text-white bg-white/5 border border-white/8 hover:bg-white/8 transition-all whitespace-nowrap">
-                <RefreshCw size={12} /> 초기화
-              </button>
-            )}
-
-            {/* Refresh Current Prices */}
-            {onRefreshPrices && (
+            {/* Row 2: Filter Buttons (on mobile this wraps to next line) */}
+            <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+              {/* Holding Only Toggle */}
               <button
-                onClick={onRefreshPrices}
-                disabled={pricesLoading}
+                onClick={() => setHoldingOnly(!holdingOnly)}
                 className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border transition-all whitespace-nowrap ${
-                  pricesLoading
-                    ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30 cursor-wait'
+                  holdingOnly
+                    ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
                     : 'text-white/40 bg-white/5 border-white/8 hover:text-white/60 hover:bg-white/8'
                 }`}
               >
-                <RotateCw size={13} className={pricesLoading ? 'animate-spin' : ''} />
-                현재가 조회
+                <Briefcase size={13} />
+                보유 종목
               </button>
-            )}
 
-            {/* Date Filter Active Badge */}
-            {dateFrom && (
+              {/* KRW Conversion Toggle */}
               <button
-                onClick={() => { setDateFrom(''); setDateTo(''); }}
-                className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-500/25 transition-all whitespace-nowrap"
+                onClick={() => onToggleConverted(!showConverted)}
+                className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border transition-all whitespace-nowrap ${
+                  showConverted
+                    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                    : 'text-white/40 bg-white/5 border-white/8 hover:text-white/60 hover:bg-white/8'
+                }`}
               >
-                <Calendar size={13} />
-                {dateFrom === dateTo ? dateFrom : `${dateFrom} ~ ${dateTo}`}
-                <X size={12} className="ml-0.5 opacity-60" />
+                <DollarSign size={13} />
+                환율 적용
               </button>
-            )}
+
+              {/* Refresh Current Prices */}
+              {onRefreshPrices && (
+                <button
+                  onClick={onRefreshPrices}
+                  disabled={pricesLoading}
+                  className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border transition-all whitespace-nowrap ${
+                    pricesLoading
+                      ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30 cursor-wait'
+                      : 'text-white/40 bg-white/5 border-white/8 hover:text-white/60 hover:bg-white/8'
+                  }`}
+                >
+                  <RotateCw size={13} className={pricesLoading ? 'animate-spin' : ''} />
+                  현재가 조회
+                </button>
+              )}
+
+              {/* Date Filter Active Badge */}
+              {dateFrom && (
+                <button
+                  onClick={() => { setDateFrom(''); setDateTo(''); }}
+                  className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-500/25 transition-all whitespace-nowrap"
+                >
+                  <Calendar size={13} />
+                  {dateFrom === dateTo ? dateFrom : `${dateFrom} ~ ${dateTo}`}
+                  <X size={12} className="ml-0.5 opacity-60" />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* View Mode Toggle */}
@@ -393,6 +437,16 @@ export function TradeListView({
             >
               <LayoutGrid size={14} strokeWidth={2} />
               <span className="hidden sm:inline">캘린더</span>
+            </button>
+            <button
+              onClick={() => setViewMode('analysis')}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${viewMode === 'analysis'
+                ? 'bg-white/10 text-white shadow-md'
+                : 'text-white/30 hover:text-white/60'
+                }`}
+            >
+              <Brain size={14} strokeWidth={2} />
+              <span className="hidden sm:inline">분석</span>
             </button>
           </div>
         </div>
@@ -430,7 +484,18 @@ export function TradeListView({
               )}
             </div>
           ) : (
-            viewMode === 'calendar' ? (
+            viewMode === 'analysis' ? (
+              <AnalysisDashboard
+                analysis={analysis}
+                darkMode={darkMode}
+                tradesCount={trades.length}
+                syncing={syncing}
+                syncError={syncError}
+                lastSyncedAt={lastSyncedAt}
+                isLoggedIn={!!currentUser}
+                onSync={syncToDatabase}
+              />
+            ) : viewMode === 'calendar' ? (
               <div className="rounded-2xl p-6 border border-white/8 bg-white/3">
                 <CalendarView
                   currentDate={calendarDate}
@@ -448,6 +513,7 @@ export function TradeListView({
             ) : (
               <TradeList
                 trades={filteredTrades}
+                allTrades={trades}
                 onDelete={onDelete}
                 onEdit={onEdit}
                 openMonths={openMonths}
@@ -457,6 +523,7 @@ export function TradeListView({
                 exchangeRate={exchangeRate}
                 showConverted={showConverted}
                 currentPrices={currentPrices}
+                heldSymbols={filterState.heldSymbols}
               />
             )
           )}

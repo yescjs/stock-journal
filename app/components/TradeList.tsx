@@ -8,6 +8,7 @@ import { Button } from '@/app/components/ui/Button';
 
 interface TradeListProps {
     trades: Trade[];
+    allTrades?: Trade[];  // All trades for calculating avg buy price (used for SELL realized P&L)
     onDelete?: (id: string) => void;
     onEdit?: (trade: Trade) => void;
     openMonths: Record<string, boolean>;
@@ -17,6 +18,7 @@ interface TradeListProps {
     exchangeRate: number;
     showConverted: boolean;
     currentPrices?: Record<string, number>;
+    heldSymbols?: Set<string>;
 }
 
 // Calculate profit/loss percentage
@@ -30,17 +32,17 @@ function calcPnlAmount(entryPrice: number, currentPrice: number, quantity: numbe
     return (currentPrice - entryPrice) * quantity;
 }
 
-// Get PnL color class
+// Get PnL color class (green = profit, red = loss)
 function getPnlColorClass(value: number): string {
-    if (value > 0) return 'text-color-up';   // Red = profit (Korean convention)
-    if (value < 0) return 'text-color-down'; // Blue = loss
+    if (value > 0) return 'text-emerald-400';
+    if (value < 0) return 'text-red-400';
     return 'text-muted-foreground';
 }
 
-// Get PnL background class for badges
+// Get PnL background class for badges (green = profit, red = loss)
 function getPnlBgClass(value: number): string {
-    if (value > 0) return 'bg-color-up/10';
-    if (value < 0) return 'bg-color-down/10';
+    if (value > 0) return 'bg-emerald-500/10';
+    if (value < 0) return 'bg-red-500/10';
     return 'bg-muted';
 }
 
@@ -59,6 +61,7 @@ function PnlIcon({ value, size = 12 }: { value: number; size?: number }) {
 
 export function TradeList({
     trades,
+    allTrades,
     onDelete,
     onEdit,
     openMonths,
@@ -68,7 +71,26 @@ export function TradeList({
     exchangeRate,
     showConverted,
     currentPrices = {},
+    heldSymbols,
 }: TradeListProps) {
+    // Pre-compute avg buy price per symbol for SELL realized P&L
+    const avgBuyPriceMap = useMemo(() => {
+        const source = allTrades ?? trades;
+        const map = new Map<string, { totalQty: number; totalAmount: number }>();
+        for (const t of source) {
+            if (t.side !== 'BUY') continue;
+            const existing = map.get(t.symbol) ?? { totalQty: 0, totalAmount: 0 };
+            existing.totalQty += t.quantity;
+            existing.totalAmount += t.price * t.quantity;
+            map.set(t.symbol, existing);
+        }
+        const result = new Map<string, number>();
+        for (const [symbol, data] of map) {
+            result.set(symbol, data.totalQty > 0 ? data.totalAmount / data.totalQty : 0);
+        }
+        return result;
+    }, [allTrades, trades]);
+
     // Group by Month
     const monthGroups = useMemo(() => {
         if (trades.length === 0) return [];
@@ -192,9 +214,16 @@ export function TradeList({
                                                 const amount = t.price * t.quantity;
                                                 const cp = currentPrices[t.symbol];
                                                 const isBuy = t.side === 'BUY';
+                                                const isSell = t.side === 'SELL';
                                                 const hasCp = isBuy && cp !== undefined && cp > 0;
                                                 const pnlPct = hasCp ? calcPnlPercent(t.price, cp) : 0;
                                                 const pnlAmt = hasCp ? calcPnlAmount(t.price, cp, t.quantity) : 0;
+
+                                                // SELL realized P&L
+                                                const avgBuyPrice = avgBuyPriceMap.get(t.symbol) ?? 0;
+                                                const hasSellPnl = isSell && avgBuyPrice > 0;
+                                                const sellPnlPct = hasSellPnl ? calcPnlPercent(avgBuyPrice, t.price) : 0;
+                                                const sellPnlAmt = hasSellPnl ? (t.price - avgBuyPrice) * t.quantity : 0;
 
                                                 return (
                                                     <tr
@@ -226,8 +255,15 @@ export function TradeList({
                                                                     {t.side === 'BUY' ? '매수' : '매도'}
                                                                 </span>
 
-                                                                <div className="font-semibold text-sm text-foreground">
-                                                                    {t.symbol_name || t.symbol}
+                                                                <div className="flex items-center gap-1.5 flex-nowrap">
+                                                                    <span className="font-semibold text-sm text-foreground">
+                                                                        {t.symbol_name || t.symbol}
+                                                                    </span>
+                                                                    {heldSymbols?.has(t.symbol) && (
+                                                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 leading-none whitespace-nowrap self-center shrink-0">
+                                                                            보유
+                                                                        </span>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                         </td>
@@ -257,6 +293,10 @@ export function TradeList({
                                                                         <span className={`font-bold text-sm ${getPnlColorClass(pnlPct)}`}>
                                                                             {formatPnlPercent(pnlPct)}
                                                                         </span>
+                                                                    ) : hasSellPnl ? (
+                                                                        <span className={`font-bold text-sm ${getPnlColorClass(sellPnlPct)}`}>
+                                                                            {formatPnlPercent(sellPnlPct)}
+                                                                        </span>
                                                                     ) : (
                                                                         <span className="text-muted-foreground text-xs">—</span>
                                                                     )}
@@ -265,8 +305,12 @@ export function TradeList({
                                                                 {/* PnL Amount - Green(+) / Red(-) */}
                                                                 <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">
                                                                     {hasCp ? (
-                                                                        <span className={`font-bold text-sm ${pnlAmt > 0 ? 'text-emerald-400' : pnlAmt < 0 ? 'text-red-400' : 'text-muted-foreground'}`}>
+                                                                        <span className={`font-bold text-sm ${getPnlColorClass(pnlAmt)}`}>
                                                                             {pnlAmt > 0 ? '+' : ''}{displayPrice(pnlAmt, t.symbol)}
+                                                                        </span>
+                                                                    ) : hasSellPnl ? (
+                                                                        <span className={`font-bold text-sm ${getPnlColorClass(sellPnlAmt)}`}>
+                                                                            {sellPnlAmt > 0 ? '+' : ''}{displayPrice(sellPnlAmt, t.symbol)}
                                                                         </span>
                                                                     ) : (
                                                                         <span className="text-muted-foreground text-xs">—</span>
@@ -288,7 +332,7 @@ export function TradeList({
                                                         {/* Actions */}
                                                         {(onDelete || onEdit) && (
                                                             <td className="px-4 py-3 sticky right-0 z-10 bg-card/95 backdrop-blur-sm">
-                                                                <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                                                                <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 md:max-lg:opacity-100 transition-opacity duration-150">
                                                                     {onEdit && (
                                                                         <button
                                                                             onClick={(e) => { e.stopPropagation(); onEdit?.(t); }}
@@ -322,9 +366,16 @@ export function TradeList({
                                         const dayOfWeek = getKoreanWeekdayLabel(t.date);
                                         const cp = currentPrices[t.symbol];
                                         const isBuy = t.side === 'BUY';
+                                        const isSell = t.side === 'SELL';
                                         const hasCp = isBuy && cp !== undefined && cp > 0;
                                         const pnlPct = hasCp ? calcPnlPercent(t.price, cp) : 0;
                                         const pnlAmt = hasCp ? calcPnlAmount(t.price, cp, t.quantity) : 0;
+
+                                        // SELL realized P&L
+                                        const avgBuyPrice = avgBuyPriceMap.get(t.symbol) ?? 0;
+                                        const hasSellPnl = isSell && avgBuyPrice > 0;
+                                        const sellPnlPct = hasSellPnl ? calcPnlPercent(avgBuyPrice, t.price) : 0;
+                                        const sellPnlAmt = hasSellPnl ? (t.price - avgBuyPrice) * t.quantity : 0;
 
                                         return (
                                             <div
@@ -348,8 +399,15 @@ export function TradeList({
                                                             {t.side === 'BUY' ? '매수' : '매도'}
                                                         </div>
                                                         <div className="min-w-0 flex-1">
-                                                            <div className="font-bold text-base leading-tight truncate text-foreground">
-                                                                {t.symbol_name || t.symbol}
+                                                            <div className="flex items-center gap-1.5 flex-nowrap">
+                                                                <span className="font-bold text-base leading-tight truncate text-foreground">
+                                                                    {t.symbol_name || t.symbol}
+                                                                </span>
+                                                                {heldSymbols?.has(t.symbol) && (
+                                                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 leading-none whitespace-nowrap self-center shrink-0">
+                                                                        보유
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                             <div className="text-xs font-semibold text-grey-400 flex items-center gap-1 mt-0.5">
                                                                 {t.date} <span className="w-1 h-1 rounded-full bg-current opacity-50" /> {dayOfWeek}    
@@ -364,7 +422,7 @@ export function TradeList({
                                                     </div>
                                                 </div>
 
-                                                {/* PnL Row (BUY only, when current price available) */}
+                                                {/* PnL Row (BUY: unrealized, SELL: realized) */}
                                                 {hasCp && (
                                                     <div className={`flex items-center justify-between px-3 py-2.5 rounded-xl ${getPnlBgClass(pnlPct)}`}>
                                                         <div className="flex items-center gap-2">
@@ -375,8 +433,24 @@ export function TradeList({
                                                             <span className={`text-sm font-bold ${getPnlColorClass(pnlPct)}`}>
                                                                 {formatPnlPercent(pnlPct)}
                                                             </span>
-                                                            <span className={`text-sm font-bold ${pnlAmt > 0 ? 'text-emerald-400' : pnlAmt < 0 ? 'text-red-400' : 'text-muted-foreground'}`}>
+                                                            <span className={`text-sm font-bold ${getPnlColorClass(pnlAmt)}`}>
                                                                 {pnlAmt > 0 ? '+' : ''}{displayPrice(pnlAmt, t.symbol)}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {/* SELL realized P&L */}
+                                                {hasSellPnl && (
+                                                    <div className={`flex items-center justify-between px-3 py-2.5 rounded-xl ${getPnlBgClass(sellPnlAmt)}`}>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs font-medium text-muted-foreground">실현 손익</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-3">
+                                                            <span className={`text-sm font-bold ${getPnlColorClass(sellPnlPct)}`}>
+                                                                {formatPnlPercent(sellPnlPct)}
+                                                            </span>
+                                                            <span className={`text-sm font-bold ${getPnlColorClass(sellPnlAmt)}`}>
+                                                                {sellPnlAmt > 0 ? '+' : ''}{displayPrice(sellPnlAmt, t.symbol)}
                                                             </span>
                                                         </div>
                                                     </div>

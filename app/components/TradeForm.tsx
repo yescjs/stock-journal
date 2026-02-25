@@ -1,4 +1,4 @@
-import React, { useState, ChangeEvent, FormEvent } from 'react';
+import React, { useState, useCallback, ChangeEvent, FormEvent } from 'react';
 import { User } from '@supabase/supabase-js';
 import { TradeSide, Trade } from '@/app/types/trade';
 import { getKoreanWeekdayLabel, getCurrencySymbol } from '@/app/utils/format';
@@ -7,6 +7,7 @@ import { Save, Plus } from 'lucide-react';
 import { DatePicker } from '@/app/components/DatePicker';
 import { Button } from '@/app/components/ui/Button';
 import { Card } from '@/app/components/ui/Card';
+import { TradeChecklist } from '@/app/components/TradeChecklist';
 
 export interface TradeSubmitData {
     date: string;
@@ -15,12 +16,14 @@ export interface TradeSubmitData {
     side: TradeSide;
     price: number;
     quantity: number;
+    emotion_tag?: string;
 }
 
 interface TradeFormProps {
     darkMode: boolean;
     currentUser: User | null;
     baseTrades: { symbol: string }[];
+    allTrades?: Trade[]; // All trades for emotion detection
     initialData?: Trade;
     onUpdateTrade?: (id: string, data: TradeSubmitData, imageFile: File | null) => Promise<void>;
     onAddTrade: (
@@ -34,6 +37,7 @@ export function TradeForm({
     darkMode,
     currentUser,
     baseTrades,
+    allTrades = [],
     onAddTrade,
     isCompact = false,
     initialData,
@@ -48,6 +52,7 @@ export function TradeForm({
         quantity: initialData?.quantity?.toString() || '',
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showChecklist, setShowChecklist] = useState(false);
 
     const weekdayLabel = getKoreanWeekdayLabel(form.date);
 
@@ -83,53 +88,38 @@ export function TradeForm({
         }));
     };
 
+    // Validate form and return true/false
+    const validateForm = (): boolean => {
+        if (!form.date) { alert('날짜를 선택해주세요.'); return false; }
+        if (!form.symbol || form.symbol.trim() === '') { alert('종목을 선택해주세요.'); return false; }
+        if (!form.price || form.price.trim() === '') { alert('가격을 입력해주세요.'); return false; }
+        if (!form.quantity || form.quantity.trim() === '') { alert('수량을 입력해주세요.'); return false; }
+        const p = Number(form.price), q = Number(form.quantity);
+        if (Number.isNaN(p) || Number.isNaN(q)) { alert('가격과 수량은 숫자로 입력해주세요.'); return false; }
+        if (p <= 0) { alert('가격은 0보다 큰 값을 입력해주세요.'); return false; }
+        if (q <= 0) { alert('수량은 0보다 큰 값을 입력해주세요.'); return false; }
+        if (q % 1 !== 0) { alert('수량은 정수로 입력해주세요.'); return false; }
+        return true;
+    };
+
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
+        if (!validateForm()) return;
 
-        // Required field validation
-        if (!form.date) {
-            alert('날짜를 선택해주세요.');
+        // For editing, skip checklist
+        if (initialData && onUpdateTrade) {
+            await executeSubmit();
             return;
         }
 
-        if (!form.symbol || form.symbol.trim() === '') {
-            alert('종목을 선택해주세요.');
-            return;
-        }
+        // Show checklist modal before submitting new trade
+        setShowChecklist(true);
+    };
 
-        if (!form.price || form.price.trim() === '') {
-            alert('가격을 입력해주세요.');
-            return;
-        }
-
-        if (!form.quantity || form.quantity.trim() === '') {
-            alert('수량을 입력해주세요.');
-            return;
-        }
-
-        // Number format validation
+    // Called from checklist confirm or directly for updates
+    const executeSubmit = useCallback(async (emotionTag?: string) => {
         const price = Number(form.price);
         const quantity = Number(form.quantity);
-
-        if (Number.isNaN(price) || Number.isNaN(quantity)) {
-            alert('가격과 수량은 숫자로 입력해주세요.');
-            return;
-        }
-
-        if (price <= 0) {
-            alert('가격은 0보다 큰 값을 입력해주세요.');
-            return;
-        }
-
-        if (quantity <= 0) {
-            alert('수량은 0보다 큰 값을 입력해주세요.');
-            return;
-        }
-
-        if (quantity % 1 !== 0) {
-            alert('수량은 정수로 입력해주세요.');
-            return;
-        }
 
         setIsSubmitting(true);
         try {
@@ -140,6 +130,7 @@ export function TradeForm({
                 side: form.side as TradeSide,
                 price,
                 quantity,
+                emotion_tag: emotionTag,
             };
 
             if (initialData && onUpdateTrade) {
@@ -149,19 +140,19 @@ export function TradeForm({
             }
 
             if (!initialData) {
-                // Reset Form only if adding
-                setForm((prev) => ({
-                    ...prev,
-                    price: '',
-                    quantity: '',
-                }));
+                setForm((prev) => ({ ...prev, price: '', quantity: '' }));
             }
         } catch (error) {
             console.error(error);
         } finally {
             setIsSubmitting(false);
         }
-    };
+    }, [form, initialData, onAddTrade, onUpdateTrade]);
+
+    const handleChecklistConfirm = useCallback((_disciplineScore: number, emotionTag?: string) => {
+        setShowChecklist(false);
+        executeSubmit(emotionTag);
+    }, [executeSubmit]);
 
     // Toss Design System - Input Styles
     const inputBaseClass = `
@@ -300,6 +291,19 @@ export function TradeForm({
                     </Button>
                 </div>
             </form>
+
+            {/* Pre-trade Checklist Modal */}
+            <TradeChecklist
+                isOpen={showChecklist}
+                onClose={() => setShowChecklist(false)}
+                onConfirm={handleChecklistConfirm}
+                side={form.side as 'BUY' | 'SELL'}
+                symbol={form.symbol}
+                symbolName={form.symbol_name}
+                price={Number(form.price) || 0}
+                quantity={Number(form.quantity) || 0}
+                existingTrades={allTrades}
+            />
         </Card>
     );
 }

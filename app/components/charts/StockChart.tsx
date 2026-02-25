@@ -214,17 +214,45 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
         if (!payload || !payload.markerSide || !payload.markerPrice) return null;
 
         const isBuy = payload.markerSide === 'BUY';
-        const color = isBuy ? '#ef4444' : '#3b82f6';  // 빨간색: 매수, 파랑: 매도
+        const color = isBuy ? '#ef4444' : '#3b82f6';  // Red: buy, Blue: sell
         const size = compact ? 6 : 8;
 
         if (isBuy) {
-            // 위쪽 삼각형 (매수)
-            const points = `${cx},${cy - size} ${cx - size},${cy + size} ${cx + size},${cy + size}`;
-            return <polygon points={points} fill={color} stroke="white" strokeWidth={1} />;
+            // Up arrow: tip at trade price (cy), body extends downward
+            const points = `${cx},${cy} ${cx - size},${cy + size * 2} ${cx + size},${cy + size * 2}`;
+            return (
+                <g>
+                    <polygon points={points} fill={color} stroke="white" strokeWidth={1} />
+                    <text
+                        x={cx}
+                        y={cy + size * 2 + 12}
+                        textAnchor="middle"
+                        fontSize={compact ? 8 : 9}
+                        fontWeight="bold"
+                        fill={color}
+                    >
+                        {formatNumber(payload.markerPrice)}
+                    </text>
+                </g>
+            );
         } else {
-            // 아래쪽 삼각형 (매도)
-            const points = `${cx},${cy + size} ${cx - size},${cy - size} ${cx + size},${cy - size}`;
-            return <polygon points={points} fill={color} stroke="white" strokeWidth={1} />;
+            // Down arrow: tip at trade price (cy), body extends upward
+            const points = `${cx},${cy} ${cx - size},${cy - size * 2} ${cx + size},${cy - size * 2}`;
+            return (
+                <g>
+                    <polygon points={points} fill={color} stroke="white" strokeWidth={1} />
+                    <text
+                        x={cx}
+                        y={cy - size * 2 - 4}
+                        textAnchor="middle"
+                        fontSize={compact ? 8 : 9}
+                        fontWeight="bold"
+                        fill={color}
+                    >
+                        {formatNumber(payload.markerPrice)}
+                    </text>
+                </g>
+            );
         }
     };
 

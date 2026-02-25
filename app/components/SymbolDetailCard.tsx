@@ -93,30 +93,30 @@ export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, o
                 ${darkMode ? 'bg-slate-900/60 border-slate-700/50 shadow-2xl shadow-black/20' : 'bg-white/80 border-white/60 shadow-xl shadow-indigo-100/40'}
             `}>
                 <div className="flex items-start justify-between mb-8">
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3 md:gap-4 min-w-0">
                         <div className={`
-                            w-14 h-14 rounded-2xl flex items-center justify-center text-indigo-500 shadow-inner
+                            w-10 h-10 md:w-14 md:h-14 rounded-2xl flex items-center justify-center text-indigo-500 shadow-inner shrink-0
                             ${darkMode ? 'bg-indigo-500/10' : 'bg-white shadow-indigo-100'}
                         `}>
-                            <BarChart2 size={28} strokeWidth={1.5} />
+                            <BarChart2 size={24} strokeWidth={1.5} />
                         </div>
-                        <div>
-                            <div className="flex items-center gap-2 mb-1">
-                                <h2 className={`text-2xl font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
+                        <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                                <h2 className={`text-xl md:text-2xl font-bold truncate ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
                                     {stockName}
                                 </h2>
                                 {displayedPrice && (
-                                    <span className={`px-2 py-0.5 rounded-lg text-xs font-bold ${darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700'}`}>
+                                    <span className={`px-2 py-0.5 rounded-lg text-[10px] md:text-xs font-bold shrink-0 ${darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700'}`}>
                                         현재가 {currencyUnit === '$' ? '$' : ''}{formatNumber(displayedPrice)}{currencyUnit === '원' ? '원' : ''}
                                     </span>
                                 )}
                             </div>
-                            <div className="flex items-center gap-2">
-                                <span className={`text-sm font-mono font-bold ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <span className={`text-xs md:text-sm font-mono font-bold ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                                     {symbol}
                                 </span>
                                 <span className={`w-1 h-1 rounded-full bg-current opacity-30 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`} />
-                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-md ${darkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>
+                                <span className={`text-[10px] md:text-xs font-semibold px-2 py-0.5 rounded-md ${darkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>
                                     총 {stockTrades.length}건의 거래
                                 </span>
                             </div>
@@ -216,7 +216,7 @@ function StatItem({ label, value, icon, valueClass, colorClass, bgClass, darkMod
                     {label}
                 </span>
             </div>
-            <div className={`text-xl font-bold ${valueClass || (darkMode ? 'text-slate-200' : 'text-slate-800')}`}>
+            <div className={`text-lg md:text-xl font-bold truncate ${valueClass || (darkMode ? 'text-slate-200' : 'text-slate-800')}`}>
                 {value}
             </div>
         </div>

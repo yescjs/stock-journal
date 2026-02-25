@@ -40,8 +40,8 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   
-  --color-up: var(--color-up);
-  --color-down: var(--color-down);
+  --color-up: #F04452;
+  --color-down: #3182F6;
   
   --radius: 1.5rem;
 }
