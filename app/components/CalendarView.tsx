@@ -89,8 +89,23 @@ export function CalendarView({
     return Math.round(val).toLocaleString();
   };
 
+  // Abbreviated KRW for mobile (e.g., 1,234,567 -> 123만)
+  const formatKRWShort = (val: number) => {
+    const abs = Math.abs(val);
+    if (abs >= 1_0000_0000) return `${(val / 1_0000_0000).toFixed(1)}억`;
+    if (abs >= 1_0000) return `${Math.round(val / 1_0000)}만`;
+    return Math.round(val).toLocaleString();
+  };
+
   const formatUSD = (val: number) => {
-    return `$${Math.abs(val).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+    return `$${Math.abs(val).toLocaleString('en-US', { maximumFractionDigits: 1 })}`;
+  }
+
+  // Abbreviated USD for mobile (e.g., $1,234 -> $1.2K)
+  const formatUSDShort = (val: number) => {
+    const abs = Math.abs(val);
+    if (abs >= 1000) return `$${(Math.abs(val) / 1000).toFixed(1)}K`;
+    return `$${Math.round(Math.abs(val))}`;
   }
 
   return (
@@ -179,23 +194,43 @@ export function CalendarView({
               <div className="flex-1 flex items-center justify-center">
                 {hasData && (
                   <div className="text-center w-full space-y-0.5">
-                    {/* KRW line */}
+                    {/* KRW line - Desktop full, Mobile abbreviated */}
                     {krw !== 0 && (
-                      <div className={cn(
-                        "text-[10px] md:text-xs font-black tracking-tight truncate",
-                        Math.abs(totalPnl) > 300000 ? "text-white" : (darkMode ? "text-slate-200" : "text-slate-800")
-                      )}>
-                        {krw > 0 ? '+' : ''}<span className="opacity-60">₩</span>{formatKRW(krw)}
-                      </div>
+                      <>
+                        {/* Desktop */}
+                        <div className={cn(
+                          "hidden md:block text-xs font-black tracking-tight truncate",
+                          Math.abs(totalPnl) > 300000 ? "text-white" : (darkMode ? "text-slate-200" : "text-slate-800")
+                        )}>
+                          {krw > 0 ? '+' : ''}{formatKRW(krw)}
+                        </div>
+                        {/* Mobile */}
+                        <div className={cn(
+                          "md:hidden text-[10px] font-black tracking-tight",
+                          Math.abs(totalPnl) > 300000 ? "text-white" : (darkMode ? "text-slate-200" : "text-slate-800")
+                        )}>
+                          {krw > 0 ? '+' : ''}{formatKRWShort(krw)}
+                        </div>
+                      </>
                     )}
-                    {/* USD line */}
+                    {/* USD line - Desktop full, Mobile abbreviated */}
                     {usd !== 0 && (
-                      <div className={cn(
-                        "text-[10px] md:text-xs font-black tracking-tight truncate",
-                        Math.abs(totalPnl) > 300000 ? "text-white/80" : (darkMode ? "text-slate-300" : "text-slate-600")
-                      )}>
-                        {usd > 0 ? '+' : '-'}{formatUSD(usd)}
-                      </div>
+                      <>
+                        {/* Desktop */}
+                        <div className={cn(
+                          "hidden md:block text-xs font-black tracking-tight truncate",
+                          Math.abs(totalPnl) > 300000 ? "text-white/80" : (darkMode ? "text-slate-300" : "text-slate-600")
+                        )}>
+                          {usd > 0 ? '+' : '-'}{formatUSD(usd)}
+                        </div>
+                        {/* Mobile */}
+                        <div className={cn(
+                          "md:hidden text-[10px] font-black tracking-tight",
+                          Math.abs(totalPnl) > 300000 ? "text-white/80" : (darkMode ? "text-slate-300" : "text-slate-600")
+                        )}>
+                          {usd > 0 ? '+' : '-'}{formatUSDShort(usd)}
+                        </div>
+                      </>
                     )}
                   </div>
                 )}
