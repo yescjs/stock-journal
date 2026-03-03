@@ -35,7 +35,7 @@ interface UseAIAnalysisReturn {
   deleteReport: (id: string) => Promise<void>;
 }
 
-export function useAIAnalysis(user: User | null): UseAIAnalysisReturn {
+export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): UseAIAnalysisReturn {
   const [weeklyReport, setWeeklyReport] = useState<AIReportResult | null>(null);
   const [tradeReview, setTradeReview] = useState<Record<string, AIReportResult>>({});
   const [loadingWeekly, setLoadingWeekly] = useState(false);
@@ -132,15 +132,25 @@ export function useAIAnalysis(user: User | null): UseAIAnalysisReturn {
     setError(null);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
       const res = await fetch('/api/ai-analysis', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           type: 'weekly_report',
           analysis,
           username,
         }),
       });
+
+      if (res.status === 402) {
+        setError('코인이 부족합니다. 코인을 충전해주세요.');
+        return;
+      }
 
       if (!res.ok) {
         const { error: msg } = await res.json();
@@ -149,6 +159,7 @@ export function useAIAnalysis(user: User | null): UseAIAnalysisReturn {
 
       const data: AIReportResult = await res.json();
       setWeeklyReport(data);
+      onCoinsConsumed?.();
 
       // 자동 저장
       const title = `${analysis.roundTrips.length}건의 완결 거래 종합 분석`;
@@ -172,11 +183,21 @@ export function useAIAnalysis(user: User | null): UseAIAnalysisReturn {
     setError(null);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
       const res = await fetch('/api/ai-analysis', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ type: 'trade_review', roundTrip }),
       });
+
+      if (res.status === 402) {
+        setError('코인이 부족합니다. 코인을 충전해주세요.');
+        return;
+      }
 
       if (!res.ok) {
         const { error: msg } = await res.json();
@@ -185,6 +206,7 @@ export function useAIAnalysis(user: User | null): UseAIAnalysisReturn {
 
       const data: AIReportResult = await res.json();
       setTradeReview(prev => ({ ...prev, [key]: data }));
+      onCoinsConsumed?.();
 
       // 자동 저장
       const symbolName = roundTrip.symbolName || roundTrip.symbol;
