@@ -16,6 +16,7 @@ export interface RoundTrip {
   entryWeekday: number;   // 0=Sun, 6=Sat
   exitWeekday: number;
   isWin: boolean;
+  currency: 'KRW' | 'USD';
 }
 
 export interface PatternStats {
@@ -28,6 +29,7 @@ export interface PatternStats {
   totalPnl: number;
   bestReturn: number;
   worstReturn: number;
+  currency?: 'KRW' | 'USD' | 'mixed';
 }
 
 export type TradingStyle = 'day_trader' | 'swing_trader' | 'position_trader' | 'investor';
@@ -64,6 +66,33 @@ export interface UserProfile {
   consistencyScore: number; // 0-100
 }
 
+export interface BehaviorBiasScore {
+  fomoRatio: number;           // FOMO 태그 비율 (0-1)
+  revengeRatio: number;        // REVENGE 태그 비율 (0-1)
+  impulsiveRatio: number;      // IMPULSE 태그 비율 (0-1)
+  overTradingDays: number;     // 하루 3건 이상 거래한 날 수
+  consecutiveLossEntry: number; // 손실 직후 당일 재진입 횟수
+  biasScore: number;           // 종합 편향 점수 (0-100, 높을수록 규율 양호)
+}
+
+export interface TimingMetrics {
+  avgWinHoldingDays: number;   // 수익 거래 평균 보유일
+  avgLossHoldingDays: number;  // 손실 거래 평균 보유일
+  earlyExitRatio: number;      // 손실 거래 중 평균보다 짧게 보유한 비율
+  holdingEdge: number;         // avgLoss - avgWin (양수 = 손절이 더 빠름)
+}
+
+export interface AdvancedMetrics {
+  rrRatio: number;             // |평균수익| / |평균손실|
+  expectancy: number;          // (승률×평균수익%) - (패율×|평균손실%|)
+  volatility: number;          // 수익률 표준편차
+  sharpeProxy: number;         // 평균수익률 / 표준편차
+  biasScore: BehaviorBiasScore;
+  timing: TimingMetrics;
+  rrRatioBenchmark: 'excellent' | 'good' | 'fair' | 'poor';
+  expectancyBenchmark: 'positive' | 'negative';
+}
+
 export interface TradeAnalysis {
   // Matched round trips (completed trades)
   roundTrips: RoundTrip[];
@@ -85,6 +114,9 @@ export interface TradeAnalysis {
 
   // Auto-generated insight sentences
   insights: InsightItem[];
+
+  // Advanced metrics for AI analysis
+  advancedMetrics: AdvancedMetrics;
 
   // Timestamp of analysis
   analyzedAt: string;
@@ -135,6 +167,24 @@ export const RISK_LEVEL_LABELS: Record<RiskLevel, string> = {
   high: '공격형',
   critical: '초고위험',
 };
+
+export interface MonthlyStats {
+  month: string;        // YYYY-MM
+  label: string;        // e.g., "24년 1월"
+  totalPnl: number;
+  winCount: number;
+  lossCount: number;
+  winRate: number;      // 0-100
+  avgReturn: number;    // percentage
+  tradeCount: number;
+  currency: 'KRW' | 'USD' | 'mixed';
+}
+
+export interface EquityCurvePoint {
+  date: string;         // YYYY-MM-DD
+  cumulativePnl: number;
+  tradeLabel: string;   // "{symbol} 청산"
+}
 
 // Performance grade colors
 export const GRADE_COLORS: Record<PerformanceGrade, string> = {

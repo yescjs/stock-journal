@@ -2,6 +2,7 @@
 // Provides FIFO matching, statistics calculation, and insight generation
 
 import { Trade } from '@/app/types/trade';
+import { isKRWSymbol } from '@/app/utils/format';
 import {
   RoundTrip,
   PatternStats,
@@ -13,6 +14,11 @@ import {
   UserProfile,
   InsightItem,
   TradeAnalysis,
+  AdvancedMetrics,
+  BehaviorBiasScore,
+  TimingMetrics,
+  MonthlyStats,
+  EquityCurvePoint,
   HOLDING_PERIOD_LABELS,
   WEEKDAY_LABELS,
   EMOTION_LABELS,
@@ -99,6 +105,7 @@ export function matchRoundTrips(trades: Trade[]): RoundTrip[] {
             entryWeekday: entryDate.getDay(),
             exitWeekday: exitDate.getDay(),
             isWin: pnl > 0,
+            currency: isKRWSymbol(symbol) ? 'KRW' : 'USD',
           });
 
           oldestBuy.qty -= matchQty;
@@ -129,6 +136,12 @@ function buildPatternStats(label: string, trips: RoundTrip[]): PatternStats {
   const losses = trips.length - wins;
   const returns = trips.map(t => t.pnlPercent);
 
+  const currencySet = new Set(trips.map(t => t.currency));
+  const currency: PatternStats['currency'] =
+    currencySet.size === 1
+      ? (currencySet.has('KRW') ? 'KRW' : 'USD')
+      : 'mixed';
+
   return {
     label,
     count: trips.length,
@@ -139,6 +152,7 @@ function buildPatternStats(label: string, trips: RoundTrip[]): PatternStats {
     totalPnl: trips.reduce((sum, t) => sum + t.pnl, 0),
     bestReturn: Math.max(...returns),
     worstReturn: Math.min(...returns),
+    currency,
   };
 }
 
@@ -406,6 +420,133 @@ export function calcConsistencyScore(roundTrips: RoundTrip[]): number {
   return Math.max(0, Math.min(100, 100 - cv * 33));
 }
 
+// ─── Advanced Metrics ────────────────────────────────────────────────────
+
+/** Calculate R:R ratio: |avgWin| / |avgLoss| */
+function calcRRRatio(roundTrips: RoundTrip[]): number {
+  const wins = roundTrips.filter(t => t.isWin);
+  const losses = roundTrips.filter(t => !t.isWin);
+  if (wins.length === 0 || losses.length === 0) return 0;
+
+  const avgWin = wins.reduce((s, t) => s + t.pnlPercent, 0) / wins.length;
+  const avgLoss = Math.abs(losses.reduce((s, t) => s + t.pnlPercent, 0) / losses.length);
+
+  if (avgLoss === 0) return avgWin > 0 ? 99 : 0;
+  return avgWin / avgLoss;
+}
+
+/** Calculate expectancy: (winRate × avgWin%) - (lossRate × |avgLoss%|) */
+function calcExpectancy(roundTrips: RoundTrip[]): number {
+  if (roundTrips.length === 0) return 0;
+
+  const wins = roundTrips.filter(t => t.isWin);
+  const losses = roundTrips.filter(t => !t.isWin);
+  const winRate = wins.length / roundTrips.length;
+  const lossRate = losses.length / roundTrips.length;
+
+  const avgWin = wins.length > 0 ? wins.reduce((s, t) => s + t.pnlPercent, 0) / wins.length : 0;
+  const avgLoss = losses.length > 0 ? Math.abs(losses.reduce((s, t) => s + t.pnlPercent, 0) / losses.length) : 0;
+
+  return winRate * avgWin - lossRate * avgLoss;
+}
+
+/** Detect behavior biases from emotion tags and trading patterns */
+function calcBehaviorBias(roundTrips: RoundTrip[]): BehaviorBiasScore {
+  if (roundTrips.length === 0) {
+    return { fomoRatio: 0, revengeRatio: 0, impulsiveRatio: 0, overTradingDays: 0, consecutiveLossEntry: 0, biasScore: 100 };
+  }
+
+  const total = roundTrips.length;
+  const fomoCount = roundTrips.filter(t => t.emotionTag === 'FOMO').length;
+  const revengeCount = roundTrips.filter(t => t.emotionTag === 'REVENGE').length;
+  const impulseCount = roundTrips.filter(t => t.emotionTag === 'IMPULSE').length;
+
+  const fomoRatio = fomoCount / total;
+  const revengeRatio = revengeCount / total;
+  const impulsiveRatio = impulseCount / total;
+
+  // Count over-trading days (3+ trades entered on same date)
+  const entryDateCounts = new Map<string, number>();
+  for (const t of roundTrips) {
+    entryDateCounts.set(t.entryDate, (entryDateCounts.get(t.entryDate) ?? 0) + 1);
+  }
+  const overTradingDays = Array.from(entryDateCounts.values()).filter(c => c >= 3).length;
+
+  // Count consecutive loss re-entries (new entry within 1 day after a loss)
+  const sortedByExit = [...roundTrips].sort(
+    (a, b) => new Date(a.exitDate).getTime() - new Date(b.exitDate).getTime()
+  );
+  let consecutiveLossEntry = 0;
+  for (let i = 0; i < sortedByExit.length - 1; i++) {
+    const curr = sortedByExit[i];
+    const next = sortedByExit[i + 1];
+    if (!curr.isWin) {
+      const exitMs = new Date(curr.exitDate).getTime();
+      const nextEntryMs = new Date(next.entryDate).getTime();
+      if (nextEntryMs - exitMs <= 24 * 60 * 60 * 1000) {
+        consecutiveLossEntry++;
+      }
+    }
+  }
+
+  // Bias score: 100 = perfect discipline, lower = more biased
+  const penalty =
+    fomoRatio * 40 +
+    revengeRatio * 35 +
+    impulsiveRatio * 25 +
+    overTradingDays * 5 +
+    consecutiveLossEntry * 5;
+  const biasScore = Math.max(0, Math.min(100, 100 - penalty));
+
+  return { fomoRatio, revengeRatio, impulsiveRatio, overTradingDays, consecutiveLossEntry, biasScore };
+}
+
+/** Calculate timing metrics: win vs loss holding period comparison */
+function calcTimingMetrics(roundTrips: RoundTrip[]): TimingMetrics {
+  const wins = roundTrips.filter(t => t.isWin);
+  const losses = roundTrips.filter(t => !t.isWin);
+
+  const avgWinHoldingDays = wins.length > 0
+    ? wins.reduce((s, t) => s + t.holdingDays, 0) / wins.length
+    : 0;
+  const avgLossHoldingDays = losses.length > 0
+    ? losses.reduce((s, t) => s + t.holdingDays, 0) / losses.length
+    : 0;
+
+  // Ratio of losses held shorter than average loss holding period
+  const earlyExitRatio = losses.length > 0
+    ? losses.filter(t => t.holdingDays < avgLossHoldingDays).length / losses.length
+    : 0;
+
+  // Positive = losses are cut faster than wins (good)
+  const holdingEdge = avgLossHoldingDays - avgWinHoldingDays;
+
+  return { avgWinHoldingDays, avgLossHoldingDays, earlyExitRatio, holdingEdge };
+}
+
+/** Assemble all advanced metrics with benchmark evaluations */
+function calcAdvancedMetrics(roundTrips: RoundTrip[]): AdvancedMetrics {
+  const returns = roundTrips.map(t => t.pnlPercent);
+  const avgReturn = returns.length > 0 ? returns.reduce((s, v) => s + v, 0) / returns.length : 0;
+  const volatility = calcStdDev(returns);
+  const sharpeProxy = volatility > 0 ? avgReturn / volatility : 0;
+
+  const rrRatio = calcRRRatio(roundTrips);
+  const expectancy = calcExpectancy(roundTrips);
+  const biasScore = calcBehaviorBias(roundTrips);
+  const timing = calcTimingMetrics(roundTrips);
+
+  const rrRatioBenchmark: AdvancedMetrics['rrRatioBenchmark'] =
+    rrRatio >= 2 ? 'excellent' :
+    rrRatio >= 1.5 ? 'good' :
+    rrRatio >= 1 ? 'fair' : 'poor';
+
+  const expectancyBenchmark: AdvancedMetrics['expectancyBenchmark'] =
+    expectancy >= 0 ? 'positive' : 'negative';
+
+  return { rrRatio, expectancy, volatility, sharpeProxy, biasScore, timing, rrRatioBenchmark, expectancyBenchmark };
+}
+
 // ─── Insight Generation ──────────────────────────────────────────────────
 
 /** Generate rule-based insight sentences from analysis data */
@@ -592,6 +733,67 @@ export function generateInsights(
   return insights;
 }
 
+// ─── Monthly Stats ───────────────────────────────────────────────────────
+
+/** Group round trips by exit month and return monthly performance stats */
+export function calcMonthlyStats(roundTrips: RoundTrip[]): MonthlyStats[] {
+  const byMonth = new Map<string, RoundTrip[]>();
+
+  for (const trip of roundTrips) {
+    const month = trip.exitDate.slice(0, 7); // YYYY-MM
+    const list = byMonth.get(month) ?? [];
+    list.push(trip);
+    byMonth.set(month, list);
+  }
+
+  const stats: MonthlyStats[] = [];
+  for (const [month, trips] of byMonth) {
+    const wins = trips.filter(t => t.isWin).length;
+    const totalPnl = trips.reduce((s, t) => s + t.pnl, 0);
+    const avgReturn = trips.reduce((s, t) => s + t.pnlPercent, 0) / trips.length;
+
+    const currencySet = new Set(trips.map(t => t.currency));
+    const currency: MonthlyStats['currency'] =
+      currencySet.size === 1 ? (currencySet.has('KRW') ? 'KRW' : 'USD') : 'mixed';
+
+    const [year, m] = month.split('-');
+    const label = `${year.slice(2)}년 ${parseInt(m)}월`;
+
+    stats.push({
+      month,
+      label,
+      totalPnl,
+      winCount: wins,
+      lossCount: trips.length - wins,
+      winRate: trips.length > 0 ? (wins / trips.length) * 100 : 0,
+      avgReturn,
+      tradeCount: trips.length,
+      currency,
+    });
+  }
+
+  return stats.sort((a, b) => a.month.localeCompare(b.month));
+}
+
+// ─── Equity Curve ────────────────────────────────────────────────────────
+
+/** Build cumulative P&L curve from round trips sorted by exit date */
+export function calcEquityCurve(roundTrips: RoundTrip[]): EquityCurvePoint[] {
+  const sorted = [...roundTrips].sort(
+    (a, b) => new Date(a.exitDate).getTime() - new Date(b.exitDate).getTime()
+  );
+
+  let cumPnl = 0;
+  return sorted.map(trip => {
+    cumPnl += trip.pnl;
+    return {
+      date: trip.exitDate,
+      cumulativePnl: cumPnl,
+      tradeLabel: `${trip.symbolName || trip.symbol} 청산`,
+    };
+  });
+}
+
 // ─── Full Analysis Pipeline ──────────────────────────────────────────────
 
 /** Run the complete analysis pipeline on trade data */
@@ -643,6 +845,8 @@ export function analyzeTradesComplete(trades: Trade[]): TradeAnalysis {
     strategyStats, concentration, streaks, winRate, profitFactor
   );
 
+  const advancedMetrics = calcAdvancedMetrics(roundTrips);
+
   return {
     roundTrips,
     weekdayStats,
@@ -653,6 +857,7 @@ export function analyzeTradesComplete(trades: Trade[]): TradeAnalysis {
     streaks,
     profile,
     insights,
+    advancedMetrics,
     analyzedAt: new Date().toISOString(),
   };
 }
