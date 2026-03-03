@@ -275,7 +275,10 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
         const { date, open, high, low, close, markerSide, markerPrice, markerQty } = data;
 
         return (
-            <div className={`rounded-lg p-2 shadow-xl border text-[11px] ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+            <div
+                className={`rounded-lg p-2 shadow-xl border text-[11px] ${darkMode ? 'text-slate-200' : 'bg-white border-slate-200 text-slate-900'}`}
+                style={darkMode ? { backgroundColor: 'rgba(20,22,32,0.97)', borderColor: 'rgba(255,255,255,0.12)' } : undefined}
+            >
                 {/* 날짜 헤더 */}
                 <div className={`font-bold mb-1.5 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
                     {format(new Date(date), 'yyyy-MM-dd')}
