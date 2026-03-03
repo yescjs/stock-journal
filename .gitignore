@@ -46,6 +46,7 @@ next-env.d.ts
 .claude/
 .omc/
 .sisyphus/
+.mcp.json
 
 # git worktrees
 .worktrees/
