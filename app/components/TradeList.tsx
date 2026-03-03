@@ -229,10 +229,10 @@ export function TradeList({
                                                     <tr
                                                         key={t.id}
                                                         onClick={() => onSymbolClick?.(t.symbol)}
-                                                        className={`group transition-colors duration-150 cursor-pointer h-14 hover:bg-muted/30 border-l-3 ${
+                                                        className={`group transition-colors duration-150 cursor-pointer h-14 hover:bg-muted/30 border-l-[3px] ${
                                                             t.side === 'BUY'
-                                                                ? 'border-l-color-up/80 bg-color-up/5'
-                                                                : 'border-l-color-down/80 bg-color-down/5'
+                                                                ? 'border-l-up bg-up/5'
+                                                                : 'border-l-down bg-down/5'
                                                         }`}
                                                     >
                                                         {/* Date */}
@@ -245,12 +245,12 @@ export function TradeList({
                                                         {/* Symbol & Position */}
                                                         <td className="px-4 py-3">
                                                             <div className="flex items-start gap-2">
-                                                                {/* Position Badge - Enhanced */}
+                                                                {/* Position Badge */}
                                                                 <span className={`
                                                                     mt-0.5 px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wide whitespace-nowrap shrink-0 border
                                                                     ${t.side === 'BUY'
-                                                                        ? 'bg-color-up/15 text-color-up border-color-up/30'
-                                                                        : 'bg-color-down/15 text-color-down border-color-down/30'}
+                                                                        ? 'bg-up/15 text-up border-up/30'
+                                                                        : 'bg-down/15 text-down border-down/30'}
                                                                 `}>
                                                                     {t.side === 'BUY' ? '매수' : '매도'}
                                                                 </span>
@@ -383,18 +383,18 @@ export function TradeList({
                                                 onClick={() => onSymbolClick?.(t.symbol)}
                                                 className={`p-5 rounded-3xl border border-border/10 shadow-toss flex flex-col gap-4 transition-all active:scale-[0.98] border-l-4 ${
                                                     t.side === 'BUY'
-                                                        ? 'border-l-color-up/80 bg-color-up/5'
-                                                        : 'border-l-color-down/80 bg-color-down/5'
+                                                        ? 'border-l-up bg-up/5'
+                                                        : 'border-l-down bg-down/5'
                                                 }`}
                                             >
                                                 {/* Header: Type, Stock, Price */}
                                                 <div className="flex justify-between items-start">
                                                     <div className="flex items-center gap-3 min-w-0 flex-1">
                                                         <div className={`
-                                                            w-10 h-10 rounded-xl flex items-center justify-center text-[10px] font-extrabold shrink-0 border
+                                                            w-10 h-10 rounded-xl flex items-center justify-center text-[11px] font-extrabold shrink-0 border
                                                             ${t.side === 'BUY'
-                                                                ? 'bg-color-up/15 text-color-up border-color-up/30'
-                                                                : 'bg-color-down/15 text-color-down border-color-down/30'}
+                                                                ? 'bg-up/15 text-up border-up/30'
+                                                                : 'bg-down/15 text-down border-down/30'}
                                                         `}>
                                                             {t.side === 'BUY' ? '매수' : '매도'}
                                                         </div>

@@ -10,7 +10,9 @@
     "postbuild": "next-sitemap"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.84.0",
+    "@tosspayments/tosspayments-sdk": "^2.5.0",
     "@types/uuid": "^10.0.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",

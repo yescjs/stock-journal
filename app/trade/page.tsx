@@ -9,22 +9,27 @@ import { ArrowRight, LineChart } from 'lucide-react';
 import { NotifyType } from '@/app/types/ui';
 import { Trade } from '@/app/types/trade';
 
+// Libs
+import { supabase } from '@/app/lib/supabaseClient';
+
 // Hooks
 import { useSupabaseAuth } from '@/app/hooks/useSupabaseAuth';
 import { useTrades } from '@/app/hooks/useTrades';
 import { useCurrentPrices } from '@/app/hooks/useCurrentPrices';
 import { useExchangeRate } from '@/app/hooks/useExchangeRate';
-
 import { useTradeFilter } from '@/app/hooks/useTradeFilter';
+import { useCoins } from '@/app/hooks/useCoins';
 
 // Components
 import { BottomSheet } from '@/app/components/BottomSheet';
 import { LoginForm } from '@/app/components/LoginForm';
 import { TradeForm, TradeSubmitData } from '@/app/components/TradeForm';
 import { TradeListView } from '@/app/components/views/TradeListView';
+import { CoinBalance } from '@/app/components/CoinBalance';
+import { CoinShopModal } from '@/app/components/CoinShopModal';
 
 // Icons
-import { BarChart3, AlertTriangle, LogOut, BookOpen } from 'lucide-react';
+import { BarChart3, AlertTriangle, LogOut, BookOpen, UserCheck } from 'lucide-react';
 
 const OPEN_MONTHS_KEY = 'stock-journal-open-months-v1';
 
@@ -41,6 +46,9 @@ export default function TradePage() {
     const filterState = useTradeFilter(trades);
     const { filteredTrades } = filterState;
 
+    // --- Coins ---
+    const { balance: coinBalance, purchaseCoins, refreshBalance, loading: coinsLoading, error: coinsError } = useCoins(currentUser);
+
     // --- Currency Toggle ---
     const [showConverted, setShowConverted] = useState(false);
 
@@ -51,6 +59,7 @@ export default function TradePage() {
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
     const [notify, setNotify] = useState<{ type: NotifyType; message: string } | null>(null);
+    const [showCoinShop, setShowCoinShop] = useState(false);
 
     // Monthly expand state
     const [openMonths, setOpenMonths] = useState<Record<string, boolean>>({});
@@ -73,6 +82,45 @@ export default function TradePage() {
         setNotify({ type, message });
         setTimeout(() => setNotify(null), 3000);
     };
+
+    // --- Toss 결제 성공 처리 ---
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const payment = params.get('payment');
+        const orderId = params.get('orderId');
+        const paymentKey = params.get('paymentKey');
+        const amount = params.get('amount');
+
+        if (payment === 'success' && orderId && paymentKey && amount) {
+            supabase.auth.getSession().then(({ data: { session } }) => {
+                const token = session?.access_token;
+                if (!token) {
+                    showNotify('error', '로그인 세션이 만료되었습니다.');
+                    window.history.replaceState({}, '', '/trade');
+                    return;
+                }
+                fetch('/api/payment/confirm', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ paymentKey, orderId, amount: Number(amount) }),
+                }).then(res => {
+                    if (res.ok) {
+                        refreshBalance();
+                        showNotify('success', '코인 충전이 완료되었습니다!');
+                    } else {
+                        showNotify('error', '결제 처리 중 오류가 발생했습니다.');
+                    }
+                    window.history.replaceState({}, '', '/trade');
+                });
+            });
+        } else if (payment === 'fail') {
+            window.history.replaceState({}, '', '/trade');
+            Promise.resolve().then(() => showNotify('error', '결제가 취소되었습니다.'));
+        }
+    }, [refreshBalance]);
 
     // --- Handlers ---
     const handleLogout = async () => {
@@ -157,7 +205,14 @@ export default function TradePage() {
                     <div className="flex items-center gap-2">
                         {currentUser ? (
                             <>
-                                <span className="text-sm text-white/30 hidden sm:block">{currentUser.email}</span>
+                                <CoinBalance
+                                    balance={coinBalance}
+                                    onChargeClick={() => setShowCoinShop(true)}
+                                    loading={coinsLoading}
+                                />
+                                <div className="hidden sm:flex items-center justify-center w-9 h-9 rounded-lg bg-emerald-500/10" title={currentUser.email}>
+                                    <UserCheck size={14} className="text-emerald-400" />
+                                </div>
                                 <button
                                     onClick={handleLogout}
                                     className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-white/40 hover:text-white/80 text-sm font-semibold transition-colors"
@@ -205,6 +260,10 @@ export default function TradePage() {
                                 onToggleConverted={(v) => setShowConverted(v)}
                                 onRefreshPrices={refreshPrices}
                                 pricesLoading={pricesLoading}
+
+                                coinBalance={coinBalance}
+                                onChargeCoins={() => setShowCoinShop(true)}
+                                onCoinsConsumed={refreshBalance}
                             />
                         </motion.div>
                     </AnimatePresence>
@@ -253,6 +312,23 @@ export default function TradePage() {
                     initialData={editingTrade || undefined}
                 />
             </BottomSheet>
+
+            {/* Coin Shop Modal */}
+            <CoinShopModal
+                isOpen={showCoinShop}
+                onClose={() => setShowCoinShop(false)}
+                balance={coinBalance}
+                onPurchase={(idx) => {
+                    if (!currentUser) {
+                        setShowCoinShop(false);
+                        setShowLoginModal(true);
+                        return;
+                    }
+                    purchaseCoins(idx);
+                }}
+                purchasing={coinsLoading}
+                error={coinsError}
+            />
         </div>
     );
 }

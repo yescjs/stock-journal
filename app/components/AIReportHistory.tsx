@@ -11,6 +11,19 @@ interface AIReportHistoryProps {
     onDelete: (id: string) => void;
 }
 
+// 인터랙티브 체크박스 컴포넌트
+function InteractiveCheckbox({ checked }: React.InputHTMLAttributes<HTMLInputElement>) {
+    const [isChecked, setIsChecked] = React.useState(checked ?? false);
+    return (
+        <input
+            type="checkbox"
+            checked={isChecked}
+            onChange={() => setIsChecked(c => !c)}
+            className="mr-2 accent-indigo-500 cursor-pointer w-4 h-4 rounded flex-none mt-0.5"
+        />
+    );
+}
+
 // 마크다운 커스텀 컴포넌트 (AIReportCard와 공유)
 export const markdownComponents = {
     h2: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
@@ -44,10 +57,29 @@ export const markdownComponents = {
             {children}
         </ol>
     ),
-    li: ({ children, ...props }: React.HTMLAttributes<HTMLLIElement>) => (
-        <li className="text-sm text-white/60 leading-relaxed pl-2 border-l-2 border-white/10 ml-2" {...props}>
-            {children}
-        </li>
+    li: ({ children, ...props }: React.HTMLAttributes<HTMLLIElement>) => {
+        // 체크박스가 포함된 li는 인터랙티브 스타일로 렌더링
+        const hasCheckbox = React.Children.toArray(children).some(
+            child => React.isValidElement(child) && child.type === 'input'
+        );
+        if (hasCheckbox) {
+            return (
+                <li
+                    className="flex items-start gap-1 text-sm text-white/70 leading-relaxed px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors cursor-default"
+                    {...props}
+                >
+                    {children}
+                </li>
+            );
+        }
+        return (
+            <li className="text-sm text-white/60 leading-relaxed pl-2 border-l-2 border-white/10 ml-2" {...props}>
+                {children}
+            </li>
+        );
+    },
+    input: (props: React.InputHTMLAttributes<HTMLInputElement>) => (
+        <InteractiveCheckbox {...props} />
     ),
     strong: ({ children, ...props }: React.HTMLAttributes<HTMLElement>) => (
         <strong className="text-white/90 font-bold" {...props}>

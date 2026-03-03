@@ -3,7 +3,7 @@ import { User } from '@supabase/supabase-js';
 import { TradeSide, Trade } from '@/app/types/trade';
 import { getKoreanWeekdayLabel, getCurrencySymbol } from '@/app/utils/format';
 import { StockSymbolInput } from '@/app/components/StockSymbolInput';
-import { Save, Plus } from 'lucide-react';
+import { Save, Plus, Info, PartyPopper } from 'lucide-react';
 import { DatePicker } from '@/app/components/DatePicker';
 import { Button } from '@/app/components/ui/Button';
 import { Card } from '@/app/components/ui/Card';
@@ -53,6 +53,9 @@ export function TradeForm({
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showChecklist, setShowChecklist] = useState(false);
+    const [showCelebration, setShowCelebration] = useState(false);
+
+    const isFirstTrade = baseTrades.length === 0 && !initialData;
 
     const weekdayLabel = getKoreanWeekdayLabel(form.date);
 
@@ -141,13 +144,17 @@ export function TradeForm({
 
             if (!initialData) {
                 setForm((prev) => ({ ...prev, price: '', quantity: '' }));
+                if (isFirstTrade) {
+                    setShowCelebration(true);
+                    setTimeout(() => setShowCelebration(false), 4000);
+                }
             }
         } catch (error) {
             console.error(error);
         } finally {
             setIsSubmitting(false);
         }
-    }, [form, initialData, onAddTrade, onUpdateTrade]);
+    }, [form, initialData, isFirstTrade, onAddTrade, onUpdateTrade]);
 
     const handleChecklistConfirm = useCallback((_disciplineScore: number, emotionTag?: string) => {
         setShowChecklist(false);
@@ -167,6 +174,17 @@ export function TradeForm({
 
     return (
         <Card variant={isCompact ? "default" : "elevated"} className={!isCompact ? 'p-6' : 'border-none bg-transparent shadow-none'}>
+            {/* First Trade Celebration Banner */}
+            {showCelebration && (
+                <div className="mb-4 p-4 rounded-xl bg-gradient-to-r from-yellow-500/10 to-emerald-500/10 border border-yellow-500/20 flex items-center gap-3">
+                    <PartyPopper size={20} className="text-yellow-400 flex-none" />
+                    <div>
+                        <div className="text-sm font-bold text-white">첫 거래 기록 완료!</div>
+                        <div className="text-xs text-white/50">매매 일지를 시작했어요. 꾸준히 기록하면 AI가 패턴을 분석해줍니다.</div>
+                    </div>
+                </div>
+            )}
+
             {!isCompact && (
                 <div className="mb-6 flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -178,10 +196,20 @@ export function TradeForm({
                                 {initialData ? '매매 기록 수정' : '새 매매 기록'}
                             </h2>
                             <p className="text-xs font-medium text-muted-foreground">
-                                오늘도 원칙을 지키는 매매 하세요!
+                                {isFirstTrade ? '첫 번째 매매를 기록해보세요!' : '오늘도 원칙을 지키는 매매 하세요!'}
                             </p>
                         </div>
                     </div>
+                </div>
+            )}
+
+            {/* First Trade Inline Guide */}
+            {isFirstTrade && !isCompact && (
+                <div className="mb-4 p-3 rounded-xl border border-blue-500/15 bg-blue-500/5 flex items-start gap-2">
+                    <Info size={14} className="text-blue-400 flex-none mt-0.5" />
+                    <p className="text-xs text-blue-300/70 leading-relaxed">
+                        종목 티커(예: AAPL, 005930)를 검색하고, 매수/매도 구분·단가·수량을 입력하세요. 저장하면 AI가 패턴을 분석합니다.
+                    </p>
                 </div>
             )}
 
@@ -226,7 +254,10 @@ export function TradeForm({
 
                 {/* Row 2: Symbol with Autocomplete */}
                 <div>
-                    <label className={labelClass}>종목명</label>
+                    <label className={labelClass}>
+                        종목명
+                        {isFirstTrade && <span className="ml-1.5 text-blue-400/60">(티커로 검색 · 예: AAPL, 005930)</span>}
+                    </label>
                     <StockSymbolInput
                         value={form.symbol}
                         initialDisplayName={form.symbol_name}
@@ -241,6 +272,7 @@ export function TradeForm({
                     <div>
                         <label className={labelClass} title="1주당 매매 단가를 입력하세요">
                             단가 {form.symbol && <span className={darkMode ? 'text-indigo-400' : 'text-indigo-600'}>({getCurrencySymbol(form.symbol)})</span>}
+                            {isFirstTrade && !form.symbol && <span className="ml-1 text-white/25 text-xs">↑ 종목 선택 후 입력</span>}
                         </label>
                         <div className="relative">
                             {form.symbol && getCurrencySymbol(form.symbol) === '$' && (
@@ -264,6 +296,7 @@ export function TradeForm({
                     <div>
                         <label className={labelClass} title="매매한 수량을 입력하세요">
                             수량
+                            {isFirstTrade && <span className="ml-1 text-white/25 text-xs">(주식 수)</span>}
                         </label>
                         <input
                             type="number"

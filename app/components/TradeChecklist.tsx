@@ -1,6 +1,7 @@
 // Trade Checklist — pre-trade confirmation dialog with emotion detection
 // Shown before submitting a new trade to enforce trading discipline
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Trade } from '@/app/types/trade';
 import {
   EmotionWarning,
@@ -85,7 +86,7 @@ export function TradeChecklist({
   const allChecked = checklist.every(c => c.checked);
   const hasCritical = warnings.some(w => w.severity === 'critical');
 
-  return (
+  const content = (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
@@ -244,4 +245,8 @@ export function TradeChecklist({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined'
+    ? createPortal(content, document.body)
+    : null;
 }

@@ -9,7 +9,8 @@ import { AnalysisDashboard } from '@/app/components/views/AnalysisDashboard';
 import { isKRWSymbol } from '@/app/utils/format';
 import {
   LayoutGrid, List as ListIcon, Search, X, ChevronDown,
-  TrendingUp, TrendingDown, Wallet, BarChart3, DollarSign, Briefcase, Calendar, RotateCw, Brain
+  TrendingUp, TrendingDown, Wallet, BarChart3, DollarSign, Briefcase, Calendar, RotateCw, Brain,
+  BookOpen, PenLine, BarChart2, Sparkles, ArrowDown
 } from 'lucide-react';
 import { useTradeFilter } from '@/app/hooks/useTradeFilter';
 import { useTradeAnalysis } from '@/app/hooks/useTradeAnalysis';
@@ -30,6 +31,104 @@ interface TradeListViewProps {
   onToggleConverted: (show: boolean) => void;
   onRefreshPrices?: () => void;
   pricesLoading?: boolean;
+  coinBalance?: number;
+  onChargeCoins?: () => void;
+  onCoinsConsumed?: () => void;
+}
+
+// ─── Smart Empty State ───────────────────────────────────────────────────
+
+function SmartEmptyState() {
+  const steps = [
+    {
+      icon: <PenLine size={18} className="text-blue-400" />,
+      iconBg: 'bg-blue-500/10',
+      title: '매매 기록 입력',
+      desc: '종목명, 단가, 수량을 입력하고 매수/매도를 기록해요.',
+    },
+    {
+      icon: <BookOpen size={18} className="text-emerald-400" />,
+      iconBg: 'bg-emerald-500/10',
+      title: '감정·전략 태깅',
+      desc: '매매 전 체크리스트로 규율을 점검하고 감정 태그를 달아요.',
+    },
+    {
+      icon: <BarChart2 size={18} className="text-purple-400" />,
+      iconBg: 'bg-purple-500/10',
+      title: 'AI 패턴 분석',
+      desc: '완결된 매매가 쌓이면 AI가 나만의 패턴과 인사이트를 분석해요.',
+    },
+    {
+      icon: <Sparkles size={18} className="text-yellow-400" />,
+      iconBg: 'bg-yellow-500/10',
+      title: '성과 시각화',
+      desc: '누적 수익 곡선·요일별 통계로 투자 패턴을 한눈에 봐요.',
+    },
+  ];
+
+  return (
+    <div className="flex flex-col items-center py-10 px-4">
+      {/* Header */}
+      <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-5">
+        <Brain size={30} className="text-white/20" />
+      </div>
+      <h3 className="text-xl font-extrabold text-white mb-1">매매 일지를 시작해보세요</h3>
+      <p className="text-sm text-white/35 mb-8 text-center max-w-xs">
+        첫 거래를 기록하면 AI가 투자 패턴을 분석하고 맞춤형 인사이트를 제공합니다.
+      </p>
+
+      {/* Steps */}
+      <div className="w-full max-w-md grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
+        {steps.map((step, i) => (
+          <div
+            key={i}
+            className="flex items-start gap-3 p-4 rounded-2xl border border-white/8 bg-white/3 hover:bg-white/5 transition-colors"
+          >
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-none ${step.iconBg}`}>
+              {step.icon}
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs font-bold text-white mb-0.5">{step.title}</div>
+              <div className="text-xs text-white/35 leading-relaxed">{step.desc}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Ghost sample trades */}
+      <div className="w-full max-w-md space-y-2 mb-8 pointer-events-none select-none opacity-40">
+        {[
+          { symbol: 'AAPL', name: '애플', side: '매수', price: '$182.50', qty: 10, pnl: '+$245', date: '2024-01-15' },
+          { symbol: '005930', name: '삼성전자', side: '매도', price: '71,200원', qty: 50, pnl: '+12.3만원', date: '2024-01-12' },
+        ].map((t, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-3 p-3 rounded-xl border border-white/8 bg-white/3"
+          >
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold flex-none ${
+              t.side === '매수' ? 'bg-blue-500/10 text-blue-400' : 'bg-rose-500/10 text-rose-400'
+            }`}>
+              {t.side}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-white">{t.name}</span>
+                <span className="text-xs text-white/30">{t.symbol}</span>
+              </div>
+              <div className="text-xs text-white/30">{t.date} · {t.price} × {t.qty}주</div>
+            </div>
+            <div className="text-xs font-bold text-emerald-400 flex-none">{t.pnl}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* CTA Arrow */}
+      <div className="flex flex-col items-center gap-2 text-white/30">
+        <p className="text-xs font-semibold">우하단 + 버튼을 눌러 첫 거래를 기록해보세요</p>
+        <ArrowDown size={20} className="animate-bounce" />
+      </div>
+    </div>
+  );
 }
 
 // Format KRW amount with proper suffix
@@ -59,13 +158,22 @@ export function TradeListView({
   showConverted,
   onToggleConverted,
   onRefreshPrices,
-  pricesLoading
+  pricesLoading,
+  coinBalance = 0,
+  onChargeCoins,
+  onCoinsConsumed,
 }: TradeListViewProps) {
   const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'analysis'>('list');
   const [calendarDate, setCalendarDate] = useState(new Date());
 
   // Trade analysis engine
   const { analysis } = useTradeAnalysis(trades, currentUser);
+
+  // USD 종목 존재 여부 (환율 적용 버튼 표시 조건)
+  const hasUSDTrades = useMemo(
+    () => trades.some(t => !isKRWSymbol(t.symbol)),
+    [trades]
+  );
 
   const {
     selectedSymbol, setSelectedSymbol,
@@ -274,7 +382,7 @@ export function TradeListView({
 
       {/* Portfolio Summary Cards */}
       {trades.length > 0 && !selectedSymbol && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
           {/* Total Invested */}
           <div className="p-4 rounded-2xl border border-white/8 bg-white/3 hover:bg-white/5 transition-colors">
             <div className="flex items-center gap-2 mb-2">
@@ -372,17 +480,19 @@ export function TradeListView({
                 보유 종목
               </button>
 
-              {/* KRW Conversion Toggle */}
-              <button
-                onClick={() => onToggleConverted(!showConverted)}
-                className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border transition-all whitespace-nowrap ${showConverted
-                  ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                  : 'text-white/40 bg-white/5 border-white/8 hover:text-white/60 hover:bg-white/8'
-                  }`}
-              >
-                <DollarSign size={13} />
-                환율 적용
-              </button>
+              {/* KRW Conversion Toggle (USD 종목 있을 때만 표시) */}
+              {hasUSDTrades && (
+                <button
+                  onClick={() => onToggleConverted(!showConverted)}
+                  className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border transition-all whitespace-nowrap ${showConverted
+                    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                    : 'text-white/40 bg-white/5 border-white/8 hover:text-white/60 hover:bg-white/8'
+                    }`}
+                >
+                  <DollarSign size={13} />
+                  환율 적용
+                </button>
+              )}
 
               {/* Refresh Current Prices */}
               {onRefreshPrices && (
@@ -487,6 +597,10 @@ export function TradeListView({
                 darkMode={darkMode}
                 tradesCount={trades.length}
                 currentUser={currentUser}
+                coinBalance={coinBalance}
+                exchangeRate={exchangeRate}
+                onChargeCoins={onChargeCoins}
+                onCoinsConsumed={onCoinsConsumed}
               />
             ) : viewMode === 'calendar' ? (
               <div className="rounded-2xl p-6 border border-white/8 bg-white/3">
@@ -503,6 +617,8 @@ export function TradeListView({
                   darkMode={darkMode}
                 />
               </div>
+            ) : trades.length === 0 ? (
+              <SmartEmptyState />
             ) : (
               <TradeList
                 trades={filteredTrades}
