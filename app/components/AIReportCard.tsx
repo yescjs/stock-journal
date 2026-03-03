@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Bot, RefreshCw, X, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+import { Bot, RefreshCw, X, ChevronDown, ChevronUp, Sparkles, Gem } from 'lucide-react';
 import { markdownComponents } from '@/app/components/AIReportHistory';
 
 interface AIReportCardProps {
@@ -12,9 +12,13 @@ interface AIReportCardProps {
   generatedAt?: string | null;
   loading: boolean;
   error: string | null;
-  onGenerate: () => void;
+  onGenerate?: () => void;
   onClear?: () => void;
   compact?: boolean; // Compact mode for inline trade review
+  coinCost?: number;
+  coinBalance?: number;
+  onChargeCoins?: () => void;
+  isLoggedIn?: boolean;
 }
 
 export function AIReportCard({
@@ -27,6 +31,10 @@ export function AIReportCard({
   onGenerate,
   onClear,
   compact = false,
+  coinCost,
+  coinBalance = 0,
+  onChargeCoins,
+  isLoggedIn = true,
 }: AIReportCardProps) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -83,19 +91,31 @@ export function AIReportCard({
               <X size={14} />
             </button>
           )}
-          <button
-            onClick={onGenerate}
-            disabled={loading}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${loading
-                ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/20 cursor-wait'
-                : report
-                  ? 'text-white/40 bg-white/5 border-white/8 hover:text-white/70 hover:bg-white/8'
-                  : 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30 hover:bg-indigo-500/30'
-              }`}
-          >
-            <Sparkles size={11} />
-            {loading ? '생성 중...' : report ? '재생성' : 'AI 분석'}
-          </button>
+          {!isLoggedIn ? (
+            <div className="text-xs text-white/30 px-2">로그인 필요</div>
+          ) : coinCost !== undefined && coinBalance < coinCost && !report ? (
+            <button
+              onClick={onChargeCoins}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border bg-yellow-500/15 text-yellow-400 border-yellow-500/20 hover:bg-yellow-500/25 transition-all"
+            >
+              <Gem size={11} />
+              코인 부족 ({coinBalance}/{coinCost})
+            </button>
+          ) : (
+            <button
+              onClick={onGenerate}
+              disabled={loading}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${loading
+                  ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/20 cursor-wait'
+                  : report
+                    ? 'text-white/40 bg-white/5 border-white/8 hover:text-white/70 hover:bg-white/8'
+                    : 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30 hover:bg-indigo-500/30'
+                }`}
+            >
+              <Sparkles size={11} />
+              {loading ? '생성 중...' : report ? '재생성' : coinCost ? `AI 분석 (${coinCost}💎)` : 'AI 분석'}
+            </button>
+          )}
         </div>
       </div>
 
