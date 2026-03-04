@@ -9,9 +9,6 @@ import { ArrowRight, LineChart } from 'lucide-react';
 import { NotifyType } from '@/app/types/ui';
 import { Trade } from '@/app/types/trade';
 
-// Libs
-import { supabase } from '@/app/lib/supabaseClient';
-
 // Hooks
 import { useSupabaseAuth } from '@/app/hooks/useSupabaseAuth';
 import { useTrades } from '@/app/hooks/useTrades';
@@ -19,6 +16,8 @@ import { useCurrentPrices } from '@/app/hooks/useCurrentPrices';
 import { useExchangeRate } from '@/app/hooks/useExchangeRate';
 import { useTradeFilter } from '@/app/hooks/useTradeFilter';
 import { useCoins } from '@/app/hooks/useCoins';
+import { useStreak } from '@/app/hooks/useStreak';
+import { useOnboarding } from '@/app/hooks/useOnboarding';
 
 // Components
 import { BottomSheet } from '@/app/components/BottomSheet';
@@ -27,9 +26,10 @@ import { TradeForm, TradeSubmitData } from '@/app/components/TradeForm';
 import { TradeListView } from '@/app/components/views/TradeListView';
 import { CoinBalance } from '@/app/components/CoinBalance';
 import { CoinShopModal } from '@/app/components/CoinShopModal';
+import { ImportModal } from '@/app/components/ImportModal';
 
 // Icons
-import { BarChart3, AlertTriangle, LogOut, BookOpen, UserCheck } from 'lucide-react';
+import { BarChart3, AlertTriangle, LogOut, UserCheck } from 'lucide-react';
 
 const OPEN_MONTHS_KEY = 'stock-journal-open-months-v1';
 
@@ -38,7 +38,7 @@ export default function TradePage() {
 
     // --- Auth & Data ---
     const { user: currentUser, loading: authLoading, logout: supabaseLogout, authError } = useSupabaseAuth();
-    const { trades, loading: tradesLoading, addTrade, removeTrade, updateTrade } = useTrades(currentUser);
+    const { trades, addTrade, removeTrade, updateTrade, importTrades } = useTrades(currentUser);
     const { currentPrices, refresh: refreshPrices, loading: pricesLoading } = useCurrentPrices(trades);
     const { exchangeRate } = useExchangeRate();
 
@@ -48,6 +48,10 @@ export default function TradePage() {
 
     // --- Coins ---
     const { balance: coinBalance, purchaseCoins, refreshBalance, loading: coinsLoading, error: coinsError } = useCoins(currentUser);
+
+    // --- Streak & Onboarding ---
+    const { streak, loading: streakLoading, recordToday } = useStreak(currentUser);
+    const onboarding = useOnboarding(currentUser);
 
     // --- Currency Toggle ---
     const [showConverted, setShowConverted] = useState(false);
@@ -60,18 +64,18 @@ export default function TradePage() {
     const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
     const [notify, setNotify] = useState<{ type: NotifyType; message: string } | null>(null);
     const [showCoinShop, setShowCoinShop] = useState(false);
+    const [showImportModal, setShowImportModal] = useState(false);
 
     // Monthly expand state
-    const [openMonths, setOpenMonths] = useState<Record<string, boolean>>({});
-
-    useEffect(() => {
+    const [openMonths, setOpenMonths] = useState<Record<string, boolean>>(() => {
         if (typeof window !== 'undefined') {
             const saved = localStorage.getItem(OPEN_MONTHS_KEY);
             if (saved) {
-                try { setOpenMonths(JSON.parse(saved)); } catch { }
+                try { return JSON.parse(saved); } catch { /* ignore */ }
             }
         }
-    }, []);
+        return {};
+    });
 
     useEffect(() => {
         localStorage.setItem(OPEN_MONTHS_KEY, JSON.stringify(openMonths));
@@ -83,44 +87,6 @@ export default function TradePage() {
         setTimeout(() => setNotify(null), 3000);
     };
 
-    // --- Toss 결제 성공 처리 ---
-    useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        const payment = params.get('payment');
-        const orderId = params.get('orderId');
-        const paymentKey = params.get('paymentKey');
-        const amount = params.get('amount');
-
-        if (payment === 'success' && orderId && paymentKey && amount) {
-            supabase.auth.getSession().then(({ data: { session } }) => {
-                const token = session?.access_token;
-                if (!token) {
-                    showNotify('error', '로그인 세션이 만료되었습니다.');
-                    window.history.replaceState({}, '', '/trade');
-                    return;
-                }
-                fetch('/api/payment/confirm', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({ paymentKey, orderId, amount: Number(amount) }),
-                }).then(res => {
-                    if (res.ok) {
-                        refreshBalance();
-                        showNotify('success', '코인 충전이 완료되었습니다!');
-                    } else {
-                        showNotify('error', '결제 처리 중 오류가 발생했습니다.');
-                    }
-                    window.history.replaceState({}, '', '/trade');
-                });
-            });
-        } else if (payment === 'fail') {
-            window.history.replaceState({}, '', '/trade');
-            Promise.resolve().then(() => showNotify('error', '결제가 취소되었습니다.'));
-        }
-    }, [refreshBalance]);
 
     // --- Handlers ---
     const handleLogout = async () => {
@@ -133,6 +99,8 @@ export default function TradePage() {
         try {
             await addTrade(data, imageFile);
             showNotify('success', '기록이 저장되었습니다.');
+            recordToday();
+            onboarding.completeStep('firstTrade');
         } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : '알 수 없는 오류';
             alert(`저장 실패: ${msg}`);
@@ -264,6 +232,15 @@ export default function TradePage() {
                                 coinBalance={coinBalance}
                                 onChargeCoins={() => setShowCoinShop(true)}
                                 onCoinsConsumed={refreshBalance}
+                                onImport={() => setShowImportModal(true)}
+
+                                streak={streak}
+                                streakLoading={streakLoading}
+                                onboardingSteps={onboarding.steps}
+                                onboardingCompletedCount={onboarding.completedCount}
+                                onboardingTotalSteps={onboarding.totalSteps}
+                                onboardingVisible={onboarding.isVisible}
+                                onDismissOnboarding={onboarding.dismiss}
                             />
                         </motion.div>
                     </AnimatePresence>
@@ -313,18 +290,36 @@ export default function TradePage() {
                 />
             </BottomSheet>
 
+            {/* Import Modal */}
+            <ImportModal
+                isOpen={showImportModal}
+                onClose={() => setShowImportModal(false)}
+                existingTrades={trades}
+                onImport={async (newTrades) => {
+                    const count = await importTrades(newTrades);
+                    showNotify('success', `${count}건의 거래가 추가되었습니다.`);
+                    return count;
+                }}
+            />
+
             {/* Coin Shop Modal */}
             <CoinShopModal
                 isOpen={showCoinShop}
                 onClose={() => setShowCoinShop(false)}
                 balance={coinBalance}
-                onPurchase={(idx) => {
+                onPurchase={async (idx) => {
                     if (!currentUser) {
                         setShowCoinShop(false);
                         setShowLoginModal(true);
                         return;
                     }
-                    purchaseCoins(idx);
+                    const result = await purchaseCoins(idx);
+                    if (result.success) {
+                        showNotify('success', result.message);
+                        setShowCoinShop(false);
+                    } else {
+                        showNotify('error', result.message);
+                    }
                 }}
                 purchasing={coinsLoading}
                 error={coinsError}
