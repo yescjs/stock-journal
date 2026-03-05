@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
 
   const token = request.headers.get('Authorization')!.replace('Bearer ', '')
   const supabase = createAuthedClient(token)
-  const orderId = `coin-${randomUUID()}`
+  const orderId = `coin-${randomUUID().replace(/-/g, '')}`
 
   const { error } = await supabase
     .from('payment_orders')

@@ -91,10 +91,9 @@ export async function GET(request: NextRequest) {
         const email = profile.email || `naver_${profile.id}@naver-oauth.local`;
 
         // 최적화: 먼저 사용자 생성을 시도하고, 이미 존재하면 조회 및 업데이트
-        let user;
 
         // 1단계: 사용자 생성 시도 (대부분의 경우 한 번의 API 호출로 완료)
-        const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        const { error: createError } = await supabaseAdmin.auth.admin.createUser({
             email: email,
             email_confirm: true,
             user_metadata: {
@@ -142,7 +141,7 @@ export async function GET(request: NextRequest) {
                     }
 
                     // 사용자 메타데이터 업데이트
-                    const { data: updatedUser, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+                    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
                         existingUser.id,
                         {
                             user_metadata: {
@@ -165,7 +164,7 @@ export async function GET(request: NextRequest) {
                         });
                         throw updateError;
                     }
-                    user = updatedUser.user;
+                    // user updated successfully
                 } catch (fallbackError: unknown) {
                     const errorMessage = fallbackError instanceof Error ? fallbackError.message : '알 수 없는 오류';
                     const errorStack = fallbackError instanceof Error ? fallbackError.stack : undefined;
@@ -187,7 +186,6 @@ export async function GET(request: NextRequest) {
             }
         } else {
             // 신규 사용자 생성 성공
-            user = newUser.user;
         }
 
         // 4. 세션 생성 (OTP 방식 with Retry)
@@ -231,12 +229,6 @@ export async function GET(request: NextRequest) {
         const RETRY_DELAY_MS = 1000; // 재시도 간 1초 대기
 
         for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-            console.log(`[네이버 OAuth] OTP 생성 시도 ${attempt}/${MAX_RETRIES}`, {
-                email: email,
-                userId: user?.id,
-                timestamp: new Date().toISOString()
-            });
-
             const result = await supabaseAdmin.auth.admin.generateLink({
                 type: 'magiclink',
                 email: email,
@@ -247,10 +239,6 @@ export async function GET(request: NextRequest) {
 
             // 성공 조건: error가 없고 properties.hashed_token이 존재
             if (!otpError && otpData?.properties?.hashed_token) {
-                console.log(`[네이버 OAuth] OTP 생성 성공 (${attempt}회 시도)`, {
-                    hashedTokenLength: otpData.properties.hashed_token.length,
-                    timestamp: new Date().toISOString()
-                });
                 break;
             }
 
@@ -526,9 +514,9 @@ export async function GET(request: NextRequest) {
                         }
                     }
                     keysToRemove.forEach(key => localStorage.removeItem(key));
-                    console.log('Cleared previous session data');
+                    // previous session cleared
                 } catch (storageError) {
-                    console.warn('Failed to clear localStorage:', storageError);
+                    // ignore storage errors
                 }
 
                 // 2단계로 이동
@@ -560,8 +548,6 @@ export async function GET(request: NextRequest) {
                 let verifyData, verifyError;
 
                 for (let attempt = 1; attempt <= MAX_OTP_RETRIES; attempt++) {
-                    console.log('OTP verification attempt:', attempt, '/', MAX_OTP_RETRIES);
-
                     const result = await supabase.auth.verifyOtp({
                         type: 'email',
                         token_hash: '${otpData.properties.hashed_token}'
@@ -572,15 +558,8 @@ export async function GET(request: NextRequest) {
 
                     // 성공 조건: error가 없고 session이 존재
                     if (!verifyError && verifyData?.session) {
-                        console.log('OTP verification success on attempt:', attempt);
                         break;
                     }
-
-                    // 실패 로깅
-                    console.warn('OTP verification failed, attempt:', attempt, {
-                        error: verifyError?.message,
-                        hasSession: !!verifyData?.session
-                    });
 
                     // 마지막 시도가 아니면 대기 후 재시도
                     if (attempt < MAX_OTP_RETRIES) {
@@ -590,10 +569,6 @@ export async function GET(request: NextRequest) {
 
                 // 최종 실패 처리
                 if (verifyError || !verifyData?.session) {
-                    console.error('OTP verification final failure:', {
-                        error: verifyError?.message,
-                        attemptsUsed: MAX_OTP_RETRIES
-                    });
                     throw verifyError || new Error('세션 생성 검증 실패');
                 }
 
@@ -608,7 +583,7 @@ export async function GET(request: NextRequest) {
                     window.location.href = '${process.env.NEXT_PUBLIC_BASE_URL}/';
                 }, 500);
             } catch (error) {
-                console.error('Login error:', error);
+                // login error
                 clearTimeout(timeoutId);
                 window.location.href = '${process.env.NEXT_PUBLIC_BASE_URL}/?error=login_failed&details=' + encodeURIComponent(error.message);
             }

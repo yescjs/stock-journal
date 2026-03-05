@@ -11,7 +11,7 @@ import {
   calcDisciplineScore,
 } from '@/app/utils/emotionDetector';
 import {
-  ShieldCheck, AlertTriangle, XCircle, ChevronRight,
+  ShieldCheck, AlertTriangle, ChevronRight,
   CheckCircle, Circle, X, Brain, Flame,
 } from 'lucide-react';
 
@@ -53,6 +53,15 @@ export function TradeChecklist({
   );
   const [selectedEmotion, setSelectedEmotion] = useState<string>('PLANNED');
 
+  // Reset on open — valid use case for resetting state on prop change
+  useEffect(() => {
+    if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setChecklist(DEFAULT_CHECKLIST.map(item => ({ ...item, checked: false })));
+      setSelectedEmotion('PLANNED');
+    }
+  }, [isOpen]);
+
   // Detect warnings
   const warnings = useMemo<EmotionWarning[]>(
     () => detectEmotionPatterns(existingTrades, side, symbol, price * quantity),
@@ -61,14 +70,6 @@ export function TradeChecklist({
 
   // Discipline score
   const disciplineScore = useMemo(() => calcDisciplineScore(checklist), [checklist]);
-
-  // Reset on open
-  useEffect(() => {
-    if (isOpen) {
-      setChecklist(DEFAULT_CHECKLIST.map(item => ({ ...item, checked: false })));
-      setSelectedEmotion('PLANNED');
-    }
-  }, [isOpen]);
 
   const toggleItem = (id: string) => {
     setChecklist(prev =>

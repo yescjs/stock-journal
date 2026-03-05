@@ -28,12 +28,16 @@ interface AnalysisDashboardProps {
   analysis: TradeAnalysis | null;
   darkMode: boolean;
   tradesCount: number;
+  buyCount?: number;
+  sellCount?: number;
   currentUser: User | null;
   username?: string;
   coinBalance?: number;
   exchangeRate?: number;
   onChargeCoins?: () => void;
   onCoinsConsumed?: () => void;
+  onCompleteAIReportStep?: () => void;
+  initialTab?: DashboardTab;
 }
 
 // ─── Chart Colors ────────────────────────────────────────────────────────
@@ -70,18 +74,88 @@ const TABS: { id: DashboardTab; label: string; icon: React.ReactNode }[] = [
 
 // ─── Empty State ─────────────────────────────────────────────────────────
 
-function EmptyState({ count }: { count: number }) {
+function EmptyState({ count, buyCount = 0, sellCount = 0 }: { count: number; buyCount?: number; sellCount?: number }) {
+  if (count === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <div className="w-20 h-20 rounded-2xl bg-white/5 flex items-center justify-center mb-6">
+          <Brain size={36} className="text-white/20" />
+        </div>
+        <h3 className="text-xl font-bold text-white/60 mb-2">분석할 데이터가 부족합니다</h3>
+        <p className="text-sm text-white/30 max-w-md">
+          매매 기록을 추가하면 AI가 투자 패턴을 분석하고 맞춤형 인사이트를 제공합니다.
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col items-center justify-center py-20 text-center">
+    <div className="flex flex-col items-center justify-center py-14 text-center px-4">
       <div className="w-20 h-20 rounded-2xl bg-white/5 flex items-center justify-center mb-6">
         <Brain size={36} className="text-white/20" />
       </div>
-      <h3 className="text-xl font-bold text-white/60 mb-2">분석할 데이터가 부족합니다</h3>
-      <p className="text-sm text-white/30 max-w-md">
-        {count === 0
-          ? '매매 기록을 추가하면 AI가 투자 패턴을 분석하고 맞춤형 인사이트를 제공합니다.'
-          : '매수와 매도가 매칭된 완결 거래가 필요합니다. 매도 기록을 추가해보세요.'}
+      <h3 className="text-xl font-bold text-white/60 mb-2">완결 거래가 아직 없습니다</h3>
+      <p className="text-sm text-white/30 max-w-md mb-6">
+        분석을 위해서는 같은 종목의 매수 → 매도가 한 쌍 이상 필요합니다.
       </p>
+
+      {/* Current trade status */}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20">
+          <TrendingUp size={13} className="text-blue-400" />
+          <span className="text-xs font-bold text-blue-400">매수 {buyCount}건</span>
+        </div>
+        <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20">
+          <TrendingUp size={13} className="text-rose-400" />
+          <span className="text-xs font-bold text-rose-400">매도 {sellCount}건</span>
+        </div>
+      </div>
+
+      {/* Explanation card */}
+      <div className="w-full max-w-sm p-4 rounded-2xl border border-white/8 bg-white/3 text-left">
+        <div className="flex items-center gap-2 mb-3">
+          <Info size={14} className="text-indigo-400 flex-none" />
+          <span className="text-xs font-bold text-white/60">완결 거래(Round Trip)란?</span>
+        </div>
+        <div className="space-y-2.5">
+          <div className="flex items-start gap-2">
+            <span className="text-xs text-white/20 flex-none mt-0.5">1.</span>
+            <span className="text-xs text-white/40 leading-relaxed"><span className="text-white/60 font-semibold">같은 종목</span>의 매수와 매도가 있어야 합니다</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="text-xs text-white/20 flex-none mt-0.5">2.</span>
+            <span className="text-xs text-white/40 leading-relaxed"><span className="text-white/60 font-semibold">매수 날짜</span>가 매도 날짜와 같거나 앞서야 합니다</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="text-xs text-white/20 flex-none mt-0.5">3.</span>
+            <span className="text-xs text-white/40 leading-relaxed">매수 수량 범위 내에서 매도가 <span className="text-white/60 font-semibold">FIFO 방식</span>으로 매칭됩니다</span>
+          </div>
+        </div>
+        {buyCount > 0 && sellCount === 0 && (
+          <div className="mt-3 pt-3 border-t border-white/5">
+            <p className="text-xs text-yellow-400/80 flex items-center gap-1.5">
+              <AlertTriangle size={12} className="flex-none" />
+              매도 기록을 추가하면 분석이 시작됩니다.
+            </p>
+          </div>
+        )}
+        {buyCount === 0 && sellCount > 0 && (
+          <div className="mt-3 pt-3 border-t border-white/5">
+            <p className="text-xs text-yellow-400/80 flex items-center gap-1.5">
+              <AlertTriangle size={12} className="flex-none" />
+              매수 기록을 추가하면 분석이 시작됩니다.
+            </p>
+          </div>
+        )}
+        {buyCount > 0 && sellCount > 0 && (
+          <div className="mt-3 pt-3 border-t border-white/5">
+            <p className="text-xs text-yellow-400/80 flex items-center gap-1.5">
+              <AlertTriangle size={12} className="flex-none" />
+              매수와 매도의 종목명이 일치하는지 확인해 주세요.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -786,16 +860,26 @@ function RoundTripList({
 
 export function AnalysisDashboard({
   analysis,
-  darkMode: _darkMode,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  darkMode,
   tradesCount,
+  buyCount = 0,
+  sellCount = 0,
   currentUser,
   username,
   coinBalance = 0,
   exchangeRate = 1,
   onChargeCoins,
   onCoinsConsumed,
+  onCompleteAIReportStep,
+  initialTab,
 }: AnalysisDashboardProps) {
-  const [activeTab, setActiveTab] = useState<DashboardTab>('performance');
+  const [activeTab, setActiveTab] = useState<DashboardTab>(initialTab ?? 'performance');
+
+  // initialTab prop이 변경되면 반영 (외부 네비게이션)
+  if (initialTab && activeTab !== initialTab) {
+    setActiveTab(initialTab);
+  }
 
   const {
     weeklyReport, tradeReview, loadingWeekly, loadingReview, error: aiError,
@@ -803,8 +887,9 @@ export function AnalysisDashboard({
     savedReports, loadingSavedReports, deleteReport,
   } = useAIAnalysis(currentUser, onCoinsConsumed);
 
+
   if (!analysis || analysis.roundTrips.length === 0) {
-    return <EmptyState count={tradesCount} />;
+    return <EmptyState count={tradesCount} buyCount={buyCount} sellCount={sellCount} />;
   }
 
   return (
@@ -876,7 +961,7 @@ export function AnalysisDashboard({
             generatedAt={weeklyReport?.generatedAt ?? null}
             loading={loadingWeekly}
             error={aiError}
-            onGenerate={currentUser ? () => generateWeeklyReport(analysis, username) : undefined}
+            onGenerate={currentUser ? () => generateWeeklyReport(analysis, username, onCompleteAIReportStep) : undefined}
             onClear={clearWeeklyReport}
             coinCost={5}
             coinBalance={coinBalance}

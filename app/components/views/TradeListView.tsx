@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Trade } from '@/app/types/trade';
 import { User } from '@supabase/supabase-js';
 import { TradeList } from '@/app/components/TradeList';
@@ -10,10 +10,13 @@ import { isKRWSymbol } from '@/app/utils/format';
 import {
   LayoutGrid, List as ListIcon, Search, X, ChevronDown,
   TrendingUp, TrendingDown, Wallet, BarChart3, DollarSign, Briefcase, Calendar, RotateCw, Brain,
-  BookOpen, PenLine, BarChart2, Sparkles, ArrowDown
+  BookOpen, PenLine, BarChart2, Sparkles, ArrowDown, Upload
 } from 'lucide-react';
 import { useTradeFilter } from '@/app/hooks/useTradeFilter';
 import { useTradeAnalysis } from '@/app/hooks/useTradeAnalysis';
+import { StreakBadge } from '@/app/components/StreakBadge';
+import { OnboardingChecklist } from '@/app/components/OnboardingChecklist';
+import type { OnboardingSteps } from '@/app/hooks/useOnboarding';
 
 interface TradeListViewProps {
   darkMode: boolean;
@@ -34,6 +37,16 @@ interface TradeListViewProps {
   coinBalance?: number;
   onChargeCoins?: () => void;
   onCoinsConsumed?: () => void;
+  onImport?: () => void;
+  streak: { currentStreak: number; longestStreak: number; lastRecordDate: string | null };
+  streakLoading: boolean;
+  onboardingSteps: OnboardingSteps;
+  onboardingCompletedCount: number;
+  onboardingTotalSteps: number;
+  onboardingVisible: boolean;
+  onDismissOnboarding: () => void;
+  onCompleteOnboardingStep?: (step: keyof OnboardingSteps) => void;
+  onOpenAddTrade?: () => void;
 }
 
 // ─── Smart Empty State ───────────────────────────────────────────────────
@@ -162,9 +175,41 @@ export function TradeListView({
   coinBalance = 0,
   onChargeCoins,
   onCoinsConsumed,
+  onImport,
+  streak,
+  streakLoading,
+  onboardingSteps,
+  onboardingCompletedCount,
+  onboardingTotalSteps,
+  onboardingVisible,
+  onDismissOnboarding,
+  onCompleteOnboardingStep,
+  onOpenAddTrade,
 }: TradeListViewProps) {
   const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'analysis'>('list');
   const [calendarDate, setCalendarDate] = useState(new Date());
+  const [analysisInitialTab, setAnalysisInitialTab] = useState<'performance' | 'charts' | 'ai' | 'trades' | undefined>();
+
+  const switchToAnalysis = useCallback(() => {
+    setViewMode('analysis');
+    onCompleteOnboardingStep?.('visitAnalysis');
+  }, [onCompleteOnboardingStep]);
+
+  const handleOnboardingStepClick = useCallback((step: keyof OnboardingSteps) => {
+    switch (step) {
+      case 'firstTrade':
+      case 'buySellCycle':
+        onOpenAddTrade?.();
+        break;
+      case 'visitAnalysis':
+        switchToAnalysis();
+        break;
+      case 'aiReport':
+        setAnalysisInitialTab('ai');
+        switchToAnalysis();
+        break;
+    }
+  }, [onOpenAddTrade, switchToAnalysis]);
 
   // Trade analysis engine
   const { analysis } = useTradeAnalysis(trades, currentUser);
@@ -174,6 +219,10 @@ export function TradeListView({
     () => trades.some(t => !isKRWSymbol(t.symbol)),
     [trades]
   );
+
+  // 매수/매도 건수 (분석 탭 EmptyState용)
+  const buyCount = useMemo(() => trades.filter(t => t.side === 'BUY').length, [trades]);
+  const sellCount = useMemo(() => trades.filter(t => t.side === 'SELL').length, [trades]);
 
   const {
     selectedSymbol, setSelectedSymbol,
@@ -355,22 +404,29 @@ export function TradeListView({
       <div className="flex-none mb-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2.5">
-              {selectedSymbol && (
-                <button
-                  onClick={() => setSelectedSymbol('')}
-                  className="p-1 h-auto aspect-square rounded-xl mr-1 hover:bg-white/10 text-white/40 transition-colors"
-                >
-                  <ChevronDown size={24} className="rotate-90" />
-                </button>
-              )}
-              {selectedSymbol ? '종목 상세 분석' : (viewMode === 'calendar' ? '매매 캘린더' : viewMode === 'analysis' ? 'AI 매매 분석' : '매매 일지')}
-              {selectedSymbol && (
-                <span className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                  {selectedSymbol}
-                </span>
-              )}
-            </h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2.5">
+                {selectedSymbol && (
+                  <button
+                    onClick={() => setSelectedSymbol('')}
+                    className="p-1 h-auto aspect-square rounded-xl mr-1 hover:bg-white/10 text-white/40 transition-colors"
+                  >
+                    <ChevronDown size={24} className="rotate-90" />
+                  </button>
+                )}
+                {selectedSymbol ? '종목 상세 분석' : (viewMode === 'calendar' ? '매매 캘린더' : viewMode === 'analysis' ? 'AI 매매 분석' : '매매 일지')}
+                {selectedSymbol && (
+                  <span className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                    {selectedSymbol}
+                  </span>
+                )}
+              </h2>
+              <StreakBadge
+                currentStreak={streak.currentStreak}
+                longestStreak={streak.longestStreak}
+                loading={streakLoading}
+              />
+            </div>
             <p className="text-sm text-white/30 mt-1 font-medium">
               {viewMode === 'analysis' && analysis
                 ? `${analysis.roundTrips.length}건의 완결된 거래 분석`
@@ -379,6 +435,16 @@ export function TradeListView({
           </div>
         </div>
       </div>
+
+      {/* Onboarding Checklist */}
+      <OnboardingChecklist
+        steps={onboardingSteps}
+        completedCount={onboardingCompletedCount}
+        totalSteps={onboardingTotalSteps}
+        isVisible={onboardingVisible}
+        onDismiss={onDismissOnboarding}
+        onStepClick={handleOnboardingStepClick}
+      />
 
       {/* Portfolio Summary Cards */}
       {trades.length > 0 && !selectedSymbol && (
@@ -509,6 +575,17 @@ export function TradeListView({
                 </button>
               )}
 
+              {/* Import Trades */}
+              {onImport && (
+                <button
+                  onClick={onImport}
+                  className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border border-white/8 text-white/40 bg-white/5 hover:text-white/60 hover:bg-white/8 transition-all whitespace-nowrap"
+                >
+                  <Upload size={13} />
+                  가져오기
+                </button>
+              )}
+
               {/* Date Filter Active Badge */}
               {dateFrom && (
                 <button
@@ -546,7 +623,7 @@ export function TradeListView({
               <span className="hidden sm:inline">캘린더</span>
             </button>
             <button
-              onClick={() => setViewMode('analysis')}
+              onClick={switchToAnalysis}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${viewMode === 'analysis'
                 ? 'bg-white/10 text-white shadow-md'
                 : 'text-white/30 hover:text-white/60'
@@ -596,11 +673,15 @@ export function TradeListView({
                 analysis={analysis}
                 darkMode={darkMode}
                 tradesCount={trades.length}
+                buyCount={buyCount}
+                sellCount={sellCount}
                 currentUser={currentUser}
                 coinBalance={coinBalance}
                 exchangeRate={exchangeRate}
                 onChargeCoins={onChargeCoins}
                 onCoinsConsumed={onCoinsConsumed}
+                onCompleteAIReportStep={() => onCompleteOnboardingStep?.('aiReport')}
+                initialTab={analysisInitialTab}
               />
             ) : viewMode === 'calendar' ? (
               <div className="rounded-2xl p-6 border border-white/8 bg-white/3">

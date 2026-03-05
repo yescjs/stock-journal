@@ -1,7 +1,7 @@
 import React, { useState, useCallback, ChangeEvent, FormEvent } from 'react';
 import { User } from '@supabase/supabase-js';
 import { TradeSide, Trade } from '@/app/types/trade';
-import { getKoreanWeekdayLabel, getCurrencySymbol } from '@/app/utils/format';
+import { getCurrencySymbol } from '@/app/utils/format';
 import { StockSymbolInput } from '@/app/components/StockSymbolInput';
 import { Save, Plus, Info, PartyPopper } from 'lucide-react';
 import { DatePicker } from '@/app/components/DatePicker';
@@ -35,7 +35,6 @@ interface TradeFormProps {
 
 export function TradeForm({
     darkMode,
-    currentUser,
     baseTrades,
     allTrades = [],
     onAddTrade,
@@ -56,8 +55,6 @@ export function TradeForm({
     const [showCelebration, setShowCelebration] = useState(false);
 
     const isFirstTrade = baseTrades.length === 0 && !initialData;
-
-    const weekdayLabel = getKoreanWeekdayLabel(form.date);
 
     // Update form when initialData changes
     React.useEffect(() => {

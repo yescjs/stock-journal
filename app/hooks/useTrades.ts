@@ -93,7 +93,8 @@ export function useTrades(user: User | null) {
             price: number;
             quantity: number;
         },
-        _imageFile: File | null
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        imageFile: File | null
     ) => {
         const { date, symbol, symbol_name, side, price, quantity } = data;
 
@@ -165,7 +166,53 @@ export function useTrades(user: User | null) {
         }
     };
 
-    const updateTrade = async (id: string, data: Partial<Trade>, _imageFile: File | null) => {
+    const importTrades = async (
+        newTrades: Omit<Trade, 'id' | 'user_id' | 'created_at'>[]
+    ): Promise<number> => {
+        if (newTrades.length === 0) return 0;
+
+        try {
+            if (user) {
+                // Supabase 벌크 인서트 (500건 청크 분할)
+                const CHUNK_SIZE = 500;
+                const inserted: Trade[] = [];
+                for (let i = 0; i < newTrades.length; i += CHUNK_SIZE) {
+                    const chunk = newTrades.slice(i, i + CHUNK_SIZE);
+                    const rows = chunk.map(t => ({
+                        user_id: user.id,
+                        date: t.date,
+                        symbol: t.symbol,
+                        symbol_name: t.symbol_name || null,
+                        side: t.side,
+                        price: t.price,
+                        quantity: t.quantity,
+                    }));
+                    const { data: insertedChunk, error } = await supabase
+                        .from('trades')
+                        .insert(rows)
+                        .select();
+                    if (error) throw error;
+                    inserted.push(...(insertedChunk as Trade[]));
+                }
+                setTrades(prev => [...inserted, ...prev]);
+                return inserted.length;
+            } else {
+                // Guest 모드: localStorage
+                const guestTrades: Trade[] = newTrades.map(t => ({
+                    ...t,
+                    id: `guest-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                }));
+                setTrades(prev => [...guestTrades, ...prev]);
+                return guestTrades.length;
+            }
+        } catch (err) {
+            console.error('importTrades failed:', err);
+            throw err;
+        }
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const updateTrade = async (id: string, data: Partial<Trade>, imageFile: File | null) => {
         try {
             if (user) {
                 const { error } = await supabase
@@ -196,5 +243,5 @@ export function useTrades(user: User | null) {
         }
     };
 
-    return { trades, loading, error, addTrade, removeTrade, updateTrade, clearAllTrades, setTrades };
+    return { trades, loading, error, addTrade, removeTrade, updateTrade, clearAllTrades, setTrades, importTrades };
 }

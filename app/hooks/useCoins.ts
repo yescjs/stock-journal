@@ -3,15 +3,25 @@
 import { useState, useEffect, useCallback } from 'react'
 import { User } from '@supabase/supabase-js'
 import type { CoinTransaction } from '@/app/types/coins'
-import { loadTossPayments } from '@tosspayments/tosspayments-sdk'
+import * as PortOne from '@portone/browser-sdk/v2'
 import { supabase } from '@/app/lib/supabaseClient'
+
+export interface CustomerInfo {
+  fullName: string
+  phoneNumber: string
+}
+
+interface PurchaseResult {
+  success: boolean
+  message: string
+}
 
 interface UseCoinsReturn {
   balance: number
   transactions: CoinTransaction[]
   loading: boolean
   error: string | null
-  purchaseCoins: (packageIndex?: number) => Promise<void>
+  purchaseCoins: (packageIndex: number, customer: CustomerInfo) => Promise<PurchaseResult>
   refreshBalance: () => Promise<void>
 }
 
@@ -66,8 +76,8 @@ export function useCoins(user: User | null): UseCoinsReturn {
     }
   }, [user, refreshBalance, loadTransactions])
 
-  const purchaseCoins = useCallback(async (packageIndex = 0) => {
-    if (!user) return
+  const purchaseCoins = useCallback(async (packageIndex: number, customer: CustomerInfo): Promise<PurchaseResult> => {
+    if (!user) return { success: false, message: '로그인이 필요합니다.' }
     setLoading(true)
     setError(null)
 
@@ -88,30 +98,64 @@ export function useCoins(user: User | null): UseCoinsReturn {
         const errData = await prepRes.json().catch(() => ({}))
         throw new Error(errData.error || '결제 준비 실패')
       }
-      const { orderId, amount, coins, orderName } = await prepRes.json()
+      const { orderId, amount, orderName } = await prepRes.json()
 
-      // 2. Toss 결제창 열기
-      const tossClientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY!
-      if (!tossClientKey) throw new Error('Toss 클라이언트 키가 설정되지 않았습니다. .env.local을 확인하세요.')
+      // 2. 포트원 결제창 열기 (Promise 방식, 리다이렉트 없음)
+      const storeId = process.env.NEXT_PUBLIC_PORTONE_STORE_ID
+      const channelKey = process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY
+      if (!storeId || !channelKey) {
+        throw new Error('포트원 설정이 누락되었습니다. 환경 변수를 확인하세요.')
+      }
 
-      const toss = await loadTossPayments(tossClientKey)
-      const payment = toss.payment({ customerKey: user.id })
-      await payment.requestPayment({
-        method: 'CARD',
-        amount: { currency: 'KRW', value: amount },
-        orderId,
+      const response = await PortOne.requestPayment({
+        storeId,
+        channelKey,
+        paymentId: orderId,
         orderName,
-        successUrl: `${window.location.origin}/trade?payment=success&orderId=${orderId}`,
-        failUrl: `${window.location.origin}/trade?payment=fail`,
+        totalAmount: amount,
+        currency: 'CURRENCY_KRW',
+        payMethod: 'CARD',
+        customer: {
+          fullName: customer.fullName,
+          phoneNumber: customer.phoneNumber,
+          email: user.email,
+        },
       })
-      // requestPayment는 리다이렉트를 트리거하므로 이후 코드는 실행되지 않음
-      void coins // suppress unused warning
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '결제 오류')
-    } finally {
+
+      if (!response || response.code != null) {
+        // 사용자가 결제를 취소했거나 에러 발생
+        const msg = response?.message ?? '결제가 취소되었습니다.'
+        throw new Error(msg)
+      }
+
+      // 3. 서버에서 결제 검증
+      const confirmRes = await fetch('/api/payment/confirm', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          paymentId: response.paymentId,
+          orderId,
+        }),
+      })
+
+      if (!confirmRes.ok) {
+        const errData = await confirmRes.json().catch(() => ({}))
+        throw new Error(errData.error || '결제 확인 실패')
+      }
+
+      await refreshBalance()
       setLoading(false)
+      return { success: true, message: '코인 충전이 완료되었습니다!' }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '결제 오류'
+      setError(message)
+      setLoading(false)
+      return { success: false, message }
     }
-  }, [user])
+  }, [user, refreshBalance])
 
   return { balance, transactions, loading, error, purchaseCoins, refreshBalance }
 }

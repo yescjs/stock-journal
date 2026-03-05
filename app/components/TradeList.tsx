@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Trade } from '@/app/types/trade';
 import { formatMonthLabel, formatQuantity, formatPrice, getKoreanWeekdayLabel } from '@/app/utils/format';
-import { Pencil, Trash2, ChevronDown, Calendar, ListTodo, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Pencil, Trash2, ChevronDown, Calendar, ListTodo } from 'lucide-react';
 import { Card } from '@/app/components/ui/Card';
 import { Button } from '@/app/components/ui/Button';
 
@@ -52,13 +52,6 @@ function formatPnlPercent(pct: number): string {
     return `${sign}${pct.toFixed(2)}%`;
 }
 
-// Get PnL icon
-function PnlIcon({ value, size = 12 }: { value: number; size?: number }) {
-    if (value > 0) return <TrendingUp size={size} />;
-    if (value < 0) return <TrendingDown size={size} />;
-    return <Minus size={size} />;
-}
-
 export function TradeList({
     trades,
     allTrades,
@@ -66,7 +59,6 @@ export function TradeList({
     onEdit,
     openMonths,
     toggleMonth,
-    darkMode,
     onSymbolClick,
     exchangeRate,
     showConverted,
