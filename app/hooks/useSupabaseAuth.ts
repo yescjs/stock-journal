@@ -24,11 +24,11 @@ export function useSupabaseAuth() {
                         setAuthError(null); // Clear any previous errors
                     }
                 }
-            } catch (error: any) {
+            } catch (error: unknown) {
                 console.error('Error getting session:', error);
 
                 // Enhanced JWT error handling
-                const errorMessage = error.message || '';
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
                 const isJWTError = errorMessage.includes('JWT') ||
                     errorMessage.includes('json') ||
                     errorMessage.includes('token') ||
@@ -45,7 +45,7 @@ export function useSupabaseAuth() {
                             }
                         }
                         keysToRemove.forEach(key => localStorage.removeItem(key));
-                        console.log('Cleared corrupted Supabase auth data from localStorage');
+                        // corrupted auth data cleared
                     } catch (storageError) {
                         console.error('Failed to clear localStorage:', storageError);
                     }
@@ -99,7 +99,10 @@ export function useSupabaseAuth() {
                 }
             }
             keysToRemove.forEach(key => localStorage.removeItem(key));
-            console.log('Cleared all Supabase session data from localStorage');
+
+            // Clear guest trade data to prevent data leakage across sessions
+            localStorage.removeItem('stock-journal-guest-trades-v1');
+            // session and guest data cleared
         } catch (e) {
             console.error('Failed to clear localStorage:', e);
         }

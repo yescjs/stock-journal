@@ -64,7 +64,12 @@ async function fetchKRXStocks(market: 'KOSPI' | 'KOSDAQ'): Promise<KRXStock[]> {
         const data = await response.json();
         const items = data.OutBlock_1 || [];
 
-        return items.map((item: any) => ({
+        interface KRXItem {
+            ISU_SRT_CD: string;
+            ISU_ABBRV?: string;
+            ISU_NM?: string;
+        }
+        return items.map((item: KRXItem) => ({
             symbol: `${item.ISU_SRT_CD}.${market === 'KOSPI' ? 'KS' : 'KQ'}`,
             name: item.ISU_ABBRV || item.ISU_NM || '',
             market: market,
@@ -128,14 +133,21 @@ export async function GET(request: NextRequest) {
                 });
 
                 if (response.ok) {
+                    interface YahooQuote {
+                        symbol: string;
+                        shortname?: string;
+                        longname?: string;
+                        quoteType?: string;
+                        exchange?: string;
+                    }
                     const data = await response.json();
                     return (data.quotes || [])
-                        .filter((quote: any) =>
+                        .filter((quote: YahooQuote) =>
                             quote.symbol &&
                             quote.shortname &&
                             (quote.quoteType === 'EQUITY' || quote.quoteType === 'ETF')
                         )
-                        .map((quote: any) => ({
+                        .map((quote: YahooQuote) => ({
                             symbol: quote.symbol,
                             name: quote.shortname || quote.longname || quote.symbol,
                             exchange: quote.exchange || 'N/A',
@@ -202,7 +214,7 @@ export async function GET(request: NextRequest) {
             results: results.slice(0, 20),
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Stock search API error:', error);
         return NextResponse.json(
             { results: [] },

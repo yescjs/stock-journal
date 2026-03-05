@@ -6,7 +6,7 @@ import { StockChartData, ChartPeriod } from '@/app/types/stock';
 import { Trade } from '@/app/types/trade';
 import { fetchStockChart } from '@/app/utils/stockApi';
 import { formatNumber } from '@/app/utils/format';
-import { TrendingUp, Activity } from 'lucide-react';
+import { TrendingUp, Activity, BarChart3 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ChartSkeleton } from '@/app/components/ui/ChartSkeleton';
 
@@ -16,13 +16,15 @@ interface StockChartProps {
     trades?: Trade[];
     compact?: boolean;
     onCurrentPriceLoad?: (price: number) => void;
+    period?: ChartPeriod;
+    onPeriodChange?: (period: ChartPeriod) => void;
 }
 
 const PERIOD_OPTIONS: Array<{ label: string; value: ChartPeriod }> = [
     { label: '1개월', value: '1mo' },
     { label: '3개월', value: '3mo' },
     { label: '1년', value: '1y' },
-    { label: '3년', value: '3y' as ChartPeriod },
+    { label: '3년', value: '3y' },
 ];
 
 // 이동평균 계산 함수
@@ -34,15 +36,24 @@ function calculateMA(data: StockChartData[], period: number): (number | null)[] 
     });
 }
 
-export function StockChart({ symbol, darkMode, trades = [], compact = false, onCurrentPriceLoad }: StockChartProps) {
-    const [period, setPeriod] = useState<ChartPeriod>('1y');
+export function StockChart({ symbol, darkMode, trades = [], compact = false, onCurrentPriceLoad, period: periodProp, onPeriodChange }: StockChartProps) {
+    const [internalPeriod, setInternalPeriod] = useState<ChartPeriod>(periodProp ?? '1y');
     const [chartData, setChartData] = useState<StockChartData[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [showMA, setShowMA] = useState({ ma5: true, ma20: true, ma60: true });
 
+    const period = periodProp ?? internalPeriod;
+
+    useEffect(() => {
+        if (periodProp) {
+            setInternalPeriod(periodProp);
+        }
+    }, [periodProp]);
+
     useEffect(() => {
         loadChartData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [symbol, period]);
 
     // 이동평균선과 범위 데이터, 마커가 포함된 차트 데이터
@@ -114,9 +125,9 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
                 onCurrentPriceLoad(latestPrice);
             }
 
-        } catch (err: any) {
-            // console.warn('Chart loading error:', err);
-            setError(err.message || '차트 데이터를 불러올 수 없습니다');
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : '차트 데이터를 불러올 수 없습니다';
+            setError(errorMessage);
             setChartData([]);
         } finally {
             setLoading(false);
@@ -124,8 +135,16 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
     };
 
     // Candlestick Shape using range data [low, high]
-    const Candlestick = (props: any) => {
-        const { x, y, width, height, payload } = props;
+    interface CandlestickProps {
+        x?: number;
+        y?: number;
+        width?: number;
+        height?: number;
+        payload?: StockChartData;
+    }
+
+    const Candlestick = (props: CandlestickProps) => {
+        const { x = 0, y = 0, width = 0, height = 0, payload } = props;
 
         if (!payload || payload.open == null || payload.close == null || payload.high == null || payload.low == null) {
             return null;
@@ -182,34 +201,85 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
     };
 
     // 매수/매도 마커 커스텀 셰이프
-    const TradeMarker = (props: any) => {
-        const { cx, cy, payload } = props;
+    interface TradeMarkerProps {
+        cx?: number;
+        cy?: number;
+        payload?: {
+            markerSide?: string;
+            markerPrice?: number;
+        };
+    }
+
+    const TradeMarker = (props: TradeMarkerProps) => {
+        const { cx = 0, cy = 0, payload } = props;
         if (!payload || !payload.markerSide || !payload.markerPrice) return null;
 
         const isBuy = payload.markerSide === 'BUY';
-        const color = isBuy ? '#ef4444' : '#3b82f6';  // 빨간색: 매수, 파랑: 매도
+        const color = isBuy ? '#ef4444' : '#3b82f6';  // Red: buy, Blue: sell
         const size = compact ? 6 : 8;
 
         if (isBuy) {
-            // 위쪽 삼각형 (매수)
-            const points = `${cx},${cy - size} ${cx - size},${cy + size} ${cx + size},${cy + size}`;
-            return <polygon points={points} fill={color} stroke="white" strokeWidth={1} />;
+            // Up arrow: tip at trade price (cy), body extends downward
+            const points = `${cx},${cy} ${cx - size},${cy + size * 2} ${cx + size},${cy + size * 2}`;
+            return (
+                <g>
+                    <polygon points={points} fill={color} stroke="white" strokeWidth={1} />
+                    <text
+                        x={cx}
+                        y={cy + size * 2 + 12}
+                        textAnchor="middle"
+                        fontSize={compact ? 8 : 9}
+                        fontWeight="bold"
+                        fill={color}
+                    >
+                        {formatNumber(payload.markerPrice)}
+                    </text>
+                </g>
+            );
         } else {
-            // 아래쪽 삼각형 (매도)
-            const points = `${cx},${cy + size} ${cx - size},${cy - size} ${cx + size},${cy - size}`;
-            return <polygon points={points} fill={color} stroke="white" strokeWidth={1} />;
+            // Down arrow: tip at trade price (cy), body extends upward
+            const points = `${cx},${cy} ${cx - size},${cy - size * 2} ${cx + size},${cy - size * 2}`;
+            return (
+                <g>
+                    <polygon points={points} fill={color} stroke="white" strokeWidth={1} />
+                    <text
+                        x={cx}
+                        y={cy - size * 2 - 4}
+                        textAnchor="middle"
+                        fontSize={compact ? 8 : 9}
+                        fontWeight="bold"
+                        fill={color}
+                    >
+                        {formatNumber(payload.markerPrice)}
+                    </text>
+                </g>
+            );
         }
     };
 
     // Custom Tooltip
-    const CustomTooltip = ({ active, payload }: any) => {
+    interface CustomTooltipProps {
+        active?: boolean;
+        payload?: Array<{
+            payload: StockChartData & {
+                markerSide?: string;
+                markerPrice?: number;
+                markerQty?: number;
+            };
+        }>;
+    }
+
+    const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
         if (!active || !payload || !payload[0]) return null;
 
         const data = payload[0].payload;
         const { date, open, high, low, close, markerSide, markerPrice, markerQty } = data;
 
         return (
-            <div className={`rounded-lg p-2 shadow-xl border text-[11px] ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+            <div
+                className={`rounded-lg p-2 shadow-xl border text-[11px] ${darkMode ? 'text-slate-200' : 'bg-white border-slate-200 text-slate-900'}`}
+                style={darkMode ? { backgroundColor: 'rgba(20,22,32,0.97)', borderColor: 'rgba(255,255,255,0.12)' } : undefined}
+            >
                 {/* 날짜 헤더 */}
                 <div className={`font-bold mb-1.5 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
                     {format(new Date(date), 'yyyy-MM-dd')}
@@ -236,7 +306,7 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
                 </div>
 
                 {/* 매수/매도 거래 정보 */}
-                {markerSide && (
+                {markerSide && markerPrice != null && (
                     <div className={`mt-1.5 pt-1.5 border-t ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
                         <div className={`font-bold ${markerSide === 'BUY' ? 'text-rose-500' : 'text-blue-500'}`}>
                             {markerSide === 'BUY' ? '▲ 매수' : '▼ 매도'} {formatNumber(markerPrice)}원
@@ -305,7 +375,7 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
                     <div className={`px-4 pb-4`}>
                         <div className={`rounded-xl p-4 ${darkMode ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
                             <div className={`text-[10px] font-bold uppercase tracking-wider mb-3 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                                📊 거래 기록 요약
+                                <span className="inline-flex items-center gap-1"><BarChart3 size={16} /> 거래 기록 요약</span>
                             </div>
                             <div className="grid grid-cols-3 gap-3">
                                 <div className="text-center">
@@ -388,7 +458,10 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
                     {PERIOD_OPTIONS.map((option) => (
                         <button
                             key={option.value}
-                            onClick={() => setPeriod(option.value)}
+                            onClick={() => {
+                                if (!periodProp) setInternalPeriod(option.value);
+                                if (onPeriodChange) onPeriodChange(option.value);
+                            }}
                             className={`px-2 py-1 rounded text-[10px] font-bold transition-all ${period === option.value
                                 ? 'bg-indigo-600 text-white shadow-sm'
                                 : darkMode
