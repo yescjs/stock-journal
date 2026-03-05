@@ -39,35 +39,40 @@ export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, d
 
     const displayedPrice = dynamicPrice ? dynamicPrice * activeExchangeRate : undefined;
 
-    // ... stats calculation code ...
+    // 이동평균법으로 현재 보유 포지션의 평균 단가 및 손익 계산
     const stats = useMemo(() => {
-        let totalBuyQty = 0;
-        let totalBuyAmt = 0;
-        let totalSellQty = 0;
-        let totalSellAmt = 0;
+        // 날짜순 정렬
+        const sortedTrades = [...stockTrades].sort((a, b) =>
+            new Date(a.date).getTime() - new Date(b.date).getTime()
+        );
 
-        stockTrades.forEach(t => {
+        let holdingQty = 0;
+        let holdingAmt = 0; // 보유 총 원가 (평균단가 = holdingAmt / holdingQty)
+        let realizedPnL = 0;
+
+        sortedTrades.forEach(t => {
             const price = t.price * activeExchangeRate;
-            const amt = price * t.quantity;
 
             if (t.side === 'BUY') {
-                totalBuyQty += t.quantity;
-                totalBuyAmt += amt;
+                holdingAmt += price * t.quantity;
+                holdingQty += t.quantity;
             } else {
-                totalSellQty += t.quantity;
-                totalSellAmt += amt;
+                // SELL: 현재 평균 단가 기준으로 실현 손익 계산
+                const currentAvgCost = holdingQty > 0 ? holdingAmt / holdingQty : 0;
+                realizedPnL += (price - currentAvgCost) * t.quantity;
+                // 원가 기준으로 보유 금액 차감
+                holdingAmt = Math.max(0, holdingAmt - currentAvgCost * t.quantity);
+                holdingQty -= t.quantity;
             }
         });
 
-        const positionQty = totalBuyQty - totalSellQty;
-        const avgCost = totalBuyQty > 0 ? totalBuyAmt / totalBuyQty : 0;
-        const avgSellPrice = totalSellQty > 0 ? totalSellAmt / totalSellQty : 0;
-        const realizedPnL = totalSellQty * (avgSellPrice - avgCost);
+        const positionQty = holdingQty;
+        const avgCost = holdingQty > 0 ? holdingAmt / holdingQty : 0;
 
-        // Unrealized PnL: (Current Price - Avg Cost) * Held Qty
-        // displayedPrice is the converted current price
-        const currentVal = displayedPrice || avgCost;
-        const unrealizedPnL = positionQty * (currentVal - avgCost);
+        // 평가 손익: 현재가 기준 (현재가 없으면 0 표시)
+        const unrealizedPnL = displayedPrice && positionQty > 0
+            ? positionQty * (displayedPrice - avgCost)
+            : 0;
 
         return {
             positionQty,
