@@ -44,10 +44,14 @@ export function matchRoundTrips(trades: Trade[]): RoundTrip[] {
   const roundTrips: RoundTrip[] = [];
 
   for (const [symbol, symbolTrades] of bySymbol) {
-    // Sort by date ascending for FIFO
-    const sorted = [...symbolTrades].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
+    // Sort by date ascending for FIFO; same date → BUY before SELL
+    const sorted = [...symbolTrades].sort((a, b) => {
+      const timeDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
+      if (timeDiff !== 0) return timeDiff;
+      if (a.side === 'BUY' && b.side === 'SELL') return -1;
+      if (a.side === 'SELL' && b.side === 'BUY') return 1;
+      return 0;
+    });
 
     // Queue of unmatched buys: { price, remainingQty, date, emotionTag, strategyName }
     const buyQueue: {

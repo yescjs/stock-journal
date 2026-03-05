@@ -45,7 +45,7 @@ export function useSupabaseAuth() {
                             }
                         }
                         keysToRemove.forEach(key => localStorage.removeItem(key));
-                        console.log('Cleared corrupted Supabase auth data from localStorage');
+                        // corrupted auth data cleared
                     } catch (storageError) {
                         console.error('Failed to clear localStorage:', storageError);
                     }
@@ -102,7 +102,7 @@ export function useSupabaseAuth() {
 
             // Clear guest trade data to prevent data leakage across sessions
             localStorage.removeItem('stock-journal-guest-trades-v1');
-            console.log('Cleared all Supabase session and guest trade data from localStorage');
+            // session and guest data cleared
         } catch (e) {
             console.error('Failed to clear localStorage:', e);
         }

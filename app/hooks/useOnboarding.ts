@@ -9,7 +9,6 @@ const GUEST_ONBOARDING_KEY = 'stock-journal-guest-onboarding-v1';
 export interface OnboardingSteps {
   firstTrade: boolean;
   buySellCycle: boolean;
-  emotionTag: boolean;
   visitAnalysis: boolean;
   aiReport: boolean;
 }
@@ -23,7 +22,6 @@ interface OnboardingData {
 const DEFAULT_STEPS: OnboardingSteps = {
   firstTrade: false,
   buySellCycle: false,
-  emotionTag: false,
   visitAnalysis: false,
   aiReport: false,
 };
@@ -33,6 +31,17 @@ const DEFAULT_ONBOARDING: OnboardingData = {
   completedAt: null,
   dismissed: false,
 };
+
+const VALID_KEYS = Object.keys(DEFAULT_STEPS) as (keyof OnboardingSteps)[];
+
+/** 유효한 키만 남기고 나머지 제거 (마이그레이션 호환) */
+function sanitizeSteps(raw: Record<string, boolean>): OnboardingSteps {
+  const result = { ...DEFAULT_STEPS };
+  for (const key of VALID_KEYS) {
+    if (key in raw) result[key] = raw[key];
+  }
+  return result;
+}
 
 export function useOnboarding(user: User | null) {
   const [data, setData] = useState<OnboardingData>(DEFAULT_ONBOARDING);
@@ -59,7 +68,7 @@ export function useOnboarding(user: User | null) {
 
           if (mounted && row) {
             setData({
-              steps: { ...DEFAULT_STEPS, ...(row.steps as Partial<OnboardingSteps>) },
+              steps: sanitizeSteps(row.steps as Record<string, boolean>),
               completedAt: row.completed_at,
               dismissed: false,
             });
@@ -67,7 +76,11 @@ export function useOnboarding(user: User | null) {
         } else {
           const stored = localStorage.getItem(GUEST_ONBOARDING_KEY);
           if (stored && mounted) {
-            setData(JSON.parse(stored));
+            const parsed = JSON.parse(stored) as OnboardingData;
+            setData({
+              ...parsed,
+              steps: sanitizeSteps(parsed.steps as unknown as Record<string, boolean>),
+            });
           }
         }
       } catch (err) {
@@ -126,7 +139,7 @@ export function useOnboarding(user: User | null) {
   const completedCount = Object.values(data.steps).filter(Boolean).length;
   const totalSteps = Object.keys(data.steps).length;
   const isComplete = data.completedAt !== null;
-  const isVisible = !data.dismissed && !isComplete;
+  const isVisible = !loading && !data.dismissed && !isComplete;
 
   return {
     steps: data.steps,

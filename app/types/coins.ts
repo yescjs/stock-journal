@@ -18,7 +18,7 @@ export interface PaymentOrder {
   amount: number
   coins: number
   status: 'pending' | 'completed' | 'failed'
-  toss_payment_key: string | null
+  portone_payment_id: string | null
   created_at: string
 }
 
@@ -28,5 +28,7 @@ export const COIN_COSTS = {
 } as const
 
 export const COIN_PACKAGES = [
-  { coins: 30, price: 3000, label: '30코인', description: '3,000원' },
+  { coins: 10, price: 1000, label: '10코인', description: '1,000원', badge: null },
+  { coins: 30, price: 3000, label: '30코인', description: '3,000원', badge: '인기' },
+  { coins: 100, price: 9000, label: '100코인', description: '9,000원 (10% 할인)', badge: '할인' },
 ] as const

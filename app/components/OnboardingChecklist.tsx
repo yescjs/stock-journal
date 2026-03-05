@@ -10,12 +10,12 @@ interface OnboardingChecklistProps {
   totalSteps: number;
   isVisible: boolean;
   onDismiss: () => void;
+  onStepClick?: (step: keyof OnboardingSteps) => void;
 }
 
 const STEP_CONFIG: { key: keyof OnboardingSteps; label: string; description: string }[] = [
   { key: 'firstTrade', label: '첫 매매 기록하기', description: '매수 또는 매도 거래를 1건 기록해보세요' },
   { key: 'buySellCycle', label: '매수→매도 한 사이클 완성', description: '같은 종목을 매수하고 매도해보세요' },
-  { key: 'emotionTag', label: '감정 태그 기록하기', description: '거래 시 느낀 감정을 태그로 남겨보세요' },
   { key: 'visitAnalysis', label: '주간 분석 확인하기', description: '분석 탭에서 매매 통계를 확인해보세요' },
   { key: 'aiReport', label: 'AI 리포트 받아보기', description: 'AI가 분석한 매매 리포트를 확인해보세요' },
 ];
@@ -26,6 +26,7 @@ export function OnboardingChecklist({
   totalSteps,
   isVisible,
   onDismiss,
+  onStepClick,
 }: OnboardingChecklistProps) {
   const progressPct = (completedCount / totalSteps) * 100;
 
@@ -49,6 +50,7 @@ export function OnboardingChecklist({
                 </p>
               </div>
               <button
+                data-testid="dismiss-onboarding"
                 onClick={onDismiss}
                 className="rounded-lg p-1.5 text-white/30 transition-colors hover:bg-white/5 hover:text-white/50"
               >
@@ -70,11 +72,16 @@ export function OnboardingChecklist({
             <div className="space-y-1">
               {STEP_CONFIG.map(({ key, label, description }) => {
                 const done = steps[key];
+                const clickable = !done && onStepClick;
                 return (
                   <div
                     key={key}
+                    role={clickable ? 'button' : undefined}
+                    tabIndex={clickable ? 0 : undefined}
+                    onClick={clickable ? () => onStepClick(key) : undefined}
+                    onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onStepClick(key); } } : undefined}
                     className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${
-                      done ? 'opacity-50' : 'hover:bg-white/3'
+                      done ? 'opacity-50' : 'hover:bg-white/5 cursor-pointer active:bg-white/8'
                     }`}
                   >
                     <div

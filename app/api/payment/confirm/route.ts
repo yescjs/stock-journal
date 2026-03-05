@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { paymentKey, orderId, amount } = await request.json()
+  const { paymentId, orderId } = await request.json()
   const token = request.headers.get('Authorization')!.replace('Bearer ', '')
   const supabase = createAuthedClient(token)
 
@@ -24,41 +24,68 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Order not found' }, { status: 404 })
   }
 
-  // 2. 금액 검증 (클라이언트 위변조 방지)
-  if (order.amount !== amount) {
-    return NextResponse.json({ error: 'Amount mismatch' }, { status: 400 })
+  // 2. 포트원 API로 결제 검증
+  const apiSecret = process.env.PORTONE_API_SECRET
+  if (!apiSecret) {
+    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
   }
 
-  // 3. Toss API 결제 승인
-  const secretKey = process.env.TOSS_SECRET_KEY!
-  const encodedKey = Buffer.from(`${secretKey}:`).toString('base64')
-
-  const tossResponse = await fetch('https://api.tosspayments.com/v1/payments/confirm', {
-    method: 'POST',
+  const portoneResponse = await fetch(`https://api.portone.io/payments/${encodeURIComponent(paymentId)}`, {
+    method: 'GET',
     headers: {
-      Authorization: `Basic ${encodedKey}`,
-      'Content-Type': 'application/json',
+      Authorization: `PortOne ${apiSecret}`,
     },
-    body: JSON.stringify({ paymentKey, orderId, amount }),
   })
 
-  if (!tossResponse.ok) {
-    const tossError = await tossResponse.json()
+  if (!portoneResponse.ok) {
+    const responseText = await portoneResponse.text()
+    let portoneError: Record<string, unknown> = {}
+    try {
+      portoneError = JSON.parse(responseText)
+    } catch {
+      // non-JSON response
+    }
+
+    console.error('[Payment Confirm] PortOne API error:', {
+      status: portoneResponse.status,
+      body: responseText.slice(0, 500),
+      paymentId,
+    })
+
     await supabase
       .from('payment_orders')
       .update({ status: 'failed' })
       .eq('order_id', orderId)
-    return NextResponse.json({ error: tossError.message }, { status: 400 })
+
+    const message = (portoneError.message as string) || `PortOne API error (${portoneResponse.status})`
+    return NextResponse.json({ error: message, portoneStatus: portoneResponse.status }, { status: 400 })
   }
 
-  const tossData = await tossResponse.json()
+  const portoneData = await portoneResponse.json()
+
+  // 3. 결제 상태 및 금액 검증
+  if (portoneData.status !== 'PAID') {
+    await supabase
+      .from('payment_orders')
+      .update({ status: 'failed' })
+      .eq('order_id', orderId)
+    return NextResponse.json({ error: 'Payment not completed' }, { status: 400 })
+  }
+
+  if (portoneData.amount.total !== order.amount) {
+    await supabase
+      .from('payment_orders')
+      .update({ status: 'failed' })
+      .eq('order_id', orderId)
+    return NextResponse.json({ error: 'Amount mismatch' }, { status: 400 })
+  }
 
   // 4. 결제 완료 + 코인 충전 (RPC 호출)
   const { error: rpcError } = await supabase.rpc('add_coins', {
     p_user_id: user.id,
     p_amount: order.coins,
     p_type: 'purchase',
-    p_ref_type: 'toss_payment',
+    p_ref_type: 'portone_payment',
     p_ref_id: orderId,
   })
 
@@ -68,7 +95,7 @@ export async function POST(request: NextRequest) {
 
   await supabase
     .from('payment_orders')
-    .update({ status: 'completed', toss_payment_key: tossData.paymentKey })
+    .update({ status: 'completed', toss_payment_key: paymentId })
     .eq('order_id', orderId)
 
   return NextResponse.json({ success: true, coins: order.coins })

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, LineChart } from 'lucide-react';
@@ -27,6 +27,7 @@ import { TradeListView } from '@/app/components/views/TradeListView';
 import { CoinBalance } from '@/app/components/CoinBalance';
 import { CoinShopModal } from '@/app/components/CoinShopModal';
 import { ImportModal } from '@/app/components/ImportModal';
+import { Footer } from '@/app/components/Footer';
 
 // Icons
 import { BarChart3, AlertTriangle, LogOut, UserCheck } from 'lucide-react';
@@ -52,6 +53,15 @@ export default function TradePage() {
     // --- Streak & Onboarding ---
     const { streak, loading: streakLoading, recordToday } = useStreak(currentUser);
     const onboarding = useOnboarding(currentUser);
+
+    // 페이지 진입 시 스트릭 자동 기록 (거래 추가 여부와 무관하게 접속일 카운트)
+    const streakRecordedRef = useRef(false);
+    useEffect(() => {
+        if (!streakLoading && !streakRecordedRef.current) {
+            streakRecordedRef.current = true;
+            recordToday();
+        }
+    }, [streakLoading, recordToday]);
 
     // --- Currency Toggle ---
     const [showConverted, setShowConverted] = useState(false);
@@ -101,6 +111,18 @@ export default function TradePage() {
             showNotify('success', '기록이 저장되었습니다.');
             recordToday();
             onboarding.completeStep('firstTrade');
+
+            // buySellCycle 체크: 같은 종목에 BUY+SELL이 모두 존재하는지
+            if (!onboarding.steps.buySellCycle) {
+                const symbol = data.symbol;
+                const sides = new Set(
+                    trades.filter(t => t.symbol === symbol).map(t => t.side)
+                );
+                sides.add(data.side);
+                if (sides.has('BUY') && sides.has('SELL')) {
+                    onboarding.completeStep('buySellCycle');
+                }
+            }
         } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : '알 수 없는 오류';
             alert(`저장 실패: ${msg}`);
@@ -241,11 +263,16 @@ export default function TradePage() {
                                 onboardingTotalSteps={onboarding.totalSteps}
                                 onboardingVisible={onboarding.isVisible}
                                 onDismissOnboarding={onboarding.dismiss}
+                                onCompleteOnboardingStep={onboarding.completeStep}
+                                onOpenAddTrade={() => setShowAddModal(true)}
                             />
                         </motion.div>
                     </AnimatePresence>
                 </div>
             </div>
+
+            {/* Footer */}
+            <Footer />
 
             {/* Mobile FAB — Add Trade */}
             <button
@@ -307,13 +334,14 @@ export default function TradePage() {
                 isOpen={showCoinShop}
                 onClose={() => setShowCoinShop(false)}
                 balance={coinBalance}
-                onPurchase={async (idx) => {
+                user={currentUser}
+                onPurchase={async (idx, customer) => {
                     if (!currentUser) {
                         setShowCoinShop(false);
                         setShowLoginModal(true);
                         return;
                     }
-                    const result = await purchaseCoins(idx);
+                    const result = await purchaseCoins(idx, customer);
                     if (result.success) {
                         showNotify('success', result.message);
                         setShowCoinShop(false);

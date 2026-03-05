@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { useTheme } from "next-themes";
 
@@ -132,12 +132,10 @@ export function FinancialTable({
 }: FinancialTableProps = {}) {
     const indices = initialIndices;
     const [selectedIndex, setSelectedIndex] = useState<string | null>("1");
-    const [mounted, setMounted] = useState(false);
+    const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
     const shouldReduceMotion = useReducedMotion();
     const { resolvedTheme } = useTheme();
     const isDark = resolvedTheme === "dark";
-
-    useEffect(() => { setMounted(true); }, []);
 
     const handleIndexSelect = (indexId: string) => {
         setSelectedIndex(indexId);

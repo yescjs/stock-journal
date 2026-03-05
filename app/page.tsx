@@ -57,7 +57,7 @@ export default function Home() {
         <>
             <LandingPage
                 onStart={() => setShowLoginModal(true)}
-                onStartAsGuest={() => router.push('/trade')}
+                onStartAsGuest={() => router.replace('/trade')}
                 darkMode={true}
             />
             {showLoginModal && (
@@ -80,7 +80,7 @@ export default function Home() {
                         <LoginForm onDone={() => setShowLoginModal(false)} />
                         <div className="mt-4 text-center">
                             <button
-                                onClick={() => { setShowLoginModal(false); router.push('/trade'); }}
+                                onClick={() => { setShowLoginModal(false); router.replace('/trade'); }}
                                 className="text-sm font-medium text-white/40 hover:text-white transition-colors"
                             >
                                 로그인 없이 게스트로 시작하기

@@ -318,7 +318,7 @@ async function callGeminiAPI(systemPrompt: string, userPrompt: string): Promise<
           break;
         }
 
-        console.log(`✅ Gemini 응답 성공: ${model} (attempt ${attempt + 1})`);
+        // Gemini response success
         return text;
       } catch (err) {
         lastError = err instanceof Error ? err : new Error(String(err));

@@ -25,7 +25,7 @@ interface UseAIAnalysisReturn {
   loadingWeekly: boolean;
   loadingReview: string | null; // currently reviewing trade key
   error: string | null;
-  generateWeeklyReport: (analysis: TradeAnalysis, username?: string) => Promise<void>;
+  generateWeeklyReport: (analysis: TradeAnalysis, username?: string, onSuccess?: () => void) => Promise<void>;
   reviewTrade: (roundTrip: RoundTrip) => Promise<void>;
   clearWeeklyReport: () => void;
   // 저장된 리포트 관련
@@ -126,7 +126,8 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
   // 주간 코치 리포트 생성
   const generateWeeklyReport = useCallback(async (
     analysis: TradeAnalysis,
-    username?: string
+    username?: string,
+    onSuccess?: () => void
   ) => {
     setLoadingWeekly(true);
     setError(null);
@@ -159,6 +160,7 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
 
       const data: AIReportResult = await res.json();
       setWeeklyReport(data);
+      onSuccess?.();
       onCoinsConsumed?.();
 
       // 자동 저장
@@ -174,7 +176,7 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
     } finally {
       setLoadingWeekly(false);
     }
-  }, [saveReportToDB]);
+  }, [saveReportToDB, onCoinsConsumed]);
 
   // 개별 거래 리뷰
   const reviewTrade = useCallback(async (roundTrip: RoundTrip) => {
@@ -224,7 +226,7 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
     } finally {
       setLoadingReview(null);
     }
-  }, [saveReportToDB]);
+  }, [saveReportToDB, onCoinsConsumed]);
 
   const clearWeeklyReport = useCallback(() => setWeeklyReport(null), []);
 

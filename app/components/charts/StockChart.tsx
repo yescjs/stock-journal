@@ -53,6 +53,7 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
 
     useEffect(() => {
         loadChartData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [symbol, period]);
 
     // 이동평균선과 범위 데이터, 마커가 포함된 차트 데이터

@@ -16,7 +16,7 @@ interface SymbolDetailCardProps {
     showConverted: boolean;
 }
 
-export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, onClose, darkMode, exchangeRate, showConverted }: SymbolDetailCardProps) {
+export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, darkMode, exchangeRate, showConverted }: SymbolDetailCardProps) {
     const [dynamicPrice, setDynamicPrice] = useState<number | undefined>(initialPrice);
     const [openMonths, setOpenMonths] = useState<Record<string, boolean>>({});
     const [analysisPeriod, setAnalysisPeriod] = useState<ChartPeriod>('1y');
@@ -47,9 +47,6 @@ export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, o
         let totalSellAmt = 0;
 
         stockTrades.forEach(t => {
-            const dateStr = t.date; // or use timestamp if available, but assuming daily rate isn't per-transaction here for simplicity, or we use current rate for simplicity in this view
-            // For PnL calculation in summary, we usually use the current active exchange rate for consistency with "Current Value"
-
             const price = t.price * activeExchangeRate;
             const amt = price * t.quantity;
 

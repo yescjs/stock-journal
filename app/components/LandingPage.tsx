@@ -5,14 +5,19 @@ import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion'
 import {
     ArrowRight, LineChart, BookOpen, Shield, Zap,
     CheckCircle, ChevronDown, ChevronUp, BarChart2,
-    Clock, Target, AlertCircle
+    Clock, Target, AlertCircle, Bot, Sparkles
 } from 'lucide-react';
 import { FinancialTable, type MarketIndex } from '@/app/components/ui/financial-markets-table';
+import { Footer } from '@/app/components/Footer';
 
 interface LandingPageProps {
     onStart: () => void;
     onStartAsGuest: () => void;
     darkMode?: boolean;
+}
+
+function SectionLabel({ text }: { text: string }) {
+    return <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-blue-400/70 mb-3">{text}</p>;
 }
 
 // ─── 데이터 ───────────────────────────────────────────────────────────────
@@ -34,11 +39,11 @@ const PAIN_POINTS = [
 
 const BENEFITS = [
     { icon: BookOpen, color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20', title: '30초 기록', desc: '날짜·종목·가격·수량만 입력하면 끝. 메모와 태그로 컨텍스트 보완.' },
-    { icon: LineChart, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', title: '패턴 발견', desc: '월별·종목별 분류로 반복 실수를 한눈에 파악. 승률 자동 계산.' },
+    { icon: Bot, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', title: 'AI 투자 코칭', desc: 'AI가 매매 패턴을 분석하고 개선점을 코칭. 주간 리포트와 거래별 리뷰 제공.' },
     { icon: BarChart2, color: 'text-violet-400', bg: 'bg-violet-500/10', border: 'border-violet-500/20', title: '차트 즉시 확인', desc: '종목 클릭 한 번으로 캔들차트와 실현/미실현 손익 즉시 확인.' },
     { icon: Shield, color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20', title: '클라우드 동기화', desc: 'Supabase 기반 실시간 동기화. 어디서든 접근, 데이터 유실 없음.' },
     { icon: Zap, color: 'text-rose-400', bg: 'bg-rose-500/10', border: 'border-rose-500/20', title: '게스트 시작', desc: '회원가입 없이 즉시 시작. 준비되면 계정 연결로 데이터 유지.' },
-    { icon: Target, color: 'text-sky-400', bg: 'bg-sky-500/10', border: 'border-sky-500/20', title: '캘린더 뷰', desc: '달력 형태로 매매 흐름 조회. 특정 날짜의 매매를 직관적으로 파악.' },
+    { icon: Target, color: 'text-sky-400', bg: 'bg-sky-500/10', border: 'border-sky-500/20', title: '패턴 · 캘린더', desc: '캘린더 뷰와 종목별 분류로 매매 흐름과 반복 실수를 한눈에 파악.' },
 ];
 
 const TESTIMONIALS = [
@@ -52,6 +57,7 @@ const FAQS = [
     { q: '데이터는 안전한가요?', a: 'Supabase(PostgreSQL 기반) 클라우드에 암호화 저장됩니다. Google OAuth 로그인을 지원하여 별도 비밀번호 없이도 안전하게 이용할 수 있습니다.' },
     { q: '게스트 모드와 계정 로그인의 차이는?', a: '게스트 모드는 브라우저(localStorage)에만 저장되어 기기 변경 시 데이터가 유지되지 않습니다. 계정을 연결하면 클라우드에 동기화되어 어디서든 접근 가능합니다.' },
     { q: '미국 주식과 한국 주식 모두 기록 가능한가요?', a: '네, 모든 종목을 티커 심볼로 기록할 수 있습니다. KOSPI/KOSDAQ/US 종목 모두 지원하며, USD→KRW 환율 변환 기능도 제공합니다.' },
+    { q: 'AI 분석은 어떻게 작동하나요?', a: 'Google Gemini AI가 여러분의 매매 데이터를 분석합니다. 주간 리포트로 한 주간의 매매 패턴과 개선점을 요약하고, 거래별 리뷰로 개별 매매에 대한 피드백을 제공합니다. 코인을 사용하여 이용할 수 있습니다.' },
 ];
 
 function ScrollIn({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) {
@@ -91,10 +97,6 @@ export function LandingPage({ onStart, onStartAsGuest }: LandingPageProps) {
         return () => clearInterval(iv);
     }, []);
 
-    const SectionLabel = ({ text }: { text: string }) => (
-        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-blue-400/70 mb-3">{text}</p>
-    );
-
     return (
         <div ref={ref} className="min-h-screen w-full bg-[#070a12] text-white overflow-x-hidden font-sans">
 
@@ -130,7 +132,7 @@ export function LandingPage({ onStart, onStartAsGuest }: LandingPageProps) {
                     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
                         className="inline-flex items-center gap-2 mb-7 px-4 py-1.5 rounded-full border border-white/10 bg-white/4 backdrop-blur-sm text-[11px] font-bold text-white/50 uppercase tracking-[0.12em]">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                        매매 일지 · 차트 분석 · 클라우드 동기화 · 무료
+                        매매 일지 · AI 투자 코칭 · 차트 분석 · 클라우드 동기화
                     </motion.div>
 
                     <motion.h1 initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, delay: 0.08 }}
@@ -141,8 +143,8 @@ export function LandingPage({ onStart, onStartAsGuest }: LandingPageProps) {
 
                     <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.16 }}
                         className="text-base md:text-lg text-white/40 font-medium mb-9 text-center leading-relaxed max-w-lg">
-                        매매 일지를 30초만 쓰세요. StockJournal이 패턴을 분석하고,<br className="hidden md:block" />
-                        같은 실수를 반복하지 않도록 도와드립니다.
+                        매매 일지를 30초만 쓰세요. AI가 투자 패턴을 분석하고,<br className="hidden md:block" />
+                        같은 실수를 반복하지 않도록 코칭합니다.
                     </motion.p>
 
                     <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.24 }}
@@ -254,6 +256,70 @@ export function LandingPage({ onStart, onStartAsGuest }: LandingPageProps) {
                                 <span className="text-base font-black text-emerald-400">+43,000원</span>
                             </div>
                         </div>
+                    </ScrollIn>
+                </div>
+            </section>
+
+            {/* ═══════════════════════════════════ 3.5 AI ANALYSIS */}
+            <section className="relative z-10 w-full py-24 px-6 md:px-10 border-t border-white/5">
+                <div className="max-w-6xl mx-auto flex flex-col xl:flex-row items-center gap-12 xl:gap-20">
+                    {/* 좌: AI 리포트 목업 */}
+                    <ScrollIn delay={0.1} className="xl:flex-1 w-full">
+                        <div className="rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl overflow-hidden shadow-2xl">
+                            <div className="px-5 py-4 border-b border-white/8 flex items-center gap-2.5">
+                                <div className="w-7 h-7 rounded-lg bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center">
+                                    <Bot size={14} className="text-emerald-400" />
+                                </div>
+                                <span className="text-sm font-bold text-white/70">AI 주간 리포트</span>
+                                <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-bold text-violet-400 bg-violet-500/10 border border-violet-500/20 px-2 py-0.5 rounded-full">
+                                    <Sparkles size={10} /> AI 분석
+                                </span>
+                            </div>
+                            <div className="px-5 py-4 space-y-3">
+                                <div className="p-3 rounded-xl bg-white/4 border border-white/6">
+                                    <p className="text-[11px] font-bold text-emerald-400 mb-1">강점 발견</p>
+                                    <p className="text-xs text-white/50 leading-relaxed">삼성전자 단기 매매에서 일관된 손절 기준을 유지하고 있습니다. 평균 보유 기간 2.3일로 계획적 매매가 돋보입니다.</p>
+                                </div>
+                                <div className="p-3 rounded-xl bg-white/4 border border-white/6">
+                                    <p className="text-[11px] font-bold text-amber-400 mb-1">개선 포인트</p>
+                                    <p className="text-xs text-white/50 leading-relaxed">NVDA 포지션에서 수익 구간 매도가 늦어지는 패턴이 반복됩니다. 목표가 도달 시 분할 매도를 고려해보세요.</p>
+                                </div>
+                                <div className="p-3 rounded-xl bg-white/4 border border-white/6">
+                                    <p className="text-[11px] font-bold text-blue-400 mb-1">이번 주 요약</p>
+                                    <p className="text-xs text-white/50 leading-relaxed">총 8건 거래 · 승률 62.5% · 실현 손익 +127,400원</p>
+                                </div>
+                            </div>
+                        </div>
+                    </ScrollIn>
+
+                    {/* 우: 설명 */}
+                    <ScrollIn className="xl:flex-1 text-center xl:text-left">
+                        <SectionLabel text="AI Analysis" />
+                        <h2 className="text-3xl md:text-4xl xl:text-5xl font-extrabold tracking-tight mb-6 leading-tight">
+                            AI가 매매를<br />
+                            <span className="bg-gradient-to-r from-emerald-400 to-sky-400 bg-clip-text text-transparent">코칭합니다.</span>
+                        </h2>
+                        <p className="text-white/45 text-base leading-relaxed mb-8 max-w-lg mx-auto xl:mx-0">
+                            Google Gemini AI가 여러분의 매매 데이터를 분석하여 강점과 약점을 짚어줍니다. 스스로 발견하기 어려운 패턴까지 놓치지 않습니다.
+                        </p>
+                        <ul className="space-y-3 mb-8 text-left max-w-lg mx-auto xl:mx-0">
+                            {[
+                                { title: '주간 리포트', desc: '한 주간의 매매를 종합 분석하여 개선 방향 제시' },
+                                { title: '거래별 리뷰', desc: '개별 매매의 진입·청산 타이밍과 전략 피드백' },
+                                { title: '코인으로 이용', desc: '무료 코인으로 AI 분석 기능 활용 가능' },
+                            ].map((item) => (
+                                <li key={item.title} className="flex items-start gap-3">
+                                    <CheckCircle size={16} className="text-emerald-400 mt-0.5 flex-shrink-0" />
+                                    <div>
+                                        <span className="text-sm font-bold text-white/80">{item.title}</span>
+                                        <span className="text-sm text-white/40 ml-1.5">— {item.desc}</span>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                        <button onClick={onStart} className="group inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm md:text-base transition-all shadow-2xl shadow-emerald-600/25 active:scale-[0.97]">
+                            AI 코칭 받아보기 <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
+                        </button>
                     </ScrollIn>
                 </div>
             </section>
@@ -393,11 +459,9 @@ export function LandingPage({ onStart, onStartAsGuest }: LandingPageProps) {
             </section>
 
             {/* ═══════════════════════════════════ FOOTER */}
-            <footer className="relative z-10 w-full border-t border-white/5 py-8 text-center">
-                <div className="max-w-6xl mx-auto px-6 md:px-10">
-                <p className="text-[11px] text-white/18">© {new Date().getFullYear()} StockJournal · 투자 권유 아님 · 시뮬레이션 데이터 포함</p>
-                </div>
-            </footer>
+            <div className="relative z-10">
+                <Footer />
+            </div>
         </div>
     );
 }

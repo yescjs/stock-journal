@@ -42,6 +42,7 @@ export function StockSymbolInput({
         } else if (value && !query) {
             setQuery(value);
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initialDisplayName, value]);
 
     // Search API call - combines local Korean search + Yahoo Finance API
@@ -104,6 +105,7 @@ export function StockSymbolInput({
         };
 
         searchStocks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [debouncedQuery, isSelected]);
 
     // Click outside to close
@@ -167,6 +169,7 @@ export function StockSymbolInput({
         if (value && !query) {
             setQuery(value);
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [value]);
 
     return (
@@ -195,6 +198,7 @@ export function StockSymbolInput({
                         ? (disabled ? 'bg-slate-800/50 text-slate-500 border-slate-700/50' : 'bg-slate-800/40 text-white placeholder-slate-500 border-slate-700/50 focus:bg-slate-800 focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20')
                         : (disabled ? 'bg-slate-100 text-slate-500 border-slate-200' : 'bg-white/50 text-slate-900 placeholder-slate-400 border-indigo-50/50 focus:bg-white focus:border-indigo-200 focus:ring-2 focus:ring-indigo-100 shadow-sm')
                         }`}
+                    role="combobox"
                     aria-label="종목 검색"
                     aria-autocomplete="list"
                     aria-controls="stock-search-results"

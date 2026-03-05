@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Trade } from '@/app/types/trade';
 import { User } from '@supabase/supabase-js';
 import { TradeList } from '@/app/components/TradeList';
@@ -45,6 +45,8 @@ interface TradeListViewProps {
   onboardingTotalSteps: number;
   onboardingVisible: boolean;
   onDismissOnboarding: () => void;
+  onCompleteOnboardingStep?: (step: keyof OnboardingSteps) => void;
+  onOpenAddTrade?: () => void;
 }
 
 // ─── Smart Empty State ───────────────────────────────────────────────────
@@ -181,9 +183,33 @@ export function TradeListView({
   onboardingTotalSteps,
   onboardingVisible,
   onDismissOnboarding,
+  onCompleteOnboardingStep,
+  onOpenAddTrade,
 }: TradeListViewProps) {
   const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'analysis'>('list');
   const [calendarDate, setCalendarDate] = useState(new Date());
+  const [analysisInitialTab, setAnalysisInitialTab] = useState<'performance' | 'charts' | 'ai' | 'trades' | undefined>();
+
+  const switchToAnalysis = useCallback(() => {
+    setViewMode('analysis');
+    onCompleteOnboardingStep?.('visitAnalysis');
+  }, [onCompleteOnboardingStep]);
+
+  const handleOnboardingStepClick = useCallback((step: keyof OnboardingSteps) => {
+    switch (step) {
+      case 'firstTrade':
+      case 'buySellCycle':
+        onOpenAddTrade?.();
+        break;
+      case 'visitAnalysis':
+        switchToAnalysis();
+        break;
+      case 'aiReport':
+        setAnalysisInitialTab('ai');
+        switchToAnalysis();
+        break;
+    }
+  }, [onOpenAddTrade, switchToAnalysis]);
 
   // Trade analysis engine
   const { analysis } = useTradeAnalysis(trades, currentUser);
@@ -417,6 +443,7 @@ export function TradeListView({
         totalSteps={onboardingTotalSteps}
         isVisible={onboardingVisible}
         onDismiss={onDismissOnboarding}
+        onStepClick={handleOnboardingStepClick}
       />
 
       {/* Portfolio Summary Cards */}
@@ -596,7 +623,7 @@ export function TradeListView({
               <span className="hidden sm:inline">캘린더</span>
             </button>
             <button
-              onClick={() => setViewMode('analysis')}
+              onClick={switchToAnalysis}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${viewMode === 'analysis'
                 ? 'bg-white/10 text-white shadow-md'
                 : 'text-white/30 hover:text-white/60'
@@ -653,6 +680,8 @@ export function TradeListView({
                 exchangeRate={exchangeRate}
                 onChargeCoins={onChargeCoins}
                 onCoinsConsumed={onCoinsConsumed}
+                onCompleteAIReportStep={() => onCompleteOnboardingStep?.('aiReport')}
+                initialTab={analysisInitialTab}
               />
             ) : viewMode === 'calendar' ? (
               <div className="rounded-2xl p-6 border border-white/8 bg-white/3">

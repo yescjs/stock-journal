@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Calculator, TrendingUp, AlertTriangle, Coins } from 'lucide-react';
+import { Calculator, AlertTriangle, Coins } from 'lucide-react';
 
 type CalcMode = 'forward' | 'reverse';
 
