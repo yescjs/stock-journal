@@ -1,67 +1,87 @@
 import React, { useMemo } from 'react';
 import { Trade } from '@/app/types/trade';
-import { User } from '@supabase/supabase-js';
-import { formatMonthLabel, formatNumber, formatQuantity, formatPrice, getCurrencySymbol, getKoreanWeekdayLabel } from '@/app/utils/format';
-import { EMOTION_TAG_LABELS, EMOTION_TAG_COLORS } from '@/app/types/strategies';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { Pencil, Trash2, Camera, ChevronDown, Zap, Calendar, TrendingUp, TrendingDown, Clock, Hash, Share2, Check } from 'lucide-react';
+import { formatMonthLabel, formatQuantity, formatPrice, getKoreanWeekdayLabel } from '@/app/utils/format';
+import { Pencil, Trash2, ChevronDown, Calendar, ListTodo } from 'lucide-react';
+import { Card } from '@/app/components/ui/Card';
+import { Button } from '@/app/components/ui/Button';
 
 
 interface TradeListProps {
     trades: Trade[];
-    currentUser: User | null;
+    allTrades?: Trade[];  // All trades for calculating avg buy price (used for SELL realized P&L)
     onDelete?: (id: string) => void;
     onEdit?: (trade: Trade) => void;
     openMonths: Record<string, boolean>;
     toggleMonth: (key: string) => void;
     darkMode: boolean;
-    tagColors?: Record<string, string>;
     onSymbolClick?: (symbol: string) => void;
-    onImagePreview?: (imageUrl: string) => void;
     exchangeRate: number;
     showConverted: boolean;
+    currentPrices?: Record<string, number>;
+    heldSymbols?: Set<string>;
+}
+
+// Calculate profit/loss percentage
+function calcPnlPercent(entryPrice: number, currentPrice: number): number {
+    if (entryPrice <= 0) return 0;
+    return ((currentPrice - entryPrice) / entryPrice) * 100;
+}
+
+// Calculate profit/loss amount
+function calcPnlAmount(entryPrice: number, currentPrice: number, quantity: number): number {
+    return (currentPrice - entryPrice) * quantity;
+}
+
+// Get PnL color class (green = profit, red = loss)
+function getPnlColorClass(value: number): string {
+    if (value > 0) return 'text-emerald-400';
+    if (value < 0) return 'text-red-400';
+    return 'text-muted-foreground';
+}
+
+// Get PnL background class for badges (green = profit, red = loss)
+function getPnlBgClass(value: number): string {
+    if (value > 0) return 'bg-emerald-500/10';
+    if (value < 0) return 'bg-red-500/10';
+    return 'bg-muted';
+}
+
+// Format PnL percentage with sign
+function formatPnlPercent(pct: number): string {
+    const sign = pct > 0 ? '+' : '';
+    return `${sign}${pct.toFixed(2)}%`;
 }
 
 export function TradeList({
     trades,
-    currentUser,
+    allTrades,
     onDelete,
     onEdit,
     openMonths,
     toggleMonth,
-    darkMode,
-    tagColors = {},
     onSymbolClick,
-    onImagePreview,
     exchangeRate,
     showConverted,
+    currentPrices = {},
+    heldSymbols,
 }: TradeListProps) {
-    const [copiedId, setCopiedId] = React.useState<string | null>(null);
-
-    const handleShare = async (trade: Trade) => {
-        const amount = trade.price * trade.quantity;
-        const currencySymbol = trade.symbol.match(/\d+/) ? '₩' : '$'; // Simple check, or reuse helper
-
-        const details = [
-            `[매매 기록] ${trade.symbol_name || trade.symbol}`,
-            `📅 날짜: ${trade.date}`,
-            `📊 구분: ${trade.side === 'BUY' ? '매수' : '매도'}`,
-            `🔢 수량: ${formatQuantity(trade.quantity, trade.symbol)}`,
-            `💰 단가: ${formatPrice(trade.price, trade.symbol)}`,
-            `💵 총액: ${formatPrice(amount, trade.symbol)}`,
-            trade.strategy_name ? `⚡ 전략: ${trade.strategy_name}` : '',
-            trade.memo ? `📝 메모: ${trade.memo}` : ''
-        ].filter(Boolean).join('\n');
-
-        try {
-            await navigator.clipboard.writeText(details);
-            setCopiedId(trade.id);
-            setTimeout(() => setCopiedId(null), 2000);
-        } catch (err) {
-            console.error('Failed to copy:', err);
+    // Pre-compute avg buy price per symbol for SELL realized P&L
+    const avgBuyPriceMap = useMemo(() => {
+        const source = allTrades ?? trades;
+        const map = new Map<string, { totalQty: number; totalAmount: number }>();
+        for (const t of source) {
+            if (t.side !== 'BUY') continue;
+            const existing = map.get(t.symbol) ?? { totalQty: 0, totalAmount: 0 };
+            existing.totalQty += t.quantity;
+            existing.totalAmount += t.price * t.quantity;
+            map.set(t.symbol, existing);
         }
-    };
+        const result = new Map<string, number>();
+        for (const [symbol, data] of map) {
+            result.set(symbol, data.totalQty > 0 ? data.totalAmount / data.totalQty : 0);
+        }
+        return result;
+    }, [allTrades, trades]);
 
     // Group by Month
     const monthGroups = useMemo(() => {
@@ -91,6 +111,9 @@ export function TradeList({
         }));
     }, [trades]);
 
+    // Check if any BUY trade has a current price available
+    const hasCurrentPrices = Object.keys(currentPrices).length > 0;
+
     // Format helper that handles conversion
     const displayPrice = (price: number, symbol: string) => {
         const isKRW = symbol.includes('.KS') || symbol.includes('.KQ') || /^\d+$/.test(symbol);
@@ -101,18 +124,18 @@ export function TradeList({
 
     if (trades.length === 0) {
         return (
-            <div className={`
-                flex flex-col items-center justify-center py-24 rounded-3xl border-2 border-dashed transition-colors
-                ${darkMode ? 'bg-slate-900/20 border-slate-800' : 'bg-slate-50/50 border-slate-200'}
-            `}>
-                <div className={`w-20 h-20 rounded-3xl flex items-center justify-center mb-6 shadow-sm ${darkMode ? 'bg-slate-800' : 'bg-white'}`}>
-                    <span className="text-4xl">📝</span>
+            <Card
+                variant="default"
+                className="flex flex-col items-center justify-center py-24 border-2 border-dashed border-border/50"
+            >
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 bg-muted">
+                    <ListTodo className="text-muted-foreground" size={32} />
                 </div>
-                <h3 className={`font-bold text-xl mb-2 ${darkMode ? 'text-slate-300' : 'text-slate-900'}`}>아직 작성된 매매 일지가 없습니다</h3>
-                <p className={`text-sm ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                    우측의 '일지 작성' 버튼을 눌러 첫 기록을 남겨보세요!
+                <h3 className="font-bold text-lg mb-2 text-foreground">아직 작성된 매매 일지가 없습니다</h3>
+                <p className="text-sm text-muted-foreground">
+                    우측의 &apos;일지 작성&apos; 버튼을 눌러 첫 기록을 남겨보세요!
                 </p>
-            </div>
+            </Card>
         );
     }
 
@@ -124,170 +147,188 @@ export function TradeList({
                 return (
                     <div
                         key={group.key}
-                        className={`
-                            rounded-3xl border overflow-hidden transition-all duration-300 glass-card
-                            ${darkMode
-                                ? 'bg-slate-900/40 border-slate-700/50 hover:bg-slate-900/50'
-                                : 'bg-white/60 border-white/60 shadow-sm hover:shadow-lg hover:bg-white/80'}
-                        `}
+                        className="rounded-2xl border border-border/50 overflow-hidden transition-all duration-200 bg-card shadow-toss hover:shadow-toss-md"
                     >
-                        {/* Month Header */}
+                        {/* Month Header - Toss Style */}
                         <div
                             onClick={() => toggleMonth(group.key)}
-                            className={`
-                                flex items-center justify-between px-6 py-5 cursor-pointer select-none transition-all duration-200
-                                ${darkMode
-                                    ? 'bg-slate-800/30 hover:bg-slate-800/50'
-                                    : 'bg-indigo-50/30 hover:bg-indigo-50/60'}
-                            `}
+                            className="flex items-center justify-between px-5 py-4 cursor-pointer select-none transition-colors duration-150 hover:bg-muted/50 bg-muted/30"
                         >
-                            <div className="flex items-center gap-4">
-                                <div className={`
-                                    w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-inner
-                                    ${darkMode ? 'bg-indigo-500/20 text-indigo-300' : 'bg-white text-indigo-600 shadow-indigo-100'}
-                                `}>
-                                    <Calendar size={20} strokeWidth={2.5} />
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-primary/10 text-primary">
+                                    <Calendar size={18} strokeWidth={2} />
                                 </div>
                                 <div>
-                                    <h3 className={`text-lg font-black tracking-tight ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
+                                    <h3 className="text-base font-bold text-foreground">
                                         {group.label}
                                     </h3>
-                                    <span className={`text-xs font-bold ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>
+                                    <span className="text-xs font-medium text-muted-foreground">
                                         총 {group.count}건의 매매 기록
                                     </span>
                                 </div>
                             </div>
                             <div className={`
-                                p-2.5 rounded-xl transition-all duration-300
+                                p-2 rounded-xl transition-transform duration-200 bg-muted text-muted-foreground
                                 ${isOpen ? 'rotate-180' : 'rotate-0'}
-                                ${darkMode ? 'bg-slate-800 text-slate-400' : 'bg-white text-slate-400 border border-slate-100 shadow-sm'}
                             `}>
-                                <ChevronDown size={18} strokeWidth={2.5} />
+                                <ChevronDown size={16} strokeWidth={2} />
                             </div>
                         </div>
 
                         {isOpen && (
-                            <div className="animate-fade-in">
-                                {/* Desktop Table View */}
-                                <div className="hidden md:block overflow-x-auto custom-scrollbar">
+                            <div className="animate-in fade-in duration-200">
+                                {/* Desktop Table View - Toss Style */}
+                                <div className="hidden md:block overflow-x-auto custom-scrollbar" data-testid="trade-list-desktop">
                                     <table className="w-full text-sm text-left border-collapse">
-                                        <thead className={`
-                                            text-xs font-bold uppercase tracking-wider border-b
-                                            ${darkMode ? 'bg-slate-900/20 text-slate-500 border-slate-800' : 'bg-slate-50/50 text-slate-500 border-slate-100'}
-                                        `}>
+                                        <thead className="text-xs font-semibold uppercase tracking-wide border-b border-border/50 bg-muted/20 text-muted-foreground">
                                             <tr>
                                                 <th className="px-4 py-3 whitespace-nowrap w-[100px]">날짜</th>
-                                                <th className="px-4 py-3 w-[250px]">종목 / 태그</th>
+                                                <th className="px-4 py-3 w-[200px]">종목</th>
                                                 <th className="px-4 py-3 text-right">진입가</th>
+                                                {hasCurrentPrices && (
+                                                    <>
+                                                        <th className="px-4 py-3 text-right">현재가</th>
+                                                        <th className="px-4 py-3 text-right">수익률</th>
+                                                        <th className="px-4 py-3 text-right">평가손익</th>
+                                                    </>
+                                                )}
                                                 <th className="px-4 py-3 text-right">수량</th>
                                                 <th className="px-4 py-3 text-right">총액</th>
-                                                <th className="px-4 py-3 w-[200px] hidden lg:table-cell">메모</th>
                                                 {(onDelete || onEdit) && (
-                                                    <th className={`px-4 py-3 z-10 sticky right-0 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)] text-center w-[80px] ${darkMode ? 'bg-slate-900' : 'bg-slate-50'}`}>관리</th>
+                                                    <th className="px-4 py-3 z-10 sticky right-0 text-center w-[80px] bg-card">관리</th>
                                                 )}
                                             </tr>
                                         </thead>
-                                        <tbody className={`divide-y ${darkMode ? 'divide-slate-800' : 'divide-slate-100'}`}>
+                                        <tbody className="divide-y divide-border/50">
                                             {group.trades.map((t) => {
                                                 const dateObj = new Date(t.date);
                                                 const dayOfWeek = isNaN(dateObj.getTime()) ? '' : new Intl.DateTimeFormat('ko-KR', { weekday: 'short' }).format(dateObj);
                                                 const amount = t.price * t.quantity;
+                                                const cp = currentPrices[t.symbol];
+                                                const isBuy = t.side === 'BUY';
+                                                const isSell = t.side === 'SELL';
+                                                const hasCp = isBuy && cp !== undefined && cp > 0;
+                                                const pnlPct = hasCp ? calcPnlPercent(t.price, cp) : 0;
+                                                const pnlAmt = hasCp ? calcPnlAmount(t.price, cp, t.quantity) : 0;
+
+                                                // SELL realized P&L
+                                                const avgBuyPrice = avgBuyPriceMap.get(t.symbol) ?? 0;
+                                                const hasSellPnl = isSell && avgBuyPrice > 0;
+                                                const sellPnlPct = hasSellPnl ? calcPnlPercent(avgBuyPrice, t.price) : 0;
+                                                const sellPnlAmt = hasSellPnl ? (t.price - avgBuyPrice) * t.quantity : 0;
 
                                                 return (
                                                     <tr
                                                         key={t.id}
                                                         onClick={() => onSymbolClick?.(t.symbol)}
-                                                        className={`
-                                                            group transition-all duration-200 cursor-pointer h-[64px]
-                                                            ${darkMode ? 'hover:bg-indigo-900/10' : 'hover:bg-indigo-50/40'}
-                                                        `}
+                                                        className={`group transition-colors duration-150 cursor-pointer h-14 hover:bg-muted/30 border-l-[3px] ${
+                                                            t.side === 'BUY'
+                                                                ? 'border-l-up bg-up/5'
+                                                                : 'border-l-down bg-down/5'
+                                                        }`}
                                                     >
                                                         {/* Date */}
                                                         <td className="px-4 py-3">
-                                                            <div className={`font-bold tabular-nums text-sm ${darkMode ? 'text-slate-200' : 'text-slate-700'}`}>
-                                                                {t.date.slice(5)} <span className="text-xs font-normal text-slate-500">({dayOfWeek})</span>
+                                                            <div className="font-semibold tabular-nums text-sm text-foreground">
+                                                                {t.date.slice(5)} <span className="text-xs font-normal text-muted-foreground">({dayOfWeek})</span>
                                                             </div>
                                                         </td>
 
-                                                        {/* Symbol & Position & Tags */}
+                                                        {/* Symbol & Position */}
                                                         <td className="px-4 py-3">
-                                                            <div className="flex items-start gap-2 mb-1">
-                                                                {/* Position Badge (Merged) */}
+                                                            <div className="flex items-start gap-2">
+                                                                {/* Position Badge */}
                                                                 <span className={`
-                                                                    mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wide border shadow-sm whitespace-nowrap shrink-0
+                                                                    mt-0.5 px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wide whitespace-nowrap shrink-0 border
                                                                     ${t.side === 'BUY'
-                                                                        ? (darkMode ? 'bg-rose-500/10 border-rose-500/20 text-rose-400' : 'bg-white border-rose-100 text-rose-600')
-                                                                        : (darkMode ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : 'bg-white border-blue-100 text-blue-600')}
+                                                                        ? 'bg-up/15 text-up border-up/30'
+                                                                        : 'bg-down/15 text-down border-down/30'}
                                                                 `}>
                                                                     {t.side === 'BUY' ? '매수' : '매도'}
                                                                 </span>
 
-                                                                <div className={`font-bold text-sm ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
-                                                                    {t.symbol_name || t.symbol}
+                                                                <div className="flex items-center gap-1.5 flex-nowrap">
+                                                                    <span className="font-semibold text-sm text-foreground">
+                                                                        {t.symbol_name || t.symbol}
+                                                                    </span>
+                                                                    {heldSymbols?.has(t.symbol) && (
+                                                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 leading-none whitespace-nowrap self-center shrink-0">
+                                                                            보유
+                                                                        </span>
+                                                                    )}
                                                                 </div>
-
-                                                                {t.image && (
-                                                                    <button
-                                                                        onClick={(e) => { e.stopPropagation(); onImagePreview?.(t.image!); }}
-                                                                        className={`p-1 rounded transition-colors ${darkMode ? 'bg-slate-800 hover:bg-slate-700 text-slate-400' : 'bg-slate-100 hover:bg-slate-200 text-slate-500'}`}
-                                                                    >
-                                                                        <Camera size={12} />
-                                                                    </button>
-                                                                )}
-                                                            </div>
-
-                                                            <div className="flex flex-wrap gap-1">
-                                                                {t.strategy_name && (
-                                                                    <span className={`inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded font-bold ${darkMode ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-50 text-purple-600'}`}>
-                                                                        <Zap size={8} fill="currentColor" /> {t.strategy_name}
-                                                                    </span>
-                                                                )}
-                                                                {t.tags?.slice(0, 2).map(tag => (
-                                                                    <span
-                                                                        key={tag}
-                                                                        className="text-[9px] px-1.5 py-0.5 rounded font-bold text-white opacity-90"
-                                                                        style={{ backgroundColor: tagColors[tag] || '#94a3b8' }}
-                                                                    >
-                                                                        #{tag}
-                                                                    </span>
-                                                                ))}
                                                             </div>
                                                         </td>
 
-                                                        {/* Price */}
-                                                        <td className={`px-4 py-3 text-right font-bold tabular-nums whitespace-nowrap ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                                                        {/* Entry Price */}
+                                                        <td className="px-4 py-3 text-right font-semibold tabular-nums whitespace-nowrap text-foreground">
                                                             {displayPrice(t.price, t.symbol)}
                                                         </td>
 
+                                                        {/* Current Price, PnL%, PnL Amount (only when prices available) */}
+                                                        {hasCurrentPrices && (
+                                                            <>
+                                                                {/* Current Price */}
+                                                                <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">
+                                                                    {hasCp ? (
+                                                                        <span className="font-semibold text-foreground">
+                                                                            {displayPrice(cp, t.symbol)}
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="text-muted-foreground text-xs">—</span>
+                                                                    )}
+                                                                </td>
+
+                                                                {/* PnL Percentage */}
+                                                                <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">
+                                                                    {hasCp ? (
+                                                                        <span className={`font-bold text-sm ${getPnlColorClass(pnlPct)}`}>
+                                                                            {formatPnlPercent(pnlPct)}
+                                                                        </span>
+                                                                    ) : hasSellPnl ? (
+                                                                        <span className={`font-bold text-sm ${getPnlColorClass(sellPnlPct)}`}>
+                                                                            {formatPnlPercent(sellPnlPct)}
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="text-muted-foreground text-xs">—</span>
+                                                                    )}
+                                                                </td>
+
+                                                                {/* PnL Amount - Green(+) / Red(-) */}
+                                                                <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">
+                                                                    {hasCp ? (
+                                                                        <span className={`font-bold text-sm ${getPnlColorClass(pnlAmt)}`}>
+                                                                            {pnlAmt > 0 ? '+' : ''}{displayPrice(pnlAmt, t.symbol)}
+                                                                        </span>
+                                                                    ) : hasSellPnl ? (
+                                                                        <span className={`font-bold text-sm ${getPnlColorClass(sellPnlAmt)}`}>
+                                                                            {sellPnlAmt > 0 ? '+' : ''}{displayPrice(sellPnlAmt, t.symbol)}
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="text-muted-foreground text-xs">—</span>
+                                                                    )}
+                                                                </td>
+                                                            </>
+                                                        )}
+
                                                         {/* Quantity */}
-                                                        <td className={`px-4 py-3 text-right font-bold tabular-nums ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                                                        <td className="px-4 py-3 text-right font-semibold tabular-nums text-foreground">
                                                             {formatQuantity(t.quantity, t.symbol)}
                                                         </td>
 
                                                         {/* Total */}
-                                                        <td className={`px-4 py-3 text-right font-black tabular-nums whitespace-nowrap ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
+                                                        <td className="px-4 py-3 text-right font-bold tabular-nums whitespace-nowrap text-foreground">
                                                             {displayPrice(amount, t.symbol)}
-                                                        </td>
-
-                                                        {/* Memo (Hidden on smaller screens, can use responsive utilities or hidden) */}
-                                                        <td className="px-4 py-3 hidden lg:table-cell">
-                                                            {t.memo ? (
-                                                                <div className={`text-xs line-clamp-2 leading-relaxed ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                                                                    {t.memo}
-                                                                </div>
-                                                            ) : (
-                                                                <span className="text-[10px] opacity-30 italic">메모 없음</span>
-                                                            )}
                                                         </td>
 
                                                         {/* Actions */}
                                                         {(onDelete || onEdit) && (
-                                                            <td className={`px-4 py-3 sticky right-0 z-10 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)] ${darkMode ? 'bg-slate-900/95 backdrop-blur-sm' : 'bg-white/95 backdrop-blur-sm'}`}>
-                                                                <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <td className="px-4 py-3 sticky right-0 z-10 bg-card/95 backdrop-blur-sm">
+                                                                <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 md:max-lg:opacity-100 transition-opacity duration-150">
                                                                     {onEdit && (
                                                                         <button
                                                                             onClick={(e) => { e.stopPropagation(); onEdit?.(t); }}
-                                                                            className={`p-1.5 rounded-lg transition-all ${darkMode ? 'bg-slate-800 hover:bg-indigo-600 hover:text-white text-slate-400' : 'bg-white border border-slate-200 hover:bg-indigo-50 hover:border-indigo-200 text-slate-500'}`}
+                                                                            className="p-1.5 rounded-lg transition-colors bg-muted hover:bg-primary/10 hover:text-primary text-muted-foreground"
                                                                         >
                                                                             <Pencil size={14} />
                                                                         </button>
@@ -295,7 +336,7 @@ export function TradeList({
                                                                     {onDelete && (
                                                                         <button
                                                                             onClick={(e) => { e.stopPropagation(); onDelete?.(t.id); }}
-                                                                            className={`p-1.5 rounded-lg transition-all ${darkMode ? 'bg-slate-800 hover:bg-rose-600 hover:text-white text-slate-400' : 'bg-white border border-slate-200 hover:bg-rose-50 hover:border-rose-200 text-slate-500'}`}
+                                                                            className="p-1.5 rounded-lg transition-colors bg-muted hover:bg-destructive/10 hover:text-destructive text-muted-foreground"
                                                                         >
                                                                             <Trash2 size={14} />
                                                                         </button>
@@ -311,109 +352,120 @@ export function TradeList({
                                 </div>
 
                                 {/* Mobile Card View */}
-                                <div className={`md:hidden p-4 space-y-4`}>
+                                <div className={`md:hidden p-4 space-y-4`} data-testid="trade-list-mobile">
                                     {group.trades.map((t) => {
                                         const amount = t.price * t.quantity;
                                         const dayOfWeek = getKoreanWeekdayLabel(t.date);
+                                        const cp = currentPrices[t.symbol];
+                                        const isBuy = t.side === 'BUY';
+                                        const isSell = t.side === 'SELL';
+                                        const hasCp = isBuy && cp !== undefined && cp > 0;
+                                        const pnlPct = hasCp ? calcPnlPercent(t.price, cp) : 0;
+                                        const pnlAmt = hasCp ? calcPnlAmount(t.price, cp, t.quantity) : 0;
+
+                                        // SELL realized P&L
+                                        const avgBuyPrice = avgBuyPriceMap.get(t.symbol) ?? 0;
+                                        const hasSellPnl = isSell && avgBuyPrice > 0;
+                                        const sellPnlPct = hasSellPnl ? calcPnlPercent(avgBuyPrice, t.price) : 0;
+                                        const sellPnlAmt = hasSellPnl ? (t.price - avgBuyPrice) * t.quantity : 0;
 
                                         return (
                                             <div
                                                 key={t.id}
                                                 onClick={() => onSymbolClick?.(t.symbol)}
-                                                className={`
-                                                    p-5 rounded-2xl border flex flex-col gap-4 transition-all active:scale-95
-                                                    ${darkMode ? 'bg-slate-800/40 border-slate-700/50' : 'bg-white border-slate-100 shadow-sm'}
-                                                `}
+                                                className={`p-5 rounded-3xl border border-border/10 shadow-toss flex flex-col gap-4 transition-all active:scale-[0.98] border-l-4 ${
+                                                    t.side === 'BUY'
+                                                        ? 'border-l-up bg-up/5'
+                                                        : 'border-l-down bg-down/5'
+                                                }`}
                                             >
                                                 {/* Header: Type, Stock, Price */}
                                                 <div className="flex justify-between items-start">
-                                                    <div className="flex items-center gap-3">
+                                                    <div className="flex items-center gap-3 min-w-0 flex-1">
                                                         <div className={`
-                                                            w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black
+                                                            w-10 h-10 rounded-xl flex items-center justify-center text-[11px] font-extrabold shrink-0 border
                                                             ${t.side === 'BUY'
-                                                                ? (darkMode ? 'bg-rose-500/20 text-rose-400' : 'bg-rose-50 text-rose-600')
-                                                                : (darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-50 text-blue-600')}
+                                                                ? 'bg-up/15 text-up border-up/30'
+                                                                : 'bg-down/15 text-down border-down/30'}
                                                         `}>
-                                                            {t.side === 'BUY' ? 'L' : 'S'}
+                                                            {t.side === 'BUY' ? '매수' : '매도'}
                                                         </div>
-                                                        <div>
-                                                            <div className={`font-black text-lg ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
-                                                                {t.symbol_name || t.symbol}
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="flex items-center gap-1.5 flex-nowrap">
+                                                                <span className="font-bold text-base leading-tight truncate text-foreground">
+                                                                    {t.symbol_name || t.symbol}
+                                                                </span>
+                                                                {heldSymbols?.has(t.symbol) && (
+                                                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 leading-none whitespace-nowrap self-center shrink-0">
+                                                                        보유
+                                                                    </span>
+                                                                )}
                                                             </div>
-                                                            <div className={`text-xs font-medium flex items-center gap-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                                                                {t.date} <span className="w-1 h-1 rounded-full bg-current opacity-50" /> {dayOfWeek}
+                                                            <div className="text-xs font-semibold text-grey-400 flex items-center gap-1 mt-0.5">
+                                                                {t.date} <span className="w-1 h-1 rounded-full bg-current opacity-50" /> {dayOfWeek}    
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    <div className="text-right">
-                                                        <div className={`font-black text-base ${darkMode ? 'text-white' : 'text-slate-900'}`}>{displayPrice(amount, t.symbol)}</div>
-                                                        <div className={`text-xs font-medium ${darkMode ? 'text-slate-500' : 'text-slate-500'}`}>
-                                                            {displayPrice(t.price, t.symbol)}
+                                                    <div className="text-right shrink-0 ml-2">
+                                                        <div className="font-bold text-base text-foreground">{displayPrice(amount, t.symbol)}</div>
+                                                        <div className="text-xs font-semibold text-grey-400">
+                                                            {displayPrice(t.price, t.symbol)} × {formatQuantity(t.quantity, t.symbol)}
                                                         </div>
                                                     </div>
                                                 </div>
 
-                                                {/* Tags & Reasons */}
-                                                {(t.tags?.length || t.strategy_name || t.entry_reason || t.exit_reason) ? (
-                                                    <div className={`p-4 rounded-xl space-y-3 ${darkMode ? 'bg-slate-900/50' : 'bg-slate-50'}`}>
-                                                        <div className="flex flex-wrap gap-2">
-                                                            {t.strategy_name && (
-                                                                <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-md font-bold ${darkMode ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-100 text-purple-700'}`}>
-                                                                    <Zap size={10} /> {t.strategy_name}
-                                                                </span>
-                                                            )}
-                                                            {t.tags?.map(tag => (
-                                                                <span
-                                                                    key={tag}
-                                                                    className="text-[10px] px-2 py-1 rounded-md font-bold text-white shadow-sm"
-                                                                    style={{ backgroundColor: tagColors[tag] || '#6366f1' }}
-                                                                >
-                                                                    #{tag}
-                                                                </span>
-                                                            ))}
+                                                {/* PnL Row (BUY: unrealized, SELL: realized) */}
+                                                {hasCp && (
+                                                    <div className={`flex items-center justify-between px-3 py-2.5 rounded-xl ${getPnlBgClass(pnlPct)}`}>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs font-medium text-muted-foreground">현재가</span>
+                                                            <span className="text-sm font-bold text-foreground">{displayPrice(cp, t.symbol)}</span>
                                                         </div>
-
-                                                        {(t.entry_reason || t.exit_reason) && (
-                                                            <div className="flex flex-col gap-2 pt-1">
-                                                                {t.entry_reason && (
-                                                                    <div className="flex gap-2">
-                                                                        <span className="text-[10px] font-black text-slate-400 min-w-[30px] uppercase mt-0.5">In</span>
-                                                                        <span className={`text-xs ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>{t.entry_reason}</span>
-                                                                    </div>
-                                                                )}
-                                                                {t.exit_reason && (
-                                                                    <div className="flex gap-2">
-                                                                        <span className="text-[10px] font-black text-slate-400 min-w-[30px] uppercase mt-0.5">Out</span>
-                                                                        <span className={`text-xs ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>{t.exit_reason}</span>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        )}
+                                                        <div className="flex items-center gap-3">
+                                                            <span className={`text-sm font-bold ${getPnlColorClass(pnlPct)}`}>
+                                                                {formatPnlPercent(pnlPct)}
+                                                            </span>
+                                                            <span className={`text-sm font-bold ${getPnlColorClass(pnlAmt)}`}>
+                                                                {pnlAmt > 0 ? '+' : ''}{displayPrice(pnlAmt, t.symbol)}
+                                                            </span>
+                                                        </div>
                                                     </div>
-                                                ) : null}
+                                                )}
+                                                {/* SELL realized P&L */}
+                                                {hasSellPnl && (
+                                                    <div className={`flex items-center justify-between px-3 py-2.5 rounded-xl ${getPnlBgClass(sellPnlAmt)}`}>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs font-medium text-muted-foreground">실현 손익</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-3">
+                                                            <span className={`text-sm font-bold ${getPnlColorClass(sellPnlPct)}`}>
+                                                                {formatPnlPercent(sellPnlPct)}
+                                                            </span>
+                                                            <span className={`text-sm font-bold ${getPnlColorClass(sellPnlAmt)}`}>
+                                                                {sellPnlAmt > 0 ? '+' : ''}{displayPrice(sellPnlAmt, t.symbol)}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                )}
 
                                                 {/* Actions */}
-                                                <div className={`flex items-center justify-end gap-3 pt-2 border-t ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
-                                                    {t.image && (
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); onImagePreview?.(t.image!); }}
-                                                            className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl transition-all ${darkMode ? 'bg-slate-700 text-slate-300' : 'bg-white border border-slate-200 text-slate-600'}`}
-                                                        >
-                                                            <Camera size={14} /> 차트
-                                                        </button>
-                                                    )}
-                                                    <button
+                                                <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/10">
+                                                    <Button
+                                                        variant="secondary"
+                                                        size="sm"
                                                         onClick={(e) => { e.stopPropagation(); onEdit?.(t); }}
-                                                        className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl transition-all ${darkMode ? 'bg-indigo-500/20 text-indigo-400' : 'bg-indigo-50 text-indigo-600'}`}
+                                                        className="h-9 px-3 rounded-xl gap-1.5 text-xs font-bold"
                                                     >
                                                         <Pencil size={14} /> 수정
-                                                    </button>
-                                                    <button
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
                                                         onClick={(e) => { e.stopPropagation(); onDelete?.(t.id); }}
-                                                        className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl transition-all ${darkMode ? 'bg-rose-500/20 text-rose-400' : 'bg-rose-50 text-rose-600'}`}
+                                                        className="h-9 px-3 rounded-xl gap-1.5 text-xs font-bold text-destructive hover:bg-destructive/10"
                                                     >
                                                         <Trash2 size={14} /> 삭제
-                                                    </button>
+                                                    </Button>
                                                 </div>
                                             </div>
                                         );

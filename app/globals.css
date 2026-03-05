@@ -25,83 +25,145 @@
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   
+  --color-grey-50: var(--grey-50);
+  --color-grey-100: var(--grey-100);
+  --color-grey-200: var(--grey-200);
+  --color-grey-300: var(--grey-300);
+  --color-grey-400: var(--grey-400);
+  --color-grey-500: var(--grey-500);
+  --color-grey-600: var(--grey-600);
+  --color-grey-700: var(--grey-700);
+  --color-grey-800: var(--grey-800);
+  --color-grey-900: var(--grey-900);
+  
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
   
-  --radius: 1rem;
+  --color-up: #F04452;
+  --color-down: #3182F6;
+  
+  --radius: 1.5rem;
 }
 
-/* Base Variables */
+/* Base Variables - Toss Design System (TDS) */
 :root {
-  --background: hsl(210 40% 98%);
-  --foreground: hsl(222 47% 11%);
+  /* Backgrounds - Deep Dark Gray (Dark Mode Default) */
+  --background: #17171C;
+  --foreground: #F9FAFB;
 
-  --card: hsl(0 0% 100%);
-  --card-foreground: hsl(222 47% 11%);
+  /* Cards & Surfaces - Slightly lighter than background */
+  --card: #1C1C24;
+  --card-foreground: #F9FAFB;
 
-  --popover: hsl(0 0% 100%);
-  --popover-foreground: hsl(222 47% 11%);
+  --popover: #1C1C24;
+  --popover-foreground: #F9FAFB;
 
-  --primary: hsl(243 75% 59%);
-  --primary-foreground: hsl(210 40% 98%);
+  /* Primary - Toss Blue */
+  --primary: #3182F6;
+  --primary-foreground: #FFFFFF;
 
-  --secondary: hsl(210 40% 96.1%);
-  --secondary-foreground: hsl(222 47% 11%);
+  /* Toss Gray Scale for Dark Mode */
+  --grey-50: #17171C;
+  --grey-100: #1C1C24;
+  --grey-200: #2C2C34;
+  --grey-300: #3C3C47;
+  --grey-400: #4E5968;
+  --grey-500: #8B95A1;
+  --grey-600: #B0B8C1;
+  --grey-700: #D1D6DB;
+  --grey-800: #E5E8EB;
+  --grey-900: #F9FAFB;
 
-  --muted: hsl(210 40% 96.1%);
-  --muted-foreground: hsl(215 16% 47%);
+  /* Secondary */
+  --secondary: #2C2C34;
+  --secondary-foreground: #F9FAFB;
 
-  --accent: hsl(210 40% 96.1%);
-  --accent-foreground: hsl(222 47% 11%);
+  /* Muted */
+  --muted: #1C1C24;
+  --muted-foreground: #8B95A1;
 
-  --destructive: hsl(0 84.2% 60.2%);
-  --destructive-foreground: hsl(210 40% 98%);
+  /* Accent */
+  --accent: #2C2C34;
+  --accent-foreground: #F9FAFB;
 
-  --border: hsl(214 32% 91%);
-  --input: hsl(214 32% 91%);
-  --ring: hsl(243 75% 59%);
+  /* Destructive - Toss Red */
+  --destructive: hsl(355 84% 60%); /* #F04452 */
+  --destructive-foreground: hsl(0 0% 100%);
 
-  --radius: 1rem;
+  /* Borders & Inputs */
+  --border: hsl(229 11% 25%);
+  --input: hsl(229 11% 25%);
+  --ring: #3182F6;
+
+  /* Korean Stock Market Colors */
+  --color-up: #F04452; /* Red = UP */
+  --color-down: #3182F6; /* Blue = DOWN */
+
+  --radius: 1.5rem; /* 24px */
   
-  /* Modern Glassmorphism Variables */
-  --glass-bg: rgba(255, 255, 255, 0.7);
-  --glass-border: rgba(255, 255, 255, 0.5);
-  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+  /* Dark Glassmorphism Variables */
+  --glass-bg: rgba(27, 29, 37, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
 }
 
 .dark {
-  --background: hsl(222 47% 11%);
-  --foreground: hsl(210 40% 98%);
+  /* Backgrounds - Deep Dark Gray */
+  --background: #17171C;
+  --foreground: #F9FAFB;
 
-  --card: hsl(222 47% 11%);
-  --card-foreground: hsl(210 40% 98%);
+  /* Cards & Surfaces - Slightly lighter than background */
+  --card: #1C1C24;
+  --card-foreground: #F9FAFB;
 
-  --popover: hsl(222 47% 11%);
-  --popover-foreground: hsl(210 40% 98%);
+  --popover: #1C1C24;
+  --popover-foreground: #F9FAFB;
 
-  --primary: hsl(243 75% 59%);
-  --primary-foreground: hsl(210 40% 98%);
+  /* Primary - Toss Blue */
+  --primary: #3182F6;
+  --primary-foreground: #FFFFFF;
 
-  --secondary: hsl(217 32% 17%);
-  --secondary-foreground: hsl(210 40% 98%);
+  /* Toss Gray Scale for Dark Mode - Optimized for Contrast */
+  --grey-50: #17171C;
+  --grey-100: #1C1C24;
+  --grey-200: #2C2C34;
+  --grey-300: #3C3C47;
+  --grey-400: #4E5968;
+  --grey-500: #8B95A1;
+  --grey-600: #B0B8C1;
+  --grey-700: #D1D6DB;
+  --grey-800: #E5E8EB;
+  --grey-900: #F9FAFB;
 
-  --muted: hsl(217 32% 17%);
-  --muted-foreground: hsl(215 20% 65%);
+  /* Secondary */
+  --secondary: #2C2C34;
+  --secondary-foreground: #F9FAFB;
 
-  --accent: hsl(217 32% 17%);
-  --accent-foreground: hsl(210 40% 98%);
+  /* Muted */
+  --muted: #1C1C24;
+  --muted-foreground: #8B95A1;
 
-  --destructive: hsl(0 62.8% 30.6%);
-  --destructive-foreground: hsl(210 40% 98%);
+  /* Accent */
+  --accent: #2C2C34;
+  --accent-foreground: #F9FAFB;
 
-  --border: hsl(217 32% 17%);
-  --input: hsl(217 32% 17%);
-  --ring: hsl(243 75% 59%);
+  /* Destructive */
+  --destructive: hsl(355 84% 60%);
+  --destructive-foreground: hsl(0 0% 100%);
+
+  /* Borders */
+  --border: hsl(229 11% 25%);
+  --input: hsl(229 11% 25%);
+  --ring: #3182F6;
+
+  /* Korean Stock Market Colors */
+  --color-up: #F04452;
+  --color-down: #3182F6;
   
   /* Dark Glassmorphism Variables */
-  --glass-bg: rgba(15, 23, 42, 0.6);
-  --glass-border: rgba(255, 255, 255, 0.05);
+  --glass-bg: rgba(27, 29, 37, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.08);
   --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
 }
 
@@ -111,51 +173,157 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased tracking-tight;
+    font-family: var(--font-sans), var(--font-kr), -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  }
+  
+  /* Use JetBrains Mono for monospace elements */
+  code, kbd, samp, pre, .font-mono {
+    font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  }
+
+  /* Logo font utility class */
+  .font-logo {
+    font-family: var(--font-logo), var(--font-sans), sans-serif;
+  }
+
+
+
+  /* Improved focus states for accessibility */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-indigo-500;
+  }
+
+  /* Reduce motion for users who prefer it */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 
-/* Custom Utilities (Tailwind v4 handles custom classes via normal CSS if not in @utility block) */
+/* Custom Utilities */
+
+/* ============================================
+   TOSS DESIGN SYSTEM - Unified Shadow Scale
+   ============================================ */
+
+/* Shadow Scale - Consistent elevation system */
+.shadow-toss-sm {
+  box-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.04);
+}
+.shadow-toss {
+  box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.06);
+}
+.shadow-toss-md {
+  box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.08);
+}
+.shadow-toss-lg {
+  box-shadow: 0 12px 32px 0 rgba(0, 0, 0, 0.12);
+}
+
+.dark .shadow-toss-sm {
+  box-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.2);
+}
+.dark .shadow-toss {
+  box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.25);
+}
+.dark .shadow-toss-md {
+  box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.3);
+}
+.dark .shadow-toss-lg {
+  box-shadow: 0 12px 32px 0 rgba(0, 0, 0, 0.4);
+}
+
+/* ============================================
+   TOSS DESIGN SYSTEM - Radius Scale
+   ============================================ */
+.radius-toss-sm {
+  border-radius: 8px;
+}
+.radius-toss {
+  border-radius: 12px;
+}
+.radius-toss-md {
+  border-radius: 16px;
+}
+.radius-toss-lg {
+  border-radius: 20px;
+}
+.radius-toss-xl {
+  border-radius: 24px;
+}
+
+/* ============================================
+   TOSS DESIGN SYSTEM - Spacing Scale
+   ============================================ */
+/* Using Tailwind's default spacing (4px base) 
+   xs: 4px, sm: 8px, md: 12px, base: 16px, 
+   lg: 20px, xl: 24px, 2xl: 32px, 3xl: 40px */
 
 /* Custom Scrollbar */
-.scrollbar-thin::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-.scrollbar-thin::-webkit-scrollbar-track {
-  background: transparent;
-}
-.scrollbar-thin::-webkit-scrollbar-thumb {
-  @apply bg-slate-300 dark:bg-slate-700 rounded-full hover:bg-slate-400 dark:hover:bg-slate-600;
-}
-
-/* Glassmorphism Utilities */
+/* ============================================
+   TOSS DESIGN SYSTEM - Glassmorphism
+   ============================================ */
 .glass-panel {
-    @apply backdrop-blur-xl border shadow-lg transition-all duration-300;
+    @apply backdrop-blur-xl border transition-all duration-300;
     background: var(--glass-bg);
     border-color: var(--glass-border);
-    box-shadow: var(--glass-shadow);
+    box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.06);
+}
+
+.dark .glass-panel {
+    box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.25);
 }
 
 .glass-card {
     @apply backdrop-blur-lg border transition-all duration-200;
-    background: rgba(255, 255, 255, 0.5);
-    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.6);
+    border-color: rgba(255, 255, 255, 0.4);
 }
 
 .dark .glass-card {
-    background: rgba(30, 41, 59, 0.4);
-    border-color: rgba(255, 255, 255, 0.05);
+    background: rgba(43, 45, 54, 0.5);
+    border-color: rgba(255, 255, 255, 0.08);
 }
 
 .hover-glass:hover {
-    @apply transform -translate-y-0.5 shadow-xl;
+    @apply transform -translate-y-0.5;
+    box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.08);
     border-color: var(--ring);
 }
 
-/* Button Press Effect */
+.dark .hover-glass:hover {
+    box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* ============================================
+   TOSS DESIGN SYSTEM - Interactive States
+   ============================================ */
+/* Button Press Effect - Subtle scale like Toss */
 .btn-press:active {
-    @apply transform scale-95 opacity-80;
+    @apply transform scale-[0.97] transition-transform duration-75;
+}
+
+/* Hover lift effect for cards */
+.hover-lift {
+    @apply transition-all duration-200 will-change-transform;
+}
+.hover-lift:hover {
+    @apply transform -translate-y-1;
+    box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.15);
+}
+.dark .hover-lift:hover {
+    box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.45);
+}
+
+/* Focus states */
+.focus-toss:focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
 }
 
 /* Animations */
@@ -169,7 +337,7 @@
     animation: float 3s ease-in-out infinite;
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar (Duplicate class cleanup) */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -190,3 +358,4 @@
 .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: rgba(148, 163, 184, 0.4);
 }
+

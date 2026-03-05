@@ -1,48 +1,43 @@
-import React, { useState, useRef, ChangeEvent, FormEvent } from 'react';
+import React, { useState, useCallback, ChangeEvent, FormEvent } from 'react';
 import { User } from '@supabase/supabase-js';
 import { TradeSide, Trade } from '@/app/types/trade';
-import { Strategy, EmotionTag, EMOTION_TAG_LABELS, EMOTION_TAG_COLORS } from '@/app/types/strategies';
-import { getKoreanWeekdayLabel, parseTagString, getCurrencySymbol } from '@/app/utils/format';
+import { getCurrencySymbol } from '@/app/utils/format';
 import { StockSymbolInput } from '@/app/components/StockSymbolInput';
-import { Zap, ChevronDown, Image as ImageIcon, Plus, Save, Info } from 'lucide-react';
+import { Save, Plus, Info, PartyPopper } from 'lucide-react';
 import { DatePicker } from '@/app/components/DatePicker';
+import { Button } from '@/app/components/ui/Button';
+import { Card } from '@/app/components/ui/Card';
+import { TradeChecklist } from '@/app/components/TradeChecklist';
+
+export interface TradeSubmitData {
+    date: string;
+    symbol: string;
+    symbol_name?: string;
+    side: TradeSide;
+    price: number;
+    quantity: number;
+    emotion_tag?: string;
+}
 
 interface TradeFormProps {
     darkMode: boolean;
     currentUser: User | null;
     baseTrades: { symbol: string }[];
+    allTrades?: Trade[]; // All trades for emotion detection
     initialData?: Trade;
-    onUpdateTrade?: (id: string, data: any, imageFile: File | null) => Promise<void>;
+    onUpdateTrade?: (id: string, data: TradeSubmitData, imageFile: File | null) => Promise<void>;
     onAddTrade: (
-        data: {
-            date: string;
-            symbol: string;
-            symbol_name?: string;
-            side: TradeSide;
-            price: number;
-            quantity: number;
-            memo: string;
-            tags: string[];
-            strategy_id?: string;
-            strategy_name?: string;
-            entry_reason?: string;
-            exit_reason?: string;
-            emotion_tag?: string;
-        },
+        data: TradeSubmitData,
         imageFile: File | null
     ) => Promise<void>;
-    allTags: string[];
-    strategies?: Strategy[];
     isCompact?: boolean;
 }
 
 export function TradeForm({
     darkMode,
-    currentUser,
     baseTrades,
+    allTrades = [],
     onAddTrade,
-    allTags,
-    strategies = [],
     isCompact = false,
     initialData,
     onUpdateTrade,
@@ -54,21 +49,12 @@ export function TradeForm({
         side: initialData?.side || 'BUY',
         price: initialData?.price?.toString() || '',
         quantity: initialData?.quantity?.toString() || '',
-        memo: initialData?.memo || '',
-        tags: initialData?.tags?.join(', ') || '',
-        strategy_id: initialData?.strategy_id || '',
-        entry_reason: initialData?.entry_reason || '',
-        exit_reason: initialData?.exit_reason || '',
-        emotion_tag: initialData?.emotion_tag || '' as EmotionTag | '',
     });
-    const [chartFile, setChartFile] = useState<File | null>(null);
-    const [chartPreview, setChartPreview] = useState<string | null>(initialData?.image || null);
-    const chartInputRef = useRef<HTMLInputElement | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [showAdvanced, setShowAdvanced] = useState(!!initialData?.entry_reason || !!initialData?.exit_reason);
+    const [showChecklist, setShowChecklist] = useState(false);
+    const [showCelebration, setShowCelebration] = useState(false);
 
-    const weekdayLabel = getKoreanWeekdayLabel(form.date);
-    const selectedStrategy = strategies.find(s => s.id === form.strategy_id);
+    const isFirstTrade = baseTrades.length === 0 && !initialData;
 
     // Update form when initialData changes
     React.useEffect(() => {
@@ -80,15 +66,7 @@ export function TradeForm({
                 side: initialData.side,
                 price: initialData.price.toString(),
                 quantity: initialData.quantity.toString(),
-                memo: initialData.memo || '',
-                tags: initialData.tags?.join(', ') || '',
-                strategy_id: initialData.strategy_id || '',
-                entry_reason: initialData.entry_reason || '',
-                exit_reason: initialData.exit_reason || '',
-                emotion_tag: initialData.emotion_tag || '' as EmotionTag | '',
             });
-            setChartPreview(initialData.image || null);
-            setShowAdvanced(!!initialData.entry_reason || !!initialData.exit_reason);
         }
     }, [initialData]);
 
@@ -110,122 +88,62 @@ export function TradeForm({
         }));
     };
 
-    const handleChartFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) {
-            setChartFile(null);
-            setChartPreview(null);
-            return;
-        }
-
-        const maxSize = 2000 * 1024; // 2MB
-        if (file.size > maxSize) {
-            alert('이미지 용량이 너무 큽니다. 2MB 이하로 줄여서 올려주세요.');
-            e.target.value = '';
-            setChartFile(null);
-            setChartPreview(null);
-            return;
-        }
-
-        setChartFile(file);
-        setChartPreview(URL.createObjectURL(file));
+    // Validate form and return true/false
+    const validateForm = (): boolean => {
+        if (!form.date) { alert('날짜를 선택해주세요.'); return false; }
+        if (!form.symbol || form.symbol.trim() === '') { alert('종목을 선택해주세요.'); return false; }
+        if (!form.price || form.price.trim() === '') { alert('가격을 입력해주세요.'); return false; }
+        if (!form.quantity || form.quantity.trim() === '') { alert('수량을 입력해주세요.'); return false; }
+        const p = Number(form.price), q = Number(form.quantity);
+        if (Number.isNaN(p) || Number.isNaN(q)) { alert('가격과 수량은 숫자로 입력해주세요.'); return false; }
+        if (p <= 0) { alert('가격은 0보다 큰 값을 입력해주세요.'); return false; }
+        if (q <= 0) { alert('수량은 0보다 큰 값을 입력해주세요.'); return false; }
+        if (q % 1 !== 0) { alert('수량은 정수로 입력해주세요.'); return false; }
+        return true;
     };
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
+        if (!validateForm()) return;
 
-        // 필수 필드 검증
-        if (!form.date) {
-            alert('날짜를 선택해주세요.');
+        // For editing, skip checklist
+        if (initialData && onUpdateTrade) {
+            await executeSubmit();
             return;
         }
 
-        if (!form.symbol || form.symbol.trim() === '') {
-            alert('종목을 선택해주세요.');
-            return;
-        }
+        // Show checklist modal before submitting new trade
+        setShowChecklist(true);
+    };
 
-        if (!form.price || form.price.trim() === '') {
-            alert('가격을 입력해주세요.');
-            return;
-        }
-
-        if (!form.quantity || form.quantity.trim() === '') {
-            alert('수량을 입력해주세요.');
-            return;
-        }
-
-        // 숫자 형식 검증
+    // Called from checklist confirm or directly for updates
+    const executeSubmit = useCallback(async (emotionTag?: string) => {
         const price = Number(form.price);
         const quantity = Number(form.quantity);
 
-        if (Number.isNaN(price) || Number.isNaN(quantity)) {
-            alert('가격과 수량은 숫자로 입력해주세요.');
-            return;
-        }
-
-        // 양수 검증
-        if (price <= 0) {
-            alert('가격은 0보다 큰 값을 입력해주세요.');
-            return;
-        }
-
-        if (quantity <= 0) {
-            alert('수량은 0보다 큰 값을 입력해주세요.');
-            return;
-        }
-
-        // 합리적인 범위 검증 (선택적)
-        if (quantity % 1 !== 0) {
-            alert('수량은 정수로 입력해주세요.');
-            return;
-        }
-
-
-        const parsedTags = parseTagString(form.tags);
-        const uniqueTags = Array.from(new Set(parsedTags));
-
         setIsSubmitting(true);
         try {
-            const tradeData = {
+            const tradeData: TradeSubmitData = {
                 date: form.date,
                 symbol: form.symbol.toUpperCase().trim(),
                 symbol_name: form.symbol_name || undefined,
-                side: form.side,
+                side: form.side as TradeSide,
                 price,
                 quantity,
-                memo: form.memo,
-                tags: uniqueTags,
-                strategy_id: form.strategy_id || undefined,
-                strategy_name: selectedStrategy?.name || undefined,
-                entry_reason: form.entry_reason || undefined,
-                exit_reason: form.exit_reason || undefined,
-                emotion_tag: form.emotion_tag || undefined,
+                emotion_tag: emotionTag,
             };
 
             if (initialData && onUpdateTrade) {
-                await onUpdateTrade(initialData.id, tradeData, chartFile);
+                await onUpdateTrade(initialData.id, tradeData, null);
             } else {
-                await onAddTrade(tradeData, chartFile);
+                await onAddTrade(tradeData, null);
             }
 
             if (!initialData) {
-                // Reset Form only if adding
-                setForm((prev) => ({
-                    ...prev,
-                    price: '',
-                    quantity: '',
-                    memo: '',
-                    tags: '',
-                    strategy_id: '',
-                    entry_reason: '',
-                    exit_reason: '',
-                    emotion_tag: '' as EmotionTag | '',
-                }));
-                setChartFile(null);
-                setChartPreview(null);
-                if (chartInputRef.current) {
-                    chartInputRef.current.value = '';
+                setForm((prev) => ({ ...prev, price: '', quantity: '' }));
+                if (isFirstTrade) {
+                    setShowCelebration(true);
+                    setTimeout(() => setShowCelebration(false), 4000);
                 }
             }
         } catch (error) {
@@ -233,42 +151,69 @@ export function TradeForm({
         } finally {
             setIsSubmitting(false);
         }
-    };
+    }, [form, initialData, isFirstTrade, onAddTrade, onUpdateTrade]);
 
-    // Glassmorphism Styles
+    const handleChecklistConfirm = useCallback((_disciplineScore: number, emotionTag?: string) => {
+        setShowChecklist(false);
+        executeSubmit(emotionTag);
+    }, [executeSubmit]);
+
+    // Toss Design System - Input Styles
     const inputBaseClass = `
-        w-full ${isCompact ? 'px-3 py-2' : 'px-4 py-3'} text-sm font-bold rounded-xl outline-none transition-all
-        ${darkMode
-            ? 'bg-slate-800/40 text-white placeholder-slate-500 border border-slate-700/50 focus:bg-slate-800 focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20'
-            : 'bg-white/50 text-slate-900 placeholder-slate-400 border border-indigo-50/50 focus:bg-white focus:border-indigo-200 focus:ring-2 focus:ring-indigo-100 shadow-sm'}
+        w-full ${isCompact ? 'px-3 py-2 h-10' : 'px-4 py-3 h-12'} text-sm font-semibold rounded-xl outline-none transition-all duration-150
+        bg-muted/50 text-foreground placeholder:text-muted-foreground border border-border/50
+        focus:bg-background focus:border-primary focus:ring-1 focus:ring-primary/20
+        dark:bg-muted/30 dark:focus:bg-muted/50
     `;
 
-    const labelClass = `block mb-1.5 text-[10px] font-black uppercase tracking-wider ${darkMode ? 'text-slate-400' : 'text-slate-500'}`;
+    // Toss Design System - Label Styles
+    const labelClass = "block mb-1.5 text-xs font-semibold text-muted-foreground";
 
     return (
-        <div className={!isCompact ? `rounded-3xl border p-6 transition-all glass-card ${darkMode ? 'bg-slate-900/40 border-slate-700/50' : 'bg-white/60 border-white/60 shadow-xl shadow-indigo-100/20'}` : ''}>
+        <Card variant={isCompact ? "default" : "elevated"} className={!isCompact ? 'p-6' : 'border-none bg-transparent shadow-none'}>
+            {/* First Trade Celebration Banner */}
+            {showCelebration && (
+                <div className="mb-4 p-4 rounded-xl bg-gradient-to-r from-yellow-500/10 to-emerald-500/10 border border-yellow-500/20 flex items-center gap-3">
+                    <PartyPopper size={20} className="text-yellow-400 flex-none" />
+                    <div>
+                        <div className="text-sm font-bold text-white">첫 거래 기록 완료!</div>
+                        <div className="text-xs text-white/50">매매 일지를 시작했어요. 꾸준히 기록하면 AI가 패턴을 분석해줍니다.</div>
+                    </div>
+                </div>
+            )}
+
             {!isCompact && (
                 <div className="mb-6 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-inner ${darkMode ? 'bg-gradient-to-br from-indigo-500/20 to-purple-500/20' : 'bg-white shadow-indigo-100'}`}>
-                            <Plus size={20} className={darkMode ? 'text-indigo-400' : 'text-indigo-600'} strokeWidth={3} />
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-primary/10 text-primary">
+                            <Plus size={20} strokeWidth={2} />
                         </div>
                         <div>
-                            <h2 className={`text-lg font-bold tracking-normal ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                            <h2 className="text-lg font-bold text-foreground">
                                 {initialData ? '매매 기록 수정' : '새 매매 기록'}
                             </h2>
-                            <p className={`text-xs font-bold ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                                오늘도 원칙을 지키는 매매 하세요!
+                            <p className="text-xs font-medium text-muted-foreground">
+                                {isFirstTrade ? '첫 번째 매매를 기록해보세요!' : '오늘도 원칙을 지키는 매매 하세요!'}
                             </p>
                         </div>
                     </div>
                 </div>
             )}
 
+            {/* First Trade Inline Guide */}
+            {isFirstTrade && !isCompact && (
+                <div className="mb-4 p-3 rounded-xl border border-blue-500/15 bg-blue-500/5 flex items-start gap-2">
+                    <Info size={14} className="text-blue-400 flex-none mt-0.5" />
+                    <p className="text-xs text-blue-300/70 leading-relaxed">
+                        종목 티커(예: AAPL, 005930)를 검색하고, 매수/매도 구분·단가·수량을 입력하세요. 저장하면 AI가 패턴을 분석합니다.
+                    </p>
+                </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Row 1: Date & Side */}
-                <div className="grid grid-cols-12 gap-3 items-end">
-                    <div className="col-span-7">
+                <div className="flex flex-col sm:grid sm:grid-cols-12 gap-3 sm:items-end">
+                    <div className="sm:col-span-7">
                         <label className={labelClass}>날짜</label>
                         <DatePicker
                             selectedDate={form.date}
@@ -276,19 +221,27 @@ export function TradeForm({
                             darkMode={darkMode}
                         />
                     </div>
-                    <div className="col-span-5">
-                        <div className={`p-1 rounded-xl flex h-[46px] border ${darkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-white border-slate-100 shadow-sm'}`}>
+                    <div className="sm:col-span-5">
+                        <div className="flex gap-2 h-12">
                             <button
                                 type="button"
                                 onClick={() => setForm(prev => ({ ...prev, side: 'BUY' }))}
-                                className={`flex-1 rounded-lg text-xs font-black transition-all btn-press ${form.side === 'BUY' ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/30' : (darkMode ? 'text-slate-500 hover:text-rose-400' : 'text-slate-400 hover:text-rose-500')}`}
+                                className={`flex-1 h-12 rounded-xl text-sm font-bold transition-all duration-200 active:scale-[0.97] ${
+                                    form.side === 'BUY'
+                                        ? 'bg-color-up text-white shadow-lg shadow-color-up/30 ring-2 ring-color-up/50'
+                                        : 'bg-color-up/8 text-color-up border-2 border-color-up/25 hover:bg-color-up/15'
+                                }`}
                             >
                                 매수
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setForm(prev => ({ ...prev, side: 'SELL' }))}
-                                className={`flex-1 rounded-lg text-xs font-black transition-all btn-press ${form.side === 'SELL' ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30' : (darkMode ? 'text-slate-500 hover:text-blue-400' : 'text-slate-400 hover:text-blue-500')}`}
+                                className={`flex-1 h-12 rounded-xl text-sm font-bold transition-all duration-200 active:scale-[0.97] ${
+                                    form.side === 'SELL'
+                                        ? 'bg-color-down text-white shadow-lg shadow-color-down/30 ring-2 ring-color-down/50'
+                                        : 'bg-color-down/8 text-color-down border-2 border-color-down/25 hover:bg-color-down/15'
+                                }`}
                             >
                                 매도
                             </button>
@@ -298,7 +251,10 @@ export function TradeForm({
 
                 {/* Row 2: Symbol with Autocomplete */}
                 <div>
-                    <label className={labelClass}>종목명</label>
+                    <label className={labelClass}>
+                        종목명
+                        {isFirstTrade && <span className="ml-1.5 text-blue-400/60">(티커로 검색 · 예: AAPL, 005930)</span>}
+                    </label>
                     <StockSymbolInput
                         value={form.symbol}
                         initialDisplayName={form.symbol_name}
@@ -313,6 +269,7 @@ export function TradeForm({
                     <div>
                         <label className={labelClass} title="1주당 매매 단가를 입력하세요">
                             단가 {form.symbol && <span className={darkMode ? 'text-indigo-400' : 'text-indigo-600'}>({getCurrencySymbol(form.symbol)})</span>}
+                            {isFirstTrade && !form.symbol && <span className="ml-1 text-white/25 text-xs">↑ 종목 선택 후 입력</span>}
                         </label>
                         <div className="relative">
                             {form.symbol && getCurrencySymbol(form.symbol) === '$' && (
@@ -336,6 +293,7 @@ export function TradeForm({
                     <div>
                         <label className={labelClass} title="매매한 수량을 입력하세요">
                             수량
+                            {isFirstTrade && <span className="ml-1 text-white/25 text-xs">(주식 수)</span>}
                         </label>
                         <input
                             type="number"
@@ -350,191 +308,32 @@ export function TradeForm({
                     </div>
                 </div>
 
-                {/* Advanced Options Toggle */}
                 <div className="pt-2">
-                    <button
-                        type="button"
-                        onClick={() => setShowAdvanced(!showAdvanced)}
-                        className={`w-full py-2.5 flex items-center justify-center gap-2 text-xs font-bold transition-all rounded-xl border ${darkMode ? 'bg-slate-900/40 border-slate-700 text-slate-400 hover:bg-slate-800 hover:border-slate-500 text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200'}`}
-                    >
-                        <ChevronDown size={14} className={`transform transition-transform duration-300 ${showAdvanced ? 'rotate-180' : ''}`} />
-                        {showAdvanced ? '간단히 보기' : '태그/전략/메모 입력하기'}
-                    </button>
-                </div>
-
-                {/* Advanced Fields Section */}
-                {showAdvanced && (
-                    <div className="space-y-4 animate-fade-in pt-1">
-                        {/* Tags */}
-                        <div>
-                            <label className={labelClass} title="나중에 분석할 수 있도록 태그를 달아보세요 (예: 뇌동매매)">
-                                태그 (쉼표로 구분) <Info size={10} className="inline opacity-50 ml-1" />
-                            </label>
-                            <input
-                                type="text"
-                                name="tags"
-                                placeholder="예: #뇌동매매, #불타기"
-                                value={form.tags}
-                                onChange={handleChange}
-                                className={inputBaseClass}
-                                title="태그 입력"
-                            />
-                        </div>
-
-                        {/* Strategy & Emotion */}
-                        {strategies.length > 0 && (
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className={labelClass} title="사용된 매매 전략을 선택하세요">
-                                        <Zap size={10} className="inline mr-1" /> 전략
-                                    </label>
-                                    <select
-                                        name="strategy_id"
-                                        value={form.strategy_id}
-                                        onChange={handleChange}
-                                        className={inputBaseClass + ' cursor-pointer appearance-none'}
-                                        title="전략 선택"
-                                    >
-                                        <option value="">선택 안함</option>
-                                        {strategies.map((s) => (
-                                            <option key={s.id} value={s.id}>
-                                                {s.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className={labelClass} title="매매 당시의 심리 상태를 기록세요">
-                                        심리 상태
-                                    </label>
-                                    <select
-                                        name="emotion_tag"
-                                        value={form.emotion_tag}
-                                        onChange={handleChange}
-                                        className={inputBaseClass + ' cursor-pointer appearance-none'}
-                                        title="심리 상태 선택"
-                                    >
-                                        <option value="">선택 안함</option>
-                                        {Object.entries(EMOTION_TAG_LABELS).map(([key, label]) => (
-                                            <option key={key} value={key}>
-                                                {label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Reasons */}
-                        <div className="space-y-3">
-                            <div>
-                                <label className={labelClass} title="왜 진입했나요? 근거를 남겨주세요">
-                                    진입 근거
-                                </label>
-                                <textarea
-                                    name="entry_reason"
-                                    placeholder="진입 시점의 판단 근거를 기록하세요."
-                                    value={form.entry_reason}
-                                    onChange={handleChange}
-                                    className={inputBaseClass + ' min-h-[60px] resize-none leading-relaxed'}
-                                    rows={2}
-                                />
-                            </div>
-                            <div>
-                                <label className={labelClass} title="어떻게 청산할 계획인가요?">
-                                    청산 근거
-                                </label>
-                                <textarea
-                                    name="exit_reason"
-                                    placeholder="청산 시점의 판단 또는 계획을 기록하세요."
-                                    value={form.exit_reason}
-                                    onChange={handleChange}
-                                    className={inputBaseClass + ' min-h-[60px] resize-none leading-relaxed'}
-                                    rows={2}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Memo & Image */}
-                        <div className="grid grid-cols-12 gap-3">
-                            <div className="col-span-9">
-                                <label className={labelClass}>간단 메모</label>
-                                <textarea
-                                    name="memo"
-                                    placeholder="특이사항 메모..."
-                                    value={form.memo}
-                                    onChange={handleChange}
-                                    className={inputBaseClass + ' min-h-[46px] resize-none leading-relaxed py-3'}
-                                    rows={1}
-                                />
-                            </div>
-                            <div className="col-span-3">
-                                <label className={labelClass} title="차트 이미지를 업로드하세요">차트</label>
-                                <input
-                                    ref={chartInputRef}
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={handleChartFileChange}
-                                    className="hidden"
-                                />
-                                {!chartPreview ? (
-                                    <button
-                                        type="button"
-                                        onClick={() => chartInputRef.current?.click()}
-                                        className={`w-full h-[46px] rounded-xl flex items-center justify-center transition-all border border-dashed ${darkMode ? 'bg-slate-800/40 border-slate-700 hover:bg-slate-800 hover:border-slate-500 text-slate-500' : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-indigo-300 text-slate-400'}`}
-                                        title="이미지 업로드"
-                                    >
-                                        <ImageIcon size={18} />
-                                    </button>
-                                ) : (
-                                    <div className="relative w-full h-[46px] rounded-xl overflow-hidden group shadow-md cursor-pointer" onClick={() => chartInputRef.current?.click()}>
-                                        <img src={chartPreview} alt="Preview" className="w-full h-full object-cover" />
-                                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button
-                                                type="button"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setChartFile(null);
-                                                    setChartPreview(null);
-                                                    if (chartInputRef.current) chartInputRef.current.value = '';
-                                                }}
-                                                className="text-white text-[10px] font-bold uppercase tracking-wider bg-rose-500 px-2 py-1 rounded"
-                                            >
-                                                삭제
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                <div className="pt-2">
-                    <button
+                    <Button
                         type="submit"
-                        disabled={isSubmitting}
-                        className={
-                            `w-full py-4 rounded-xl font-black text-sm text-white transition-all transform active:scale-[0.98] btn-press flex items-center justify-center gap-2
-                            ${isSubmitting
-                                ? 'bg-slate-400 cursor-not-allowed'
-                                : darkMode
-                                    ? 'bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 shadow-lg shadow-indigo-900/40'
-                                    : 'bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 shadow-lg shadow-indigo-200'}
-                            `
-                        }
+                        fullWidth
+                        size="lg"
+                        loading={isSubmitting}
+                        className="gap-2"
                     >
-                        {isSubmitting ? (
-                            <>저장 중...</>
-                        ) : (
-                            <>
-                                <Save size={18} strokeWidth={2.5} />
-                                {initialData ? '수정 완료' : '기록 저장하기'}
-                            </>
-                        )}
-                    </button>
+                        <Save size={18} strokeWidth={2} />
+                        {initialData ? '수정 완료' : '기록 저장하기'}
+                    </Button>
                 </div>
             </form>
-        </div>
+
+            {/* Pre-trade Checklist Modal */}
+            <TradeChecklist
+                isOpen={showChecklist}
+                onClose={() => setShowChecklist(false)}
+                onConfirm={handleChecklistConfirm}
+                side={form.side as 'BUY' | 'SELL'}
+                symbol={form.symbol}
+                symbolName={form.symbol_name}
+                price={Number(form.price) || 0}
+                quantity={Number(form.quantity) || 0}
+                existingTrades={allTrades}
+            />
+        </Card>
     );
 }
