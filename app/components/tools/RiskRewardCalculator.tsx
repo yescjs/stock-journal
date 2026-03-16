@@ -1,9 +1,17 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { ShieldAlert, Target, TrendingDown, TrendingUp } from 'lucide-react';
+import { useSupabaseAuth } from '@/app/hooks/useSupabaseAuth';
+import { useEventTracking } from '@/app/hooks/useEventTracking';
 
 export function RiskRewardCalculator() {
+  const { user } = useSupabaseAuth();
+  const { track } = useEventTracking(user);
+
+  useEffect(() => {
+    track('tool_used', { tool: 'risk-reward' });
+  }, [track]);
   const [entryPrice, setEntryPrice] = useState('');
   const [stopLoss, setStopLoss] = useState('');
   const [takeProfit, setTakeProfit] = useState('');

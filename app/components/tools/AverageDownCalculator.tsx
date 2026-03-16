@@ -1,11 +1,19 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Calculator, AlertTriangle, Coins } from 'lucide-react';
+import { useSupabaseAuth } from '@/app/hooks/useSupabaseAuth';
+import { useEventTracking } from '@/app/hooks/useEventTracking';
 
 type CalcMode = 'forward' | 'reverse';
 
 export function AverageDownCalculator() {
+  const { user } = useSupabaseAuth();
+  const { track } = useEventTracking(user);
+
+  useEffect(() => {
+    track('tool_used', { tool: 'average-down' });
+  }, [track]);
   const [mode, setMode] = useState<CalcMode>('reverse');
 
   // 공통 입력
