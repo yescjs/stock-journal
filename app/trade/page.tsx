@@ -120,6 +120,7 @@ export default function TradePage() {
         try {
             await addTrade(data, imageFile);
             showNotify('success', '기록이 저장되었습니다.');
+            track('trade_created', { symbol: data.symbol, side: data.side });
             recordToday();
             onboarding.completeStep('firstTrade');
 
