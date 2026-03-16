@@ -18,6 +18,7 @@ import { useTradeFilter } from '@/app/hooks/useTradeFilter';
 import { useCoins } from '@/app/hooks/useCoins';
 import { useStreak } from '@/app/hooks/useStreak';
 import { useOnboarding } from '@/app/hooks/useOnboarding';
+import { useEventTracking } from '@/app/hooks/useEventTracking';
 
 // Components
 import { BottomSheet } from '@/app/components/BottomSheet';
@@ -53,6 +54,7 @@ export default function TradePage() {
     // --- Streak & Onboarding ---
     const { streak, loading: streakLoading, recordToday } = useStreak(currentUser);
     const onboarding = useOnboarding(currentUser);
+    const { track } = useEventTracking(currentUser);
 
     // 페이지 진입 시 스트릭 자동 기록 (거래 추가 여부와 무관하게 접속일 카운트)
     const streakRecordedRef = useRef(false);
@@ -62,6 +64,15 @@ export default function TradePage() {
             recordToday();
         }
     }, [streakLoading, recordToday]);
+
+    // 세션 시작 이벤트 (로그인 사용자, 인증 로딩 완료 후 1회)
+    const sessionTrackedRef = useRef(false);
+    useEffect(() => {
+        if (!authLoading && currentUser && !sessionTrackedRef.current) {
+            sessionTrackedRef.current = true;
+            track('session_start', { page: '/trade' });
+        }
+    }, [authLoading, currentUser, track]);
 
     // --- Currency Toggle ---
     const [showConverted, setShowConverted] = useState(false);
