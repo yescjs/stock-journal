@@ -337,6 +337,7 @@ export default function TradePage() {
                 onImport={async (newTrades) => {
                     const count = await importTrades(newTrades);
                     showNotify('success', `${count}건의 거래가 추가되었습니다.`);
+                    track('import_completed', { trade_count: count });
                     return count;
                 }}
             />
