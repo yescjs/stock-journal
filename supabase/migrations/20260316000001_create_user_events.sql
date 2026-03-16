@@ -23,4 +23,8 @@ create policy "users can insert own events"
   with check (auth.uid() = user_id);
 
 -- 관리자(service_role)만 전체 select 가능 — anon/authenticated는 select 불가
--- (Supabase SQL 에디터는 service_role로 실행되므로 관리자 분석 가능)
+-- (RLS가 활성화된 상태에서 select 정책 없음 = 전체 denied가 기본값)
+-- Supabase SQL 에디터는 service_role로 실행되므로 관리자 분석에 활용 가능
+
+-- 이 테이블은 append-only 설계:
+-- INSERT만 허용, UPDATE/DELETE 정책 없음 (= 모두 denied)
