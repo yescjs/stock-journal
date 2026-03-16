@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/app/lib/supabaseClient';
 import { TradeAnalysis, RoundTrip } from '@/app/types/analysis';
+import { useEventTracking } from '@/app/hooks/useEventTracking';
 
 export interface AIReportResult {
   report: string;
@@ -36,6 +37,7 @@ interface UseAIAnalysisReturn {
 }
 
 export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): UseAIAnalysisReturn {
+  const { track } = useEventTracking(user);
   const [weeklyReport, setWeeklyReport] = useState<AIReportResult | null>(null);
   const [tradeReview, setTradeReview] = useState<Record<string, AIReportResult>>({});
   const [loadingWeekly, setLoadingWeekly] = useState(false);
@@ -160,6 +162,7 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
 
       const data: AIReportResult = await res.json();
       setWeeklyReport(data);
+      track('ai_analysis_run', { report_type: 'weekly_report' });
       onSuccess?.();
       onCoinsConsumed?.();
 
@@ -208,6 +211,7 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
 
       const data: AIReportResult = await res.json();
       setTradeReview(prev => ({ ...prev, [key]: data }));
+      track('ai_analysis_run', { report_type: 'trade_review' });
       onCoinsConsumed?.();
 
       // 자동 저장
