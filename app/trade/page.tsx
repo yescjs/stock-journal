@@ -48,7 +48,7 @@ export default function TradePage() {
     const { filteredTrades } = filterState;
 
     // --- Coins ---
-    const { balance: coinBalance, purchaseCoins, refreshBalance, loading: coinsLoading, error: coinsError } = useCoins(currentUser);
+    const { balance: coinBalance, transactions: coinTransactions, loading: coinsLoading, refreshBalance } = useCoins(currentUser);
 
     // --- Streak & Onboarding ---
     const { streak, loading: streakLoading, recordToday } = useStreak(currentUser);
@@ -334,23 +334,7 @@ export default function TradePage() {
                 isOpen={showCoinShop}
                 onClose={() => setShowCoinShop(false)}
                 balance={coinBalance}
-                user={currentUser}
-                onPurchase={async (idx, customer) => {
-                    if (!currentUser) {
-                        setShowCoinShop(false);
-                        setShowLoginModal(true);
-                        return;
-                    }
-                    const result = await purchaseCoins(idx, customer);
-                    if (result.success) {
-                        showNotify('success', result.message);
-                        setShowCoinShop(false);
-                    } else {
-                        showNotify('error', result.message);
-                    }
-                }}
-                purchasing={coinsLoading}
-                error={coinsError}
+                transactions={coinTransactions}
             />
         </div>
     );
