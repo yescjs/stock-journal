@@ -18,14 +18,22 @@ DROP TABLE IF EXISTS public.payment_orders;
 CREATE OR REPLACE FUNCTION public.reset_daily_coins()
 RETURNS void AS $$
 BEGIN
+  -- 모든 유저 잔액을 10으로 리셋 (행이 없는 유저는 INSERT)
   INSERT INTO public.user_coins (user_id, balance)
   SELECT id, 10 FROM auth.users
   ON CONFLICT (user_id) DO UPDATE SET balance = 10, updated_at = now();
 
+  -- 오늘 이미 daily_bonus를 받은 유저는 제외 (중복 방지)
   -- amount=10은 실제 증감분이 아닌 "리셋 후 잔액"을 의미한다 (의도적).
-  -- 이전 잔액에 관계없이 매일 10코인으로 갱신되는 리셋 방식이므로 항상 10을 기록한다.
   INSERT INTO public.coin_transactions (user_id, type, amount, balance_after)
-  SELECT user_id, 'daily_bonus', 10, 10 FROM public.user_coins;
+  SELECT uc.user_id, 'daily_bonus', 10, 10
+  FROM public.user_coins uc
+  WHERE NOT EXISTS (
+    SELECT 1 FROM public.coin_transactions ct
+    WHERE ct.user_id = uc.user_id
+      AND ct.type = 'daily_bonus'
+      AND ct.created_at >= date_trunc('day', now() AT TIME ZONE 'UTC')
+  );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
