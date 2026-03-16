@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/app/lib/supabaseClient';
 import type { User } from '@supabase/supabase-js';
+import { useEventTracking } from '@/app/hooks/useEventTracking';
 
 const GUEST_ONBOARDING_KEY = 'stock-journal-guest-onboarding-v1';
 
@@ -47,6 +48,7 @@ export function useOnboarding(user: User | null) {
   const [data, setData] = useState<OnboardingData>(DEFAULT_ONBOARDING);
   const [loading, setLoading] = useState(true);
   const dataLoaded = useRef(false);
+  const { track } = useEventTracking(user);
 
   // Load
   useEffect(() => {
@@ -113,6 +115,10 @@ export function useOnboarding(user: User | null) {
       const completedAt = allDone ? new Date().toISOString() : data.completedAt;
 
       setData((prev) => ({ ...prev, steps: newSteps, completedAt }));
+
+      if (allDone) {
+        track('onboarding_completed');
+      }
 
       if (user) {
         try {
