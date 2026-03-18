@@ -221,8 +221,8 @@ export function TradeListView({
     }
   }, [onOpenAddTrade, switchToAnalysis]);
 
-  // Trade analysis engine
-  const { analysis } = useTradeAnalysis(trades, currentUser);
+  // Trade analysis engine — uses filteredTrades so analysis view respects active filters
+  const { analysis } = useTradeAnalysis(filteredTrades, currentUser);
 
   // USD 종목 존재 여부 (환율 적용 버튼 표시 조건)
   const hasUSDTrades = useMemo(
@@ -230,9 +230,9 @@ export function TradeListView({
     [trades]
   );
 
-  // 매수/매도 건수 (분석 탭 EmptyState용)
-  const buyCount = useMemo(() => trades.filter(t => t.side === 'BUY').length, [trades]);
-  const sellCount = useMemo(() => trades.filter(t => t.side === 'SELL').length, [trades]);
+  // 매수/매도 건수 (분석 탭 EmptyState용) — filteredTrades 기준
+  const buyCount = useMemo(() => filteredTrades.filter(t => t.side === 'BUY').length, [filteredTrades]);
+  const sellCount = useMemo(() => filteredTrades.filter(t => t.side === 'SELL').length, [filteredTrades]);
 
   const {
     selectedSymbol, setSelectedSymbol,
@@ -244,11 +244,11 @@ export function TradeListView({
   } = filterState;
 
   // Derive Daily Data for Calendar (evaluation P&L for held, realized P&L for sold)
-  // Apply holding + symbol filters but NOT date filters (useless for calendar)
+  // Apply all active filters including date range
   const dailyData = useMemo(() => {
     const map = new Map<string, { krw: number; usd: number }>();
 
-    // Build filtered source: apply all filters except date
+    // Build filtered source: apply all filters
     let source = trades;
     if (selectedSymbol) {
       source = source.filter(t => t.symbol === selectedSymbol);
@@ -263,6 +263,9 @@ export function TradeListView({
         (t.symbol_name && t.symbol_name.toLowerCase().includes(lower))
       );
     }
+    // Apply date filter so calendar reflects active preset/date range
+    if (dateFrom) source = source.filter(t => t.date >= dateFrom);
+    if (dateTo) source = source.filter(t => t.date <= dateTo);
 
     // Pre-compute avg buy price per symbol
     const buyData = new Map<string, { totalQty: number; totalAmount: number }>();
@@ -703,7 +706,7 @@ export function TradeListView({
               <AnalysisDashboard
                 analysis={analysis}
                 darkMode={darkMode}
-                tradesCount={trades.length}
+                tradesCount={filteredTrades.length}
                 buyCount={buyCount}
                 sellCount={sellCount}
                 currentUser={currentUser}
