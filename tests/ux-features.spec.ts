@@ -217,5 +217,45 @@ test.describe('UX Features - Copy Trade / Undo Delete / Date Presets', () => {
       // 프리셋 칩이 여전히 활성 상태여야 함
       await expect(page.getByRole('button', { name: '이번 달' })).toHaveClass(/text-indigo-400/, { timeout: 3000 });
     });
+
+    test('날짜 프리셋 칩이 필터 버튼보다 아래 행에 위치한다 (레이아웃 검증)', async ({ page }) => {
+      const presetChip = page.getByRole('button', { name: '이번 달' });
+      const filterBtn = page.getByRole('button', { name: '보유 종목' });
+
+      await expect(presetChip).toBeVisible({ timeout: 5000 });
+      await expect(filterBtn).toBeVisible({ timeout: 5000 });
+
+      const chipBox = await presetChip.boundingBox();
+      const filterBox = await filterBtn.boundingBox();
+
+      expect(chipBox).not.toBeNull();
+      expect(filterBox).not.toBeNull();
+
+      // 프리셋 칩의 상단이 필터 버튼 중앙보다 아래에 있어야 함 (별도 행)
+      expect(chipBox!.y).toBeGreaterThan(filterBox!.y + filterBox!.height / 2);
+    });
+
+    test('뷰 전환(목록→분석→목록) 후에도 프리셋 필터가 유지된다', async ({ page }) => {
+      await page.getByRole('button', { name: '오늘' }).click();
+      await page.waitForTimeout(300);
+      await expect(page.getByRole('button', { name: '오늘' })).toHaveClass(/text-indigo-400/, { timeout: 3000 });
+
+      // 분석 뷰로 전환
+      const analysisBtn = page.getByRole('button').filter({ hasText: /분석/ }).first();
+      if (await analysisBtn.isVisible({ timeout: 3000 })) {
+        await analysisBtn.click();
+        await page.waitForTimeout(300);
+      }
+
+      // 목록 뷰로 전환
+      const listBtn = page.getByRole('button').filter({ hasText: /목록/ }).first();
+      if (await listBtn.isVisible({ timeout: 3000 })) {
+        await listBtn.click();
+        await page.waitForTimeout(300);
+      }
+
+      // 프리셋 칩이 여전히 활성 상태여야 함
+      await expect(page.getByRole('button', { name: '오늘' })).toHaveClass(/text-indigo-400/, { timeout: 3000 });
+    });
   });
 });

@@ -523,10 +523,12 @@ export function TradeListView({
 
       {/* View Toggle + Filter Area */}
       {!selectedSymbol && (
-        <div className="flex-none flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5">
-          {/* Search & Filter */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-1 w-full sm:w-auto">
-            {/* Row 1: Search Input */}
+        <div className="flex-none flex flex-col gap-2 mb-5">
+          {/* Row 1: Search + Filter Buttons + View Toggle */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            {/* Search & Filter */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-1 w-full sm:w-auto">
+            {/* Search Input */}
             <div className="relative flex-1 w-full sm:max-w-[280px] min-w-[160px]">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
               <input
@@ -543,24 +545,7 @@ export function TradeListView({
               )}
             </div>
 
-            {/* Date Preset Chips */}
-            <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden">
-              {DATE_PRESETS.map(({ key, label }) => (
-                <button
-                  key={key}
-                  onClick={() => applyDatePreset(key)}
-                  className={`flex-none px-3 py-2 rounded-xl text-xs font-bold border transition-all whitespace-nowrap ${
-                    activeDatePreset === key
-                      ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30'
-                      : 'text-white/40 bg-white/5 border-white/8 hover:text-white/60 hover:bg-white/8'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            {/* Row 2: Filter Buttons (on mobile this wraps to next line) */}
+            {/* Filter Buttons */}
             <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
               {/* Holding Only Toggle */}
               <button
@@ -626,40 +611,58 @@ export function TradeListView({
                 </button>
               )}
             </div>
+            </div>
+
+            {/* View Mode Toggle */}
+            <div className="flex p-1 rounded-xl bg-white/5 border border-white/8 gap-0.5 flex-none">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${viewMode === 'list'
+                  ? 'bg-white/10 text-white shadow-md'
+                  : 'text-white/30 hover:text-white/60'
+                  }`}
+              >
+                <ListIcon size={14} strokeWidth={2} />
+                <span className="hidden sm:inline">목록</span>
+              </button>
+              <button
+                onClick={() => setViewMode('calendar')}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${viewMode === 'calendar'
+                  ? 'bg-white/10 text-white shadow-md'
+                  : 'text-white/30 hover:text-white/60'
+                  }`}
+              >
+                <LayoutGrid size={14} strokeWidth={2} />
+                <span className="hidden sm:inline">캘린더</span>
+              </button>
+              <button
+                onClick={switchToAnalysis}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${viewMode === 'analysis'
+                  ? 'bg-white/10 text-white shadow-md'
+                  : 'text-white/30 hover:text-white/60'
+                  }`}
+              >
+                <Brain size={14} strokeWidth={2} />
+                <span className="hidden sm:inline">분석</span>
+              </button>
+            </div>
           </div>
 
-          {/* View Mode Toggle */}
-          <div className="flex p-1 rounded-xl bg-white/5 border border-white/8 gap-0.5">
-            <button
-              onClick={() => setViewMode('list')}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${viewMode === 'list'
-                ? 'bg-white/10 text-white shadow-md'
-                : 'text-white/30 hover:text-white/60'
+          {/* Row 2: Date Preset Chips */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden">
+            {DATE_PRESETS.map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => applyDatePreset(key)}
+                className={`flex-none px-3 py-2 rounded-xl text-xs font-bold border transition-all whitespace-nowrap ${
+                  activeDatePreset === key
+                    ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30'
+                    : 'text-white/40 bg-white/5 border-white/8 hover:text-white/60 hover:bg-white/8'
                 }`}
-            >
-              <ListIcon size={14} strokeWidth={2} />
-              <span className="hidden sm:inline">목록</span>
-            </button>
-            <button
-              onClick={() => setViewMode('calendar')}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${viewMode === 'calendar'
-                ? 'bg-white/10 text-white shadow-md'
-                : 'text-white/30 hover:text-white/60'
-                }`}
-            >
-              <LayoutGrid size={14} strokeWidth={2} />
-              <span className="hidden sm:inline">캘린더</span>
-            </button>
-            <button
-              onClick={switchToAnalysis}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${viewMode === 'analysis'
-                ? 'bg-white/10 text-white shadow-md'
-                : 'text-white/30 hover:text-white/60'
-                }`}
-            >
-              <Brain size={14} strokeWidth={2} />
-              <span className="hidden sm:inline">분석</span>
-            </button>
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
       )}
