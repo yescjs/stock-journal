@@ -332,7 +332,7 @@ export function TradeListView({
       krwValue: krw,
       usdValue: usd,
     }));
-  }, [trades, selectedSymbol, holdingOnly, filterSymbol, filterState.heldSymbols, showConverted, exchangeRate, currentPrices]);
+  }, [trades, selectedSymbol, holdingOnly, filterSymbol, filterState.heldSymbols, showConverted, exchangeRate, currentPrices, dateFrom, dateTo]);
 
   // Portfolio Summary: calculate invested amount, unrealized/realized P&L
   const portfolioSummary = useMemo(() => {
