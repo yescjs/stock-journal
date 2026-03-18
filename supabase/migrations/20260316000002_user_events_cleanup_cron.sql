@@ -1,0 +1,15 @@
+-- user_events 30일 이상 된 데이터 자동 삭제 (pg_cron)
+--
+-- 사전 조건: Supabase 대시보드 → Database → Extensions → pg_cron 활성화
+--
+-- 아래 구문을 Supabase SQL 에디터에서 별도 실행:
+--
+-- SELECT cron.unschedule('cleanup-user-events')
+--   WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'cleanup-user-events');
+-- SELECT cron.schedule(
+--   'cleanup-user-events',
+--   '0 15 * * *',
+--   $$DELETE FROM public.user_events WHERE created_at < now() - interval '30 days'$$
+-- );
+--
+-- 실행 시간: UTC 15:00 = KST 자정 (매일)

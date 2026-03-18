@@ -1,9 +1,17 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { ShieldCheck, AlertTriangle, Coins } from 'lucide-react';
+import { useSupabaseAuth } from '@/app/hooks/useSupabaseAuth';
+import { useEventTracking } from '@/app/hooks/useEventTracking';
 
 export function PositionSizeCalculator() {
+  const { user } = useSupabaseAuth();
+  const { track } = useEventTracking(user);
+
+  useEffect(() => {
+    track('tool_used', { tool: 'position-size' });
+  }, [track]);
   const [totalCapital, setTotalCapital] = useState('');
   const [riskPercent, setRiskPercent] = useState('2');
   const [entryPrice, setEntryPrice] = useState('');

@@ -12,7 +12,7 @@ import {
   TrendingUp, TrendingDown, Wallet, BarChart3, DollarSign, Briefcase, Calendar, RotateCw, Brain,
   BookOpen, PenLine, BarChart2, Sparkles, ArrowDown, Upload
 } from 'lucide-react';
-import { useTradeFilter } from '@/app/hooks/useTradeFilter';
+import { useTradeFilter, DatePreset } from '@/app/hooks/useTradeFilter';
 import { useTradeAnalysis } from '@/app/hooks/useTradeAnalysis';
 import { StreakBadge } from '@/app/components/StreakBadge';
 import { OnboardingChecklist } from '@/app/components/OnboardingChecklist';
@@ -47,7 +47,16 @@ interface TradeListViewProps {
   onDismissOnboarding: () => void;
   onCompleteOnboardingStep?: (step: keyof OnboardingSteps) => void;
   onOpenAddTrade?: () => void;
+  onCopy?: (trade: Trade) => void;
 }
+
+const DATE_PRESETS: { key: DatePreset; label: string }[] = [
+  { key: 'today', label: '오늘' },
+  { key: 'week', label: '이번 주' },
+  { key: 'month', label: '이번 달' },
+  { key: 'year', label: '올해' },
+  { key: 'all', label: '전체' },
+];
 
 // ─── Smart Empty State ───────────────────────────────────────────────────
 
@@ -185,6 +194,7 @@ export function TradeListView({
   onDismissOnboarding,
   onCompleteOnboardingStep,
   onOpenAddTrade,
+  onCopy,
 }: TradeListViewProps) {
   const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'analysis'>('list');
   const [calendarDate, setCalendarDate] = useState(new Date());
@@ -211,8 +221,8 @@ export function TradeListView({
     }
   }, [onOpenAddTrade, switchToAnalysis]);
 
-  // Trade analysis engine
-  const { analysis } = useTradeAnalysis(trades, currentUser);
+  // Trade analysis engine — uses filteredTrades so analysis view respects active filters
+  const { analysis } = useTradeAnalysis(filteredTrades, currentUser);
 
   // USD 종목 존재 여부 (환율 적용 버튼 표시 조건)
   const hasUSDTrades = useMemo(
@@ -220,9 +230,9 @@ export function TradeListView({
     [trades]
   );
 
-  // 매수/매도 건수 (분석 탭 EmptyState용)
-  const buyCount = useMemo(() => trades.filter(t => t.side === 'BUY').length, [trades]);
-  const sellCount = useMemo(() => trades.filter(t => t.side === 'SELL').length, [trades]);
+  // 매수/매도 건수 (분석 탭 EmptyState용) — filteredTrades 기준
+  const buyCount = useMemo(() => filteredTrades.filter(t => t.side === 'BUY').length, [filteredTrades]);
+  const sellCount = useMemo(() => filteredTrades.filter(t => t.side === 'SELL').length, [filteredTrades]);
 
   const {
     selectedSymbol, setSelectedSymbol,
@@ -230,14 +240,15 @@ export function TradeListView({
     dateFrom, setDateFrom,
     dateTo, setDateTo,
     holdingOnly, setHoldingOnly,
+    activeDatePreset, applyDatePreset,
   } = filterState;
 
   // Derive Daily Data for Calendar (evaluation P&L for held, realized P&L for sold)
-  // Apply holding + symbol filters but NOT date filters (useless for calendar)
+  // Apply all active filters including date range
   const dailyData = useMemo(() => {
     const map = new Map<string, { krw: number; usd: number }>();
 
-    // Build filtered source: apply all filters except date
+    // Build filtered source: apply all filters
     let source = trades;
     if (selectedSymbol) {
       source = source.filter(t => t.symbol === selectedSymbol);
@@ -252,6 +263,9 @@ export function TradeListView({
         (t.symbol_name && t.symbol_name.toLowerCase().includes(lower))
       );
     }
+    // Apply date filter so calendar reflects active preset/date range
+    if (dateFrom) source = source.filter(t => t.date >= dateFrom);
+    if (dateTo) source = source.filter(t => t.date <= dateTo);
 
     // Pre-compute avg buy price per symbol
     const buyData = new Map<string, { totalQty: number; totalAmount: number }>();
@@ -318,7 +332,7 @@ export function TradeListView({
       krwValue: krw,
       usdValue: usd,
     }));
-  }, [trades, selectedSymbol, holdingOnly, filterSymbol, filterState.heldSymbols, showConverted, exchangeRate, currentPrices]);
+  }, [trades, selectedSymbol, holdingOnly, filterSymbol, filterState.heldSymbols, showConverted, exchangeRate, currentPrices, dateFrom, dateTo]);
 
   // Portfolio Summary: calculate invested amount, unrealized/realized P&L
   const portfolioSummary = useMemo(() => {
@@ -512,10 +526,12 @@ export function TradeListView({
 
       {/* View Toggle + Filter Area */}
       {!selectedSymbol && (
-        <div className="flex-none flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5">
-          {/* Search & Filter */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-1 w-full sm:w-auto">
-            {/* Row 1: Search Input */}
+        <div className="flex-none flex flex-col gap-2 mb-5">
+          {/* Row 1: Search + Filter Buttons + View Toggle */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            {/* Search & Filter */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-1 w-full sm:w-auto">
+            {/* Search Input */}
             <div className="relative flex-1 w-full sm:max-w-[280px] min-w-[160px]">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
               <input
@@ -532,7 +548,7 @@ export function TradeListView({
               )}
             </div>
 
-            {/* Row 2: Filter Buttons (on mobile this wraps to next line) */}
+            {/* Filter Buttons */}
             <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
               {/* Holding Only Toggle */}
               <button
@@ -598,40 +614,58 @@ export function TradeListView({
                 </button>
               )}
             </div>
+            </div>
+
+            {/* View Mode Toggle */}
+            <div className="flex p-1 rounded-xl bg-white/5 border border-white/8 gap-0.5 flex-none">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${viewMode === 'list'
+                  ? 'bg-white/10 text-white shadow-md'
+                  : 'text-white/30 hover:text-white/60'
+                  }`}
+              >
+                <ListIcon size={14} strokeWidth={2} />
+                <span className="hidden sm:inline">목록</span>
+              </button>
+              <button
+                onClick={() => setViewMode('calendar')}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${viewMode === 'calendar'
+                  ? 'bg-white/10 text-white shadow-md'
+                  : 'text-white/30 hover:text-white/60'
+                  }`}
+              >
+                <LayoutGrid size={14} strokeWidth={2} />
+                <span className="hidden sm:inline">캘린더</span>
+              </button>
+              <button
+                onClick={switchToAnalysis}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${viewMode === 'analysis'
+                  ? 'bg-white/10 text-white shadow-md'
+                  : 'text-white/30 hover:text-white/60'
+                  }`}
+              >
+                <Brain size={14} strokeWidth={2} />
+                <span className="hidden sm:inline">분석</span>
+              </button>
+            </div>
           </div>
 
-          {/* View Mode Toggle */}
-          <div className="flex p-1 rounded-xl bg-white/5 border border-white/8 gap-0.5">
-            <button
-              onClick={() => setViewMode('list')}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${viewMode === 'list'
-                ? 'bg-white/10 text-white shadow-md'
-                : 'text-white/30 hover:text-white/60'
+          {/* Row 2: Date Preset Chips */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden">
+            {DATE_PRESETS.map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => applyDatePreset(key)}
+                className={`flex-none px-3 py-2 rounded-xl text-xs font-bold border transition-all whitespace-nowrap ${
+                  activeDatePreset === key
+                    ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30'
+                    : 'text-white/40 bg-white/5 border-white/8 hover:text-white/60 hover:bg-white/8'
                 }`}
-            >
-              <ListIcon size={14} strokeWidth={2} />
-              <span className="hidden sm:inline">목록</span>
-            </button>
-            <button
-              onClick={() => setViewMode('calendar')}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${viewMode === 'calendar'
-                ? 'bg-white/10 text-white shadow-md'
-                : 'text-white/30 hover:text-white/60'
-                }`}
-            >
-              <LayoutGrid size={14} strokeWidth={2} />
-              <span className="hidden sm:inline">캘린더</span>
-            </button>
-            <button
-              onClick={switchToAnalysis}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${viewMode === 'analysis'
-                ? 'bg-white/10 text-white shadow-md'
-                : 'text-white/30 hover:text-white/60'
-                }`}
-            >
-              <Brain size={14} strokeWidth={2} />
-              <span className="hidden sm:inline">분석</span>
-            </button>
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -672,7 +706,7 @@ export function TradeListView({
               <AnalysisDashboard
                 analysis={analysis}
                 darkMode={darkMode}
-                tradesCount={trades.length}
+                tradesCount={filteredTrades.length}
                 buyCount={buyCount}
                 sellCount={sellCount}
                 currentUser={currentUser}
@@ -706,6 +740,7 @@ export function TradeListView({
                 allTrades={trades}
                 onDelete={onDelete}
                 onEdit={onEdit}
+                onCopy={onCopy}
                 openMonths={openMonths}
                 toggleMonth={toggleMonth}
                 darkMode={darkMode}

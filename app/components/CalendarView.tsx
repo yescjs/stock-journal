@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import {
   format,
   startOfMonth,
@@ -16,6 +16,8 @@ import {
 import { ko } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
+import { useSupabaseAuth } from '@/app/hooks/useSupabaseAuth';
+import { useEventTracking } from '@/app/hooks/useEventTracking';
 import { twMerge } from 'tailwind-merge';
 
 function cn(...inputs: ClassValue[]) {
@@ -45,6 +47,12 @@ export function CalendarView({
   selectedDateStr,
   darkMode
 }: CalendarViewProps) {
+  const { user } = useSupabaseAuth();
+  const { track } = useEventTracking(user);
+
+  useEffect(() => {
+    track('calendar_viewed');
+  }, [track]);
 
   // 1. Data Map: stores { krw, usd } per day
   const dataMap = useMemo(() => {

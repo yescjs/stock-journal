@@ -1,10 +1,18 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { TrendingUp, Coins, Calendar } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { useSupabaseAuth } from '@/app/hooks/useSupabaseAuth';
+import { useEventTracking } from '@/app/hooks/useEventTracking';
 
 export function CompoundCalculator() {
+  const { user } = useSupabaseAuth();
+  const { track } = useEventTracking(user);
+
+  useEffect(() => {
+    track('tool_used', { tool: 'compound-calculator' });
+  }, [track]);
   const [initialAmount, setInitialAmount] = useState('1000');
   const [monthlyAmount, setMonthlyAmount] = useState('100');
   const [annualReturn, setAnnualReturn] = useState('10');

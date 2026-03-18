@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Trade } from '@/app/types/trade';
 import { formatMonthLabel, formatQuantity, formatPrice, getKoreanWeekdayLabel } from '@/app/utils/format';
-import { Pencil, Trash2, ChevronDown, Calendar, ListTodo } from 'lucide-react';
+import { Pencil, Trash2, Copy, ChevronDown, Calendar, ListTodo } from 'lucide-react';
 import { Card } from '@/app/components/ui/Card';
 import { Button } from '@/app/components/ui/Button';
 
@@ -11,6 +11,7 @@ interface TradeListProps {
     allTrades?: Trade[];  // All trades for calculating avg buy price (used for SELL realized P&L)
     onDelete?: (id: string) => void;
     onEdit?: (trade: Trade) => void;
+    onCopy?: (trade: Trade) => void;
     openMonths: Record<string, boolean>;
     toggleMonth: (key: string) => void;
     darkMode: boolean;
@@ -57,6 +58,7 @@ export function TradeList({
     allTrades,
     onDelete,
     onEdit,
+    onCopy,
     openMonths,
     toggleMonth,
     onSymbolClick,
@@ -194,8 +196,8 @@ export function TradeList({
                                                 )}
                                                 <th className="px-4 py-3 text-right">수량</th>
                                                 <th className="px-4 py-3 text-right">총액</th>
-                                                {(onDelete || onEdit) && (
-                                                    <th className="px-4 py-3 z-10 sticky right-0 text-center w-[80px] bg-card">관리</th>
+                                                {(onDelete || onEdit || onCopy) && (
+                                                    <th className="px-4 py-3 z-10 sticky right-0 text-center w-[100px] bg-card">관리</th>
                                                 )}
                                             </tr>
                                         </thead>
@@ -322,21 +324,32 @@ export function TradeList({
                                                         </td>
 
                                                         {/* Actions */}
-                                                        {(onDelete || onEdit) && (
+                                                        {(onDelete || onEdit || onCopy) && (
                                                             <td className="px-4 py-3 sticky right-0 z-10 bg-card/95 backdrop-blur-sm">
                                                                 <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 md:max-lg:opacity-100 transition-opacity duration-150">
                                                                     {onEdit && (
                                                                         <button
                                                                             onClick={(e) => { e.stopPropagation(); onEdit?.(t); }}
                                                                             className="p-1.5 rounded-lg transition-colors bg-muted hover:bg-primary/10 hover:text-primary text-muted-foreground"
+                                                                            title="수정"
                                                                         >
                                                                             <Pencil size={14} />
+                                                                        </button>
+                                                                    )}
+                                                                    {onCopy && (
+                                                                        <button
+                                                                            onClick={(e) => { e.stopPropagation(); onCopy?.(t); }}
+                                                                            className="p-1.5 rounded-lg transition-colors bg-muted hover:bg-blue-500/10 hover:text-blue-400 text-muted-foreground"
+                                                                            title="복사하여 새 거래 입력"
+                                                                        >
+                                                                            <Copy size={14} />
                                                                         </button>
                                                                     )}
                                                                     {onDelete && (
                                                                         <button
                                                                             onClick={(e) => { e.stopPropagation(); onDelete?.(t.id); }}
                                                                             className="p-1.5 rounded-lg transition-colors bg-muted hover:bg-destructive/10 hover:text-destructive text-muted-foreground"
+                                                                            title="삭제"
                                                                         >
                                                                             <Trash2 size={14} />
                                                                         </button>
@@ -450,22 +463,36 @@ export function TradeList({
 
                                                 {/* Actions */}
                                                 <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/10">
-                                                    <Button
-                                                        variant="secondary"
-                                                        size="sm"
-                                                        onClick={(e) => { e.stopPropagation(); onEdit?.(t); }}
-                                                        className="h-9 px-3 rounded-xl gap-1.5 text-xs font-bold"
-                                                    >
-                                                        <Pencil size={14} /> 수정
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={(e) => { e.stopPropagation(); onDelete?.(t.id); }}
-                                                        className="h-9 px-3 rounded-xl gap-1.5 text-xs font-bold text-destructive hover:bg-destructive/10"
-                                                    >
-                                                        <Trash2 size={14} /> 삭제
-                                                    </Button>
+                                                    {onEdit && (
+                                                        <Button
+                                                            variant="secondary"
+                                                            size="sm"
+                                                            onClick={(e) => { e.stopPropagation(); onEdit?.(t); }}
+                                                            className="h-9 px-3 rounded-xl gap-1.5 text-xs font-bold"
+                                                        >
+                                                            <Pencil size={14} /> 수정
+                                                        </Button>
+                                                    )}
+                                                    {onCopy && (
+                                                        <Button
+                                                            variant="secondary"
+                                                            size="sm"
+                                                            onClick={(e) => { e.stopPropagation(); onCopy?.(t); }}
+                                                            className="h-9 px-3 rounded-xl gap-1.5 text-xs font-bold text-blue-400 hover:bg-blue-500/10"
+                                                        >
+                                                            <Copy size={14} /> 복사
+                                                        </Button>
+                                                    )}
+                                                    {onDelete && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={(e) => { e.stopPropagation(); onDelete?.(t.id); }}
+                                                            className="h-9 px-3 rounded-xl gap-1.5 text-xs font-bold text-destructive hover:bg-destructive/10"
+                                                        >
+                                                            <Trash2 size={14} /> 삭제
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             </div>
                                         );
