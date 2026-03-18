@@ -3,7 +3,7 @@ import { User } from '@supabase/supabase-js';
 import { TradeSide, Trade } from '@/app/types/trade';
 import { getCurrencySymbol } from '@/app/utils/format';
 import { StockSymbolInput } from '@/app/components/StockSymbolInput';
-import { Save, Plus, Info, PartyPopper } from 'lucide-react';
+import { Save, Plus, Info, PartyPopper, Copy } from 'lucide-react';
 import { DatePicker } from '@/app/components/DatePicker';
 import { Button } from '@/app/components/ui/Button';
 import { Card } from '@/app/components/ui/Card';
@@ -31,6 +31,12 @@ interface TradeFormProps {
         imageFile: File | null
     ) => Promise<void>;
     isCompact?: boolean;
+    prefill?: {
+        symbol: string;
+        symbol_name?: string;
+        side: TradeSide;
+        quantity: number;
+    };
 }
 
 export function TradeForm({
@@ -41,14 +47,15 @@ export function TradeForm({
     isCompact = false,
     initialData,
     onUpdateTrade,
+    prefill,
 }: TradeFormProps) {
     const [form, setForm] = useState({
         date: initialData?.date || new Date().toISOString().slice(0, 10),
-        symbol: initialData?.symbol || '',
-        symbol_name: initialData?.symbol_name || '',
-        side: initialData?.side || 'BUY',
+        symbol: initialData?.symbol || prefill?.symbol || '',
+        symbol_name: initialData?.symbol_name || prefill?.symbol_name || '',
+        side: (initialData?.side || prefill?.side || 'BUY') as TradeSide,
         price: initialData?.price?.toString() || '',
-        quantity: initialData?.quantity?.toString() || '',
+        quantity: initialData?.quantity?.toString() || prefill?.quantity?.toString() || '',
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showChecklist, setShowChecklist] = useState(false);
@@ -186,14 +193,18 @@ export function TradeForm({
                 <div className="mb-6 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-primary/10 text-primary">
-                            <Plus size={20} strokeWidth={2} />
+                            {prefill ? <Copy size={20} strokeWidth={2} /> : <Plus size={20} strokeWidth={2} />}
                         </div>
                         <div>
                             <h2 className="text-lg font-bold text-foreground">
                                 {initialData ? '매매 기록 수정' : '새 매매 기록'}
                             </h2>
                             <p className="text-xs font-medium text-muted-foreground">
-                                {isFirstTrade ? '첫 번째 매매를 기록해보세요!' : '오늘도 원칙을 지키는 매매 하세요!'}
+                                {prefill
+                                    ? `이전 거래 복사 (${prefill.symbol_name || prefill.symbol})`
+                                    : isFirstTrade
+                                    ? '첫 번째 매매를 기록해보세요!'
+                                    : '오늘도 원칙을 지키는 매매 하세요!'}
                             </p>
                         </div>
                     </div>

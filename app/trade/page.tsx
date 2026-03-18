@@ -40,7 +40,7 @@ export default function TradePage() {
 
     // --- Auth & Data ---
     const { user: currentUser, loading: authLoading, logout: supabaseLogout, authError } = useSupabaseAuth();
-    const { trades, addTrade, removeTrade, updateTrade, importTrades } = useTrades(currentUser);
+    const { trades, addTrade, removeTrade, updateTrade, importTrades, setTrades } = useTrades(currentUser);
     const { currentPrices, refresh: refreshPrices, loading: pricesLoading } = useCurrentPrices(trades);
     const { exchangeRate } = useExchangeRate();
 
@@ -83,6 +83,13 @@ export default function TradePage() {
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
+    const [copyingTrade, setCopyingTrade] = useState<Trade | null>(null);
+
+    // --- Undo Delete State ---
+    const [pendingDelete, setPendingDelete] = useState<{
+        trade: Trade;
+        timerId: ReturnType<typeof setTimeout>;
+    } | null>(null);
     const [notify, setNotify] = useState<{ type: NotifyType; message: string } | null>(null);
     const [showCoinShop, setShowCoinShop] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
@@ -154,6 +161,47 @@ export default function TradePage() {
 
     const toggleMonth = (key: string) => setOpenMonths(prev => ({ ...prev, [key]: !prev[key] }));
 
+    const handleDeleteWithUndo = async (id: string) => {
+        const trade = trades.find(t => t.id === id);
+        if (!trade) return;
+
+        // Commit any previously pending delete immediately before starting a new one
+        if (pendingDelete) {
+            clearTimeout(pendingDelete.timerId);
+            removeTrade(pendingDelete.trade.id).catch(console.error);
+            setPendingDelete(null);
+        }
+
+        // Optimistically remove from UI
+        setTrades(prev => prev.filter(t => t.id !== id));
+
+        const timerId = setTimeout(async () => {
+            await removeTrade(id).catch(console.error);
+            setPendingDelete(null);
+        }, 5000);
+
+        setPendingDelete({ trade, timerId });
+    };
+
+    const handleUndoDelete = () => {
+        if (!pendingDelete) return;
+        clearTimeout(pendingDelete.timerId);
+        const { trade } = pendingDelete;
+        setTrades(prev => {
+            const restored = [...prev, trade];
+            return restored.sort((a, b) => {
+                if (b.date !== a.date) return b.date.localeCompare(a.date);
+                return b.id.localeCompare(a.id);
+            });
+        });
+        setPendingDelete(null);
+    };
+
+    const handleCopyTrade = (trade: Trade) => {
+        setCopyingTrade(trade);
+        setShowAddModal(true);
+    };
+
     // --- Loading ---
     if (authLoading) return (
         <div className="h-screen flex flex-col items-center justify-center bg-[#070a12]">
@@ -194,6 +242,36 @@ export default function TradePage() {
                     </div>
                 </div>
             )}
+
+            {/* Undo Delete Toast */}
+            <AnimatePresence>
+                {pendingDelete && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 16 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 16 }}
+                        transition={{ duration: 0.2, ease: 'easeOut' }}
+                        className="fixed z-50 left-1/2 -translate-x-1/2 bottom-24 overflow-hidden rounded-xl shadow-2xl"
+                    >
+                        <div className="flex items-center gap-3 px-4 py-3 bg-zinc-800 border border-white/10 text-sm font-semibold text-white">
+                            <span className="text-white/50">🗑</span>
+                            <span>거래가 삭제되었습니다</span>
+                            <button
+                                onClick={handleUndoDelete}
+                                className="text-blue-400 hover:text-blue-300 font-bold transition-colors ml-1"
+                            >
+                                되돌리기
+                            </button>
+                        </div>
+                        <motion.div
+                            className="absolute bottom-0 left-0 h-0.5 bg-blue-400/60 rounded-full"
+                            initial={{ width: '100%' }}
+                            animate={{ width: '0%' }}
+                            transition={{ duration: 5, ease: 'linear' }}
+                        />
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Navigation - Matching Landing Page Design */}
             <nav className="sticky top-0 z-50 border-b border-white/5 bg-[#070a12]/85 backdrop-blur-xl">
@@ -251,8 +329,9 @@ export default function TradePage() {
                                 trades={trades}
                                 filteredTrades={filteredTrades}
                                 filterState={filterState}
-                                onDelete={removeTrade}
+                                onDelete={handleDeleteWithUndo}
                                 onEdit={(t) => setEditingTrade(t)}
+                                onCopy={handleCopyTrade}
                                 openMonths={openMonths}
                                 toggleMonth={toggleMonth}
 
@@ -310,8 +389,8 @@ export default function TradePage() {
             {/* Trade Add/Edit BottomSheet */}
             <BottomSheet
                 isOpen={!!(editingTrade || showAddModal)}
-                onClose={() => { setEditingTrade(null); setShowAddModal(false); }}
-                title={editingTrade ? '매매 기록 수정' : '새로운 매매 기록'}
+                onClose={() => { setEditingTrade(null); setShowAddModal(false); setCopyingTrade(null); }}
+                title={editingTrade ? '매매 기록 수정' : copyingTrade ? '거래 복사' : '새로운 매매 기록'}
             >
                 <TradeForm
                     darkMode={true}
@@ -321,11 +400,17 @@ export default function TradePage() {
                     onAddTrade={async (data, file) => {
                         await handleAddTrade(data, file);
                         setShowAddModal(false);
+                        setCopyingTrade(null);
                     }}
                     onUpdateTrade={handleUpdateTrade}
-
                     isCompact={false}
                     initialData={editingTrade || undefined}
+                    prefill={copyingTrade ? {
+                        symbol: copyingTrade.symbol,
+                        symbol_name: copyingTrade.symbol_name,
+                        side: copyingTrade.side,
+                        quantity: copyingTrade.quantity,
+                    } : undefined}
                 />
             </BottomSheet>
 

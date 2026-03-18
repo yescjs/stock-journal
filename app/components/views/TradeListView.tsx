@@ -12,7 +12,7 @@ import {
   TrendingUp, TrendingDown, Wallet, BarChart3, DollarSign, Briefcase, Calendar, RotateCw, Brain,
   BookOpen, PenLine, BarChart2, Sparkles, ArrowDown, Upload
 } from 'lucide-react';
-import { useTradeFilter } from '@/app/hooks/useTradeFilter';
+import { useTradeFilter, DatePreset } from '@/app/hooks/useTradeFilter';
 import { useTradeAnalysis } from '@/app/hooks/useTradeAnalysis';
 import { StreakBadge } from '@/app/components/StreakBadge';
 import { OnboardingChecklist } from '@/app/components/OnboardingChecklist';
@@ -47,7 +47,16 @@ interface TradeListViewProps {
   onDismissOnboarding: () => void;
   onCompleteOnboardingStep?: (step: keyof OnboardingSteps) => void;
   onOpenAddTrade?: () => void;
+  onCopy?: (trade: Trade) => void;
 }
+
+const DATE_PRESETS: { key: DatePreset; label: string }[] = [
+  { key: 'today', label: '오늘' },
+  { key: 'week', label: '이번 주' },
+  { key: 'month', label: '이번 달' },
+  { key: 'year', label: '올해' },
+  { key: 'all', label: '전체' },
+];
 
 // ─── Smart Empty State ───────────────────────────────────────────────────
 
@@ -185,6 +194,7 @@ export function TradeListView({
   onDismissOnboarding,
   onCompleteOnboardingStep,
   onOpenAddTrade,
+  onCopy,
 }: TradeListViewProps) {
   const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'analysis'>('list');
   const [calendarDate, setCalendarDate] = useState(new Date());
@@ -230,6 +240,7 @@ export function TradeListView({
     dateFrom, setDateFrom,
     dateTo, setDateTo,
     holdingOnly, setHoldingOnly,
+    activeDatePreset, applyDatePreset,
   } = filterState;
 
   // Derive Daily Data for Calendar (evaluation P&L for held, realized P&L for sold)
@@ -532,6 +543,23 @@ export function TradeListView({
               )}
             </div>
 
+            {/* Date Preset Chips */}
+            <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden">
+              {DATE_PRESETS.map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => applyDatePreset(key)}
+                  className={`flex-none px-3 py-2 rounded-xl text-xs font-bold border transition-all whitespace-nowrap ${
+                    activeDatePreset === key
+                      ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30'
+                      : 'text-white/40 bg-white/5 border-white/8 hover:text-white/60 hover:bg-white/8'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
             {/* Row 2: Filter Buttons (on mobile this wraps to next line) */}
             <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
               {/* Holding Only Toggle */}
@@ -706,6 +734,7 @@ export function TradeListView({
                 allTrades={trades}
                 onDelete={onDelete}
                 onEdit={onEdit}
+                onCopy={onCopy}
                 openMonths={openMonths}
                 toggleMonth={toggleMonth}
                 darkMode={darkMode}
