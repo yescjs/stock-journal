@@ -99,7 +99,7 @@ export function TradeForm({
 
     const handleInitiateSaveTemplate = () => {
         if (!form.symbol) return;
-        const defaultName = `${form.symbol} ${form.side === 'BUY' ? '매수' : '매도'}`;
+        const defaultName = `${form.symbol_name || form.symbol} ${form.side === 'BUY' ? '매수' : '매도'}`;
         setSavingTemplateName(defaultName);
         setTimeout(() => templateNameInputRef.current?.focus(), 50);
     };
@@ -295,10 +295,15 @@ export function TradeForm({
                                         onClick={() => handleApplyTemplate(tpl.id)}
                                         className="flex-1 flex items-center gap-2 px-3 py-2.5 text-left"
                                     >
-                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${tpl.side === 'BUY' ? 'bg-color-up/10 text-color-up' : 'bg-color-down/10 text-color-down'}`}>
+                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md flex-none ${tpl.side === 'BUY' ? 'bg-color-up/10 text-color-up' : 'bg-color-down/10 text-color-down'}`}>
                                             {tpl.side === 'BUY' ? '매수' : '매도'}
                                         </span>
-                                        <span className="text-xs font-semibold text-white truncate">{tpl.name}</span>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-xs font-semibold text-white truncate">{tpl.name}</div>
+                                            {tpl.symbol_name && tpl.symbol_name !== tpl.name && (
+                                                <div className="text-[10px] text-white/40 truncate">{tpl.symbol} · {tpl.quantity.toLocaleString()}주</div>
+                                            )}
+                                        </div>
                                     </button>
                                     <button
                                         type="button"
