@@ -92,11 +92,12 @@ export function useTrades(user: User | null) {
             side: TradeSide;
             price: number;
             quantity: number;
+            emotion_tag?: string;
         },
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         imageFile: File | null
     ) => {
-        const { date, symbol, symbol_name, side, price, quantity } = data;
+        const { date, symbol, symbol_name, side, price, quantity, emotion_tag } = data;
 
         try {
             if (user) {
@@ -112,6 +113,7 @@ export function useTrades(user: User | null) {
                             side,
                             price,
                             quantity,
+                            emotion_tag: emotion_tag || null,
                         },
                     ])
                     .select()
@@ -129,6 +131,7 @@ export function useTrades(user: User | null) {
                     side,
                     price,
                     quantity,
+                    emotion_tag: emotion_tag || undefined,
                 };
                 setTrades((prev) => [newTrade, ...prev]);
             }
@@ -224,6 +227,7 @@ export function useTrades(user: User | null) {
                         side: data.side,
                         price: data.price,
                         quantity: data.quantity,
+                        emotion_tag: data.emotion_tag || null,
                     })
                     .eq('id', id)
                     .eq('user_id', user.id);
