@@ -465,13 +465,19 @@ export function TradeForm({
                     <button
                         type="button"
                         onClick={() => setShowAdvanced(v => !v)}
-                        className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl border border-white/8 bg-white/3 hover:bg-white/5 hover:border-white/15 transition-all text-white/40 hover:text-white/60"
+                        className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl border border-dashed border-white/25 bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/40 transition-all text-white/65 hover:text-white/85"
                     >
-                        <span className="text-xs font-semibold">심화 기록 (체크리스트 · 심리태그)</span>
-                        {showAdvanced
-                            ? <ChevronUp size={14} />
-                            : <ChevronDown size={14} />
-                        }
+                        <div className="flex items-center gap-2">
+                            <Brain size={13} className="text-white/50 flex-none" />
+                            <span className="text-xs font-semibold">심화 기록 (체크리스트 · 심리태그)</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-medium text-white/35 border border-white/15 rounded-md px-1.5 py-0.5">선택</span>
+                            {showAdvanced
+                                ? <ChevronUp size={14} />
+                                : <ChevronDown size={14} />
+                            }
+                        </div>
                     </button>
 
                     {/* 인라인 펼침 섹션 */}
