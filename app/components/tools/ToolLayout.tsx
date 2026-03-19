@@ -13,7 +13,7 @@ interface ToolLayoutProps {
 
 export function ToolLayout({ title, description, children, relatedTools }: ToolLayoutProps) {
   return (
-    <div className="mx-auto max-w-2xl px-6 py-12 md:px-10">
+    <div className="mx-auto max-w-4xl px-6 py-12 md:px-10">
       <Link
         href="/tools"
         className="mb-8 inline-flex items-center gap-1.5 text-sm text-white/40 transition-colors hover:text-white/70"

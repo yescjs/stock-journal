@@ -22,6 +22,7 @@ import { OnboardingChecklist } from '@/app/components/OnboardingChecklist';
 import type { OnboardingSteps } from '@/app/hooks/useOnboarding';
 
 interface TradeListViewProps {
+  tradesLoading?: boolean;
   darkMode: boolean;
   currentUser: User | null;
   trades: Trade[];
@@ -60,6 +61,34 @@ const DATE_PRESETS: { key: DatePreset; label: string }[] = [
   { key: 'year', label: '올해' },
   { key: 'all', label: '전체' },
 ];
+
+// ─── Trade List Skeleton ─────────────────────────────────────────────────
+
+function TradeListSkeleton() {
+  return (
+    <div className="animate-pulse space-y-4">
+      {/* Month header skeleton */}
+      <div className="flex items-center gap-3 px-2 py-3">
+        <div className="h-5 w-24 rounded-lg bg-white/10" />
+        <div className="h-4 w-12 rounded-lg bg-white/8" />
+      </div>
+      {/* Trade card skeletons */}
+      {[1, 2, 3].map(i => (
+        <div key={i} className="flex items-center gap-3 p-4 rounded-2xl border border-white/8 bg-white/3">
+          <div className="w-10 h-10 rounded-xl bg-white/10 flex-none" />
+          <div className="flex-1 space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="h-4 w-16 rounded-lg bg-white/10" />
+              <div className="h-3 w-12 rounded-lg bg-white/8" />
+            </div>
+            <div className="h-3 w-32 rounded-lg bg-white/8" />
+          </div>
+          <div className="h-4 w-16 rounded-lg bg-white/10 flex-none" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 // ─── Smart Empty State ───────────────────────────────────────────────────
 
@@ -169,6 +198,7 @@ function formatKRW(value: number): string {
 }
 
 export function TradeListView({
+  tradesLoading,
   darkMode,
   currentUser,
   trades,
@@ -803,6 +833,8 @@ export function TradeListView({
                   </BottomSheet>
                 )}
               </>
+            ) : tradesLoading ? (
+              <TradeListSkeleton />
             ) : trades.length === 0 ? (
               <SmartEmptyState />
             ) : (

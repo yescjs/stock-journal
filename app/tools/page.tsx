@@ -42,7 +42,7 @@ const tools = [
 
 export default function ToolsPage() {
   return (
-    <div className="mx-auto max-w-4xl px-6 py-16 md:px-10">
+    <div className="mx-auto max-w-6xl px-6 py-16 md:px-10">
       <div className="mb-10 text-center">
         <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.14em] text-blue-400/70">
           Free Tools

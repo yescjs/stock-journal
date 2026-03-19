@@ -5,8 +5,9 @@ import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion'
 import {
     ArrowRight, LineChart, BookOpen, Shield, Zap,
     CheckCircle, ChevronDown, ChevronUp, BarChart2,
-    Clock, Target, AlertCircle, Bot, Sparkles
+    Clock, Target, AlertCircle, Bot, Sparkles, Newspaper
 } from 'lucide-react';
+import Link from 'next/link';
 import { FinancialTable, type MarketIndex } from '@/app/components/ui/financial-markets-table';
 import { Footer } from '@/app/components/Footer';
 
@@ -118,6 +119,10 @@ export function LandingPage({ onStart, onStartAsGuest }: LandingPageProps) {
                         <span className="font-logo font-extrabold text-base tracking-tight"><span className="text-blue-400">Stock</span>Journal</span>
                     </div>
                     <div className="flex items-center gap-2">
+                        <Link href="/news" className="hidden sm:inline-flex items-center gap-1.5 text-sm font-semibold text-white/40 hover:text-white/80 transition-colors px-3 py-2">
+                            <Newspaper size={14} />
+                            뉴스
+                        </Link>
                         <button onClick={onStartAsGuest} className="text-sm font-semibold text-white/40 hover:text-white/80 transition-colors px-3 py-2 hidden sm:block">게스트로 시작</button>
                         <button onClick={onStart} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold transition-all shadow-lg shadow-blue-600/25 active:scale-95">
                             로그인 <ArrowRight size={13} />

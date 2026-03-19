@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter, Noto_Sans_KR, JetBrains_Mono, Orbitron } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "./components/ThemeProvider";
+import { SharedTopNav } from "./components/ui/SharedTopNav";
+import { AppBottomNav } from "./components/ui/AppBottomNav";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -54,7 +56,9 @@ export default function RootLayout({
           forcedTheme="dark"
           disableTransitionOnChange
         >
+          <SharedTopNav />
           {children}
+          <AppBottomNav />
         </ThemeProvider>
       </body>
     </html>
