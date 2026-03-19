@@ -1,13 +1,24 @@
-import React, { useState, useCallback, ChangeEvent, FormEvent, useRef } from 'react';
+import React, { useState, useCallback, useMemo, ChangeEvent, FormEvent, useRef } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { User } from '@supabase/supabase-js';
 import { TradeSide, Trade } from '@/app/types/trade';
 import { getCurrencySymbol } from '@/app/utils/format';
+import {
+    EmotionWarning,
+    ChecklistItem,
+    DEFAULT_CHECKLIST,
+    detectEmotionPatterns,
+    calcDisciplineScore,
+} from '@/app/utils/emotionDetector';
 import { StockSymbolInput } from '@/app/components/StockSymbolInput';
-import { Save, Plus, Info, PartyPopper, Copy, BookmarkPlus, ChevronDown, X, Check } from 'lucide-react';
+import {
+    Save, Plus, Info, PartyPopper, Copy, BookmarkPlus,
+    ChevronDown, ChevronUp, X, Check,
+    Brain, AlertTriangle, CheckCircle, Circle,
+} from 'lucide-react';
 import { DatePicker } from '@/app/components/DatePicker';
 import { Button } from '@/app/components/ui/Button';
 import { Card } from '@/app/components/ui/Card';
-import { TradeChecklist } from '@/app/components/TradeChecklist';
 import { useTradeTemplates, MAX_TEMPLATES } from '@/app/hooks/useTradeTemplates';
 
 export interface TradeSubmitData {
@@ -24,7 +35,7 @@ interface TradeFormProps {
     darkMode: boolean;
     currentUser: User | null;
     baseTrades: { symbol: string }[];
-    allTrades?: Trade[]; // All trades for emotion detection
+    allTrades?: Trade[];
     initialData?: Trade;
     onUpdateTrade?: (id: string, data: TradeSubmitData, imageFile: File | null) => Promise<void>;
     onAddTrade: (
@@ -39,6 +50,15 @@ interface TradeFormProps {
         quantity: number;
     };
 }
+
+const EMOTION_OPTIONS = [
+    { value: 'PLANNED', label: '📋 계획된 매매', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
+    { value: 'FOMO', label: '😰 FOMO', color: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20' },
+    { value: 'FEAR', label: '😨 공포', color: 'text-orange-400 bg-orange-500/10 border-orange-500/20' },
+    { value: 'GREED', label: '🤑 탐욕', color: 'text-purple-400 bg-purple-500/10 border-purple-500/20' },
+    { value: 'REVENGE', label: '😤 복수', color: 'text-red-400 bg-red-500/10 border-red-500/20' },
+    { value: 'IMPULSE', label: '⚡ 충동', color: 'text-pink-400 bg-pink-500/10 border-pink-500/20' },
+];
 
 export function TradeForm({
     darkMode,
@@ -60,8 +80,16 @@ export function TradeForm({
         quantity: initialData?.quantity?.toString() || prefill?.quantity?.toString() || '',
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [showChecklist, setShowChecklist] = useState(false);
     const [showCelebration, setShowCelebration] = useState(false);
+
+    // 심화 기록 섹션 상태
+    const [showAdvanced, setShowAdvanced] = useState(false);
+    const [checklist, setChecklist] = useState<ChecklistItem[]>(
+        DEFAULT_CHECKLIST.map(item => ({ ...item, checked: false }))
+    );
+    const [selectedEmotion, setSelectedEmotion] = useState<string>(
+        initialData?.emotion_tag ?? 'PLANNED'
+    );
 
     // Template state
     const { templates, saveTemplate, deleteTemplate } = useTradeTemplates(currentUser ?? null);
@@ -71,6 +99,28 @@ export function TradeForm({
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     const isFirstTrade = baseTrades.length === 0 && !initialData;
+
+    // showAdvanced가 열릴 때만 패턴 계산 (성능 최적화)
+    const emotionWarnings = useMemo<EmotionWarning[]>(() => {
+        if (!showAdvanced) return [];
+        return detectEmotionPatterns(
+            allTrades,
+            form.side as 'BUY' | 'SELL',
+            form.symbol,
+            (Number(form.price) || 0) * (Number(form.quantity) || 0)
+        );
+    }, [showAdvanced, allTrades, form.side, form.symbol, form.price, form.quantity]);
+
+    const disciplineScore = useMemo(
+        () => calcDisciplineScore(checklist),
+        [checklist]
+    );
+
+    const toggleChecklistItem = (id: string) => {
+        setChecklist(prev =>
+            prev.map(item => item.id === id ? { ...item, checked: !item.checked } : item)
+        );
+    };
 
     // Close dropdown on outside click
     React.useEffect(() => {
@@ -117,7 +167,7 @@ export function TradeForm({
         if (!ok) alert(`템플릿은 최대 ${MAX_TEMPLATES}개까지 저장할 수 있습니다.`);
     };
 
-    // Update form when initialData changes
+    // Update form when initialData changes (편집 모드 - emotion_tag 포함)
     React.useEffect(() => {
         if (initialData) {
             setForm({
@@ -128,6 +178,7 @@ export function TradeForm({
                 price: initialData.price.toString(),
                 quantity: initialData.quantity.toString(),
             });
+            setSelectedEmotion(initialData.emotion_tag ?? 'PLANNED');
         }
     }, [initialData]);
 
@@ -163,21 +214,13 @@ export function TradeForm({
         return true;
     };
 
+    // 단순화된 handleSubmit — 모달 없이 바로 저장
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         if (!validateForm()) return;
-
-        // For editing, skip checklist
-        if (initialData && onUpdateTrade) {
-            await executeSubmit();
-            return;
-        }
-
-        // Show checklist modal before submitting new trade
-        setShowChecklist(true);
+        await executeSubmit(showAdvanced ? selectedEmotion : undefined);
     };
 
-    // Called from checklist confirm or directly for updates
     const executeSubmit = useCallback(async (emotionTag?: string) => {
         const price = Number(form.price);
         const quantity = Number(form.quantity);
@@ -202,6 +245,10 @@ export function TradeForm({
 
             if (!initialData) {
                 setForm((prev) => ({ ...prev, price: '', quantity: '' }));
+                // 심화 기록 섹션 초기화
+                setShowAdvanced(false);
+                setChecklist(DEFAULT_CHECKLIST.map(item => ({ ...item, checked: false })));
+                setSelectedEmotion('PLANNED');
                 if (isFirstTrade) {
                     setShowCelebration(true);
                     setTimeout(() => setShowCelebration(false), 4000);
@@ -213,11 +260,6 @@ export function TradeForm({
             setIsSubmitting(false);
         }
     }, [form, initialData, isFirstTrade, onAddTrade, onUpdateTrade]);
-
-    const handleChecklistConfirm = useCallback((_disciplineScore: number, emotionTag?: string) => {
-        setShowChecklist(false);
-        executeSubmit(emotionTag);
-    }, [executeSubmit]);
 
     // Toss Design System - Input Styles
     const inputBaseClass = `
@@ -419,6 +461,124 @@ export function TradeForm({
                 </div>
 
                 <div className="pt-2 space-y-2">
+                    {/* 심화 기록 토글 */}
+                    <button
+                        type="button"
+                        onClick={() => setShowAdvanced(v => !v)}
+                        className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl border border-white/8 bg-white/3 hover:bg-white/5 hover:border-white/15 transition-all text-white/40 hover:text-white/60"
+                    >
+                        <span className="text-xs font-semibold">심화 기록 (체크리스트 · 심리태그)</span>
+                        {showAdvanced
+                            ? <ChevronUp size={14} />
+                            : <ChevronDown size={14} />
+                        }
+                    </button>
+
+                    {/* 인라인 펼침 섹션 */}
+                    <AnimatePresence>
+                        {showAdvanced && (
+                            <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.2, ease: 'easeInOut' }}
+                                style={{ overflow: 'hidden' }}
+                            >
+                                <div className="rounded-xl border border-primary/20 bg-primary/5 overflow-hidden">
+                                    <div className="px-4 py-3 space-y-4">
+
+                                        {/* 감정 패턴 경고 */}
+                                        {emotionWarnings.length > 0 && (
+                                            <div className="space-y-1.5">
+                                                <div className="flex items-center gap-1.5">
+                                                    <AlertTriangle size={13} className="text-yellow-400" />
+                                                    <span className="text-xs font-bold text-yellow-400">감지된 패턴</span>
+                                                </div>
+                                                {emotionWarnings.map((w, i) => (
+                                                    <div
+                                                        key={i}
+                                                        className={`px-3 py-2 rounded-lg border text-xs leading-relaxed ${
+                                                            w.severity === 'critical'
+                                                                ? 'bg-red-500/5 border-red-500/15 text-red-300'
+                                                                : w.severity === 'warning'
+                                                                    ? 'bg-yellow-500/5 border-yellow-500/15 text-yellow-300'
+                                                                    : 'bg-blue-500/5 border-blue-500/15 text-blue-300'
+                                                        }`}
+                                                    >
+                                                        <span className="font-bold">{w.icon} {w.title}</span>
+                                                        <p className="text-white/40 mt-0.5">{w.description}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* 체크리스트 */}
+                                        <div className="space-y-1.5">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-1.5">
+                                                    <Brain size={13} className="text-indigo-400" />
+                                                    <span className="text-xs font-bold text-white">체크리스트</span>
+                                                </div>
+                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                                    disciplineScore >= 80 ? 'bg-emerald-500/10 text-emerald-400' :
+                                                    disciplineScore >= 60 ? 'bg-yellow-500/10 text-yellow-400' :
+                                                    'bg-red-500/10 text-red-400'
+                                                }`}>
+                                                    {checklist.filter(c => c.checked).length}/{checklist.length} 완료
+                                                </span>
+                                            </div>
+                                            {checklist.map(item => (
+                                                <button
+                                                    key={item.id}
+                                                    type="button"
+                                                    onClick={() => toggleChecklistItem(item.id)}
+                                                    className={`w-full flex items-start gap-2.5 px-3 py-2 rounded-lg border transition-all text-left ${
+                                                        item.checked
+                                                            ? 'bg-emerald-500/5 border-emerald-500/15'
+                                                            : 'bg-white/2 border-white/5 hover:border-white/10'
+                                                    }`}
+                                                >
+                                                    {item.checked
+                                                        ? <CheckCircle size={14} className="text-emerald-400 flex-none mt-0.5" />
+                                                        : <Circle size={14} className="text-white/15 flex-none mt-0.5" />
+                                                    }
+                                                    <div className="min-w-0">
+                                                        <div className={`text-xs font-bold ${item.checked ? 'text-emerald-400' : 'text-white/60'}`}>
+                                                            {item.label}
+                                                        </div>
+                                                        <p className="text-[10px] text-white/30 mt-0.5 leading-relaxed">{item.description}</p>
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        {/* 심리 태그 */}
+                                        <div className="space-y-1.5">
+                                            <span className="text-xs font-bold text-white">진입 심리 태그</span>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {EMOTION_OPTIONS.map(opt => (
+                                                    <button
+                                                        key={opt.value}
+                                                        type="button"
+                                                        onClick={() => setSelectedEmotion(opt.value)}
+                                                        className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                                                            selectedEmotion === opt.value
+                                                                ? opt.color + ' ring-1 ring-current'
+                                                                : 'text-white/30 bg-white/3 border-white/5 hover:border-white/10'
+                                                        }`}
+                                                    >
+                                                        {opt.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
                     <Button
                         type="submit"
                         fullWidth
@@ -478,19 +638,6 @@ export function TradeForm({
                     )}
                 </div>
             </form>
-
-            {/* Pre-trade Checklist Modal */}
-            <TradeChecklist
-                isOpen={showChecklist}
-                onClose={() => setShowChecklist(false)}
-                onConfirm={handleChecklistConfirm}
-                side={form.side as 'BUY' | 'SELL'}
-                symbol={form.symbol}
-                symbolName={form.symbol_name}
-                price={Number(form.price) || 0}
-                quantity={Number(form.quantity) || 0}
-                existingTrades={allTrades}
-            />
         </Card>
     );
 }
