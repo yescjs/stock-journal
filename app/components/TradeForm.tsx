@@ -1,13 +1,14 @@
-import React, { useState, useCallback, ChangeEvent, FormEvent } from 'react';
+import React, { useState, useCallback, ChangeEvent, FormEvent, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { TradeSide, Trade } from '@/app/types/trade';
 import { getCurrencySymbol } from '@/app/utils/format';
 import { StockSymbolInput } from '@/app/components/StockSymbolInput';
-import { Save, Plus, Info, PartyPopper, Copy } from 'lucide-react';
+import { Save, Plus, Info, PartyPopper, Copy, BookmarkPlus, ChevronDown, X, Check } from 'lucide-react';
 import { DatePicker } from '@/app/components/DatePicker';
 import { Button } from '@/app/components/ui/Button';
 import { Card } from '@/app/components/ui/Card';
 import { TradeChecklist } from '@/app/components/TradeChecklist';
+import { useTradeTemplates, MAX_TEMPLATES } from '@/app/hooks/useTradeTemplates';
 
 export interface TradeSubmitData {
     date: string;
@@ -48,6 +49,7 @@ export function TradeForm({
     initialData,
     onUpdateTrade,
     prefill,
+    currentUser,
 }: TradeFormProps) {
     const [form, setForm] = useState({
         date: initialData?.date || new Date().toISOString().slice(0, 10),
@@ -61,7 +63,59 @@ export function TradeForm({
     const [showChecklist, setShowChecklist] = useState(false);
     const [showCelebration, setShowCelebration] = useState(false);
 
+    // Template state
+    const { templates, saveTemplate, deleteTemplate } = useTradeTemplates(currentUser ?? null);
+    const [showTemplateDropdown, setShowTemplateDropdown] = useState(false);
+    const [savingTemplateName, setSavingTemplateName] = useState<string | null>(null);
+    const templateNameInputRef = useRef<HTMLInputElement>(null);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
     const isFirstTrade = baseTrades.length === 0 && !initialData;
+
+    // Close dropdown on outside click
+    React.useEffect(() => {
+        if (!showTemplateDropdown) return;
+        const handler = (e: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+                setShowTemplateDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [showTemplateDropdown]);
+
+    const handleApplyTemplate = (templateId: string) => {
+        const tpl = templates.find(t => t.id === templateId);
+        if (!tpl) return;
+        setForm(prev => ({
+            ...prev,
+            symbol: tpl.symbol,
+            symbol_name: tpl.symbol_name || '',
+            side: tpl.side,
+            quantity: tpl.quantity.toString(),
+        }));
+        setShowTemplateDropdown(false);
+    };
+
+    const handleInitiateSaveTemplate = () => {
+        if (!form.symbol) return;
+        const defaultName = `${form.symbol_name || form.symbol} ${form.side === 'BUY' ? '매수' : '매도'}`;
+        setSavingTemplateName(defaultName);
+        setTimeout(() => templateNameInputRef.current?.focus(), 50);
+    };
+
+    const handleConfirmSaveTemplate = async () => {
+        if (!savingTemplateName?.trim()) return;
+        const ok = await saveTemplate({
+            name: savingTemplateName.trim(),
+            symbol: form.symbol.toUpperCase().trim(),
+            symbol_name: form.symbol_name || undefined,
+            side: form.side as TradeSide,
+            quantity: Number(form.quantity) || 1,
+        });
+        setSavingTemplateName(null);
+        if (!ok) alert(`템플릿은 최대 ${MAX_TEMPLATES}개까지 저장할 수 있습니다.`);
+    };
 
     // Update form when initialData changes
     React.useEffect(() => {
@@ -221,6 +275,51 @@ export function TradeForm({
                 </div>
             )}
 
+            {/* Template Loader */}
+            {templates.length > 0 && !initialData && (
+                <div className="mb-3 relative" ref={dropdownRef}>
+                    <button
+                        type="button"
+                        onClick={() => setShowTemplateDropdown(v => !v)}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-white/10 bg-white/5 text-white/50 hover:text-white/80 hover:bg-white/8 transition-all"
+                    >
+                        <ChevronDown size={13} className={`transition-transform ${showTemplateDropdown ? 'rotate-180' : ''}`} />
+                        템플릿 불러오기
+                    </button>
+                    {showTemplateDropdown && (
+                        <div className="absolute top-full left-0 mt-1 w-64 z-20 rounded-xl border border-white/10 bg-card shadow-toss-lg overflow-hidden">
+                            {templates.map(tpl => (
+                                <div key={tpl.id} className="flex items-center group hover:bg-white/5 transition-colors">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleApplyTemplate(tpl.id)}
+                                        className="flex-1 flex items-center gap-2 px-3 py-2.5 text-left"
+                                    >
+                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md flex-none ${tpl.side === 'BUY' ? 'bg-color-up/10 text-color-up' : 'bg-color-down/10 text-color-down'}`}>
+                                            {tpl.side === 'BUY' ? '매수' : '매도'}
+                                        </span>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-xs font-semibold text-white truncate">{tpl.name}</div>
+                                            {tpl.symbol_name && tpl.symbol_name !== tpl.name && (
+                                                <div className="text-[10px] text-white/40 truncate">{tpl.symbol} · {tpl.quantity.toLocaleString()}주</div>
+                                            )}
+                                        </div>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => deleteTemplate(tpl.id)}
+                                        className="p-2 text-white/20 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100 mr-1"
+                                        title="삭제"
+                                    >
+                                        <X size={12} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Row 1: Date & Side */}
                 <div className="flex flex-col sm:grid sm:grid-cols-12 gap-3 sm:items-end">
@@ -319,7 +418,7 @@ export function TradeForm({
                     </div>
                 </div>
 
-                <div className="pt-2">
+                <div className="pt-2 space-y-2">
                     <Button
                         type="submit"
                         fullWidth
@@ -330,6 +429,53 @@ export function TradeForm({
                         <Save size={18} strokeWidth={2} />
                         {initialData ? '수정 완료' : '기록 저장하기'}
                     </Button>
+
+                    {/* Template Save */}
+                    {!initialData && form.symbol && (
+                        savingTemplateName !== null ? (
+                            <div className="flex items-center gap-2">
+                                <input
+                                    ref={templateNameInputRef}
+                                    type="text"
+                                    value={savingTemplateName}
+                                    onChange={e => setSavingTemplateName(e.target.value)}
+                                    onKeyDown={e => {
+                                        if (e.key === 'Enter') { e.preventDefault(); handleConfirmSaveTemplate(); }
+                                        if (e.key === 'Escape') setSavingTemplateName(null);
+                                    }}
+                                    placeholder="템플릿 이름"
+                                    className="flex-1 px-3 py-2 h-9 text-xs font-semibold rounded-xl outline-none bg-muted/50 text-foreground border border-border/50 focus:border-primary focus:ring-1 focus:ring-primary/20"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleConfirmSaveTemplate}
+                                    className="p-2 rounded-xl bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                                    title="저장"
+                                >
+                                    <Check size={15} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setSavingTemplateName(null)}
+                                    className="p-2 rounded-xl bg-white/5 text-white/40 hover:text-white transition-colors"
+                                    title="취소"
+                                >
+                                    <X size={15} />
+                                </button>
+                            </div>
+                        ) : (
+                            templates.length < MAX_TEMPLATES && (
+                                <button
+                                    type="button"
+                                    onClick={handleInitiateSaveTemplate}
+                                    className="flex items-center justify-center gap-1.5 w-full py-2 rounded-xl text-xs font-semibold text-white/30 hover:text-white/60 hover:bg-white/5 transition-all border border-dashed border-white/10 hover:border-white/20"
+                                >
+                                    <BookmarkPlus size={13} />
+                                    템플릿으로 저장
+                                </button>
+                            )
+                        )
+                    )}
                 </div>
             </form>
 

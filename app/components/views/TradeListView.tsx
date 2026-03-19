@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Trade } from '@/app/types/trade';
 import { User } from '@supabase/supabase-js';
 import { TradeList } from '@/app/components/TradeList';
@@ -6,6 +6,9 @@ import { CalendarView } from '@/app/components/CalendarView';
 import { SymbolDetailCard } from '@/app/components/SymbolDetailCard';
 import { MotionWrapper } from '@/app/components/MotionWrapper';
 import { AnalysisDashboard } from '@/app/components/views/AnalysisDashboard';
+import { CalendarDayPanelContent } from '@/app/components/CalendarDayPanel';
+import { BottomSheet } from '@/app/components/BottomSheet';
+import { AnimatePresence, motion } from 'framer-motion';
 import { isKRWSymbol } from '@/app/utils/format';
 import {
   LayoutGrid, List as ListIcon, Search, X, ChevronDown,
@@ -199,6 +202,17 @@ export function TradeListView({
   const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'analysis'>('list');
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [analysisInitialTab, setAnalysisInitialTab] = useState<'performance' | 'charts' | 'ai' | 'trades' | undefined>();
+  const [calendarDayDate, setCalendarDayDate] = useState<string | null>(null);
+  const [isMobileView, setIsMobileView] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)').matches : false
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const handler = (e: MediaQueryListEvent) => setIsMobileView(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   const switchToAnalysis = useCallback(() => {
     setViewMode('analysis');
@@ -333,6 +347,19 @@ export function TradeListView({
       usdValue: usd,
     }));
   }, [trades, selectedSymbol, holdingOnly, filterSymbol, filterState.heldSymbols, showConverted, exchangeRate, currentPrices, dateFrom, dateTo]);
+
+  // Trades and P&L for the selected calendar day
+  const calendarDayTrades = useMemo(() => {
+    if (!calendarDayDate) return [];
+    return trades.filter(t => t.date === calendarDayDate);
+  }, [calendarDayDate, trades]);
+
+  const calendarDayPnL = useMemo(() => {
+    if (!calendarDayDate) return undefined;
+    const entry = dailyData.find(d => d.key === calendarDayDate);
+    if (!entry) return undefined;
+    return { krw: entry.krwValue, usd: entry.usdValue };
+  }, [calendarDayDate, dailyData]);
 
   // Portfolio Summary: calculate invested amount, unrealized/realized P&L
   const portfolioSummary = useMemo(() => {
@@ -691,11 +718,8 @@ export function TradeListView({
                     currentDate={calendarDate}
                     onDateChange={setCalendarDate}
                     dailyData={dailyData}
-                    onSelectDate={(date) => {
-                      setDateFrom(date);
-                      setDateTo(date);
-                    }}
-                    selectedDateStr={dateFrom === dateTo ? dateFrom : undefined}
+                    onSelectDate={setCalendarDayDate}
+                    selectedDateStr={calendarDayDate || undefined}
                     darkMode={darkMode}
                   />
                 </div>
@@ -718,20 +742,67 @@ export function TradeListView({
                 initialTab={analysisInitialTab}
               />
             ) : viewMode === 'calendar' ? (
-              <div className="rounded-2xl p-6 border border-white/8 bg-white/3">
-                <CalendarView
-                  currentDate={calendarDate}
-                  onDateChange={setCalendarDate}
-                  dailyData={dailyData}
-                  onSelectDate={(date) => {
-                    setDateFrom(date);
-                    setDateTo(date);
-                    setViewMode('list');
-                  }}
-                  selectedDateStr={dateFrom === dateTo ? dateFrom : undefined}
-                  darkMode={darkMode}
-                />
-              </div>
+              <>
+                <div className="flex gap-4 min-h-0">
+                  <div className="flex-1 min-w-0 rounded-2xl p-6 border border-white/8 bg-white/3">
+                    <CalendarView
+                      currentDate={calendarDate}
+                      onDateChange={setCalendarDate}
+                      dailyData={dailyData}
+                      onSelectDate={setCalendarDayDate}
+                      selectedDateStr={calendarDayDate || undefined}
+                      darkMode={darkMode}
+                    />
+                  </div>
+
+                  {/* Desktop side panel */}
+                  <AnimatePresence>
+                    {calendarDayDate && (
+                      <motion.div
+                        initial={{ opacity: 0, x: 16, width: 0 }}
+                        animate={{ opacity: 1, x: 0, width: 288 }}
+                        exit={{ opacity: 0, x: 16, width: 0 }}
+                        transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+                        className="hidden md:flex flex-col flex-none overflow-hidden rounded-2xl border border-white/8 bg-white/3"
+                        style={{ minWidth: 0 }}
+                      >
+                        <CalendarDayPanelContent
+                          dateStr={calendarDayDate}
+                          trades={calendarDayTrades}
+                          dailyPnL={calendarDayPnL}
+                          onClose={() => setCalendarDayDate(null)}
+                          onEdit={onEdit}
+                          onDelete={onDelete}
+                          showConverted={showConverted}
+                          exchangeRate={exchangeRate}
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Mobile BottomSheet */}
+                {isMobileView && (
+                  <BottomSheet
+                    isOpen={!!calendarDayDate}
+                    onClose={() => setCalendarDayDate(null)}
+                    title={calendarDayDate ? '' : undefined}
+                  >
+                    {calendarDayDate && (
+                      <CalendarDayPanelContent
+                        dateStr={calendarDayDate}
+                        trades={calendarDayTrades}
+                        dailyPnL={calendarDayPnL}
+                        onClose={() => setCalendarDayDate(null)}
+                        onEdit={onEdit}
+                        onDelete={onDelete}
+                        showConverted={showConverted}
+                        exchangeRate={exchangeRate}
+                      />
+                    )}
+                  </BottomSheet>
+                )}
+              </>
             ) : trades.length === 0 ? (
               <SmartEmptyState />
             ) : (
