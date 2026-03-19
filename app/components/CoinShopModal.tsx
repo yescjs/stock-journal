@@ -1,7 +1,8 @@
 'use client'
 
+import { useState, useMemo } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { X, Coins, CalendarClock, Zap } from 'lucide-react'
+import { X, Coins, CalendarClock, Zap, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { CoinTransaction } from '@/app/types/coins'
 import { COIN_COSTS } from '@/app/types/coins'
 
@@ -19,7 +20,17 @@ interface CoinShopModalProps {
   transactions: CoinTransaction[]
 }
 
+const TX_PAGE_SIZE = 10
+
 export function CoinShopModal({ isOpen, onClose, balance, transactions }: CoinShopModalProps) {
+  const [txPage, setTxPage] = useState(1)
+
+  const totalTxPages = Math.max(1, Math.ceil(transactions.length / TX_PAGE_SIZE))
+  const pagedTx = useMemo(
+    () => transactions.slice((txPage - 1) * TX_PAGE_SIZE, txPage * TX_PAGE_SIZE),
+    [transactions, txPage]
+  )
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -76,28 +87,57 @@ export function CoinShopModal({ isOpen, onClose, balance, transactions }: CoinSh
 
             {/* 거래 내역 */}
             <div>
-              <p className="text-xs text-gray-400 mb-3 font-medium">최근 거래 내역</p>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs text-gray-400 font-medium">최근 거래 내역</p>
+                {transactions.length > 0 && (
+                  <p className="text-xs text-gray-600">
+                    {(txPage - 1) * TX_PAGE_SIZE + 1}–{Math.min(txPage * TX_PAGE_SIZE, transactions.length)} / {transactions.length}건
+                  </p>
+                )}
+              </div>
               {transactions.length === 0 ? (
                 <p className="text-gray-500 text-sm text-center py-4">거래 내역이 없습니다.</p>
               ) : (
-                <ul className="space-y-2">
-                  {transactions.map((tx) => (
-                    <li key={tx.id} className="flex items-center justify-between text-sm">
-                      <div>
-                        <span className="text-gray-300">{TRANSACTION_LABELS[tx.type] ?? tx.type}</span>
-                        <span className="text-gray-500 text-xs ml-2">
-                          {new Date(tx.created_at).toLocaleDateString('ko-KR')}
-                        </span>
-                      </div>
-                      <div className="text-right">
-                        <span className={tx.amount > 0 ? 'text-emerald-400' : 'text-red-400'}>
-                          {tx.amount > 0 ? '+' : ''}{tx.amount}
-                        </span>
-                        <span className="text-gray-500 text-xs ml-2">잔액 {tx.balance_after}</span>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                <>
+                  <ul className="space-y-2">
+                    {pagedTx.map((tx) => (
+                      <li key={tx.id} className="flex items-center justify-between text-sm">
+                        <div>
+                          <span className="text-gray-300">{TRANSACTION_LABELS[tx.type] ?? tx.type}</span>
+                          <span className="text-gray-500 text-xs ml-2">
+                            {new Date(tx.created_at).toLocaleDateString('ko-KR')}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className={tx.amount > 0 ? 'text-emerald-400' : 'text-red-400'}>
+                            {tx.amount > 0 ? '+' : ''}{tx.amount}
+                          </span>
+                          <span className="text-gray-500 text-xs ml-2">잔액 {tx.balance_after}</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {totalTxPages > 1 && (
+                    <div className="flex items-center justify-center gap-3 mt-4 pt-3 border-t border-white/5">
+                      <button
+                        onClick={() => setTxPage(p => Math.max(1, p - 1))}
+                        disabled={txPage === 1}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronLeft size={16} />
+                      </button>
+                      <span className="text-xs text-gray-400">{txPage} / {totalTxPages}</span>
+                      <button
+                        onClick={() => setTxPage(p => Math.min(totalTxPages, p + 1))}
+                        disabled={txPage === totalTxPages}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronRight size={16} />
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </motion.div>

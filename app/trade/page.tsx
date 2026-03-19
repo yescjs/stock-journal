@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, LineChart } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 // Types
 import { NotifyType } from '@/app/types/ui';
@@ -40,7 +40,7 @@ export default function TradePage() {
 
     // --- Auth & Data ---
     const { user: currentUser, loading: authLoading, logout: supabaseLogout, authError } = useSupabaseAuth();
-    const { trades, addTrade, removeTrade, updateTrade, importTrades, setTrades } = useTrades(currentUser);
+    const { trades, loading: tradesLoading, addTrade, removeTrade, updateTrade, importTrades, setTrades } = useTrades(currentUser);
     const { currentPrices, refresh: refreshPrices, loading: pricesLoading } = useCurrentPrices(trades);
     const { exchangeRate } = useExchangeRate();
 
@@ -217,7 +217,7 @@ export default function TradePage() {
 
     // --- Main App ---
     return (
-        <div className="min-h-screen flex flex-col bg-[#070a12] text-white transition-colors duration-300">
+        <div className="min-h-screen flex flex-col bg-[#070a12] text-white transition-colors duration-300 pt-14 pb-16 md:pb-0">
 
             {/* Auth Error */}
             {authError && (
@@ -232,7 +232,7 @@ export default function TradePage() {
             {/* Toast Notification */}
             {notify && (
                 <div className={`fixed z-50 px-4 py-2.5 rounded-xl shadow-lg text-sm font-bold animate-in fade-in duration-200
-                    left-1/2 -translate-x-1/2 bottom-6
+                    left-1/2 -translate-x-1/2 bottom-20 md:bottom-6
                     ${notify.type === 'success' ? 'bg-emerald-500 text-white' :
                         notify.type === 'error' ? 'bg-rose-500 text-white' :
                             'bg-blue-500 text-white'}`}>
@@ -251,7 +251,7 @@ export default function TradePage() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 16 }}
                         transition={{ duration: 0.2, ease: 'easeOut' }}
-                        className="fixed z-50 left-1/2 -translate-x-1/2 bottom-24 overflow-hidden rounded-xl shadow-2xl"
+                        className="fixed z-50 left-1/2 -translate-x-1/2 bottom-36 md:bottom-24 overflow-hidden rounded-xl shadow-2xl"
                     >
                         <div className="flex items-center gap-3 px-4 py-3 bg-zinc-800 border border-white/10 text-sm font-semibold text-white">
                             <span className="text-white/50">🗑</span>
@@ -273,16 +273,11 @@ export default function TradePage() {
                 )}
             </AnimatePresence>
 
-            {/* Navigation - Matching Landing Page Design */}
-            <nav className="sticky top-0 z-50 border-b border-white/5 bg-[#070a12]/85 backdrop-blur-xl">
-                <div className="max-w-6xl mx-auto px-6 md:px-10 h-14 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => router.push('/')}>
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-700 flex items-center justify-center shadow-lg shadow-blue-600/30">
-                            <LineChart size={15} className="text-white" strokeWidth={2.5} />
-                        </div>
-                        <span className="font-logo font-extrabold text-base tracking-tight"><span className="text-blue-400">Stock</span>Journal</span>
-                    </div>
-                    <div className="flex items-center gap-2">
+            {/* Main Content */}
+            <div className="flex-1 min-h-0 w-full">
+                <div className="max-w-6xl mx-auto px-6 md:px-10 pt-6 pb-8">
+                    {/* User Controls */}
+                    <div className="flex items-center justify-end gap-2 mb-4">
                         {currentUser ? (
                             <>
                                 <CoinBalance
@@ -301,29 +296,14 @@ export default function TradePage() {
                                 </button>
                             </>
                         ) : (
-                            <>
-                                <button onClick={() => setShowLoginModal(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold transition-all shadow-lg shadow-blue-600/25 active:scale-95">
-                                    로그인 <ArrowRight size={13} />
-                                </button>
-                            </>
+                            <button onClick={() => setShowLoginModal(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold transition-all shadow-lg shadow-blue-600/25 active:scale-95">
+                                로그인 <ArrowRight size={13} />
+                            </button>
                         )}
                     </div>
-                </div>
-            </nav>
 
-            {/* Main Content */}
-            <div className="flex-1 min-h-0 w-full">
-                <div className="max-w-6xl mx-auto px-6 md:px-10 pt-6 pb-8">
-                    <AnimatePresence mode="wait">
-                        <motion.div
-                            key="journal"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            transition={{ duration: 0.2, ease: 'easeOut' }}
-                            className="h-full"
-                        >
-                            <TradeListView
+                    <TradeListView
+                                tradesLoading={tradesLoading}
                                 darkMode={true}
                                 currentUser={currentUser}
                                 trades={trades}
@@ -357,8 +337,6 @@ export default function TradePage() {
                                 onCompleteOnboardingStep={onboarding.completeStep}
                                 onOpenAddTrade={() => setShowAddModal(true)}
                             />
-                        </motion.div>
-                    </AnimatePresence>
                 </div>
             </div>
 
@@ -369,7 +347,7 @@ export default function TradePage() {
             <button
                 onClick={() => setShowAddModal(true)}
                 aria-label="새 매매 기록 추가"
-                className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-blue-600 text-white shadow-2xl shadow-blue-600/30 flex items-center justify-center hover:bg-blue-500 hover:scale-105 active:scale-95 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2"
+                className="fixed bottom-20 md:bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-blue-600 text-white shadow-2xl shadow-blue-600/30 flex items-center justify-center hover:bg-blue-500 hover:scale-105 active:scale-95 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2"
             >
                 <span className="text-2xl font-light">+</span>
             </button>
