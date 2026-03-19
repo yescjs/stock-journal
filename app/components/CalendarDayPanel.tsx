@@ -40,11 +40,14 @@ export function CalendarDayPanelContent({
   const dateObj = parseISO(dateStr);
   const formatted = format(dateObj, 'M월 d일 (EEE)', { locale: ko });
 
-  const pnlValue = dailyPnL
-    ? (showConverted
-        ? dailyPnL.krw + dailyPnL.usd * exchangeRate
-        : dailyPnL.krw + dailyPnL.usd)
-    : null;
+  const krwPnL = dailyPnL?.krw ?? 0;
+  const usdPnL = dailyPnL?.usd ?? 0;
+  // When showConverted: all values are in KRW (krwValue includes converted USD)
+  // When !showConverted: krwValue = KRW trades P&L, usdValue = USD trades P&L (separate units)
+  const totalPnLForColor = showConverted
+    ? krwPnL
+    : (krwPnL !== 0 ? krwPnL : usdPnL);
+  const hasPnL = krwPnL !== 0 || usdPnL !== 0;
 
   // ESC key handler
   useEffect(() => {
@@ -63,12 +66,16 @@ export function CalendarDayPanelContent({
           <div className="text-sm font-bold text-white">{formatted}</div>
           <div className="text-xs text-white/40 mt-0.5 flex items-center gap-1.5">
             <span>거래 {trades.length}건</span>
-            {pnlValue !== null && pnlValue !== 0 && (
-              <span className={`font-bold ${pnlValue > 0 ? 'text-rose-400' : 'text-blue-400'}`}>
-                {pnlValue > 0 ? '+' : ''}
+            {hasPnL && (
+              <span className={`font-bold ${totalPnLForColor > 0 ? 'text-rose-400' : 'text-blue-400'}`}>
                 {showConverted
-                  ? `${Math.round(pnlValue).toLocaleString('ko-KR')}원`
-                  : `$${Math.abs(pnlValue).toFixed(0)}`}
+                  ? `${krwPnL > 0 ? '+' : ''}${Math.round(krwPnL).toLocaleString('ko-KR')}원`
+                  : <>
+                      {krwPnL !== 0 && `${krwPnL > 0 ? '+' : ''}${Math.round(krwPnL).toLocaleString('ko-KR')}원`}
+                      {krwPnL !== 0 && usdPnL !== 0 && ' '}
+                      {usdPnL !== 0 && `${usdPnL > 0 ? '+' : ''}$${Math.abs(usdPnL).toFixed(0)}`}
+                    </>
+                }
               </span>
             )}
           </div>

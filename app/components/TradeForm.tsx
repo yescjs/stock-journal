@@ -72,6 +72,18 @@ export function TradeForm({
 
     const isFirstTrade = baseTrades.length === 0 && !initialData;
 
+    // Close dropdown on outside click
+    React.useEffect(() => {
+        if (!showTemplateDropdown) return;
+        const handler = (e: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+                setShowTemplateDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [showTemplateDropdown]);
+
     const handleApplyTemplate = (templateId: string) => {
         const tpl = templates.find(t => t.id === templateId);
         if (!tpl) return;
