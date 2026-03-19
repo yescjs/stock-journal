@@ -1,4 +1,4 @@
-# Stock Journal
+# Stock Journal(**[www.매매일지.com](https://www.매매일지.com)**)
 
 > 직관적인 매매일지로 시작하는 스마트한 주식 투자 관리
 
