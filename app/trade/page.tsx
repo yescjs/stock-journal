@@ -77,24 +77,18 @@ export default function TradePage() {
     }, [authLoading, currentUser, track]);
 
     // --- Guest → User Migration Detection ---
+    // Runs once after auth resolves. Works for both in-page login and OAuth redirects.
+    // Logout clears guest data, so if user is authenticated AND guest data exists,
+    // it must have been recorded in this browser session before login.
     useEffect(() => {
-        if (authLoading) return;
+        if (authLoading || !currentUser || migrationCheckedRef.current) return;
 
-        const prevUserId = prevUserIdRef.current;
-        const currentUserId = currentUser?.id ?? null;
-
-        // Only trigger on fresh login (null → User), not on initial page load (undefined → User)
-        if (prevUserId === null && currentUserId !== null) {
-            const guestTrades = readGuestTrades();
-            if (guestTrades.length > 0) {
-                setMigrationTrades(guestTrades);
-                setShowMigrationModal(true);
-            } else {
-                localStorage.removeItem(GUEST_TRADES_KEY);
-            }
+        migrationCheckedRef.current = true;
+        const guestTrades = readGuestTrades();
+        if (guestTrades.length > 0) {
+            setMigrationTrades(guestTrades);
+            setShowMigrationModal(true);
         }
-
-        prevUserIdRef.current = currentUserId;
     }, [currentUser, authLoading]);
 
     const handleMigrate = async () => {
@@ -145,8 +139,7 @@ export default function TradePage() {
     const [showMigrationModal, setShowMigrationModal] = useState(false);
     const [migrationTrades, setMigrationTrades] = useState<Trade[]>([]);
     const [migrationLoading, setMigrationLoading] = useState(false);
-    // undefined = auth not yet initialized, null = logged out, string = user id
-    const prevUserIdRef = useRef<string | null | undefined>(undefined);
+    const migrationCheckedRef = useRef(false);
 
     // Monthly expand state
     const [openMonths, setOpenMonths] = useState<Record<string, boolean>>(() => {
