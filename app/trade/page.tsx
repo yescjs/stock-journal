@@ -28,7 +28,9 @@ import { TradeListView } from '@/app/components/views/TradeListView';
 import { CoinBalance } from '@/app/components/CoinBalance';
 import { CoinShopModal } from '@/app/components/CoinShopModal';
 import { ImportModal } from '@/app/components/ImportModal';
+import { GuestMigrationModal } from '@/app/components/GuestMigrationModal';
 import { Footer } from '@/app/components/Footer';
+import { readGuestTrades, deduplicateGuestTrades, GUEST_TRADES_KEY } from '@/app/utils/migrationUtils';
 
 // Icons
 import { BarChart3, AlertTriangle, LogOut, UserCheck } from 'lucide-react';
@@ -74,6 +76,45 @@ export default function TradePage() {
         }
     }, [authLoading, currentUser, track]);
 
+    // --- Guest → User Migration Detection ---
+    // Runs once after auth resolves. Works for both in-page login and OAuth redirects.
+    // Logout clears guest data, so if user is authenticated AND guest data exists,
+    // it must have been recorded in this browser session before login.
+    useEffect(() => {
+        if (authLoading || !currentUser || migrationCheckedRef.current) return;
+
+        migrationCheckedRef.current = true;
+        const guestTrades = readGuestTrades();
+        if (guestTrades.length > 0) {
+            setMigrationTrades(guestTrades);
+            setShowMigrationModal(true);
+        }
+    }, [currentUser, authLoading]);
+
+    const handleMigrate = async () => {
+        if (migrationTrades.length === 0) return;
+        setMigrationLoading(true);
+        try {
+            const toImport = deduplicateGuestTrades(migrationTrades, trades);
+            const count = await importTrades(toImport);
+            localStorage.removeItem(GUEST_TRADES_KEY);
+            setShowMigrationModal(false);
+            setMigrationTrades([]);
+            showNotify('success', `${count}건의 거래가 계정에 저장되었습니다.`);
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : '알 수 없는 오류';
+            showNotify('error', `가져오기 실패: ${msg}`);
+        } finally {
+            setMigrationLoading(false);
+        }
+    };
+
+    const handleSkipMigration = () => {
+        localStorage.removeItem(GUEST_TRADES_KEY);
+        setShowMigrationModal(false);
+        setMigrationTrades([]);
+    };
+
     // --- Currency Toggle ---
     const [showConverted, setShowConverted] = useState(false);
 
@@ -93,6 +134,12 @@ export default function TradePage() {
     const [notify, setNotify] = useState<{ type: NotifyType; message: string } | null>(null);
     const [showCoinShop, setShowCoinShop] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
+
+    // --- Guest Migration State ---
+    const [showMigrationModal, setShowMigrationModal] = useState(false);
+    const [migrationTrades, setMigrationTrades] = useState<Trade[]>([]);
+    const [migrationLoading, setMigrationLoading] = useState(false);
+    const migrationCheckedRef = useRef(false);
 
     // Monthly expand state
     const [openMonths, setOpenMonths] = useState<Record<string, boolean>>(() => {
@@ -403,6 +450,15 @@ export default function TradePage() {
                     track('import_completed', { trade_count: count });
                     return count;
                 }}
+            />
+
+            {/* Guest Migration Modal */}
+            <GuestMigrationModal
+                isOpen={showMigrationModal}
+                tradeCount={migrationTrades.length}
+                loading={migrationLoading}
+                onMigrate={handleMigrate}
+                onSkip={handleSkipMigration}
             />
 
             {/* Coin Shop Modal */}
