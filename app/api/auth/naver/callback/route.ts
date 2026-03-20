@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
 
         if (createError) {
             // 2단계: 사용자가 이미 존재하는 경우 (에러 메시지로 판단)
-            if (createError.message.includes('already registered') || createError.message.includes('duplicate')) {
+            if (createError.code === 'email_exists' || createError.message.includes('already registered') || createError.message.includes('already been registered') || createError.message.includes('duplicate')) {
                 try {
                     // 이메일로 사용자 조회 (페이지네이션 없이 단일 쿼리)
                     const { data: usersByEmail, error: listError } = await supabaseAdmin.auth.admin.listUsers({
