@@ -4,7 +4,7 @@ import { getSupabase } from '@/app/lib/supabaseClient'
 import { CategoryTabs } from '@/app/components/news/CategoryTabs'
 import type { NewsArticle } from '@/app/types/news'
 
-export const revalidate = 3600
+export const dynamic = 'force-dynamic'
 
 export const metadata = {
   title: '경제 뉴스 | StockJournal',
