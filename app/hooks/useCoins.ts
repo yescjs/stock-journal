@@ -24,30 +24,40 @@ export function useCoins(user: User | null): UseCoinsReturn {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const fetchWithAuth = useCallback(async (url: string): Promise<Response | null> => {
+    let token = await getAuthToken()
+    if (!token) return null
+
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+
+    if (res.status === 401) {
+      const { data } = await supabase.auth.refreshSession()
+      token = data.session?.access_token ?? null
+      if (!token) return null
+      return fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    }
+
+    return res
+  }, [])
+
   const refreshBalance = useCallback(async () => {
     if (!user) return
     try {
-      const token = await getAuthToken()
-      if (!token) return
-      const res = await fetch('/api/coins/balance', {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      const res = await fetchWithAuth('/api/coins/balance')
+      if (!res) return
       const data = await res.json()
       setBalance(data.balance ?? 0)
     } catch {
       // 조용히 실패
     }
-  }, [user])
+  }, [user, fetchWithAuth])
 
   const loadTransactions = useCallback(async () => {
     if (!user) return
     setLoading(true)
     try {
-      const token = await getAuthToken()
-      if (!token) return
-      const res = await fetch('/api/coins/transactions', {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      const res = await fetchWithAuth('/api/coins/transactions')
+      if (!res) return
       const data = await res.json()
       setTransactions(data.transactions ?? [])
     } catch (err) {
@@ -55,7 +65,7 @@ export function useCoins(user: User | null): UseCoinsReturn {
     } finally {
       setLoading(false)
     }
-  }, [user])
+  }, [user, fetchWithAuth])
 
   useEffect(() => {
     if (user) {
