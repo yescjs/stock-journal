@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Noto_Sans_KR, JetBrains_Mono, Orbitron } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "./components/ThemeProvider";
+import { Analytics } from "@vercel/analytics/react";
 import { SharedTopNav } from "./components/ui/SharedTopNav";
 import { AppBottomNav } from "./components/ui/AppBottomNav";
 
@@ -59,6 +60,7 @@ export default function RootLayout({
           <SharedTopNav />
           {children}
           <AppBottomNav />
+          <Analytics />
         </ThemeProvider>
       </body>
     </html>
