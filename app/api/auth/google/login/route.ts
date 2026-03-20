@@ -1,0 +1,43 @@
+import { NextResponse } from 'next/server';
+import { getGoogleAuthUrl } from '@/app/lib/googleAuth';
+import crypto from 'crypto';
+
+export async function GET() {
+    try {
+        // CSRF 방지를 위한 state 생성 (타임스탬프 + 강력한 랜덤 값)
+        const timestamp = Date.now();
+        const randomValue = crypto.randomBytes(16).toString('hex');
+        const state = `${timestamp}-${randomValue}`;
+
+        // state를 쿠키에 저장 (콜백에서 검증용)
+        const response = NextResponse.redirect(getGoogleAuthUrl(state));
+        response.cookies.set('google_oauth_state', state, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 60 * 10, // 10분
+        });
+
+        return response;
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        const errorName = error instanceof Error ? error.name : 'Unknown';
+
+        console.error('[구글 로그인] 상세 에러:', {
+            message: errorMessage,
+            stack: errorStack,
+            name: errorName
+        });
+
+        let userMessage = '구글 로그인에 실패했습니다.';
+
+        if (errorMessage?.includes('환경변수')) {
+            userMessage = '서버 설정 오류가 발생했습니다. 관리자에게 문의해주세요.';
+        }
+
+        return NextResponse.redirect(
+            `${process.env.NEXT_PUBLIC_BASE_URL}/?error=google_login_failed&message=${encodeURIComponent(userMessage)}`
+        );
+    }
+}

@@ -34,25 +34,10 @@ export function LoginForm({ onDone }: LoginFormProps) {
     const [successState, setSuccessState] = useState(false);
 
     // Social Login Handler
-    const handleSocialLogin = async (provider: 'google') => {
-        try {
-            setSending(true);
-            resetMsg();
-
-            const { error } = await supabase.auth.signInWithOAuth({
-                provider: provider,
-                options: {
-                    redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
-                }
-            });
-
-            if (error) throw error;
-        } catch (error: unknown) {
-            const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';
-            setMsgType('error');
-            setMsg(`Google 로그인 실패: ${errorMessage}`);
-            setSending(false);
-        }
+    const handleSocialLogin = () => {
+        setSending(true);
+        resetMsg();
+        window.location.href = '/api/auth/google/login';
     };
 
 
@@ -246,7 +231,7 @@ export function LoginForm({ onDone }: LoginFormProps) {
                     {/* Google Login */}
                     <button
                         type="button"
-                        onClick={() => handleSocialLogin('google')}
+                        onClick={() => handleSocialLogin()}
                         disabled={sending}
                         className={`w-full py-3.5 px-4 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-3 ${sending
                             ? 'opacity-50 cursor-not-allowed'
