@@ -394,7 +394,36 @@
       "maxLoss": "Max Loss Streak"
     },
     "insights": {
-      "title": "Key Insights"
+      "title": "Key Insights",
+      "bestWeekdayTitle": "Strong {label} Performance",
+      "bestWeekdayDesc": "Trades entered on {label} have the highest win rate at {winRate}% ({count} trades).",
+      "worstWeekdayTitle": "Caution on {label}",
+      "worstWeekdayDesc": "Trades entered on {label} have the lowest win rate at {winRate}%. Consider reducing trades on this day.",
+      "bestHoldingTitle": "{label} Returns Excel",
+      "bestHoldingDesc": "{label} trades have the highest avg return at {avgReturn}% ({count} trades).",
+      "fomoLossTitle": "High FOMO Trading Losses",
+      "fomoLossDesc": "FOMO trades have a {winRate}% win rate. Prioritize planned trades.",
+      "plannedEffectiveTitle": "Planned Trades Are Effective",
+      "plannedEffectiveDesc": "Planned trades have the highest win rate at {winRate}%.",
+      "bestStrategyTitle": "\"{label}\" Strategy Excels",
+      "bestStrategyDesc": "This strategy has the highest win rate at {winRate}% ({count} trades, avg return {avgReturn}%).",
+      "concentrationRiskTitle": "Portfolio Concentration Risk",
+      "concentrationRiskDesc": "{percentage}% of your portfolio is concentrated in {symbol}. Consider diversifying.",
+      "lossStreakTitle": "{count}-Loss Streak in Progress",
+      "lossStreakDesc": "You are on a {count}-trade losing streak. Consider reducing position size or pausing trading.",
+      "winStreakTitle": "{count}-Win Streak!",
+      "winStreakDesc": "Great momentum! But stay disciplined and maintain your risk management.",
+      "winRateGoodTitle": "Overall Win Rate {winRate}% — Solid",
+      "winRateGoodDesc": "Your current trading style is working well. Stay consistent.",
+      "winRateBadTitle": "Overall Win Rate {winRate}% — Needs Improvement",
+      "winRateBadDesc": "Review your entry timing and stock selection. Setting clear stop-loss levels can help.",
+      "profitFactorGoodTitle": "Profit Factor {pf} — Excellent",
+      "profitFactorGoodDesc": "Your gains are {pf}x your losses, indicating a solid profit structure.",
+      "profitFactorBadTitle": "Profit Factor {pf} — In the Red",
+      "profitFactorBadDesc": "Your losses exceed your gains. Consider tightening your stop-loss levels.",
+      "gatheringDataTitle": "Gathering Data",
+      "gatheringDataDesc": "You have {count} completed trades so far. More trade data will reveal meaningful patterns.",
+      "noStrategy": "No Strategy"
     },
     "roundTrips": {
       "title": "Recent Completed Trades",
@@ -808,6 +837,10 @@
     "companyInfo2": "Address: 303-305, 10, Songburo 49-gil, Gunpo-si, Gyeonggi-do, South Korea | Contact: 010-4123-2753",
     "companyInfo3": "Simplified Tax Payer | Online Sales Registration: In preparation",
     "copyright": "© {year} StockJournal · Not investment advice · Includes simulation data"
+  },
+  "notFound": {
+    "title": "Page Not Found",
+    "description": "The page you are looking for does not exist."
   },
   "error": {
     "title": "Something went wrong",

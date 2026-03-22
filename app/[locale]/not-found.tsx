@@ -1,6 +1,11 @@
+'use client';
+
 import { AlertTriangle } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 export default function NotFound() {
+  const t = useTranslations('notFound');
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="max-w-md w-full text-center space-y-6">
@@ -10,8 +15,8 @@ export default function NotFound() {
           </div>
         </div>
         <div className="space-y-2">
-          <h2 className="text-xl font-semibold text-foreground">Page Not Found</h2>
-          <p className="text-sm text-muted-foreground">The page you are looking for does not exist.</p>
+          <h2 className="text-xl font-semibold text-foreground">{t('title')}</h2>
+          <p className="text-sm text-muted-foreground">{t('description')}</p>
         </div>
       </div>
     </div>

@@ -76,8 +76,8 @@ export async function GET(request: NextRequest) {
         console.warn('All data sources failed:', { symbol });
         return NextResponse.json(
             {
-                error: '차트 데이터를 불러올 수 없습니다',
-                detail: `종목 코드 '${symbol}'에 대한 데이터를 찾을 수 없습니다. 올바른 종목 코드인지 확인해주세요.`,
+                error: 'Unable to load chart data',
+                detail: `No data found for symbol '${symbol}'. Please verify the symbol is correct.`,
             },
             { status: 404 }
         );
@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
         console.error('Stock chart API error:', error);
         const message = error instanceof Error ? error.message : 'Unknown error';
         return NextResponse.json(
-            { error: '서버 오류가 발생했습니다', message },
+            { error: 'Internal server error', message },
             { status: 500 }
         );
     }

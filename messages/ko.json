@@ -394,7 +394,36 @@
       "maxLoss": "최대 연패"
     },
     "insights": {
-      "title": "핵심 인사이트"
+      "title": "핵심 인사이트",
+      "bestWeekdayTitle": "{label} 매매 성적 우수",
+      "bestWeekdayDesc": "{label}에 진입한 매매의 승률이 {winRate}%로 가장 높습니다 ({count}건).",
+      "worstWeekdayTitle": "{label} 매매 주의",
+      "worstWeekdayDesc": "{label}에 진입한 매매의 승률이 {winRate}%로 가장 낮습니다. 이 요일의 매매를 줄여보세요.",
+      "bestHoldingTitle": "{label} 수익률 우수",
+      "bestHoldingDesc": "{label}의 평균 수익률이 {avgReturn}%로 가장 높습니다 ({count}건).",
+      "fomoLossTitle": "FOMO 매매 손실 높음",
+      "fomoLossDesc": "FOMO 매매의 승률이 {winRate}%입니다. 계획된 매매를 우선하세요.",
+      "plannedEffectiveTitle": "계획된 매매가 효과적",
+      "plannedEffectiveDesc": "계획된 매매의 승률이 {winRate}%로 가장 높습니다.",
+      "bestStrategyTitle": "\"{label}\" 전략 성과 우수",
+      "bestStrategyDesc": "이 전략의 승률이 {winRate}%로 가장 높습니다 ({count}건, 평균 수익 {avgReturn}%).",
+      "concentrationRiskTitle": "포트폴리오 집중 위험",
+      "concentrationRiskDesc": "전체 투자금의 {percentage}%가 {symbol}에 집중되어 있습니다. 분산 투자를 고려하세요.",
+      "lossStreakTitle": "{count}연패 진행 중",
+      "lossStreakDesc": "현재 {count}연속 손실 중입니다. 포지션 축소 또는 매매 중단을 고려해보세요.",
+      "winStreakTitle": "{count}연승 중!",
+      "winStreakDesc": "매우 좋은 흐름입니다. 하지만 과신하지 말고 리스크 관리를 유지하세요.",
+      "winRateGoodTitle": "전체 승률 {winRate}% 양호",
+      "winRateGoodDesc": "현재 투자 스타일이 잘 맞고 있습니다. 일관성을 유지하세요.",
+      "winRateBadTitle": "전체 승률 {winRate}% 개선 필요",
+      "winRateBadDesc": "진입 타이밍이나 종목 선정을 재검토해보세요. 손절 기준을 명확히 하면 도움이 됩니다.",
+      "profitFactorGoodTitle": "수익 팩터 {pf} — 우수",
+      "profitFactorGoodDesc": "손실 대비 수익이 {pf}배로, 안정적인 수익 구조를 갖추고 있습니다.",
+      "profitFactorBadTitle": "수익 팩터 {pf} — 손실 구간",
+      "profitFactorBadDesc": "현재 수익보다 손실이 큽니다. 손절 라인을 더 타이트하게 설정해보세요.",
+      "gatheringDataTitle": "데이터 수집 중",
+      "gatheringDataDesc": "현재 {count}건의 완결된 매매가 있습니다. 더 많은 매매 데이터가 쌓이면 유의미한 패턴을 발견할 수 있습니다.",
+      "noStrategy": "전략 미설정"
     },
     "roundTrips": {
       "title": "최근 완결 거래",
@@ -808,6 +837,10 @@
     "companyInfo2": "주소: 경기도 군포시 송부로49번길 10, 303동 305호 | 연락처: 010-4123-2753",
     "companyInfo3": "간이과세자 | 통신판매업신고: 준비중",
     "copyright": "© {year} StockJournal · 투자 권유 아님 · 시뮬레이션 데이터 포함"
+  },
+  "notFound": {
+    "title": "페이지를 찾을 수 없습니다",
+    "description": "요청하신 페이지가 존재하지 않습니다."
   },
   "error": {
     "title": "문제가 발생했습니다",

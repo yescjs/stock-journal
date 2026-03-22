@@ -219,6 +219,12 @@ export const NO_TAG_LABEL_I18N: Record<string, string> = {
   en: 'Untagged',
 };
 
+// No-strategy label
+export const NO_STRATEGY_LABEL_I18N: Record<string, string> = {
+  ko: '전략 미설정',
+  en: 'No Strategy',
+};
+
 // Close/exit label for equity curve
 export const CLOSE_LABEL_I18N: Record<string, string> = {
   ko: '청산',
