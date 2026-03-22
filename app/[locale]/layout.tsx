@@ -3,7 +3,7 @@ import { getMessages, setRequestLocale, getTranslations } from 'next-intl/server
 import { notFound } from 'next/navigation';
 import { routing } from '@/i18n/routing';
 import { ThemeProvider } from '../components/ThemeProvider';
-import { Analytics } from '@vercel/analytics/react';
+import { Analytics } from '@vercel/analytics/next';
 import { SharedTopNav } from '../components/ui/SharedTopNav';
 import { AppBottomNav } from '../components/ui/AppBottomNav';
 import { fontVariables } from '../fonts';
