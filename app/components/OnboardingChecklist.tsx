@@ -2,6 +2,7 @@
 
 import { X, Check, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import type { OnboardingSteps } from '@/app/hooks/useOnboarding';
 
 interface OnboardingChecklistProps {
@@ -13,11 +14,11 @@ interface OnboardingChecklistProps {
   onStepClick?: (step: keyof OnboardingSteps) => void;
 }
 
-const STEP_CONFIG: { key: keyof OnboardingSteps; label: string; description: string }[] = [
-  { key: 'firstTrade', label: '첫 매매 기록하기', description: '매수 또는 매도 거래를 1건 기록해보세요' },
-  { key: 'buySellCycle', label: '매수→매도 한 사이클 완성', description: '같은 종목을 매수하고 매도해보세요' },
-  { key: 'visitAnalysis', label: '주간 분석 확인하기', description: '분석 탭에서 매매 통계를 확인해보세요' },
-  { key: 'aiReport', label: 'AI 리포트 받아보기', description: 'AI가 분석한 매매 리포트를 확인해보세요' },
+const STEP_KEYS: { key: keyof OnboardingSteps; labelKey: string; descKey: string }[] = [
+  { key: 'firstTrade', labelKey: 'step1Label', descKey: 'step1Desc' },
+  { key: 'buySellCycle', labelKey: 'step2Label', descKey: 'step2Desc' },
+  { key: 'visitAnalysis', labelKey: 'step3Label', descKey: 'step3Desc' },
+  { key: 'aiReport', labelKey: 'step4Label', descKey: 'step4Desc' },
 ];
 
 export function OnboardingChecklist({
@@ -28,6 +29,7 @@ export function OnboardingChecklist({
   onDismiss,
   onStepClick,
 }: OnboardingChecklistProps) {
+  const t = useTranslations('onboarding');
   const progressPct = (completedCount / totalSteps) * 100;
 
   return (
@@ -44,9 +46,9 @@ export function OnboardingChecklist({
             {/* Header */}
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-semibold">시작 가이드</h3>
+                <h3 className="text-sm font-semibold">{t('guideTitle')}</h3>
                 <p className="mt-0.5 text-xs text-white/40">
-                  {completedCount}/{totalSteps} 완료
+                  {t('progress', { completed: completedCount, total: totalSteps })}
                 </p>
               </div>
               <button
@@ -70,7 +72,7 @@ export function OnboardingChecklist({
 
             {/* Steps */}
             <div className="space-y-1">
-              {STEP_CONFIG.map(({ key, label, description }) => {
+              {STEP_KEYS.map(({ key, labelKey, descKey }) => {
                 const done = steps[key];
                 const clickable = !done && onStepClick;
                 return (
@@ -94,8 +96,8 @@ export function OnboardingChecklist({
                       {done && <Check className="h-3 w-3 text-emerald-400" />}
                     </div>
                     <div className="flex-1">
-                      <div className={`text-sm ${done ? 'line-through' : 'font-medium'}`}>{label}</div>
-                      {!done && <div className="text-xs text-white/30">{description}</div>}
+                      <div className={`text-sm ${done ? 'line-through' : 'font-medium'}`}>{t(labelKey)}</div>
+                      {!done && <div className="text-xs text-white/30">{t(descKey)}</div>}
                     </div>
                     {!done && <ChevronRight className="h-4 w-4 text-white/20" />}
                   </div>

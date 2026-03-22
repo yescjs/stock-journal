@@ -5,6 +5,7 @@ import { TrendingUp, TrendingDown, DollarSign, Activity, BarChart2 } from 'lucid
 import { StockChart } from '@/app/components/charts/StockChart';
 import { TradeList } from '@/app/components/TradeList';
 import { ChartPeriod } from '@/app/types/stock';
+import { useTranslations, useLocale } from 'next-intl';
 
 interface SymbolDetailCardProps {
     symbol: string;
@@ -17,6 +18,9 @@ interface SymbolDetailCardProps {
 }
 
 export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, darkMode, exchangeRate, showConverted }: SymbolDetailCardProps) {
+    const t = useTranslations('symbolDetail');
+    const locale = useLocale();
+    const numLocale = locale === 'ko' ? 'ko-KR' : 'en-US';
     const [dynamicPrice, setDynamicPrice] = useState<number | undefined>(initialPrice);
     const [openMonths, setOpenMonths] = useState<Record<string, boolean>>({});
     const [analysisPeriod, setAnalysisPeriod] = useState<ChartPeriod>('1y');
@@ -35,7 +39,11 @@ export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, d
     const isKRW = isKRWSymbol(symbol);
     const shouldConvert = !isKRW && showConverted;
     const activeExchangeRate = shouldConvert ? exchangeRate : 1;
-    const currencyUnit = isKRW || shouldConvert ? '원' : '$';
+    const isUSD = !isKRW && !shouldConvert;
+    const formatCurrencyValue = (value: number) => {
+        if (isUSD) return `${value < 0 ? '-' : ''}$${formatNumber(Math.abs(value), undefined, numLocale)}`;
+        return formatNumber(value, undefined, numLocale);
+    };
 
     const displayedPrice = dynamicPrice ? dynamicPrice * activeExchangeRate : undefined;
 
@@ -109,7 +117,7 @@ export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, d
                                 </h2>
                                 {displayedPrice && (
                                     <span className={`px-2 py-0.5 rounded-lg text-[10px] md:text-xs font-bold shrink-0 ${darkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700'}`}>
-                                        현재가 {currencyUnit === '$' ? '$' : ''}{formatNumber(displayedPrice)}{currencyUnit === '원' ? '원' : ''}
+                                        {t('currentPrice')} {formatCurrencyValue(displayedPrice)}
                                     </span>
                                 )}
                             </div>
@@ -119,7 +127,7 @@ export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, d
                                 </span>
                                 <span className={`w-1 h-1 rounded-full bg-current opacity-30 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`} />
                                 <span className={`text-[10px] md:text-xs font-semibold px-2 py-0.5 rounded-md ${darkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>
-                                    총 {stockTrades.length}건의 거래
+                                    {t('totalTrades', { count: stockTrades.length })}
                                 </span>
                             </div>
                         </div>
@@ -128,24 +136,24 @@ export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, d
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <StatItem
-                        label="보유 수량"
-                        value={formatQuantity(stats.positionQty, isKRW ? symbol : undefined)} // Keep qty format native
+                        label={t('holdingQty')}
+                        value={formatQuantity(stats.positionQty, isKRW ? symbol : undefined, numLocale)}
                         icon={<Activity size={16} />}
                         colorClass={darkMode ? 'text-blue-400' : 'text-blue-600'}
                         bgClass={darkMode ? 'bg-blue-500/10' : 'bg-blue-50'}
                         darkMode={darkMode}
                     />
                     <StatItem
-                        label="평균 단가"
-                        value={(currencyUnit === '$' ? '$' : '') + formatNumber(stats.avgCost) + (currencyUnit === '원' ? '원' : '')}
+                        label={t('avgCost')}
+                        value={formatCurrencyValue(stats.avgCost)}
                         icon={<DollarSign size={16} />}
                         colorClass={darkMode ? 'text-amber-400' : 'text-amber-600'}
                         bgClass={darkMode ? 'bg-amber-500/10' : 'bg-amber-50'}
                         darkMode={darkMode}
                     />
                     <StatItem
-                        label="실현 손익"
-                        value={stats.realizedPnL !== 0 ? (currencyUnit === '$' ? '$' : '') + formatNumber(stats.realizedPnL) + (currencyUnit === '원' ? '원' : '') : '-'}
+                        label={t('realizedPnl')}
+                        value={stats.realizedPnL !== 0 ? formatCurrencyValue(stats.realizedPnL) : '-'}
                         valueClass={stats.realizedPnL > 0 ? 'text-emerald-500' : stats.realizedPnL < 0 ? 'text-rose-500' : ''}
                         icon={<TrendingUp size={16} />}
                         colorClass={darkMode ? 'text-emerald-400' : 'text-emerald-600'}
@@ -153,8 +161,8 @@ export function SymbolDetailCard({ symbol, trades, currentPrice: initialPrice, d
                         darkMode={darkMode}
                     />
                     <StatItem
-                        label="평가 손익"
-                        value={stats.positionQty !== 0 ? (currencyUnit === '$' ? '$' : '') + formatNumber(stats.unrealizedPnL) + (currencyUnit === '원' ? '원' : '') : '-'}
+                        label={t('unrealizedPnl')}
+                        value={stats.positionQty !== 0 ? formatCurrencyValue(stats.unrealizedPnL) : '-'}
                         valueClass={stats.unrealizedPnL > 0 ? 'text-emerald-500' : stats.unrealizedPnL < 0 ? 'text-rose-500' : ''}
                         icon={stats.unrealizedPnL >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
                         colorClass={stats.unrealizedPnL >= 0 ? (darkMode ? 'text-emerald-400' : 'text-emerald-600') : (darkMode ? 'text-rose-400' : 'text-rose-600')}

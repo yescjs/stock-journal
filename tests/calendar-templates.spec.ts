@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { enterGuestMode, injectGuestTrades, SAMPLE_TRADES } from './helpers';
+import { enterGuestMode, injectGuestTrades } from './helpers';
 import { setupMocks } from './mocks';
 
 const GUEST_TEMPLATES_KEY = 'stock-journal-guest-templates-v1';
@@ -152,7 +152,6 @@ test.describe('캘린더 날짜 드릴다운', () => {
 
       // calendarDayDate 상태가 React state에 남아있을 수 있음 — 이는 허용
       // 단, 패널이 화면을 가리면 안 됨
-      const panelText = page.getByText('3월 1일');
       // 패널이 열려있거나 닫혀있거나 — 어느 쪽이든 캘린더 셀이 여전히 보여야 함
       await expect(marchFirstCell).toBeVisible({ timeout: 3000 });
     }
@@ -282,6 +281,7 @@ test.describe('거래 템플릿 저장/불러오기', () => {
     await expect(saveBtn).not.toBeVisible();
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   test('저장 버튼 클릭 시 이름 입력 UI가 표시된다', async ({ page }) => {
     // 미리 심볼이 있는 상태를 만들기 위해 복사 기능 활용
     // 또는 직접 form.symbol 조작은 어려우므로, 이 테스트는 스킵 or 복사 버튼으로 우회

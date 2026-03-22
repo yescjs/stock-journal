@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Upload, FileSpreadsheet, CheckCircle, X, ChevronRight, AlertTriangle, Monitor, Globe } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Trade } from '@/app/types/trade';
 import { parseCSV, ParseResult, BrokerType } from '@/app/utils/csvParsers';
 import { ImportPreviewTable } from '@/app/components/ImportPreviewTable';
@@ -14,11 +15,22 @@ interface ImportModalProps {
   onImport: (trades: Omit<Trade, 'id' | 'user_id' | 'created_at'>[]) => Promise<number>;
 }
 
-const BROKER_LABELS: Record<BrokerType, string> = {
-  kiwoom: '키움증권',
-  mirae: '미래에셋증권',
-  nh: 'NH투자증권',
-  unknown: '알 수 없는 형식',
+// Helper function to render text with <b> tags as React elements
+function renderBoldText(text: string) {
+    return text.split(/(<b>.*?<\/b>)/g).map((part, i) =>
+        part.startsWith('<b>') ? (
+            <strong key={i} className="text-white/85 font-semibold">
+                {part.slice(3, -4)}
+            </strong>
+        ) : part
+    );
+}
+
+const BROKER_LABEL_KEYS: Record<BrokerType, string> = {
+  kiwoom: 'brokerKiwoom',
+  mirae: 'brokerMirae',
+  nh: 'brokerNH',
+  unknown: 'brokerUnknown',
 };
 
 type ImportStep = 'upload' | 'preview' | 'result';
@@ -27,67 +39,50 @@ type ImportStep = 'upload' | 'preview' | 'result';
 
 interface BrokerGuide {
   id: string;
-  name: string;
+  nameKey: string;
   color: string;
-  channel: string;
+  channelKey: string;
   channelIcon: 'monitor' | 'globe';
-  steps: string[];
-  tip?: string;
+  stepKeys: string[];
+  tipKey?: string;
   fileFormat: string;
 }
 
 const BROKER_GUIDES: BrokerGuide[] = [
   {
     id: 'kiwoom',
-    name: '키움증권',
+    nameKey: 'brokerKiwoom',
     color: 'text-red-400',
-    channel: '영웅문4 HTS (PC)',
+    channelKey: 'kiwoomChannel',
     channelIcon: 'monitor',
-    steps: [
-      '영웅문4 HTS 실행 후 로그인',
-      '상단 화면번호 입력란에 <b>0343</b> 입력 후 Enter',
-      '계좌 선택 → 조회 기간 설정 → [조회] 클릭',
-      '결과 목록에서 <b>마우스 우클릭</b>',
-      '<b>[Excel로 저장(S)]</b> 클릭 → CSV 또는 xlsx로 저장',
-    ],
-    tip: '화면번호 0343: 기간별 주문체결상세 (최대 5년)',
+    stepKeys: ['kiwoomStep1', 'kiwoomStep2', 'kiwoomStep3', 'kiwoomStep4', 'kiwoomStep5'],
+    tipKey: 'kiwoomTip',
     fileFormat: 'xlsx / csv',
   },
   {
     id: 'mirae',
-    name: '미래에셋증권',
+    nameKey: 'brokerMirae',
     color: 'text-orange-400',
-    channel: 'KAIROS HTS (PC)',
+    channelKey: 'miraeChannel',
     channelIcon: 'monitor',
-    steps: [
-      'KAIROS HTS 실행 후 로그인',
-      '화면번호 입력란에 <b>0650</b> 입력 후 Enter',
-      '조회기간 설정 → 거래구분: <b>매매</b> → [조회] 클릭',
-      '결과 목록에서 <b>마우스 우클릭</b>',
-      '<b>[Excel 파일로 저장]</b> 클릭 → 저장 위치 선택',
-    ],
-    tip: '화면번호 0650: 거래내역 조회',
+    stepKeys: ['miraeStep1', 'miraeStep2', 'miraeStep3', 'miraeStep4', 'miraeStep5'],
+    tipKey: 'miraeTip',
     fileFormat: 'xlsx',
   },
   {
     id: 'nh',
-    name: 'NH투자증권',
+    nameKey: 'brokerNH',
     color: 'text-yellow-400',
-    channel: '나무 홈페이지 (웹)',
+    channelKey: 'nhChannel',
     channelIcon: 'globe',
-    steps: [
-      '<b>mynamuh.com</b> 접속 후 로그인',
-      '상단 메뉴 → <b>뱅킹/계좌정보</b> → <b>거래내역</b>',
-      '<b>종합거래내역</b> 클릭',
-      '조회기간 설정 → 상품구분: <b>주식</b> → [조회]',
-      '하단 <b>[엑셀 저장]</b> 버튼 클릭',
-    ],
-    tip: 'HTS보다 웹이 파일 저장이 더 편리합니다',
+    stepKeys: ['nhStep1', 'nhStep2', 'nhStep3', 'nhStep4', 'nhStep5'],
+    tipKey: 'nhTip',
     fileFormat: 'xlsx',
   },
 ];
 
 export function ImportModal({ isOpen, onClose, existingTrades, onImport }: ImportModalProps) {
+  const t = useTranslations('import');
   const [step, setStep] = useState<ImportStep>('upload');
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
@@ -115,7 +110,7 @@ export function ImportModal({ isOpen, onClose, existingTrades, onImport }: Impor
 
   const processFile = useCallback(async (file: File) => {
     if (!file.name.match(/\.(csv|txt)$/i)) {
-      setParseError('CSV 또는 TXT 파일만 업로드할 수 있습니다.');
+      setParseError(t('csvOnly'));
       return;
     }
 
@@ -124,7 +119,7 @@ export function ImportModal({ isOpen, onClose, existingTrades, onImport }: Impor
       const result = await parseCSV(file);
 
       if (result.broker === 'unknown' || (result.trades.length === 0 && result.errors.length > 0)) {
-        setParseError(result.errors[0]?.message ?? '파일을 파싱할 수 없습니다.');
+        setParseError(result.errors[0]?.message ?? t('parseError'));
         return;
       }
 
@@ -146,9 +141,9 @@ export function ImportModal({ isOpen, onClose, existingTrades, onImport }: Impor
       setSelectedRows(initialSelected);
       setStep('preview');
     } catch (err) {
-      setParseError(err instanceof Error ? err.message : '파일 처리 중 오류가 발생했습니다.');
+      setParseError(err instanceof Error ? err.message : t('fileProcessError'));
     }
-  }, [existingTrades]);
+  }, [existingTrades, t]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -213,7 +208,7 @@ export function ImportModal({ isOpen, onClose, existingTrades, onImport }: Impor
       setSkippedCount(parseResult.trades.length - selectedRows.size);
       setStep('result');
     } catch (err) {
-      setParseError(err instanceof Error ? err.message : '저장 중 오류가 발생했습니다.');
+      setParseError(err instanceof Error ? err.message : t('saveError'));
     } finally {
       setImporting(false);
     }
@@ -249,9 +244,9 @@ export function ImportModal({ isOpen, onClose, existingTrades, onImport }: Impor
                   <Upload size={15} className="text-blue-400" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-white">거래내역 가져오기</h2>
+                  <h2 className="text-base font-bold text-white">{t('title')}</h2>
                   {parseResult && step === 'preview' && (
-                    <p className="text-sm text-white/40">{BROKER_LABELS[parseResult.broker]} 파일 인식됨</p>
+                    <p className="text-sm text-white/40">{t('brokerDetected', { broker: t(BROKER_LABEL_KEYS[parseResult.broker]) })}</p>
                   )}
                 </div>
               </div>
@@ -284,8 +279,8 @@ export function ImportModal({ isOpen, onClose, existingTrades, onImport }: Impor
                       <FileSpreadsheet size={22} className="text-blue-400" />
                     </div>
                     <div className="text-center">
-                      <p className="text-base font-semibold text-white/80">CSV 파일을 드래그하거나 클릭하세요</p>
-                      <p className="text-sm text-white/30 mt-1">지원 형식: .csv, .txt</p>
+                      <p className="text-base font-semibold text-white/80">{t('dragDropPrompt')}</p>
+                      <p className="text-sm text-white/30 mt-1">{t('supportedFormats')}</p>
                     </div>
                   </div>
 
@@ -307,7 +302,7 @@ export function ImportModal({ isOpen, onClose, existingTrades, onImport }: Impor
 
                   {/* 증권사별 다운로드 가이드 — 3열 그리드 */}
                   <div>
-                    <p className="text-sm font-semibold text-white/40 mb-2.5">📋 거래내역 다운로드 방법</p>
+                    <p className="text-sm font-semibold text-white/40 mb-2.5">{t('downloadGuideTitle')}</p>
                     <div className="grid grid-cols-3 gap-3">
                       {BROKER_GUIDES.map(guide => (
                         <div
@@ -316,34 +311,33 @@ export function ImportModal({ isOpen, onClose, existingTrades, onImport }: Impor
                         >
                           {/* 카드 헤더 */}
                           <div>
-                            <p className={`text-sm font-bold ${guide.color}`}>{guide.name}</p>
+                            <p className={`text-sm font-bold ${guide.color}`}>{t(guide.nameKey)}</p>
                             <p className="flex items-center gap-1 text-xs text-white/30 mt-0.5">
                               {guide.channelIcon === 'monitor'
                                 ? <Monitor size={11} />
                                 : <Globe size={11} />}
-                              {guide.channel}
+                              {t(guide.channelKey)}
                             </p>
                           </div>
 
                           {/* 단계 */}
                           <ol className="space-y-1.5">
-                            {guide.steps.map((step, i) => (
+                            {guide.stepKeys.map((stepKey, i) => (
                               <li key={i} className="flex items-start gap-2">
                                 <span className="flex-none w-5 h-5 rounded-full bg-white/8 text-white/40 text-xs font-bold flex items-center justify-center mt-0.5">
                                   {i + 1}
                                 </span>
-                                <span
-                                  className="text-xs text-white/60 leading-relaxed"
-                                  dangerouslySetInnerHTML={{ __html: step.replace(/<b>/g, '<strong class="text-white/85 font-semibold">').replace(/<\/b>/g, '</strong>') }}
-                                />
+                                <span className="text-xs text-white/60 leading-relaxed">
+                                  {renderBoldText(t(stepKey) as string)}
+                                </span>
                               </li>
                             ))}
                           </ol>
 
                           {/* 팁 */}
-                          {guide.tip && (
+                          {guide.tipKey && (
                             <p className="text-xs text-white/40 bg-white/3 rounded-lg px-2.5 py-1.5 leading-relaxed">
-                              💡 {guide.tip}
+                              {t(guide.tipKey)}
                             </p>
                           )}
                         </div>
@@ -380,11 +374,11 @@ export function ImportModal({ isOpen, onClose, existingTrades, onImport }: Impor
                     <CheckCircle size={28} className="text-emerald-400" />
                   </div>
                   <div className="text-center">
-                    <p className="text-base font-bold text-white mb-1">가져오기 완료</p>
+                    <p className="text-base font-bold text-white mb-1">{t('importComplete')}</p>
                     <p className="text-sm text-white/50">
-                      <span className="text-emerald-400 font-semibold">{importCount}건</span> 저장됨
+                      <span className="text-emerald-400 font-semibold">{t('importedCount', { count: importCount })}</span> {t('importedSaved')}
                       {skippedCount > 0 && (
-                        <span className="ml-1 text-white/30">/ {skippedCount}건 스킵</span>
+                        <span className="ml-1 text-white/30">/ {t('importedSkipped', { count: skippedCount })}</span>
                       )}
                     </p>
                   </div>
@@ -399,7 +393,7 @@ export function ImportModal({ isOpen, onClose, existingTrades, onImport }: Impor
                   onClick={handleClose}
                   className="w-full py-3 rounded-xl text-sm font-semibold text-white/40 hover:text-white/60 transition-colors"
                 >
-                  취소
+                  {t('cancelButton')}
                 </button>
               )}
 
@@ -409,7 +403,7 @@ export function ImportModal({ isOpen, onClose, existingTrades, onImport }: Impor
                     onClick={resetState}
                     className="flex-1 py-3 rounded-xl text-sm font-semibold text-white/40 bg-white/5 hover:bg-white/8 transition-colors"
                   >
-                    다시 선택
+                    {t('reselect')}
                   </button>
                   <button
                     onClick={handleImport}
@@ -423,12 +417,12 @@ export function ImportModal({ isOpen, onClose, existingTrades, onImport }: Impor
                     {importing ? (
                       <>
                         <span className="animate-spin">⏳</span>
-                        저장 중...
+                        {t('saving')}
                       </>
                     ) : (
                       <>
                         <ChevronRight size={15} />
-                        {selectedRows.size}건 가져오기
+                        {t('importButton', { count: selectedRows.size })}
                       </>
                     )}
                   </button>
@@ -440,7 +434,7 @@ export function ImportModal({ isOpen, onClose, existingTrades, onImport }: Impor
                   onClick={handleClose}
                   className="w-full py-3 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white transition-all active:scale-95"
                 >
-                  완료
+                  {t('doneButton')}
                 </button>
               )}
             </div>

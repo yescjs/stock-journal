@@ -1,8 +1,67 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { timingSafeEqual } from 'crypto';
 import { getGoogleAccessToken, getGoogleUserProfile } from '@/app/lib/googleAuth';
 import { supabaseAdmin } from '@/app/lib/supabaseAdmin';
 
+function safeCompare(a: string, b: string): boolean {
+    if (a.length !== b.length) return false;
+    return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
+
+const TEXTS: Record<string, {
+    title: string; sessionFailed: string; unknownError: string;
+    loginFailed: string; networkError: string; profileError: string;
+    userError: string; sessionError: string; authFailed: string;
+    invalidRequest: string; requestExpired: string;
+}> = {
+    ko: {
+        title: '로그인 중...', sessionFailed: '세션 생성에 실패했습니다.', unknownError: '알 수 없는 오류',
+        loginFailed: '구글 로그인에 실패했습니다.', networkError: '구글 서버와 통신할 수 없습니다. 잠시 후 다시 시도해주세요.',
+        profileError: '구글 사용자 정보를 가져올 수 없습니다. 다시 시도해주세요.',
+        userError: '사용자 정보 처리 중 오류가 발생했습니다. 다시 시도해주세요.',
+        sessionError: '로그인 세션 생성에 실패했습니다. 다시 시도해주세요.',
+        authFailed: '구글 로그인 인증에 실패했습니다.',
+        invalidRequest: '로그인 요청이 유효하지 않습니다. 다시 시도해주세요.',
+        requestExpired: '로그인 요청이 만료되었습니다. 다시 시도해주세요.',
+    },
+    en: {
+        title: 'Signing in...', sessionFailed: 'Session creation failed.', unknownError: 'Unknown error',
+        loginFailed: 'Google login failed.', networkError: 'Cannot connect to Google servers. Please try again later.',
+        profileError: 'Could not retrieve Google profile. Please try again.',
+        userError: 'Error processing user info. Please try again.',
+        sessionError: 'Failed to create login session. Please try again.',
+        authFailed: 'Google login authentication failed.',
+        invalidRequest: 'Login request is invalid. Please try again.',
+        requestExpired: 'Login request has expired. Please try again.',
+    },
+};
+
+// 이메일로 사용자를 페이지네이션 검색 (1000명 제한 없음)
+async function findUserByEmail(email: string, googleId: string) {
+    let page = 1;
+    const PER_PAGE = 50;
+    while (true) {
+        const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: PER_PAGE });
+        if (error) throw error;
+        const found = data.users.find(u => u.email === email || u.user_metadata?.google_id === googleId);
+        if (found) return found;
+        if (data.users.length < PER_PAGE) return null;
+        page++;
+    }
+}
+
 export async function GET(request: NextRequest) {
+    const VALID_LOCALES = ['ko', 'en'];
+    const rawLocale = request.cookies.get('NEXT_LOCALE')?.value ?? 'ko';
+    const locale = VALID_LOCALES.includes(rawLocale) ? rawLocale : 'ko';
+    const t = TEXTS[locale] ?? TEXTS.ko;
+    const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
+
+    if (!BASE_URL) {
+        console.error('[구글 OAuth] NEXT_PUBLIC_BASE_URL이 설정되지 않았습니다.');
+        return new NextResponse('Server configuration error', { status: 500 });
+    }
+
     try {
         const searchParams = request.nextUrl.searchParams;
         const code = searchParams.get('code');
@@ -13,14 +72,14 @@ export async function GET(request: NextRequest) {
         if (error) {
             // 사용자가 직접 취소한 경우 — 조용히 홈으로 리다이렉트
             if (error === 'access_denied') {
-                return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/`);
+                return NextResponse.redirect(`${BASE_URL}/${locale}/`);
             }
             console.error('[구글 OAuth] 인증 거부:', {
                 error: error,
                 timestamp: new Date().toISOString()
             });
             return NextResponse.redirect(
-                `${process.env.NEXT_PUBLIC_BASE_URL}/?error=google_auth_failed&message=${encodeURIComponent('구글 로그인 인증에 실패했습니다.')}`
+                `${BASE_URL}/${locale}/?error=google_auth_failed&message=${encodeURIComponent(t.authFailed)}`
             );
         }
 
@@ -32,20 +91,20 @@ export async function GET(request: NextRequest) {
                 timestamp: new Date().toISOString()
             });
             return NextResponse.redirect(
-                `${process.env.NEXT_PUBLIC_BASE_URL}/?error=missing_parameters&message=${encodeURIComponent('로그인 요청이 유효하지 않습니다. 다시 시도해주세요.')}`
+                `${BASE_URL}/${locale}/?error=missing_parameters&message=${encodeURIComponent(t.invalidRequest)}`
             );
         }
 
         // State 검증 (CSRF 방지 + 만료 시간 체크)
         const savedState = request.cookies.get('google_oauth_state')?.value;
-        if (!savedState || savedState !== state) {
+        if (!savedState || !safeCompare(savedState, state)) {
             console.error('[구글 OAuth] State 검증 실패:', {
                 hasSavedState: !!savedState,
                 stateMatch: savedState === state,
                 timestamp: new Date().toISOString()
             });
             return NextResponse.redirect(
-                `${process.env.NEXT_PUBLIC_BASE_URL}/?error=invalid_state&message=${encodeURIComponent('로그인 요청이 유효하지 않습니다. 다시 시도해주세요.')}`
+                `${BASE_URL}/${locale}/?error=invalid_state&message=${encodeURIComponent(t.invalidRequest)}`
             );
         }
 
@@ -57,7 +116,7 @@ export async function GET(request: NextRequest) {
                 timestamp: new Date().toISOString()
             });
             return NextResponse.redirect(
-                `${process.env.NEXT_PUBLIC_BASE_URL}/?error=invalid_state_format&message=${encodeURIComponent('로그인 요청이 유효하지 않습니다. 다시 시도해주세요.')}`
+                `${BASE_URL}/${locale}/?error=invalid_state_format&message=${encodeURIComponent(t.invalidRequest)}`
             );
         }
 
@@ -70,7 +129,7 @@ export async function GET(request: NextRequest) {
                 timestamp: new Date().toISOString()
             });
             return NextResponse.redirect(
-                `${process.env.NEXT_PUBLIC_BASE_URL}/?error=state_expired&message=${encodeURIComponent('로그인 요청이 만료되었습니다. 다시 시도해주세요.')}`
+                `${BASE_URL}/${locale}/?error=state_expired&message=${encodeURIComponent(t.requestExpired)}`
             );
         }
 
@@ -100,24 +159,7 @@ export async function GET(request: NextRequest) {
             // 2단계: 사용자가 이미 존재하는 경우
             if (createError.code === 'email_exists' || createError.message.includes('already registered') || createError.message.includes('already been registered') || createError.message.includes('duplicate')) {
                 try {
-                    const { data: usersByEmail, error: listError } = await supabaseAdmin.auth.admin.listUsers({
-                        page: 1,
-                        perPage: 1000,
-                    });
-
-                    if (listError) {
-                        console.error('[구글 OAuth] 사용자 목록 조회 실패:', {
-                            error: listError.message,
-                            code: listError.code,
-                            timestamp: new Date().toISOString()
-                        });
-                        throw listError;
-                    }
-
-                    const existingUser = usersByEmail.users.find(u =>
-                        u.email === email ||
-                        u.user_metadata?.google_id === profile.sub
-                    );
+                    const existingUser = await findUserByEmail(email, profile.sub);
 
                     if (!existingUser) {
                         console.error('[구글 OAuth] 기존 사용자를 찾을 수 없음:', {
@@ -151,7 +193,7 @@ export async function GET(request: NextRequest) {
                         throw updateError;
                     }
                 } catch (fallbackError: unknown) {
-                    const errorMessage = fallbackError instanceof Error ? fallbackError.message : '알 수 없는 오류';
+                    const errorMessage = fallbackError instanceof Error ? fallbackError.message : t.unknownError;
                     const errorStack = fallbackError instanceof Error ? fallbackError.stack : undefined;
                     console.error('[구글 OAuth] 기존 사용자 처리 실패:', {
                         error: errorMessage,
@@ -211,20 +253,33 @@ export async function GET(request: NextRequest) {
                 attemptsUsed: MAX_RETRIES,
                 timestamp: new Date().toISOString()
             });
-            throw otpError || new Error('세션 생성에 실패했습니다. 잠시 후 다시 시도해주세요.');
+            throw otpError || new Error(t.sessionFailed);
         }
 
         // 5. 클라이언트에서 세션을 설정하는 HTML 응답 (UI 없음 - 즉시 리다이렉트)
+        // 보안: JSON.stringify로 서버 변수를 안전하게 전달 (XSS 방지)
+        const clientConfig = JSON.stringify({
+            supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+            supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+            tokenHash: otpData.properties.hashed_token,
+            redirectUrl: `${BASE_URL}/${locale}/trade`,
+            errorUrl: `${BASE_URL}/${locale}/`,
+            sessionFailed: t.sessionFailed,
+        });
+
         const htmlResponse = `
 <!DOCTYPE html>
 <html>
 <head>
-    <title>로그인 중...</title>
+    <title>${t.title}</title>
     <style>html,body{margin:0;padding:0;background:#09090b;}</style>
 </head>
 <body>
+    <script id="__cfg" type="application/json">${clientConfig}</script>
     <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/+esm';
+
+        const cfg = JSON.parse(document.getElementById('__cfg').textContent);
 
         (async function() {
             try {
@@ -233,20 +288,13 @@ export async function GET(request: NextRequest) {
                     const keysToRemove = [];
                     for (let i = 0; i < localStorage.length; i++) {
                         const key = localStorage.key(i);
-                        if (key && key.startsWith('sb-')) {
-                            keysToRemove.push(key);
-                        }
+                        if (key && key.startsWith('sb-')) keysToRemove.push(key);
                     }
                     keysToRemove.forEach(key => localStorage.removeItem(key));
-                } catch (storageError) {
-                    // ignore storage errors
-                }
+                } catch (e) { /* ignore */ }
 
                 // 2. 새 세션 생성
-                const supabase = createClient(
-                    '${process.env.NEXT_PUBLIC_SUPABASE_URL}',
-                    '${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}'
-                );
+                const supabase = createClient(cfg.supabaseUrl, cfg.supabaseKey);
 
                 const MAX_OTP_RETRIES = 3;
                 const OTP_RETRY_DELAY_MS = 2000;
@@ -255,28 +303,26 @@ export async function GET(request: NextRequest) {
                 for (let attempt = 1; attempt <= MAX_OTP_RETRIES; attempt++) {
                     const result = await supabase.auth.verifyOtp({
                         type: 'email',
-                        token_hash: '${otpData.properties.hashed_token}'
+                        token_hash: cfg.tokenHash,
                     });
 
                     verifyData = result.data;
                     verifyError = result.error;
 
-                    if (!verifyError && verifyData?.session) {
-                        break;
-                    }
+                    if (!verifyError && verifyData?.session) break;
 
                     if (attempt < MAX_OTP_RETRIES) {
-                        await new Promise(resolve => setTimeout(resolve, OTP_RETRY_DELAY_MS));
+                        await new Promise(r => setTimeout(r, OTP_RETRY_DELAY_MS));
                     }
                 }
 
                 if (verifyError || !verifyData?.session) {
-                    throw verifyError || new Error('세션 생성 검증 실패');
+                    throw verifyError || new Error(cfg.sessionFailed);
                 }
 
-                window.location.href = '${process.env.NEXT_PUBLIC_BASE_URL}/';
+                window.location.href = cfg.redirectUrl;
             } catch (error) {
-                window.location.href = '${process.env.NEXT_PUBLIC_BASE_URL}/?error=login_failed&details=' + encodeURIComponent(error.message);
+                window.location.href = cfg.errorUrl + '?error=login_failed&message=' + encodeURIComponent(cfg.sessionFailed);
             }
         })();
     </script>
@@ -289,6 +335,9 @@ export async function GET(request: NextRequest) {
             status: 200,
             headers: {
                 'Content-Type': 'text/html; charset=utf-8',
+                'Content-Security-Policy': "default-src 'none'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline'; connect-src https://*.supabase.co",
+                'X-Content-Type-Options': 'nosniff',
+                'X-Frame-Options': 'DENY',
             },
         });
 
@@ -296,7 +345,7 @@ export async function GET(request: NextRequest) {
 
         return response;
     } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';
+        const errorMessage = error instanceof Error ? error.message : t.unknownError;
         const errorStack = error instanceof Error ? error.stack : undefined;
         const errorName = error instanceof Error ? error.name : 'Unknown';
 
@@ -307,16 +356,16 @@ export async function GET(request: NextRequest) {
             timestamp: new Date().toISOString()
         });
 
-        let userMessage = '구글 로그인에 실패했습니다.';
+        let userMessage = t.loginFailed;
 
         if (errorName === 'TypeError' || errorMessage?.includes('fetch') || errorMessage?.includes('network')) {
-            userMessage = '구글 서버와 통신할 수 없습니다. 잠시 후 다시 시도해주세요.';
-        } else if (errorMessage?.includes('프로필')) {
-            userMessage = '구글 사용자 정보를 가져올 수 없습니다. 다시 시도해주세요.';
-        } else if (errorMessage?.includes('사용자')) {
-            userMessage = '사용자 정보 처리 중 오류가 발생했습니다. 다시 시도해주세요.';
-        } else if (errorMessage?.includes('세션')) {
-            userMessage = '로그인 세션 생성에 실패했습니다. 다시 시도해주세요.';
+            userMessage = t.networkError;
+        } else if (errorMessage?.includes('프로필') || errorMessage?.includes('profile')) {
+            userMessage = t.profileError;
+        } else if (errorMessage?.includes('사용자') || errorMessage?.includes('user')) {
+            userMessage = t.userError;
+        } else if (errorMessage?.includes('세션') || errorMessage?.includes('session')) {
+            userMessage = t.sessionError;
         }
 
         const debugInfo = process.env.NODE_ENV === 'development'
@@ -324,7 +373,7 @@ export async function GET(request: NextRequest) {
             : '';
 
         return NextResponse.redirect(
-            `${process.env.NEXT_PUBLIC_BASE_URL}/?error=google_callback_failed&message=${encodeURIComponent(userMessage)}${debugInfo}`
+            `${BASE_URL}/${locale}/?error=google_callback_failed&message=${encodeURIComponent(userMessage)}${debugInfo}`
         );
     }
 }

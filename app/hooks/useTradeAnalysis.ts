@@ -1,10 +1,11 @@
 // Trade analysis hook — runs analysis engine and optionally syncs to Supabase DB
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
+import { useTranslations } from 'next-intl';
 import { supabase } from '@/app/lib/supabaseClient';
 import { Trade } from '@/app/types/trade';
 import { TradeAnalysis } from '@/app/types/analysis';
-import { analyzeTradesComplete } from '@/app/utils/tradeAnalysis';
+import { analyzeTradesComplete, InsightTranslator } from '@/app/utils/tradeAnalysis';
 
 interface UseTradeAnalysisReturn {
   analysis: TradeAnalysis | null;
@@ -16,17 +17,29 @@ interface UseTradeAnalysisReturn {
 
 export function useTradeAnalysis(
   trades: Trade[],
-  user: User | null
+  user: User | null,
+  locale: string = 'ko'
 ): UseTradeAnalysisReturn {
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
 
-  // Memoized analysis — recalculates only when trades change
+  // Use next-intl for insight translations (stabilized via useRef to avoid re-renders)
+  const tInsights = useTranslations('analysis.insights');
+  const tInsightsRef = useRef(tInsights);
+  tInsightsRef.current = tInsights;
+
+  const insightTranslator: InsightTranslator = useCallback(
+    (key: string, values?: Record<string, string | number>) =>
+      tInsightsRef.current(key, values),
+    []
+  );
+
+  // Memoized analysis — recalculates only when trades or locale change
   const analysis = useMemo<TradeAnalysis | null>(() => {
     if (trades.length === 0) return null;
-    return analyzeTradesComplete(trades);
-  }, [trades]);
+    return analyzeTradesComplete(trades, locale, insightTranslator);
+  }, [trades, locale, insightTranslator]);
 
   // Sync analysis results to Supabase DB
   const syncToDatabase = useCallback(async () => {

@@ -19,6 +19,7 @@ import {
   ChevronDown, MessageSquare, Gem, Sparkles, RefreshCw,
   BarChart2, Bot, ListOrdered, Award,
 } from 'lucide-react';
+import { useTranslations, useLocale } from 'next-intl';
 import { AIReportCard } from '@/app/components/AIReportCard';
 import { AIReportHistory } from '@/app/components/AIReportHistory';
 import { useAIAnalysis } from '@/app/hooks/useAIAnalysis';
@@ -57,7 +58,7 @@ function getBarColor(value: number): string {
 }
 
 function formatPnl(pnl: number, currency?: 'KRW' | 'USD' | 'mixed'): string {
-  if (currency === 'USD') return `${pnl >= 0 ? '+' : ''}$${Math.abs(pnl).toFixed(2)}`;
+  if (currency === 'USD') return `${pnl >= 0 ? '+' : '-'}$${Math.abs(pnl).toFixed(2)}`;
   return `${pnl >= 0 ? '+' : ''}${pnl.toLocaleString('ko-KR', { maximumFractionDigits: 0 })}`;
 }
 
@@ -65,25 +66,27 @@ function formatPnl(pnl: number, currency?: 'KRW' | 'USD' | 'mixed'): string {
 
 type DashboardTab = 'performance' | 'charts' | 'ai' | 'trades';
 
-const TABS: { id: DashboardTab; label: string; icon: React.ReactNode }[] = [
-  { id: 'performance', label: '성과', icon: <Award size={14} /> },
-  { id: 'charts',      label: '차트',  icon: <BarChart2 size={14} /> },
-  { id: 'ai',          label: 'AI 분석', icon: <Bot size={14} /> },
-  { id: 'trades',      label: '거래 목록', icon: <ListOrdered size={14} /> },
+const TAB_IDS: { id: DashboardTab; icon: React.ReactNode }[] = [
+  { id: 'performance', icon: <Award size={14} /> },
+  { id: 'charts',      icon: <BarChart2 size={14} /> },
+  { id: 'ai',          icon: <Bot size={14} /> },
+  { id: 'trades',      icon: <ListOrdered size={14} /> },
 ];
 
 // ─── Empty State ─────────────────────────────────────────────────────────
 
 function EmptyState({ count, buyCount = 0, sellCount = 0 }: { count: number; buyCount?: number; sellCount?: number }) {
+  const t = useTranslations('analysis.empty');
+
   if (count === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <div className="w-20 h-20 rounded-2xl bg-white/5 flex items-center justify-center mb-6">
           <Brain size={36} className="text-white/20" />
         </div>
-        <h3 className="text-xl font-bold text-white/60 mb-2">분석할 데이터가 부족합니다</h3>
+        <h3 className="text-xl font-bold text-white/60 mb-2">{t('noDataTitle')}</h3>
         <p className="text-sm text-white/30 max-w-md">
-          매매 기록을 추가하면 AI가 투자 패턴을 분석하고 맞춤형 인사이트를 제공합니다.
+          {t('noDataDesc')}
         </p>
       </div>
     );
@@ -94,20 +97,20 @@ function EmptyState({ count, buyCount = 0, sellCount = 0 }: { count: number; buy
       <div className="w-20 h-20 rounded-2xl bg-white/5 flex items-center justify-center mb-6">
         <Brain size={36} className="text-white/20" />
       </div>
-      <h3 className="text-xl font-bold text-white/60 mb-2">완결 거래가 아직 없습니다</h3>
+      <h3 className="text-xl font-bold text-white/60 mb-2">{t('noRoundTripsTitle')}</h3>
       <p className="text-sm text-white/30 max-w-md mb-6">
-        분석을 위해서는 같은 종목의 매수 → 매도가 한 쌍 이상 필요합니다.
+        {t('noRoundTripsDesc')}
       </p>
 
       {/* Current trade status */}
       <div className="flex items-center gap-3 mb-6">
         <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20">
           <TrendingUp size={13} className="text-blue-400" />
-          <span className="text-xs font-bold text-blue-400">매수 {buyCount}건</span>
+          <span className="text-xs font-bold text-blue-400">{t('buyCount', { count: buyCount })}</span>
         </div>
         <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20">
           <TrendingUp size={13} className="text-rose-400" />
-          <span className="text-xs font-bold text-rose-400">매도 {sellCount}건</span>
+          <span className="text-xs font-bold text-rose-400">{t('sellCount', { count: sellCount })}</span>
         </div>
       </div>
 
@@ -115,27 +118,27 @@ function EmptyState({ count, buyCount = 0, sellCount = 0 }: { count: number; buy
       <div className="w-full max-w-sm p-4 rounded-2xl border border-white/8 bg-white/3 text-left">
         <div className="flex items-center gap-2 mb-3">
           <Info size={14} className="text-indigo-400 flex-none" />
-          <span className="text-xs font-bold text-white/60">완결 거래(Round Trip)란?</span>
+          <span className="text-xs font-bold text-white/60">{t('roundTripTitle')}</span>
         </div>
         <div className="space-y-2.5">
           <div className="flex items-start gap-2">
             <span className="text-xs text-white/20 flex-none mt-0.5">1.</span>
-            <span className="text-xs text-white/40 leading-relaxed"><span className="text-white/60 font-semibold">같은 종목</span>의 매수와 매도가 있어야 합니다</span>
+            <span className="text-xs text-white/40 leading-relaxed">{t.rich('roundTripStep1', { bold: (chunks) => <span className="text-white/60 font-semibold">{chunks}</span> })}</span>
           </div>
           <div className="flex items-start gap-2">
             <span className="text-xs text-white/20 flex-none mt-0.5">2.</span>
-            <span className="text-xs text-white/40 leading-relaxed"><span className="text-white/60 font-semibold">매수 날짜</span>가 매도 날짜와 같거나 앞서야 합니다</span>
+            <span className="text-xs text-white/40 leading-relaxed">{t.rich('roundTripStep2', { bold: (chunks) => <span className="text-white/60 font-semibold">{chunks}</span> })}</span>
           </div>
           <div className="flex items-start gap-2">
             <span className="text-xs text-white/20 flex-none mt-0.5">3.</span>
-            <span className="text-xs text-white/40 leading-relaxed">매수 수량 범위 내에서 매도가 <span className="text-white/60 font-semibold">FIFO 방식</span>으로 매칭됩니다</span>
+            <span className="text-xs text-white/40 leading-relaxed">{t.rich('roundTripStep3', { bold: (chunks) => <span className="text-white/60 font-semibold">{chunks}</span> })}</span>
           </div>
         </div>
         {buyCount > 0 && sellCount === 0 && (
           <div className="mt-3 pt-3 border-t border-white/5">
             <p className="text-xs text-yellow-400/80 flex items-center gap-1.5">
               <AlertTriangle size={12} className="flex-none" />
-              매도 기록을 추가하면 분석이 시작됩니다.
+              {t('addSellHint')}
             </p>
           </div>
         )}
@@ -143,7 +146,7 @@ function EmptyState({ count, buyCount = 0, sellCount = 0 }: { count: number; buy
           <div className="mt-3 pt-3 border-t border-white/5">
             <p className="text-xs text-yellow-400/80 flex items-center gap-1.5">
               <AlertTriangle size={12} className="flex-none" />
-              매수 기록을 추가하면 분석이 시작됩니다.
+              {t('addBuyHint')}
             </p>
           </div>
         )}
@@ -151,7 +154,7 @@ function EmptyState({ count, buyCount = 0, sellCount = 0 }: { count: number; buy
           <div className="mt-3 pt-3 border-t border-white/5">
             <p className="text-xs text-yellow-400/80 flex items-center gap-1.5">
               <AlertTriangle size={12} className="flex-none" />
-              매수와 매도의 종목명이 일치하는지 확인해 주세요.
+              {t('checkSymbolHint')}
             </p>
           </div>
         )}
@@ -166,23 +169,36 @@ type CurvePeriod = '1M' | '3M' | 'ALL';
 
 function EquityCurveSection({ analysis, exchangeRate = 1 }: { analysis: TradeAnalysis; exchangeRate?: number }) {
   const [period, setPeriod] = useState<CurvePeriod>('ALL');
+  const locale = useLocale();
+  const t = useTranslations('analysis.equityCurve');
 
+  // EN: normalize to USD, KO: normalize to KRW
   const normalizedTrips = useMemo(() => {
     const trips = analysis.roundTrips;
     const hasMixed = trips.length > 1 && trips.some(t => t.currency !== trips[0]?.currency);
     if (!hasMixed) return trips;
+    if (locale === 'ko') {
+      // KO: convert USD → KRW
+      return trips.map(t => ({
+        ...t,
+        pnl: t.currency === 'KRW' ? t.pnl : t.pnl * exchangeRate,
+        currency: 'KRW' as const,
+      }));
+    }
+    // EN: convert KRW → USD
     return trips.map(t => ({
       ...t,
-      pnl: t.currency === 'KRW' ? t.pnl : t.pnl * exchangeRate,
-      currency: 'KRW' as const,
+      pnl: t.currency === 'USD' ? t.pnl : t.pnl / exchangeRate,
+      currency: 'USD' as const,
     }));
-  }, [analysis.roundTrips, exchangeRate]);
+  }, [analysis.roundTrips, exchangeRate, locale]);
 
   const isMixed = analysis.roundTrips.length > 1 &&
     analysis.roundTrips.some(t => t.currency !== analysis.roundTrips[0]?.currency);
-  const isKRW = isMixed ? true : analysis.roundTrips[0]?.currency === 'KRW';
+  // EN: default to USD, KO: default to KRW
+  const isKRW = isMixed ? locale === 'ko' : analysis.roundTrips[0]?.currency === 'KRW';
 
-  const rawCurve = useMemo(() => calcEquityCurve(normalizedTrips), [normalizedTrips]);
+  const rawCurve = useMemo(() => calcEquityCurve(normalizedTrips, locale), [normalizedTrips, locale]);
 
   const filtered = useMemo(() => {
     if (period === 'ALL') return rawCurve;
@@ -199,10 +215,17 @@ function EquityCurveSection({ analysis, exchangeRate = 1 }: { analysis: TradeAna
   const lastPnl = filtered[filtered.length - 1]?.cumulativePnl ?? 0;
   const isProfit = lastPnl >= 0;
 
-  const formatVal = (v: number) =>
-    isKRW
+  const formatVal = (v: number) => {
+    if (locale !== 'ko') {
+      // EN: always show USD
+      const usdVal = isKRW ? v / exchangeRate : v;
+      return `${usdVal >= 0 ? '+' : '-'}$${Math.abs(usdVal).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+    }
+    // KO: show KRW for KRW stocks, USD for USD stocks
+    return isKRW
       ? `${v >= 0 ? '+' : ''}${Math.round(v).toLocaleString('ko-KR')}원`
-      : `${v >= 0 ? '+' : ''}$${Math.abs(v).toFixed(2)}`;
+      : `${v >= 0 ? '+' : '-'}$${Math.abs(v).toFixed(2)}`;
+  };
 
   return (
     <div className="p-5 rounded-2xl border border-white/8 bg-white/3 mb-4">
@@ -211,9 +234,9 @@ function EquityCurveSection({ analysis, exchangeRate = 1 }: { analysis: TradeAna
         <div>
           <div className="flex items-center gap-2">
             <TrendingUp size={16} className={isProfit ? 'text-emerald-400' : 'text-red-400'} />
-            <h3 className="text-sm font-bold text-white">누적 수익 곡선</h3>
+            <h3 className="text-sm font-bold text-white">{t('title')}</h3>
             {isMixed && (
-              <span className="text-[10px] text-white/30 bg-white/5 px-1.5 py-0.5 rounded-full">USD→KRW 환산</span>
+              <span className="text-[10px] text-white/30 bg-white/5 px-1.5 py-0.5 rounded-full">{t('usdToKrw')}</span>
             )}
           </div>
           <div className="flex items-center gap-3 mt-1.5 flex-wrap">
@@ -221,11 +244,11 @@ function EquityCurveSection({ analysis, exchangeRate = 1 }: { analysis: TradeAna
               {formatVal(lastPnl)}
             </span>
             <span className="text-xs text-white/30 bg-white/5 px-2 py-0.5 rounded-full">
-              최고 {formatVal(maxPnl)}
+              {t('highest', { value: formatVal(maxPnl) })}
             </span>
             {minPnl < 0 && (
               <span className="text-xs text-white/30 bg-white/5 px-2 py-0.5 rounded-full">
-                최저 {formatVal(minPnl)}
+                {t('lowest', { value: formatVal(minPnl) })}
               </span>
             )}
           </div>
@@ -273,11 +296,15 @@ function EquityCurveSection({ analysis, exchangeRate = 1 }: { analysis: TradeAna
             axisLine={false}
             tickLine={false}
             width={50}
-            tickFormatter={(v: number) =>
-              isKRW
-                ? `${(v / 10000).toFixed(0)}만`
-                : `$${v.toFixed(0)}`
-            }
+            tickFormatter={(v: number) => {
+              if (locale !== 'ko') {
+                const usdVal = isKRW ? v / exchangeRate : v;
+                const sign = usdVal < 0 ? '-' : '';
+                const abs = Math.abs(usdVal);
+                return abs >= 1000 ? `${sign}$${Math.round(abs / 1000)}K` : `${sign}$${Math.round(abs)}`;
+              }
+              return isKRW ? `${(v / 10000).toFixed(0)}만` : `${v < 0 ? '-' : ''}$${Math.abs(v).toFixed(0)}`;
+            }}
           />
           <Tooltip
             contentStyle={{
@@ -289,7 +316,7 @@ function EquityCurveSection({ analysis, exchangeRate = 1 }: { analysis: TradeAna
             }}
             labelStyle={{ color: 'rgba(255,255,255,0.5)', fontSize: 11 }}
             itemStyle={{ color: 'rgba(255,255,255,0.8)' }}
-            formatter={(value: number | undefined) => [formatVal(value ?? 0), '누적 손익']}
+            formatter={(value: number | undefined) => [formatVal(value ?? 0), t('cumulativePnl')]}
           />
           <Area
             type="monotone"
@@ -316,72 +343,26 @@ interface BadgeDef {
   desc: string;
 }
 
-function buildBadges(analysis: TradeAnalysis): BadgeDef[] {
+function buildBadges(analysis: TradeAnalysis, t: (key: string) => string): BadgeDef[] {
   const { roundTrips, profile, streaks } = analysis;
   return [
-    {
-      id: 'first_trade',
-      icon: '🎯',
-      label: '첫 거래',
-      unlocked: roundTrips.length >= 1,
-      desc: '첫 번째 완결 거래 달성',
-    },
-    {
-      id: 'ten_trades',
-      icon: '🏅',
-      label: '10거래 달성',
-      unlocked: roundTrips.length >= 10,
-      desc: '10건 완결 거래 달성',
-    },
-    {
-      id: 'win_streak_3',
-      icon: '🔥',
-      label: '3연승',
-      unlocked: streaks.maxWin >= 3,
-      desc: '3연속 수익 달성',
-    },
-    {
-      id: 'win_streak_5',
-      icon: '⚡',
-      label: '5연승',
-      unlocked: streaks.maxWin >= 5,
-      desc: '5연속 수익 달성',
-    },
-    {
-      id: 'high_winrate',
-      icon: '👑',
-      label: '승률 70%+',
-      unlocked: profile.winRate >= 70 && roundTrips.length >= 5,
-      desc: '5건 이상에서 승률 70% 이상',
-    },
-    {
-      id: 'profit_factor',
-      icon: '💰',
-      label: '수익팩터 2+',
-      unlocked: profile.profitFactor >= 2,
-      desc: '수익 팩터 2.0 이상 달성',
-    },
-    {
-      id: 'grade_a',
-      icon: '🏆',
-      label: 'A등급',
-      unlocked: profile.overallGrade === 'A' || profile.overallGrade === 'A+',
-      desc: '종합 등급 A 이상 달성',
-    },
-    {
-      id: 'no_fomo',
-      icon: '🧘',
-      label: 'FOMO 없음',
-      unlocked: roundTrips.length >= 5 && roundTrips.filter(t => t.emotionTag === 'FOMO').length === 0,
-      desc: '5건 이상에서 FOMO 거래 없음',
-    },
+    { id: 'first_trade', icon: '🎯', label: t('firstTrade'), unlocked: roundTrips.length >= 1, desc: t('firstTradeDesc') },
+    { id: 'ten_trades', icon: '🏅', label: t('tenTrades'), unlocked: roundTrips.length >= 10, desc: t('tenTradesDesc') },
+    { id: 'win_streak_3', icon: '🔥', label: t('winStreak3'), unlocked: streaks.maxWin >= 3, desc: t('winStreak3Desc') },
+    { id: 'win_streak_5', icon: '⚡', label: t('winStreak5'), unlocked: streaks.maxWin >= 5, desc: t('winStreak5Desc') },
+    { id: 'high_winrate', icon: '👑', label: t('highWinRate'), unlocked: profile.winRate >= 70 && roundTrips.length >= 5, desc: t('highWinRateDesc') },
+    { id: 'profit_factor', icon: '💰', label: t('profitFactor2'), unlocked: profile.profitFactor >= 2, desc: t('profitFactor2Desc') },
+    { id: 'grade_a', icon: '🏆', label: t('gradeA'), unlocked: profile.overallGrade === 'A' || profile.overallGrade === 'A+', desc: t('gradeADesc') },
+    { id: 'no_fomo', icon: '🧘', label: t('noFomo'), unlocked: roundTrips.length >= 5 && roundTrips.filter(tr => tr.emotionTag === 'FOMO').length === 0, desc: t('noFomoDesc') },
   ];
 }
 
 function ProfileCard({ analysis }: { analysis: TradeAnalysis }) {
   const { profile } = analysis;
   const gradeColor = GRADE_COLORS[profile.overallGrade];
-  const badges = buildBadges(analysis);
+  const tp = useTranslations('analysis.profile');
+  const tb = useTranslations('analysis.badges');
+  const badges = buildBadges(analysis, tb);
   const unlockedBadges = badges.filter(b => b.unlocked);
 
   return (
@@ -391,25 +372,25 @@ function ProfileCard({ analysis }: { analysis: TradeAnalysis }) {
           <Brain size={20} className="text-indigo-400" />
         </div>
         <div>
-          <h3 className="text-sm font-bold text-white">투자 성향 프로필</h3>
-          <p className="text-xs text-white/30">매매 데이터 기반 자동 분석</p>
+          <h3 className="text-sm font-bold text-white">{tp('title')}</h3>
+          <p className="text-xs text-white/30">{tp('subtitle')}</p>
         </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="p-3 rounded-xl bg-white/3 border border-white/5 text-center">
           <div className={`text-2xl font-black ${gradeColor}`}>{profile.overallGrade}</div>
-          <div className="text-xs text-white/30 font-medium mt-1">종합 등급</div>
+          <div className="text-xs text-white/30 font-medium mt-1">{tp('overallGrade')}</div>
         </div>
         <div className="p-3 rounded-xl bg-white/3 border border-white/5 text-center">
           <div className="text-sm font-bold text-white">{profile.tradingStyleLabel}</div>
-          <div className="text-xs text-white/30 font-medium mt-1">투자 스타일</div>
+          <div className="text-xs text-white/30 font-medium mt-1">{tp('tradingStyle')}</div>
         </div>
         <div className="p-3 rounded-xl bg-white/3 border border-white/5 text-center">
           <div className={`text-lg font-bold ${profile.winRate >= 50 ? 'text-emerald-400' : 'text-red-400'}`}>
             {profile.winRate.toFixed(1)}%
           </div>
-          <div className="text-xs text-white/30 font-medium mt-1">승률</div>
+          <div className="text-xs text-white/30 font-medium mt-1">{tp('winRate')}</div>
         </div>
         <div className="p-3 rounded-xl bg-white/3 border border-white/5 text-center">
           <div className={`text-sm font-bold ${
@@ -419,18 +400,18 @@ function ProfileCard({ analysis }: { analysis: TradeAnalysis }) {
           }`}>
             {profile.riskLevelLabel}
           </div>
-          <div className="text-xs text-white/30 font-medium mt-1">위험 수준</div>
+          <div className="text-xs text-white/30 font-medium mt-1">{tp('riskLevel')}</div>
         </div>
       </div>
 
       <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-3">
-        <MetricBadge label="완결 거래" value={`${profile.totalTrades}건`} />
-        <MetricBadge label="평균 수익률" value={`${profile.avgReturn >= 0 ? '+' : ''}${profile.avgReturn.toFixed(1)}%`}
+        <MetricBadge label={tp('completedTrades')} value={`${profile.totalTrades}`} />
+        <MetricBadge label={tp('avgReturn')} value={`${profile.avgReturn >= 0 ? '+' : ''}${profile.avgReturn.toFixed(1)}%`}
           color={profile.avgReturn >= 0 ? 'text-emerald-400' : 'text-red-400'} />
-        <MetricBadge label="수익 팩터" value={profile.profitFactor.toFixed(2)}
+        <MetricBadge label={tp('profitFactor')} value={profile.profitFactor.toFixed(2)}
           color={profile.profitFactor >= 1 ? 'text-emerald-400' : 'text-red-400'} />
-        <MetricBadge label="평균 보유일" value={`${profile.avgHoldingDays.toFixed(0)}일`} />
-        <MetricBadge label="일관성" value={`${profile.consistencyScore.toFixed(0)}점`}
+        <MetricBadge label={tp('avgHoldingDays')} value={`${profile.avgHoldingDays.toFixed(0)}`} />
+        <MetricBadge label={tp('consistency')} value={`${profile.consistencyScore.toFixed(0)}`}
           color={profile.consistencyScore >= 60 ? 'text-emerald-400' : 'text-orange-400'} />
       </div>
 
@@ -439,7 +420,7 @@ function ProfileCard({ analysis }: { analysis: TradeAnalysis }) {
         <div className="mt-4 pt-4 border-t border-white/5">
           <div className="flex items-center gap-2 mb-3">
             <Award size={13} className="text-yellow-400" />
-            <span className="text-xs font-bold text-white/60">업적 배지</span>
+            <span className="text-xs font-bold text-white/60">{tp('achievementBadges')}</span>
             <span className="text-xs text-white/20">({unlockedBadges.length}/{badges.length})</span>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -477,6 +458,7 @@ function MetricBadge({ label, value, color }: { label: string; value: string; co
 
 function StyleRadarChart({ analysis }: { analysis: TradeAnalysis }) {
   const { profile, advancedMetrics } = analysis;
+  const t = useTranslations('analysis.radar');
 
   const radarData = useMemo(() => {
     const pf = Math.min(100, (profile.profitFactor / 3) * 100);
@@ -485,20 +467,20 @@ function StyleRadarChart({ analysis }: { analysis: TradeAnalysis }) {
     const disciplineScore = advancedMetrics.biasScore.biasScore;
 
     return [
-      { axis: '승률', value: Math.round(profile.winRate) },
-      { axis: '수익팩터', value: Math.round(pf) },
-      { axis: '일관성', value: Math.round(profile.consistencyScore) },
-      { axis: '리스크관리', value: Math.round(drawdownScore) },
-      { axis: '타이밍', value: Math.round(timingScore) },
-      { axis: '규율', value: Math.round(disciplineScore) },
+      { axis: t('winRate'), value: Math.round(profile.winRate) },
+      { axis: t('profitFactor'), value: Math.round(pf) },
+      { axis: t('consistency'), value: Math.round(profile.consistencyScore) },
+      { axis: t('riskManagement'), value: Math.round(drawdownScore) },
+      { axis: t('timing'), value: Math.round(timingScore) },
+      { axis: t('discipline'), value: Math.round(disciplineScore) },
     ];
-  }, [profile, advancedMetrics]);
+  }, [profile, advancedMetrics, t]);
 
   return (
     <div className="p-5 rounded-2xl border border-white/8 bg-white/3">
       <div className="flex items-center gap-2 mb-4">
         <Sparkles size={16} className="text-indigo-400" />
-        <h3 className="text-sm font-bold text-white">투자 스타일 분석</h3>
+        <h3 className="text-sm font-bold text-white">{t('title')}</h3>
       </div>
       <ResponsiveContainer width="100%" height={220}>
         <RadarChart data={radarData} margin={{ top: 10, right: 20, bottom: 10, left: 20 }}>
@@ -530,7 +512,7 @@ function StyleRadarChart({ analysis }: { analysis: TradeAnalysis }) {
             }}
             labelStyle={{ color: 'rgba(255,255,255,0.5)', fontSize: 11 }}
             itemStyle={{ color: 'rgba(255,255,255,0.8)' }}
-            formatter={(value: number | undefined) => [`${value ?? 0}점`, '']}
+            formatter={(value: number | undefined) => [`${value ?? 0}${t('scoreUnit')}`, '']}
           />
         </RadarChart>
       </ResponsiveContainer>
@@ -578,9 +560,10 @@ function StatsBarChart({ data, title, icon, dataKey = 'avgReturn' }: {
   icon: React.ReactNode;
   dataKey?: 'avgReturn' | 'winRate';
 }) {
+  const tc = useTranslations('analysis.charts');
   const filteredData = data.filter(d => d.count > 0);
   if (filteredData.length === 0) return null;
-  const label = dataKey === 'avgReturn' ? '평균 수익률 (%)' : '승률 (%)';
+  const label = dataKey === 'avgReturn' ? tc('avgReturnLabel') : tc('winRateLabel');
 
   return (
     <div className="p-5 rounded-2xl border border-white/8 bg-white/3">
@@ -606,9 +589,10 @@ function StatsBarChart({ data, title, icon, dataKey = 'avgReturn' }: {
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-      <div className="flex gap-2 mt-2 flex-wrap">
+      <div className="flex gap-2 mt-2 flex-wrap items-center">
+        <span className="text-xs text-white/30">{tc('tradeCount')}:</span>
         {filteredData.map((d, i) => (
-          <span key={i} className="text-xs text-white/20">{d.label}: {d.count}건</span>
+          <span key={i} className="text-xs text-white/20">{d.label}: {d.count}</span>
         ))}
       </div>
     </div>
@@ -618,30 +602,42 @@ function StatsBarChart({ data, title, icon, dataKey = 'avgReturn' }: {
 // ─── Monthly Bar Chart ────────────────────────────────────────────────────
 
 function MonthlyBarChart({ analysis, exchangeRate = 1 }: { analysis: TradeAnalysis; exchangeRate?: number }) {
+  const locale = useLocale();
+  const numLocale = locale === 'ko' ? 'ko-KR' : 'en-US';
+  const tc = useTranslations('analysis.charts');
+
+  // EN: normalize to USD, KO: normalize to KRW
   const normalizedTrips = useMemo(() => {
     const trips = analysis.roundTrips;
     const hasMixed = trips.length > 1 && trips.some(t => t.currency !== trips[0]?.currency);
     if (!hasMixed) return trips;
+    if (locale === 'ko') {
+      return trips.map(t => ({
+        ...t,
+        pnl: t.currency === 'KRW' ? t.pnl : t.pnl * exchangeRate,
+        currency: 'KRW' as const,
+      }));
+    }
     return trips.map(t => ({
       ...t,
-      pnl: t.currency === 'KRW' ? t.pnl : t.pnl * exchangeRate,
-      currency: 'KRW' as const,
+      pnl: t.currency === 'USD' ? t.pnl : t.pnl / exchangeRate,
+      currency: 'USD' as const,
     }));
-  }, [analysis.roundTrips, exchangeRate]);
+  }, [analysis.roundTrips, exchangeRate, locale]);
 
-  const monthlyData = useMemo(() => calcMonthlyStats(normalizedTrips), [normalizedTrips]);
+  const monthlyData = useMemo(() => calcMonthlyStats(normalizedTrips, locale), [normalizedTrips, locale]);
 
   if (monthlyData.length < 2) return null;
 
   const isMixed = analysis.roundTrips.length > 1 &&
     analysis.roundTrips.some(t => t.currency !== analysis.roundTrips[0]?.currency);
-  const isKRW = isMixed ? true : analysis.roundTrips[0]?.currency === 'KRW';
+  const isKRW = isMixed ? locale === 'ko' : analysis.roundTrips[0]?.currency === 'KRW';
 
   return (
     <div className="p-5 rounded-2xl border border-white/8 bg-white/3">
       <div className="flex items-center gap-2 mb-4">
         <Calendar size={16} className="text-cyan-400" />
-        <h3 className="text-sm font-bold text-white">월별 손익 비교</h3>
+        <h3 className="text-sm font-bold text-white">{tc('monthlyPnl')}</h3>
       </div>
       <ResponsiveContainer width="100%" height={200}>
         <BarChart data={monthlyData} margin={{ top: 5, right: 5, bottom: 5, left: -10 }}>
@@ -651,7 +647,15 @@ function MonthlyBarChart({ analysis, exchangeRate = 1 }: { analysis: TradeAnalys
             tick={{ fontSize: 10, fill: 'rgba(255,255,255,0.3)' }}
             axisLine={false}
             tickLine={false}
-            tickFormatter={(v: number) => isKRW ? `${(v / 10000).toFixed(0)}만` : `$${v.toFixed(0)}`}
+            tickFormatter={(v: number) => {
+              if (locale !== 'ko') {
+                const usdVal = isKRW ? v / exchangeRate : v;
+                const sign = usdVal < 0 ? '-' : '';
+                const abs = Math.abs(usdVal);
+                return abs >= 1000 ? `${sign}$${Math.round(abs / 1000)}K` : `${sign}$${Math.round(abs)}`;
+              }
+              return isKRW ? `${(v / 10000).toFixed(0)}만` : `${v < 0 ? '-' : ''}$${Math.abs(v).toFixed(0)}`;
+            }}
           />
           <Tooltip
             contentStyle={{ backgroundColor: 'rgba(20,22,32,0.97)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '12px', fontSize: '12px', color: '#fff' }}
@@ -659,9 +663,13 @@ function MonthlyBarChart({ analysis, exchangeRate = 1 }: { analysis: TradeAnalys
             itemStyle={{ color: 'rgba(255,255,255,0.8)' }}
             formatter={(value: number | undefined) => {
               const v = value ?? 0;
+              if (locale !== 'ko') {
+                const usdVal = isKRW ? v / exchangeRate : v;
+                return [`${usdVal >= 0 ? '+' : '-'}$${Math.abs(usdVal).toLocaleString('en-US', { maximumFractionDigits: 0 })}`, tc('monthlyPnlLabel')];
+              }
               return [
-                isKRW ? `${v >= 0 ? '+' : ''}${Math.round(v).toLocaleString('ko-KR')}원` : `${v >= 0 ? '+' : ''}$${Math.abs(v).toFixed(2)}`,
-                '월 손익'
+                isKRW ? `${v >= 0 ? '+' : ''}${Math.round(v).toLocaleString(numLocale)}원` : `${v >= 0 ? '+' : '-'}$${Math.abs(v).toFixed(2)}`,
+                tc('monthlyPnlLabel')
               ];
             }}
           />
@@ -672,10 +680,11 @@ function MonthlyBarChart({ analysis, exchangeRate = 1 }: { analysis: TradeAnalys
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-      <div className="flex gap-2 mt-2 flex-wrap">
+      <div className="flex gap-2 mt-2 flex-wrap items-center">
+        <span className="text-xs text-white/30">{tc('tradeCount')}:</span>
         {monthlyData.map((d, i) => (
           <span key={i} className={`text-xs ${d.totalPnl >= 0 ? 'text-emerald-400/60' : 'text-red-400/60'}`}>
-            {d.label}: {d.tradeCount}건
+            {d.label}: {d.tradeCount}
           </span>
         ))}
       </div>
@@ -686,6 +695,7 @@ function MonthlyBarChart({ analysis, exchangeRate = 1 }: { analysis: TradeAnalys
 // ─── Concentration Chart ──────────────────────────────────────────────────
 
 function ConcentrationChart({ data }: { data: { symbol: string; symbolName?: string; percentage: number; isRisky: boolean }[] }) {
+  const tc = useTranslations('analysis.charts');
   if (data.length === 0) return null;
   const chartData = data.map(d => ({ name: d.symbolName || d.symbol, value: Math.round(d.percentage * 10) / 10 }));
 
@@ -693,7 +703,7 @@ function ConcentrationChart({ data }: { data: { symbol: string; symbolName?: str
     <div className="p-5 rounded-2xl border border-white/8 bg-white/3">
       <div className="flex items-center gap-2 mb-4">
         <Shield size={16} className="text-orange-400" />
-        <h3 className="text-sm font-bold text-white">종목 집중도</h3>
+        <h3 className="text-sm font-bold text-white">{tc('concentration')}</h3>
       </div>
       <div className="flex items-center gap-6">
         <ResponsiveContainer width="50%" height={180}>
@@ -707,7 +717,7 @@ function ConcentrationChart({ data }: { data: { symbol: string; symbolName?: str
               contentStyle={{ backgroundColor: 'rgba(20,22,32,0.97)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '12px', fontSize: '12px', color: '#fff' }}
               labelStyle={{ color: 'rgba(255,255,255,0.5)', fontSize: 11 }}
               itemStyle={{ color: 'rgba(255,255,255,0.8)' }}
-              formatter={(value: number | undefined) => [`${value ?? 0}%`, '비중']}
+              formatter={(value: number | undefined) => [`${value ?? 0}%`, tc('concentrationPercent')]}
             />
           </PieChart>
         </ResponsiveContainer>
@@ -732,28 +742,29 @@ function ConcentrationChart({ data }: { data: { symbol: string; symbolName?: str
 // ─── Streaks Card ─────────────────────────────────────────────────────────
 
 function StreaksCard({ streaks }: { streaks: { currentWin: number; currentLoss: number; maxWin: number; maxLoss: number } }) {
+  const t = useTranslations('analysis.streaks');
   return (
     <div className="p-5 rounded-2xl border border-white/8 bg-white/3">
       <div className="flex items-center gap-2 mb-4">
         <Zap size={16} className="text-yellow-400" />
-        <h3 className="text-sm font-bold text-white">연속 승패 기록</h3>
+        <h3 className="text-sm font-bold text-white">{t('title')}</h3>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10 text-center">
           <div className="text-lg font-black text-emerald-400">{streaks.currentWin}</div>
-          <div className="text-xs text-white/30">현재 연승</div>
+          <div className="text-xs text-white/30">{t('currentWin')}</div>
         </div>
         <div className="p-3 rounded-xl bg-red-500/5 border border-red-500/10 text-center">
           <div className="text-lg font-black text-red-400">{streaks.currentLoss}</div>
-          <div className="text-xs text-white/30">현재 연패</div>
+          <div className="text-xs text-white/30">{t('currentLoss')}</div>
         </div>
         <div className="p-3 rounded-xl bg-white/3 border border-white/5 text-center">
           <div className="text-lg font-bold text-white">{streaks.maxWin}</div>
-          <div className="text-xs text-white/30">최대 연승</div>
+          <div className="text-xs text-white/30">{t('maxWin')}</div>
         </div>
         <div className="p-3 rounded-xl bg-white/3 border border-white/5 text-center">
           <div className="text-lg font-bold text-white">{streaks.maxLoss}</div>
-          <div className="text-xs text-white/30">최대 연패</div>
+          <div className="text-xs text-white/30">{t('maxLoss')}</div>
         </div>
       </div>
     </div>
@@ -774,6 +785,9 @@ function RoundTripList({
   onChargeCoins?: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const t = useTranslations('analysis.roundTrips');
+  const ta = useTranslations('analysis.aiReport');
+  const tc = useTranslations('common');
   const visibleTrips = expanded ? roundTrips : roundTrips.slice(0, 5);
   if (roundTrips.length === 0) return null;
 
@@ -782,12 +796,12 @@ function RoundTripList({
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <TrendingUp size={16} className="text-blue-400" />
-          <h3 className="text-sm font-bold text-white">최근 완결 거래</h3>
-          <span className="text-xs text-white/20 bg-white/5 px-2 py-0.5 rounded-full">{roundTrips.length}건</span>
+          <h3 className="text-sm font-bold text-white">{t('title')}</h3>
+          <span className="text-xs text-white/20 bg-white/5 px-2 py-0.5 rounded-full">{tc('count', { count: roundTrips.length })}</span>
         </div>
         {roundTrips.length > 5 && (
           <button onClick={() => setExpanded(!expanded)} className="text-xs text-white/30 hover:text-white/60 transition-colors flex items-center gap-1">
-            {expanded ? '접기' : '더보기'}
+            {expanded ? t('collapse') : t('showMore')}
             <ChevronDown size={12} className={`transition-transform ${expanded ? 'rotate-180' : ''}`} />
           </button>
         )}
@@ -806,30 +820,30 @@ function RoundTripList({
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-bold text-white truncate">{trip.symbolName || trip.symbol}</div>
-                  <div className="text-xs text-white/30">{trip.entryDate} → {trip.exitDate} ({trip.holdingDays}일)</div>
+                  <div className="text-xs text-white/30">{trip.entryDate} → {trip.exitDate} ({trip.holdingDays}{tc('days')})</div>
                 </div>
                 <div className="flex items-center gap-2 flex-none">
                   <div className={`text-xs font-bold ${trip.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                     {formatPnl(trip.pnl, trip.currency)}
                   </div>
                   {!isLoggedIn ? (
-                    <div className="text-xs text-white/20 px-1">로그인 필요</div>
+                    <div className="text-xs text-white/20 px-1">{tc('loginRequired')}</div>
                   ) : review ? (
-                    <button onClick={() => onReviewTrade(trip)} disabled={isLoadingThis} title="AI 거래 리뷰 재생성 (1코인)"
+                    <button onClick={() => onReviewTrade(trip)} disabled={isLoadingThis}
                       className={`p-1.5 rounded-lg transition-colors ${isLoadingThis ? 'text-indigo-300 bg-indigo-500/10 animate-pulse' : 'text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20'}`}>
                       {isLoadingThis ? <RefreshCw size={12} className="animate-spin" /> : <MessageSquare size={12} />}
                     </button>
                   ) : isLoadingThis ? (
                     <button disabled className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold border bg-indigo-500/15 text-indigo-400 border-indigo-500/20 cursor-wait">
-                      <RefreshCw size={10} className="animate-spin" />분석 중...
+                      <RefreshCw size={10} className="animate-spin" />{t('analyzing')}
                     </button>
                   ) : coinBalance < 1 ? (
                     <button onClick={onChargeCoins} className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold border bg-yellow-500/15 text-yellow-400 border-yellow-500/20 hover:bg-yellow-500/25 transition-all">
-                      <Gem size={10} />부족 ({coinBalance}/1)
+                      <Gem size={10} />{t('coinShort', { balance: coinBalance })}
                     </button>
                   ) : (
                     <button onClick={() => onReviewTrade(trip)} className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold border bg-indigo-500/20 text-indigo-300 border-indigo-500/30 hover:bg-indigo-500/30 transition-all">
-                      <Sparkles size={10} />리뷰 (1💎)
+                      <Sparkles size={10} />{t('reviewCost')}
                     </button>
                   )}
                 </div>
@@ -837,7 +851,7 @@ function RoundTripList({
               {review && (
                 <div className="px-3 pb-3">
                   <AIReportCard
-                    title="AI 거래 리뷰"
+                    title={ta('tradeReviewTitle')}
                     subtitle={`${trip.symbolName || trip.symbol} · ${trip.exitDate}`}
                     report={review.report}
                     generatedAt={review.generatedAt}
@@ -875,6 +889,8 @@ export function AnalysisDashboard({
   initialTab,
 }: AnalysisDashboardProps) {
   const [activeTab, setActiveTab] = useState<DashboardTab>(initialTab ?? 'performance');
+  const t = useTranslations('analysis');
+  const tc = useTranslations('common');
 
   // initialTab prop이 변경되면 반영 (외부 네비게이션)
   if (initialTab && activeTab !== initialTab) {
@@ -899,7 +915,7 @@ export function AnalysisDashboard({
 
       {/* Tab Navigation */}
       <div className="flex p-1 rounded-xl bg-white/5 border border-white/8 gap-0.5">
-        {TABS.map(tab => (
+        {TAB_IDS.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
@@ -910,7 +926,7 @@ export function AnalysisDashboard({
             }`}
           >
             {tab.icon}
-            <span className="hidden sm:inline">{tab.label}</span>
+            <span className="hidden sm:inline">{t(`tabs.${tab.id}`)}</span>
           </button>
         ))}
       </div>
@@ -927,8 +943,8 @@ export function AnalysisDashboard({
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <Brain size={16} className="text-indigo-400" />
-                <h3 className="text-sm font-bold text-white">핵심 인사이트</h3>
-                <span className="text-xs text-white/20 bg-white/5 px-2 py-0.5 rounded-full">{analysis.insights.length}건</span>
+                <h3 className="text-sm font-bold text-white">{t('insights.title')}</h3>
+                <span className="text-xs text-white/20 bg-white/5 px-2 py-0.5 rounded-full">{tc('count', { count: analysis.insights.length })}</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {analysis.insights.map(insight => (
@@ -944,9 +960,9 @@ export function AnalysisDashboard({
         <div className="space-y-4">
           <MonthlyBarChart analysis={analysis} exchangeRate={exchangeRate} />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <StatsBarChart data={analysis.weekdayStats} title="요일별 평균 수익률" icon={<Calendar size={16} className="text-blue-400" />} dataKey="avgReturn" />
-            <StatsBarChart data={analysis.holdingPeriodStats} title="보유 기간별 평균 수익률" icon={<Clock size={16} className="text-cyan-400" />} dataKey="avgReturn" />
-            <StatsBarChart data={analysis.emotionStats} title="감정 태그별 승률" icon={<Heart size={16} className="text-pink-400" />} dataKey="winRate" />
+            <StatsBarChart data={analysis.weekdayStats} title={t('charts.weekdayAvgReturn')} icon={<Calendar size={16} className="text-blue-400" />} dataKey="avgReturn" />
+            <StatsBarChart data={analysis.holdingPeriodStats} title={t('charts.holdingPeriodReturn')} icon={<Clock size={16} className="text-cyan-400" />} dataKey="avgReturn" />
+            <StatsBarChart data={analysis.emotionStats} title={t('charts.emotionTagWinRate')} icon={<Heart size={16} className="text-pink-400" />} dataKey="winRate" />
             <ConcentrationChart data={analysis.concentration} />
           </div>
         </div>
@@ -955,8 +971,8 @@ export function AnalysisDashboard({
       {activeTab === 'ai' && (
         <div className="space-y-4">
           <AIReportCard
-            title="🤖 AI 투자 코치 리포트"
-            subtitle={`${analysis.roundTrips.length}건의 완결 거래를 종합 분석`}
+            title={t('aiReport.weeklyTitle')}
+            subtitle={t('aiReport.weeklySubtitle', { count: analysis.roundTrips.length })}
             report={weeklyReport?.report ?? null}
             generatedAt={weeklyReport?.generatedAt ?? null}
             loading={loadingWeekly}

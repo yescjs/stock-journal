@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import { Trade } from '@/app/types/trade';
 import { User } from '@supabase/supabase-js';
 import { TradeList } from '@/app/components/TradeList';
@@ -54,13 +55,7 @@ interface TradeListViewProps {
   onCopy?: (trade: Trade) => void;
 }
 
-const DATE_PRESETS: { key: DatePreset; label: string }[] = [
-  { key: 'today', label: '오늘' },
-  { key: 'week', label: '이번 주' },
-  { key: 'month', label: '이번 달' },
-  { key: 'year', label: '올해' },
-  { key: 'all', label: '전체' },
-];
+const DATE_PRESET_KEYS: DatePreset[] = ['today', 'week', 'month', 'year', 'all'];
 
 // ─── Trade List Skeleton ─────────────────────────────────────────────────
 
@@ -93,30 +88,33 @@ function TradeListSkeleton() {
 // ─── Smart Empty State ───────────────────────────────────────────────────
 
 function SmartEmptyState() {
+  const te = useTranslations('trade.empty');
+  const tc = useTranslations('common');
+
   const steps = [
     {
       icon: <PenLine size={18} className="text-blue-400" />,
       iconBg: 'bg-blue-500/10',
-      title: '매매 기록 입력',
-      desc: '종목명, 단가, 수량을 입력하고 매수/매도를 기록해요.',
+      title: te('step1Title'),
+      desc: te('step1Desc'),
     },
     {
       icon: <BookOpen size={18} className="text-emerald-400" />,
       iconBg: 'bg-emerald-500/10',
-      title: '감정·전략 태깅',
-      desc: '매매 전 체크리스트로 규율을 점검하고 감정 태그를 달아요.',
+      title: te('step2Title'),
+      desc: te('step2Desc'),
     },
     {
       icon: <BarChart2 size={18} className="text-purple-400" />,
       iconBg: 'bg-purple-500/10',
-      title: 'AI 패턴 분석',
-      desc: '완결된 매매가 쌓이면 AI가 나만의 패턴과 인사이트를 분석해요.',
+      title: te('step3Title'),
+      desc: te('step3Desc'),
     },
     {
       icon: <Sparkles size={18} className="text-yellow-400" />,
       iconBg: 'bg-yellow-500/10',
-      title: '성과 시각화',
-      desc: '누적 수익 곡선·요일별 통계로 투자 패턴을 한눈에 봐요.',
+      title: te('step4Title'),
+      desc: te('step4Desc'),
     },
   ];
 
@@ -126,9 +124,9 @@ function SmartEmptyState() {
       <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-5">
         <Brain size={30} className="text-white/20" />
       </div>
-      <h3 className="text-xl font-extrabold text-white mb-1">매매 일지를 시작해보세요</h3>
+      <h3 className="text-xl font-extrabold text-white mb-1">{te('title')}</h3>
       <p className="text-sm text-white/35 mb-8 text-center max-w-xs">
-        첫 거래를 기록하면 AI가 투자 패턴을 분석하고 맞춤형 인사이트를 제공합니다.
+        {te('desc')}
       </p>
 
       {/* Steps */}
@@ -152,15 +150,15 @@ function SmartEmptyState() {
       {/* Ghost sample trades */}
       <div className="w-full max-w-md space-y-2 mb-8 pointer-events-none select-none opacity-40">
         {[
-          { symbol: 'AAPL', name: '애플', side: '매수', price: '$182.50', qty: 10, pnl: '+$245', date: '2024-01-15' },
-          { symbol: '005930', name: '삼성전자', side: '매도', price: '71,200원', qty: 50, pnl: '+12.3만원', date: '2024-01-12' },
+          { symbol: 'AAPL', name: 'Apple', side: te('ghostBuy'), price: '$182.50', qty: 10, pnl: '+$245', date: '2024-01-15' },
+          { symbol: '005930', name: 'Samsung', side: te('ghostSell'), price: '71,200', qty: 50, pnl: '+12.3', date: '2024-01-12' },
         ].map((t, i) => (
           <div
             key={i}
             className="flex items-center gap-3 p-3 rounded-xl border border-white/8 bg-white/3"
           >
             <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold flex-none ${
-              t.side === '매수' ? 'bg-blue-500/10 text-blue-400' : 'bg-rose-500/10 text-rose-400'
+              t.side === te('ghostBuy') ? 'bg-blue-500/10 text-blue-400' : 'bg-rose-500/10 text-rose-400'
             }`}>
               {t.side}
             </div>
@@ -169,7 +167,7 @@ function SmartEmptyState() {
                 <span className="text-xs font-bold text-white">{t.name}</span>
                 <span className="text-xs text-white/30">{t.symbol}</span>
               </div>
-              <div className="text-xs text-white/30">{t.date} · {t.price} × {t.qty}주</div>
+              <div className="text-xs text-white/30">{t.date} · {t.price} × {t.qty}{tc('shares')}</div>
             </div>
             <div className="text-xs font-bold text-emerald-400 flex-none">{t.pnl}</div>
           </div>
@@ -178,7 +176,7 @@ function SmartEmptyState() {
 
       {/* CTA Arrow */}
       <div className="flex flex-col items-center gap-2 text-white/30">
-        <p className="text-xs font-semibold">우하단 + 버튼을 눌러 첫 거래를 기록해보세요</p>
+        <p className="text-xs font-semibold">{te('ctaText')}</p>
         <ArrowDown size={20} className="animate-bounce" />
       </div>
     </div>
@@ -186,15 +184,37 @@ function SmartEmptyState() {
 }
 
 // Format KRW amount with proper suffix
-function formatKRW(value: number): string {
+function formatKRW(value: number, locale: string = 'ko'): string {
   const abs = Math.abs(value);
-  if (abs >= 1_0000_0000) {
-    return `${(value / 1_0000_0000).toFixed(1)}억원`;
+  const numLocale = locale === 'ko' ? 'ko-KR' : 'en-US';
+  if (locale === 'ko') {
+    if (abs >= 1_0000_0000) return `${(value / 1_0000_0000).toFixed(1)}억원`;
+    if (abs >= 1_0000) return `${(value / 1_0000).toFixed(0)}만원`;
+    return `${Math.round(value).toLocaleString(numLocale)}원`;
   }
-  if (abs >= 1_0000) {
-    return `${(value / 1_0000).toFixed(0)}만원`;
+  // English: use standard abbreviations
+  if (abs >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M KRW`;
+  if (abs >= 1_000) return `${(value / 1_000).toFixed(0)}K KRW`;
+  return `${Math.round(value).toLocaleString(numLocale)} KRW`;
+}
+
+// Format USD amount with proper suffix (sign$number: -$1.2M, +$5K)
+function formatUSD(value: number): string {
+  const abs = Math.abs(value);
+  const sign = value < 0 ? '-' : '';
+  if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `${sign}$${Math.round(abs / 1_000)}K`;
+  return `${sign}$${Math.round(abs).toLocaleString('en-US')}`;
+}
+
+// Format portfolio value based on locale (KRW for ko, USD for en)
+function formatPortfolioValue(value: number, locale: string, exchangeRate: number): string {
+  if (locale === 'ko') {
+    return formatKRW(value, locale);
   }
-  return `${Math.round(value).toLocaleString('ko-KR')}원`;
+  // EN locale: convert KRW to USD
+  const usdValue = value / exchangeRate;
+  return formatUSD(usdValue);
 }
 
 export function TradeListView({
@@ -229,6 +249,14 @@ export function TradeListView({
   onOpenAddTrade,
   onCopy,
 }: TradeListViewProps) {
+  const tv = useTranslations('trade.view');
+  const currentLocale = useLocale();
+
+  const DATE_PRESETS = useMemo(() => DATE_PRESET_KEYS.map(key => ({
+    key,
+    label: tv(`datePreset${key.charAt(0).toUpperCase() + key.slice(1)}` as 'datePresetToday' | 'datePresetWeek' | 'datePresetMonth' | 'datePresetYear' | 'datePresetAll'),
+  })), [tv]);
+
   const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'analysis'>('list');
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [analysisInitialTab, setAnalysisInitialTab] = useState<'performance' | 'charts' | 'ai' | 'trades' | undefined>();
@@ -266,7 +294,7 @@ export function TradeListView({
   }, [onOpenAddTrade, switchToAnalysis]);
 
   // Trade analysis engine — uses filteredTrades so analysis view respects active filters
-  const { analysis } = useTradeAnalysis(filteredTrades, currentUser);
+  const { analysis } = useTradeAnalysis(filteredTrades, currentUser, currentLocale);
 
   // USD 종목 존재 여부 (환율 적용 버튼 표시 조건)
   const hasUSDTrades = useMemo(
@@ -485,7 +513,7 @@ export function TradeListView({
                     <ChevronDown size={24} className="rotate-90" />
                   </button>
                 )}
-                {selectedSymbol ? '종목 상세 분석' : (viewMode === 'calendar' ? '매매 캘린더' : viewMode === 'analysis' ? 'AI 매매 분석' : '매매 일지')}
+                {selectedSymbol ? tv('symbolDetail') : (viewMode === 'calendar' ? tv('tradeCalendar') : viewMode === 'analysis' ? tv('aiAnalysis') : tv('tradeJournal'))}
                 {selectedSymbol && (
                   <span className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
                     {selectedSymbol}
@@ -500,8 +528,8 @@ export function TradeListView({
             </div>
             <p className="text-sm text-white/30 mt-1 font-medium">
               {viewMode === 'analysis' && analysis
-                ? `${analysis.roundTrips.length}건의 완결된 거래 분석`
-                : trades.length > 0 ? `총 ${trades.length}건의 매매 기록` : '첫 번째 매매를 기록해보세요'}
+                ? tv('completedTradesAnalysis', { count: analysis.roundTrips.length })
+                : trades.length > 0 ? tv('totalTradeRecords', { count: trades.length }) : tv('firstTradePrompt')}
             </p>
           </div>
         </div>
@@ -527,10 +555,12 @@ export function TradeListView({
                 <Wallet size={14} className="text-blue-400" />
               </div>
             </div>
-            <div className="text-lg font-bold text-white truncate" title={`${Math.round(portfolioSummary.totalInvestedKRW).toLocaleString('ko-KR')}원`}>
-              {formatKRW(portfolioSummary.totalInvestedKRW)}
+            <div className="text-lg font-bold text-white truncate" title={currentLocale === 'ko'
+              ? `${Math.round(portfolioSummary.totalInvestedKRW).toLocaleString('ko-KR')}원`
+              : `$${Math.round(Math.abs(portfolioSummary.totalInvestedKRW / exchangeRate)).toLocaleString('en-US')}`}>
+              {formatPortfolioValue(portfolioSummary.totalInvestedKRW, currentLocale, exchangeRate)}
             </div>
-            <div className="text-xs text-white/30 font-medium mt-0.5">총 진입 금액</div>
+            <div className="text-xs text-white/30 font-medium mt-0.5">{tv('totalInvested')}</div>
           </div>
 
           {/* Total Return Rate */}
@@ -546,7 +576,7 @@ export function TradeListView({
             <div className={`text-lg font-bold ${portfolioSummary.totalReturnRate > 0 ? 'text-rose-400' : portfolioSummary.totalReturnRate < 0 ? 'text-blue-400' : 'text-white'}`}>
               {portfolioSummary.totalReturnRate > 0 ? '+' : ''}{portfolioSummary.totalReturnRate.toFixed(2)}%
             </div>
-            <div className="text-xs text-white/30 font-medium mt-0.5">전체 수익률</div>
+            <div className="text-xs text-white/30 font-medium mt-0.5">{tv('totalReturn')}</div>
           </div>
 
           {/* Unrealized P&L */}
@@ -557,11 +587,13 @@ export function TradeListView({
               </div>
             </div>
             <div className={`text-lg font-bold truncate ${portfolioSummary.totalUnrealizedKRW > 0 ? 'text-emerald-400' : portfolioSummary.totalUnrealizedKRW < 0 ? 'text-red-400' : 'text-white'}`}
-              title={`${Math.round(portfolioSummary.totalUnrealizedKRW).toLocaleString('ko-KR')}원`}
+              title={currentLocale === 'ko'
+                ? `${Math.round(portfolioSummary.totalUnrealizedKRW).toLocaleString('ko-KR')}원`
+                : `${portfolioSummary.totalUnrealizedKRW < 0 ? '-' : ''}$${Math.round(Math.abs(portfolioSummary.totalUnrealizedKRW / exchangeRate)).toLocaleString('en-US')}`}
             >
-              {portfolioSummary.totalUnrealizedKRW > 0 ? '+' : ''}{formatKRW(portfolioSummary.totalUnrealizedKRW)}
+              {portfolioSummary.totalUnrealizedKRW > 0 ? '+' : ''}{formatPortfolioValue(portfolioSummary.totalUnrealizedKRW, currentLocale, exchangeRate)}
             </div>
-            <div className="text-xs text-white/30 font-medium mt-0.5">평가 손익</div>
+            <div className="text-xs text-white/30 font-medium mt-0.5">{tv('unrealizedPnl')}</div>
           </div>
 
           {/* Realized P&L */}
@@ -572,11 +604,13 @@ export function TradeListView({
               </div>
             </div>
             <div className={`text-lg font-bold truncate ${portfolioSummary.totalRealizedKRW > 0 ? 'text-emerald-400' : portfolioSummary.totalRealizedKRW < 0 ? 'text-orange-400' : 'text-white'}`}
-              title={`${Math.round(portfolioSummary.totalRealizedKRW).toLocaleString('ko-KR')}원`}
+              title={currentLocale === 'ko'
+                ? `${Math.round(portfolioSummary.totalRealizedKRW).toLocaleString('ko-KR')}원`
+                : `${portfolioSummary.totalRealizedKRW < 0 ? '-' : ''}$${Math.round(Math.abs(portfolioSummary.totalRealizedKRW / exchangeRate)).toLocaleString('en-US')}`}
             >
-              {portfolioSummary.totalRealizedKRW > 0 ? '+' : ''}{formatKRW(portfolioSummary.totalRealizedKRW)}
+              {portfolioSummary.totalRealizedKRW > 0 ? '+' : ''}{formatPortfolioValue(portfolioSummary.totalRealizedKRW, currentLocale, exchangeRate)}
             </div>
-            <div className="text-xs text-white/30 font-medium mt-0.5">실현 손익</div>
+            <div className="text-xs text-white/30 font-medium mt-0.5">{tv('realizedPnl')}</div>
           </div>
         </div>
       )}
@@ -593,7 +627,7 @@ export function TradeListView({
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
               <input
                 type="text"
-                placeholder="종목명 검색..."
+                placeholder={tv('searchPlaceholder')}
                 value={filterSymbol}
                 onChange={(e) => setFilterSymbol(e.target.value)}
                 className="w-full pl-9 pr-4 py-2.5 text-sm font-medium rounded-xl bg-white/5 border border-white/8 text-white placeholder-white/25 outline-none focus:border-blue-500/50 focus:bg-white/8 transition-all"
@@ -616,7 +650,7 @@ export function TradeListView({
                   }`}
               >
                 <Briefcase size={13} />
-                보유 종목
+                {tv('holdingOnly')}
               </button>
 
               {/* KRW Conversion Toggle (USD 종목 있을 때만 표시) */}
@@ -629,7 +663,7 @@ export function TradeListView({
                     }`}
                 >
                   <DollarSign size={13} />
-                  환율 적용
+                  {tv('applyExchangeRate')}
                 </button>
               )}
 
@@ -644,7 +678,7 @@ export function TradeListView({
                     }`}
                 >
                   <RotateCw size={13} className={pricesLoading ? 'animate-spin' : ''} />
-                  현재가 조회
+                  {tv('refreshPrices')}
                 </button>
               )}
 
@@ -655,7 +689,7 @@ export function TradeListView({
                   className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border border-white/8 text-white/40 bg-white/5 hover:text-white/60 hover:bg-white/8 transition-all whitespace-nowrap"
                 >
                   <Upload size={13} />
-                  가져오기
+                  {tv('importTrades')}
                 </button>
               )}
 
@@ -683,7 +717,7 @@ export function TradeListView({
                   }`}
               >
                 <ListIcon size={14} strokeWidth={2} />
-                <span className="hidden sm:inline">목록</span>
+                <span className="hidden sm:inline">{tv('listView')}</span>
               </button>
               <button
                 onClick={() => setViewMode('calendar')}
@@ -693,7 +727,7 @@ export function TradeListView({
                   }`}
               >
                 <LayoutGrid size={14} strokeWidth={2} />
-                <span className="hidden sm:inline">캘린더</span>
+                <span className="hidden sm:inline">{tv('calendarView')}</span>
               </button>
               <button
                 onClick={switchToAnalysis}
@@ -703,7 +737,7 @@ export function TradeListView({
                   }`}
               >
                 <Brain size={14} strokeWidth={2} />
-                <span className="hidden sm:inline">분석</span>
+                <span className="hidden sm:inline">{tv('analysisView')}</span>
               </button>
             </div>
           </div>

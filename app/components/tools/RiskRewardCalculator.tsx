@@ -4,10 +4,13 @@ import { useState, useMemo, useEffect } from 'react';
 import { ShieldAlert, Target, TrendingDown, TrendingUp } from 'lucide-react';
 import { useSupabaseAuth } from '@/app/hooks/useSupabaseAuth';
 import { useEventTracking } from '@/app/hooks/useEventTracking';
+import { useTranslations } from 'next-intl';
 
 export function RiskRewardCalculator() {
   const { user } = useSupabaseAuth();
   const { track } = useEventTracking(user);
+  const t = useTranslations('tools.calc.rr');
+  const tc = useTranslations('tools.calc');
 
   useEffect(() => {
     track('tool_used', { tool: 'risk-reward' });
@@ -56,7 +59,7 @@ export function RiskRewardCalculator() {
       <div className="rounded-2xl border border-white/8 bg-white/3 p-5">
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
-            <label className={labelClass}>매수가 (원)</label>
+            <label className={labelClass}>{t('entryPrice')}</label>
             <input
               type="number"
               value={entryPrice}
@@ -66,7 +69,7 @@ export function RiskRewardCalculator() {
             />
           </div>
           <div>
-            <label className={labelClass}>손절가 (원)</label>
+            <label className={labelClass}>{t('stopLoss')}</label>
             <input
               type="number"
               value={stopLoss}
@@ -76,7 +79,7 @@ export function RiskRewardCalculator() {
             />
           </div>
           <div>
-            <label className={labelClass}>목표가 (원)</label>
+            <label className={labelClass}>{t('targetPrice')}</label>
             <input
               type="number"
               value={takeProfit}
@@ -89,7 +92,7 @@ export function RiskRewardCalculator() {
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
-            <label className={labelClass}>총 투자 자산 (원, 선택)</label>
+            <label className={labelClass}>{t('totalCapital')}</label>
             <input
               type="number"
               value={totalCapital}
@@ -99,7 +102,7 @@ export function RiskRewardCalculator() {
             />
           </div>
           <div>
-            <label className={labelClass}>1회 최대 리스크 (%)</label>
+            <label className={labelClass}>{t('maxRiskPercent')}</label>
             <input
               type="number"
               value={riskPercent}
@@ -118,7 +121,7 @@ export function RiskRewardCalculator() {
           <div className="rounded-2xl border border-white/8 bg-white/3 p-5">
             <div className="mb-3 flex items-center gap-2 text-xs font-medium text-white/50">
               <Target className="h-4 w-4" />
-              리스크 : 리워드 비율
+              {t('rrRatio')}
             </div>
             <div className="text-3xl font-bold">
               1 :{' '}
@@ -136,10 +139,10 @@ export function RiskRewardCalculator() {
             </div>
             <p className="mt-2 text-xs text-white/30">
               {result.riskRewardRatio >= 2
-                ? '좋은 비율입니다. 전문 트레이더들은 최소 1:2 이상을 권장합니다.'
+                ? t('goodRatio')
                 : result.riskRewardRatio >= 1
-                  ? '보통 수준입니다. 1:2 이상이 되도록 목표가를 조정해보세요.'
-                  : '위험한 비율입니다. 손실 가능성이 수익보다 큽니다.'}
+                  ? t('moderateRatio')
+                  : t('dangerousRatio')}
             </p>
           </div>
 
@@ -148,7 +151,7 @@ export function RiskRewardCalculator() {
             <div className="rounded-2xl border border-white/8 bg-white/3 p-5">
               <div className="mb-2 flex items-center gap-2 text-xs font-medium text-white/50">
                 <TrendingDown className="h-4 w-4" />
-                손절 시 손실
+                {t('lossAtStop')}
               </div>
               <div className="text-xl font-bold text-rose-400">
                 -{result.stopLossPct.toFixed(2)}%
@@ -159,7 +162,7 @@ export function RiskRewardCalculator() {
             <div className="rounded-2xl border border-white/8 bg-white/3 p-5">
               <div className="mb-2 flex items-center gap-2 text-xs font-medium text-white/50">
                 <TrendingUp className="h-4 w-4" />
-                목표 달성 시 수익
+                {t('profitAtTarget')}
               </div>
               <div className="text-xl font-bold text-emerald-400">
                 +{result.takeProfitPct.toFixed(2)}%
@@ -172,13 +175,13 @@ export function RiskRewardCalculator() {
             <div className="rounded-2xl border border-white/8 bg-white/3 p-5">
               <div className="mb-2 flex items-center gap-2 text-xs font-medium text-white/50">
                 <ShieldAlert className="h-4 w-4" />
-                리스크 기반 추천 매수량
+                {t('recommendedSize')}
               </div>
               <div className="text-xl font-bold">
-                {result.recommendedShares.toLocaleString()}주
+                {result.recommendedShares.toLocaleString()}{tc('shares')}
               </div>
               <p className="mt-1 text-xs text-white/30">
-                최대 손실금: {result.maxLoss.toLocaleString()}원 (계좌의 {riskPercent}%)
+                {t('maxLoss', { amount: result.maxLoss.toLocaleString(), percent: riskPercent })}
               </p>
             </div>
           )}

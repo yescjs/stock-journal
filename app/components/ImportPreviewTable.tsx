@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { AlertTriangle, XCircle } from 'lucide-react';
 import { Trade } from '@/app/types/trade';
 import { ParsedTradeRow } from '@/app/utils/csvParsers';
@@ -34,6 +35,9 @@ export function ImportPreviewTable({
   onToggleAll,
   errors,
 }: ImportPreviewTableProps) {
+  const t = useTranslations('import');
+  const tc = useTranslations('common');
+
   const rowStates = useMemo(
     () =>
       parsedTrades.map(row => ({
@@ -52,17 +56,17 @@ export function ImportPreviewTable({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* 요약 */}
+      {/* Summary */}
       <div className="flex flex-wrap items-center gap-2 text-sm font-semibold">
-        <span className="text-white/60">총 {parsedTrades.length}건</span>
+        <span className="text-white/60">{t('totalCount', { count: parsedTrades.length })}</span>
         <span className="text-white/30">·</span>
-        <span className="text-blue-400">선택 {selectedRows.size}건</span>
+        <span className="text-blue-400">{t('selectedCount', { count: selectedRows.size })}</span>
         {duplicateCount > 0 && (
           <>
             <span className="text-white/30">·</span>
             <span className="text-yellow-400 flex items-center gap-1">
               <AlertTriangle size={13} />
-              중복 {duplicateCount}건 (자동 스킵)
+              {t('duplicateCount', { count: duplicateCount })}
             </span>
           </>
         )}
@@ -71,27 +75,27 @@ export function ImportPreviewTable({
             <span className="text-white/30">·</span>
             <span className="text-rose-400 flex items-center gap-1">
               <XCircle size={13} />
-              오류 {errorCount}건
+              {t('errorCount', { count: errorCount })}
             </span>
           </>
         )}
       </div>
 
-      {/* 오류 목록 */}
+      {/* Error list */}
       {errors.length > 0 && (
         <div className="rounded-xl bg-rose-500/10 border border-rose-500/20 p-3 space-y-1">
           {errors.slice(0, 5).map((e, i) => (
             <p key={i} className="text-sm text-rose-400">
-              {e.row > 0 ? `행 ${e.row}: ` : ''}{e.message}
+              {e.row > 0 ? t('rowError', { row: e.row, message: e.message }) : e.message}
             </p>
           ))}
           {errors.length > 5 && (
-            <p className="text-sm text-rose-400/60">외 {errors.length - 5}건의 오류...</p>
+            <p className="text-sm text-rose-400/60">{t('moreErrors', { count: errors.length - 5 })}</p>
           )}
         </div>
       )}
 
-      {/* 테이블 */}
+      {/* Table */}
       {parsedTrades.length > 0 && (
         <div className="overflow-x-auto rounded-xl border border-white/8">
           <table className="w-full text-sm min-w-[560px]">
@@ -103,15 +107,15 @@ export function ImportPreviewTable({
                     checked={allSelected && selectableRows.length > 0}
                     onChange={onToggleAll}
                     className="accent-blue-500 cursor-pointer"
-                    aria-label="전체 선택"
+                    aria-label={t('selectAll')}
                   />
                 </th>
-                <th className="px-3 py-3 text-left font-semibold text-white/40">날짜</th>
-                <th className="px-3 py-3 text-left font-semibold text-white/40">종목코드</th>
-                <th className="px-3 py-3 text-left font-semibold text-white/40">종목명</th>
-                <th className="px-3 py-3 text-center font-semibold text-white/40">구분</th>
-                <th className="px-3 py-3 text-right font-semibold text-white/40">수량</th>
-                <th className="px-3 py-3 text-right font-semibold text-white/40">단가</th>
+                <th className="px-3 py-3 text-left font-semibold text-white/40">{t('headerDate')}</th>
+                <th className="px-3 py-3 text-left font-semibold text-white/40">{t('headerSymbol')}</th>
+                <th className="px-3 py-3 text-left font-semibold text-white/40">{t('headerName')}</th>
+                <th className="px-3 py-3 text-center font-semibold text-white/40">{t('headerSide')}</th>
+                <th className="px-3 py-3 text-right font-semibold text-white/40">{t('headerQuantity')}</th>
+                <th className="px-3 py-3 text-right font-semibold text-white/40">{t('headerPrice')}</th>
               </tr>
             </thead>
             <tbody>
@@ -151,7 +155,7 @@ export function ImportPreviewTable({
                             : 'bg-rose-500/15 text-rose-400'
                         }`}
                       >
-                        {row.side === 'BUY' ? '매수' : '매도'}
+                        {row.side === 'BUY' ? tc('buy') : tc('sell')}
                       </span>
                     </td>
                     <td className="px-3 py-2.5text-right text-white/60 whitespace-nowrap">
@@ -166,7 +170,7 @@ export function ImportPreviewTable({
               {parsedTrades.length > 500 && (
                 <tr>
                   <td colSpan={7} className="px-3 py-2.5 text-center text-white/30 text-sm">
-                    ... 외 {parsedTrades.length - 500}건 (최대 500건 미리보기)
+                    {t('overflowRows', { count: parsedTrades.length - 500 })}
                   </td>
                 </tr>
               )}

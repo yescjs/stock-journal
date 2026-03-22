@@ -32,11 +32,24 @@ GEMINI_API_KEY=
 
 ## Architecture
 
-**Stack**: Next.js 16 App Router, TypeScript 5, React 19, Tailwind CSS 4, Supabase (auth + PostgreSQL), Recharts, Framer Motion, Lucide React.
+**Stack**: Next.js 16 App Router, TypeScript 5, React 19, Tailwind CSS 4, Supabase (auth + PostgreSQL), Recharts, Framer Motion, Lucide React, **next-intl** (i18n).
 
-**Routing**: Only two pages:
-- `/` (`app/page.tsx`) — Landing page with login modal. Redirects to `/trade` if authenticated.
-- `/trade` (`app/trade/page.tsx`) — Main application shell. Orchestrates all hooks and renders `TradeListView`.
+**Routing**: All pages under `app/[locale]/` with subpath-based i18n (`/ko/trade`, `/en/trade`):
+- `/[locale]/` (`app/[locale]/page.tsx`) — Landing page with login modal. Redirects to `/trade` if authenticated.
+- `/[locale]/trade` (`app/[locale]/trade/page.tsx`) — Main application shell. Orchestrates all hooks and renders `TradeListView`.
+
+### i18n (Internationalization)
+
+- **Library**: `next-intl` with `localePrefix: 'always'` (URL always includes `/ko/` or `/en/`)
+- **Locales**: `ko` (Korean, default), `en` (English)
+- **Config files**: `i18n/config.ts`, `i18n/routing.ts`, `i18n/navigation.ts`, `i18n/request.ts`
+- **Translation files**: `messages/ko.json`, `messages/en.json` (~618 keys each)
+- **Middleware**: `proxy.ts` (Next.js 16 naming) handles locale detection from Accept-Language + NEXT_LOCALE cookie
+- **Navigation**: Always import `Link`, `useRouter`, `usePathname` from `@/i18n/navigation` (NOT `next/link` or `next/navigation`) — these auto-strip/add locale prefix
+- **Server Components**: Must call `setRequestLocale(locale)` at top; use `getTranslations()` from `next-intl/server`
+- **Client Components**: Use `useTranslations('namespace')` hook
+- **Layout**: `app/layout.tsx` is minimal shell; `app/[locale]/layout.tsx` has `NextIntlClientProvider`, fonts, nav, theme
+- **Currency display**: Based on stock symbol (not locale) — KRW stocks show "won", USD stocks show "$" regardless of language
 
 ### Hybrid Storage Pattern (Critical)
 
@@ -78,13 +91,14 @@ Business logic layer. All hooks return `{ data, loading, error, ...operations }`
 | `/api/stock-price` | Current stock price |
 | `/api/stock-chart` | Yahoo Finance OHLCV data |
 | `/api/exchange-rate` | USD/KRW rate |
-| `/api/auth/naver/*` | Naver OAuth callback |
+
 
 ### Supabase Tables
 
 - `trades` — Core trade records (`user_id`, `date`, `symbol`, `side`, `price`, `quantity`, `strategy_id`, `emotion_tag`)
 - `strategies` — Named trading strategies (joined into trades as `strategy_name`)
-- `ai_reports` — Saved AI analysis reports (`report_type`, `title`, `report`, `metadata`)
+- `ai_reports` — Saved AI analysis reports (`report_type`, `title`, `report`, `metadata`, `locale`)
+- `news_articles` — includes `title_en`, `summary_en`, `key_points_en` for English translations
 
 ### Types (`app/types/`)
 

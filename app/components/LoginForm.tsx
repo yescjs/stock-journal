@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, FormEvent } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 import { supabase } from '@/app/lib/supabaseClient';
 import { Mail, Lock, ArrowRight, KeyRound, UserPlus, LogIn, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
@@ -9,6 +10,9 @@ interface LoginFormProps {
 }
 
 export function LoginForm({ onDone }: LoginFormProps) {
+    const locale = useLocale();
+    const t = useTranslations('auth');
+    const tc = useTranslations('common');
     type Mode = 'login' | 'signup' | 'resetPassword';
 
     const [mode, setMode] = useState<Mode>('login');
@@ -52,20 +56,20 @@ export function LoginForm({ onDone }: LoginFormProps) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
             setMsgType('error');
-            setMsg('유효한 이메일 주소를 입력해주세요.');
+            setMsg(t('invalidEmail'));
             return;
         }
 
         if (mode !== 'resetPassword') {
             if (!trimmedPassword || trimmedPassword.length < 6) {
                 setMsgType('error');
-                setMsg('비밀번호는 6자 이상이어야 합니다.');
+                setMsg(t('passwordMinLength'));
                 return;
             }
 
             if (mode === 'signup' && trimmedPassword !== trimmedConfirm) {
                 setMsgType('error');
-                setMsg('비밀번호가 일치하지 않습니다.');
+                setMsg(t('passwordMismatch'));
                 return;
             }
         }
@@ -82,9 +86,9 @@ export function LoginForm({ onDone }: LoginFormProps) {
                 if (error) {
                     setMsgType('error');
                     if (error.message.toLowerCase().includes('invalid login credentials')) {
-                        setMsg('이메일 또는 비밀번호가 올바르지 않습니다.');
+                        setMsg(t('invalidCredentials'));
                     } else {
-                        setMsg(`로그인 실패: ${error.message}`);
+                        setMsg(t('loginFailed', { message: error.message }));
                     }
                     return;
                 }
@@ -94,11 +98,11 @@ export function LoginForm({ onDone }: LoginFormProps) {
                     if (data.user.user_metadata?.deleted_account) {
                         await supabase.auth.signOut();
                         setMsgType('error');
-                        setMsg('탈퇴한 계정입니다. 입장이 불가능합니다.');
+                        setMsg(t('deletedAccount'));
                         return;
                     }
                     setMsgType('success');
-                    setMsg('로그인 성공!');
+                    setMsg(t('loginSuccess'));
                     setTimeout(() => {
                         onDone?.();
                     }, 800);
@@ -111,34 +115,34 @@ export function LoginForm({ onDone }: LoginFormProps) {
 
                 if (error) {
                     setMsgType('error');
-                    setMsg(`회원가입 실패: ${error.message}`);
+                    setMsg(t('signupFailed', { message: error.message }));
                     return;
                 }
 
                 if (data.user) {
                     setSuccessState(true);
                     setMsgType('success');
-                    setMsg('인증 메일이 발송되었습니다.');
+                    setMsg(t('verificationEmailSent'));
                 }
             } else if (mode === 'resetPassword') {
                 const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
-                    redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/reset-password` : undefined,
+                    redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/${locale}/reset-password` : undefined,
                 });
 
                 if (error) {
                     setMsgType('error');
-                    setMsg(`오류: ${error.message}`);
+                    setMsg(t('errorGeneric', { message: error.message }));
                     return;
                 }
 
                 setSuccessState(true);
                 setMsgType('success');
-                setMsg('비밀번호 재설정 이메일을 발송했습니다.');
+                setMsg(t('resetEmailSent'));
             }
         } catch (err: unknown) {
-            const errorMessage = err instanceof Error ? err.message : '알 수 없는 오류';
+            const errorMessage = err instanceof Error ? err.message : tc('unknownError');
             setMsgType('error');
-            setMsg(`오류가 발생했습니다: ${errorMessage}`);
+            setMsg(t('errorOccurred', { message: errorMessage }));
         } finally {
             setSending(false);
         }
@@ -157,22 +161,22 @@ export function LoginForm({ onDone }: LoginFormProps) {
                     <Mail size={40} className="text-emerald-400" />
                 </div>
                 <h3 className="text-2xl font-black mb-3 text-white">
-                    메일함을 확인해주세요
+                    {t('checkMailTitle')}
                 </h3>
                 <p className="text-sm mb-8 leading-relaxed text-slate-400">
-                    <span className="font-bold text-indigo-500">{email}</span> 주소로<br />
-                    인증 메일을 발송했습니다.<br />
-                    메일의 링크를 클릭하여 인증을 완료해주세요.
+                    <span className="font-bold text-indigo-500">{t('checkMailDesc1', { email })}</span><br />
+                    {t('checkMailDesc2')}<br />
+                    {t('checkMailDesc3')}
                 </p>
                 <div className="space-y-3">
                     <button
                         onClick={() => { setSuccessState(false); setMode('login'); resetForm(); }}
                         className="w-full py-3.5 rounded-xl text-sm font-bold transition-all bg-[#1C1C24] text-white hover:bg-[#2C2C34]"
                     >
-                        로그인으로 돌아가기
+                        {t('backToLoginButton')}
                     </button>
                     <p className="text-xs text-slate-500">
-                        메일이 오지 않았나요? 스팸함도 확인해주세요.
+                        {t('checkSpam')}
                     </p>
                 </div>
             </div>
@@ -194,7 +198,7 @@ export function LoginForm({ onDone }: LoginFormProps) {
                                 }`}
                         >
                             <LogIn size={16} />
-                            로그인
+                            {t('loginTab')}
                         </button>
                         <button
                             type="button"
@@ -205,7 +209,7 @@ export function LoginForm({ onDone }: LoginFormProps) {
                                 }`}
                         >
                             <UserPlus size={16} />
-                            회원가입
+                            {t('signupTab')}
                         </button>
                     </div>
                 </div>
@@ -217,10 +221,10 @@ export function LoginForm({ onDone }: LoginFormProps) {
                         <KeyRound size={28} className="text-blue-400" />
                     </div>
                     <h3 className="text-xl font-bold text-white">
-                        비밀번호 재설정
+                        {t('resetPasswordTitle')}
                     </h3>
                     <p className="text-sm mt-2 text-slate-400">
-                        가입한 이메일로 재설정 링크를 보내드립니다.
+                        {t('resetPasswordDesc')}
                     </p>
                 </div>
             )}
@@ -244,7 +248,7 @@ export function LoginForm({ onDone }: LoginFormProps) {
                             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
                             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                         </svg>
-                        Google로 계속하기
+                        {t('continueWithGoogle')}
                     </button>
 
                     {/* Divider */}
@@ -254,7 +258,7 @@ export function LoginForm({ onDone }: LoginFormProps) {
                         </div>
                         <div className="relative flex justify-center text-xs">
                             <span className="px-4 bg-card text-slate-500">
-                                또는 이메일로 {mode === 'login' ? '로그인' : '가입'}
+                                {mode === 'login' ? t('orEmailLogin') : t('orEmailSignup')}
                             </span>
                         </div>
                     </div>
@@ -264,14 +268,14 @@ export function LoginForm({ onDone }: LoginFormProps) {
             <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Email */}
                 <div className="relative">
-                    <label htmlFor="email" className="sr-only">이메일 주소</label>
+                    <label htmlFor="email" className="sr-only">{t('emailLabel')}</label>
                     <Mail size={18} className={iconClass} aria-hidden="true" />
                     <input
                         id="email"
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder="이메일 주소"
+                        placeholder={t('emailPlaceholder')}
                         className={inputClass}
                         autoComplete="email"
                         required
@@ -281,14 +285,14 @@ export function LoginForm({ onDone }: LoginFormProps) {
                 {/* Password */}
                 {mode !== 'resetPassword' && (
                     <div className="relative">
-                        <label htmlFor="password" className="sr-only">비밀번호</label>
+                        <label htmlFor="password" className="sr-only">{t('passwordLabel')}</label>
                         <Lock size={18} className={iconClass} aria-hidden="true" />
                         <input
                             id="password"
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            placeholder="비밀번호 (6자 이상)"
+                            placeholder={t('passwordPlaceholder')}
                             className={inputClass}
                             autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                             minLength={6}
@@ -300,14 +304,14 @@ export function LoginForm({ onDone }: LoginFormProps) {
                 {/* Confirm Password */}
                 {mode === 'signup' && (
                     <div className="relative">
-                        <label htmlFor="confirmPassword" className="sr-only">비밀번호 확인</label>
+                        <label htmlFor="confirmPassword" className="sr-only">{t('confirmPasswordLabel')}</label>
                         <Lock size={18} className={iconClass} aria-hidden="true" />
                         <input
                             id="confirmPassword"
                             type="password"
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
-                            placeholder="비밀번호 확인"
+                            placeholder={t('confirmPasswordPlaceholder')}
                             className={inputClass}
                             autoComplete="new-password"
                             minLength={6}
@@ -339,13 +343,13 @@ export function LoginForm({ onDone }: LoginFormProps) {
                     {sending ? (
                         <span className="flex items-center gap-2">
                             <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                            처리 중...
+                            {tc('processing')}
                         </span>
                     ) : (
                         <>
-                            {mode === 'login' && '로그인'}
-                            {mode === 'signup' && '인증 메일 받기'}
-                            {mode === 'resetPassword' && '재설정 이메일 보내기'}
+                            {mode === 'login' && t('loginButton')}
+                            {mode === 'signup' && t('signupButton')}
+                            {mode === 'resetPassword' && t('resetButton')}
                             <ArrowRight size={16} />
                         </>
                     )}
@@ -358,7 +362,7 @@ export function LoginForm({ onDone }: LoginFormProps) {
                         onClick={() => { setMode('resetPassword'); resetMsg(); }}
                         className="w-full text-center text-sm font-medium py-2 transition-colors text-slate-400 hover:text-white"
                     >
-                        비밀번호를 잊으셨나요?
+                        {t('forgotPassword')}
                     </button>
                 )}
 
@@ -369,7 +373,7 @@ export function LoginForm({ onDone }: LoginFormProps) {
                         onClick={() => { setMode('login'); resetForm(); }}
                         className="w-full text-center text-sm font-medium py-2 transition-colors text-slate-400 hover:text-white"
                     >
-                        ← 로그인으로 돌아가기
+                        {t('backToLogin')}
                     </button>
                 )}
             </form>

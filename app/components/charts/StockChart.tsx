@@ -9,6 +9,7 @@ import { formatNumber } from '@/app/utils/format';
 import { TrendingUp, Activity, BarChart3 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ChartSkeleton } from '@/app/components/ui/ChartSkeleton';
+import { useTranslations, useLocale } from 'next-intl';
 
 interface StockChartProps {
     symbol: string;
@@ -20,13 +21,6 @@ interface StockChartProps {
     onPeriodChange?: (period: ChartPeriod) => void;
 }
 
-const PERIOD_OPTIONS: Array<{ label: string; value: ChartPeriod }> = [
-    { label: '1개월', value: '1mo' },
-    { label: '3개월', value: '3mo' },
-    { label: '1년', value: '1y' },
-    { label: '3년', value: '3y' },
-];
-
 // 이동평균 계산 함수
 function calculateMA(data: StockChartData[], period: number): (number | null)[] {
     return data.map((_, index) => {
@@ -37,6 +31,17 @@ function calculateMA(data: StockChartData[], period: number): (number | null)[] 
 }
 
 export function StockChart({ symbol, darkMode, trades = [], compact = false, onCurrentPriceLoad, period: periodProp, onPeriodChange }: StockChartProps) {
+    const t = useTranslations('chart');
+    const tc = useTranslations('common');
+    const locale = useLocale();
+
+    const PERIOD_OPTIONS = useMemo(() => [
+        { value: '1mo' as ChartPeriod, label: t('period1m') },
+        { value: '3mo' as ChartPeriod, label: t('period3m') },
+        { value: '1y' as ChartPeriod, label: t('period1y') },
+        { value: '3y' as ChartPeriod, label: t('period3y') },
+    ], [t]);
+
     const [internalPeriod, setInternalPeriod] = useState<ChartPeriod>(periodProp ?? '1y');
     const [chartData, setChartData] = useState<StockChartData[]>([]);
     const [loading, setLoading] = useState(true);
@@ -126,7 +131,7 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
             }
 
         } catch (err: unknown) {
-            const errorMessage = err instanceof Error ? err.message : '차트 데이터를 불러올 수 없습니다';
+            const errorMessage = err instanceof Error ? err.message : t('chartLoadError');
             setError(errorMessage);
             setChartData([]);
         } finally {
@@ -210,6 +215,8 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
         };
     }
 
+    const numLocale = locale === 'ko' ? 'ko-KR' : 'en-US';
+
     const TradeMarker = (props: TradeMarkerProps) => {
         const { cx = 0, cy = 0, payload } = props;
         if (!payload || !payload.markerSide || !payload.markerPrice) return null;
@@ -232,7 +239,7 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
                         fontWeight="bold"
                         fill={color}
                     >
-                        {formatNumber(payload.markerPrice)}
+                        {formatNumber(payload.markerPrice, undefined, numLocale)}
                     </text>
                 </g>
             );
@@ -250,7 +257,7 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
                         fontWeight="bold"
                         fill={color}
                     >
-                        {formatNumber(payload.markerPrice)}
+                        {formatNumber(payload.markerPrice, undefined, numLocale)}
                     </text>
                 </g>
             );
@@ -288,20 +295,20 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
                 {/* OHLC 2x2 그리드 */}
                 <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
                     <div className="flex justify-between">
-                        <span className={darkMode ? 'text-slate-500' : 'text-slate-400'}>시</span>
-                        <span className={darkMode ? 'text-slate-200' : 'text-slate-900'}>{formatNumber(open)}</span>
+                        <span className={darkMode ? 'text-slate-500' : 'text-slate-400'}>{t('tooltipOpen')}</span>
+                        <span className={darkMode ? 'text-slate-200' : 'text-slate-900'}>{formatNumber(open, undefined, numLocale)}</span>
                     </div>
                     <div className="flex justify-between">
-                        <span className={darkMode ? 'text-slate-500' : 'text-slate-400'}>고</span>
-                        <span className="text-emerald-500">{formatNumber(high)}</span>
+                        <span className={darkMode ? 'text-slate-500' : 'text-slate-400'}>{t('tooltipHigh')}</span>
+                        <span className="text-emerald-500">{formatNumber(high, undefined, numLocale)}</span>
                     </div>
                     <div className="flex justify-between">
-                        <span className={darkMode ? 'text-slate-500' : 'text-slate-400'}>저</span>
-                        <span className="text-rose-500">{formatNumber(low)}</span>
+                        <span className={darkMode ? 'text-slate-500' : 'text-slate-400'}>{t('tooltipLow')}</span>
+                        <span className="text-rose-500">{formatNumber(low, undefined, numLocale)}</span>
                     </div>
                     <div className="flex justify-between">
-                        <span className={darkMode ? 'text-slate-500' : 'text-slate-400'}>종</span>
-                        <span className={darkMode ? 'text-slate-200' : 'text-slate-900'}>{formatNumber(close)}</span>
+                        <span className={darkMode ? 'text-slate-500' : 'text-slate-400'}>{t('tooltipClose')}</span>
+                        <span className={darkMode ? 'text-slate-200' : 'text-slate-900'}>{formatNumber(close, undefined, numLocale)}</span>
                     </div>
                 </div>
 
@@ -309,8 +316,8 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
                 {markerSide && markerPrice != null && (
                     <div className={`mt-1.5 pt-1.5 border-t ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
                         <div className={`font-bold ${markerSide === 'BUY' ? 'text-rose-500' : 'text-blue-500'}`}>
-                            {markerSide === 'BUY' ? '▲ 매수' : '▼ 매도'} {formatNumber(markerPrice)}원
-                            {markerQty && <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}> ({markerQty}주)</span>}
+                            {markerSide === 'BUY' ? t('tooltipBuy') : t('tooltipSell')} {formatNumber(markerPrice, undefined, numLocale)}
+                            {markerQty && <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}> ({markerQty}{tc('shares')})</span>}
                         </div>
                     </div>
                 )}
@@ -351,22 +358,23 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
                     <div className="flex items-center gap-2">
                         <TrendingUp className={`w-4 h-4 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`} />
                         <h3 className={`text-sm font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
-                            주가 차트
+                            {t('stockChart')}
                         </h3>
                     </div>
                 </div>
 
-                {/* 차트 미지원 안내 */}
+                {/* Chart not supported notice */}
                 <div className={`flex flex-col items-center justify-center ${compact ? 'py-6' : 'py-10'}`}>
                     <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
                         <TrendingUp className={`w-6 h-6 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`} />
                     </div>
                     <p className={`text-sm font-medium mb-1 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-                        차트 데이터를 지원하지 않는 종목입니다
+                        {t('chartNotSupported')}
                     </p>
                     <p className={`text-xs text-center px-4 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                        Yahoo Finance에서 제공하지 않는 종목이거나<br />
-                        일시적인 연결 문제일 수 있습니다
+                        {t('chartNotSupportedDesc').split('\n').map((line, i) => (
+                            <React.Fragment key={i}>{i > 0 && <br />}{line}</React.Fragment>
+                        ))}
                     </p>
                 </div>
 
@@ -375,33 +383,33 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
                     <div className={`px-4 pb-4`}>
                         <div className={`rounded-xl p-4 ${darkMode ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
                             <div className={`text-[10px] font-bold uppercase tracking-wider mb-3 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                                <span className="inline-flex items-center gap-1"><BarChart3 size={16} /> 거래 기록 요약</span>
+                                <span className="inline-flex items-center gap-1"><BarChart3 size={16} /> {t('tradeSummary')}</span>
                             </div>
                             <div className="grid grid-cols-3 gap-3">
                                 <div className="text-center">
-                                    <div className={`text-xs mb-0.5 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>매수</div>
+                                    <div className={`text-xs mb-0.5 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{tc('buy')}</div>
                                     <div className={`text-sm font-bold ${darkMode ? 'text-rose-400' : 'text-rose-600'}`}>
-                                        {buyTrades.length}건
+                                        {tc('count', { count: buyTrades.length })}
                                     </div>
                                 </div>
                                 <div className="text-center">
-                                    <div className={`text-xs mb-0.5 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>매도</div>
+                                    <div className={`text-xs mb-0.5 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{tc('sell')}</div>
                                     <div className={`text-sm font-bold ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>
-                                        {sellTrades.length}건
+                                        {tc('count', { count: sellTrades.length })}
                                     </div>
                                 </div>
                                 <div className="text-center">
-                                    <div className={`text-xs mb-0.5 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>보유</div>
+                                    <div className={`text-xs mb-0.5 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{t('holding')}</div>
                                     <div className={`text-sm font-bold ${darkMode ? 'text-slate-200' : 'text-slate-900'}`}>
-                                        {holdingQty.toLocaleString()}주
+                                        {holdingQty.toLocaleString()}{tc('shares')}
                                     </div>
                                 </div>
                             </div>
                             {averageBuyPrice && holdingQty > 0 && (
                                 <div className={`mt-3 pt-3 border-t text-center ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
-                                    <div className={`text-xs mb-0.5 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>평균 매수가</div>
+                                    <div className={`text-xs mb-0.5 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{t('avgBuyPrice')}</div>
                                     <div className={`text-sm font-bold ${darkMode ? 'text-indigo-400' : 'text-indigo-600'}`}>
-                                        {Math.round(averageBuyPrice).toLocaleString()}원
+                                        {Math.round(averageBuyPrice).toLocaleString()}
                                     </div>
                                 </div>
                             )}
@@ -418,7 +426,7 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
                             : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                             }`}
                     >
-                        🔄 다시 시도
+                        {t('retryButton')}
                     </button>
                 </div>
             </div>
@@ -431,7 +439,7 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
                 <div className={`flex flex-col items-center justify-center ${compact ? 'py-6' : 'py-12'}`}>
                     <TrendingUp className={`w-6 h-6 mb-2 ${darkMode ? 'text-slate-600' : 'text-slate-300'}`} />
                     <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                        해당 기간의 데이터가 없습니다
+                        {t('noDataForPeriod')}
                     </p>
                 </div>
             </div>
@@ -445,11 +453,11 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
                 <div className="flex items-center gap-2">
                     <TrendingUp className={`w-4 h-4 ${darkMode ? 'text-indigo-400' : 'text-indigo-600'}`} />
                     <h3 className={`text-sm font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
-                        주가 차트
+                        {t('stockChart')}
                     </h3>
                     {averageBuyPrice && (
                         <span className={`text-xs px-2 py-0.5 rounded-full ${darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600'}`}>
-                            평균단가 {formatNumber(averageBuyPrice)}
+                            {t('avgPrice', { price: formatNumber(averageBuyPrice, undefined, numLocale) })}
                         </span>
                     )}
                 </div>
@@ -477,7 +485,7 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
 
             {/* MA Toggle */}
             <div className={`flex items-center gap-2 px-4 py-2 border-b ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
-                <span className={`text-[10px] font-medium ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>이동평균:</span>
+                <span className={`text-[10px] font-medium ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>{t('movingAverage')}</span>
                 <button
                     onClick={() => setShowMA(prev => ({ ...prev, ma5: !prev.ma5 }))}
                     className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${showMA.ma5
@@ -545,7 +553,7 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
                                 strokeDasharray="5 5"
                                 strokeWidth={1.5}
                                 label={{
-                                    value: `평균 ${Math.round(averageBuyPrice).toLocaleString()}`,
+                                    value: t('avgLabel', { price: Math.round(averageBuyPrice).toLocaleString() }),
                                     position: 'insideBottomRight',
                                     fill: '#3b82f6',
                                     fontSize: 10,
@@ -608,7 +616,7 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
                 <div className={`flex items-center gap-1.5 px-2 mb-1`}>
                     <Activity className={`w-3 h-3 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`} />
                     <span className={`text-[10px] font-bold ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                        거래량
+                        {t('volume')}
                     </span>
                 </div>
                 <ResponsiveContainer width="100%" height={volumeChartHeight}>

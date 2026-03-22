@@ -103,7 +103,10 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        const symbols = symbolsParam.split(',').map(s => s.trim()).filter(Boolean);
+        const SYMBOL_PATTERN = /^[A-Za-z0-9.\-^]{1,20}$/;
+        const symbols = symbolsParam.split(',').map(s => s.trim()).filter(Boolean)
+            .slice(0, 20)
+            .filter(s => SYMBOL_PATTERN.test(s));
         if (symbols.length === 0) {
             return NextResponse.json(
                 { error: 'At least one symbol is required' },

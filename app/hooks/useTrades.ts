@@ -1,11 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
+import { useTranslations } from 'next-intl';
 import { supabase } from '@/app/lib/supabaseClient';
 import { Trade, TradeSide } from '@/app/types/trade';
 
 const GUEST_TRADES_KEY = 'stock-journal-guest-trades-v1';
 
 export function useTrades(user: User | null) {
+    const t = useTranslations('analysis.hook');
+    const tRef = useRef(t);
+    tRef.current = t;
     const [trades, setTrades] = useState<Trade[]>([]); // Current active trades (DB or Guest)
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -33,8 +37,8 @@ export function useTrades(user: User | null) {
 
                 if (error) {
                     console.error('Error fetching trades:', error);
-                    const errorMsg = error.message || '매매 기록을 불러오는데 실패했습니다.';
-                    if (mounted) setError(`데이터 로딩 실패: ${errorMsg}`);
+                    const errorMsg = error.message || tRef.current('loadTradesFailed');
+                    if (mounted) setError(tRef.current('dataLoadFailed', { message: errorMsg }));
                 } else {
                     if (mounted) {
                         interface TradeWithStrategy extends Trade {
@@ -124,7 +128,7 @@ export function useTrades(user: User | null) {
             } else {
                 // Guest Local Insert
                 const newTrade: Trade = {
-                    id: `guest-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                    id: `guest-${crypto.randomUUID()}`,
                     date,
                     symbol,
                     symbol_name: symbol_name || undefined,
@@ -203,7 +207,7 @@ export function useTrades(user: User | null) {
                 // Guest 모드: localStorage
                 const guestTrades: Trade[] = newTrades.map(t => ({
                     ...t,
-                    id: `guest-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                    id: `guest-${crypto.randomUUID()}`,
                 }));
                 setTrades(prev => [...guestTrades, ...prev]);
                 return guestTrades.length;
