@@ -2,7 +2,6 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, setRequestLocale, getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { routing } from '@/i18n/routing';
-import { ThemeProvider } from '../components/ThemeProvider';
 import { Analytics } from '@vercel/analytics/next';
 import { SharedTopNav } from '../components/ui/SharedTopNav';
 import { AppBottomNav } from '../components/ui/AppBottomNav';
@@ -50,20 +49,13 @@ export default async function LocaleLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale} dir="ltr" className={fontVariables} suppressHydrationWarning>
-      <body className="antialiased tracking-tight bg-background text-foreground min-h-screen">
+    <html lang={locale} dir="ltr" className={`${fontVariables} dark`} suppressHydrationWarning>
+      <body className="antialiased tracking-tight bg-background text-foreground min-h-screen" style={{ colorScheme: 'dark' }}>
         <NextIntlClientProvider messages={messages}>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="dark"
-            forcedTheme="dark"
-            disableTransitionOnChange
-          >
-            <SharedTopNav />
-            {children}
-            <AppBottomNav />
-            <Analytics />
-          </ThemeProvider>
+          <SharedTopNav />
+          {children}
+          <AppBottomNav />
+          <Analytics />
         </NextIntlClientProvider>
       </body>
     </html>

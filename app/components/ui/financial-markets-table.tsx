@@ -2,7 +2,6 @@
 
 import { useState, useSyncExternalStore } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { useTheme } from "next-themes";
 
 export interface MarketIndex {
     id: string;
@@ -134,8 +133,7 @@ export function FinancialTable({
     const [selectedIndex, setSelectedIndex] = useState<string | null>("1");
     const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
     const shouldReduceMotion = useReducedMotion();
-    const { resolvedTheme } = useTheme();
-    const isDark = resolvedTheme === "dark";
+    const isDark = true; // forcedTheme="dark" - always dark mode
 
     const handleIndexSelect = (indexId: string) => {
         setSelectedIndex(indexId);
