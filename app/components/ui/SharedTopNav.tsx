@@ -1,8 +1,8 @@
 'use client'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { Link, usePathname } from '@/i18n/navigation'
 import { LineChart } from 'lucide-react'
 import { AppNavTabs } from './AppNavTabs'
+import { LanguageSwitcher } from './LanguageSwitcher'
 
 const APP_ROUTES = ['/trade', '/news', '/tools']
 
@@ -21,7 +21,10 @@ export function SharedTopNav() {
             <span className="text-blue-400">Stock</span>Journal
           </span>
         </Link>
-        <AppNavTabs />
+        <div className="flex items-center gap-2">
+          <AppNavTabs />
+          <LanguageSwitcher />
+        </div>
       </div>
     </nav>
   )

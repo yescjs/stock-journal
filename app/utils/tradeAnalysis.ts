@@ -19,11 +19,14 @@ import {
   TimingMetrics,
   MonthlyStats,
   EquityCurvePoint,
-  HOLDING_PERIOD_LABELS,
-  WEEKDAY_LABELS,
-  EMOTION_LABELS,
-  TRADING_STYLE_LABELS,
-  RISK_LEVEL_LABELS,
+  HOLDING_PERIOD_LABELS_I18N,
+  WEEKDAY_LABELS_I18N,
+  EMOTION_LABELS_I18N,
+  TRADING_STYLE_LABELS_I18N,
+  RISK_LEVEL_LABELS_I18N,
+  NO_TAG_LABEL_I18N,
+  CLOSE_LABEL_I18N,
+  WEEKDAY_SUFFIX_I18N,
 } from '@/app/types/analysis';
 
 // ─── FIFO Round Trip Matching ────────────────────────────────────────────
@@ -161,17 +164,22 @@ function buildPatternStats(label: string, trips: RoundTrip[]): PatternStats {
 }
 
 /** Calculate stats grouped by entry weekday */
-export function calcWeekdayStats(roundTrips: RoundTrip[]): PatternStats[] {
+export function calcWeekdayStats(roundTrips: RoundTrip[], locale: string = 'ko'): PatternStats[] {
+  const loc = locale.startsWith('ko') ? 'ko' : 'en';
+  const labels = WEEKDAY_LABELS_I18N[loc];
+  const suffix = WEEKDAY_SUFFIX_I18N[loc];
   // Only include trading days (Mon-Fri, indices 1-5)
   return [1, 2, 3, 4, 5].map(day => {
     const dayTrips = roundTrips.filter(t => t.entryWeekday === day);
-    return buildPatternStats(`${WEEKDAY_LABELS[day]}요일`, dayTrips);
+    return buildPatternStats(`${labels[day]}${suffix}`, dayTrips);
   });
 }
 
 /** Calculate stats grouped by holding period category */
-export function calcHoldingPeriodStats(roundTrips: RoundTrip[]): PatternStats[] {
-  return Object.entries(HOLDING_PERIOD_LABELS).map(([, config]) => {
+export function calcHoldingPeriodStats(roundTrips: RoundTrip[], locale: string = 'ko'): PatternStats[] {
+  const loc = locale.startsWith('ko') ? 'ko' : 'en';
+  const labels = HOLDING_PERIOD_LABELS_I18N[loc];
+  return Object.entries(labels).map(([, config]) => {
     const filtered = roundTrips.filter(
       t => t.holdingDays >= config.minDays && t.holdingDays <= config.maxDays
     );
@@ -180,23 +188,26 @@ export function calcHoldingPeriodStats(roundTrips: RoundTrip[]): PatternStats[] 
 }
 
 /** Calculate stats grouped by emotion tag */
-export function calcEmotionStats(roundTrips: RoundTrip[]): PatternStats[] {
+export function calcEmotionStats(roundTrips: RoundTrip[], locale: string = 'ko'): PatternStats[] {
+  const loc = locale.startsWith('ko') ? 'ko' : 'en';
+  const emotionLabels = EMOTION_LABELS_I18N[loc];
+  const noTagLabel = NO_TAG_LABEL_I18N[loc];
   const tagSet = new Set<string>();
   for (const t of roundTrips) {
     if (t.emotionTag) tagSet.add(t.emotionTag);
   }
 
-  // Include "미설정" for trades without emotion tag
+  // Include no-tag label for trades without emotion tag
   const noTagTrips = roundTrips.filter(t => !t.emotionTag);
   const stats: PatternStats[] = [];
 
   if (noTagTrips.length > 0) {
-    stats.push(buildPatternStats('미설정', noTagTrips));
+    stats.push(buildPatternStats(noTagLabel, noTagTrips));
   }
 
   for (const tag of tagSet) {
     const filtered = roundTrips.filter(t => t.emotionTag === tag);
-    const label = EMOTION_LABELS[tag] || tag;
+    const label = emotionLabels[tag] || tag;
     stats.push(buildPatternStats(label, filtered));
   }
 
@@ -204,7 +215,9 @@ export function calcEmotionStats(roundTrips: RoundTrip[]): PatternStats[] {
 }
 
 /** Calculate stats grouped by strategy */
-export function calcStrategyStats(roundTrips: RoundTrip[]): PatternStats[] {
+export function calcStrategyStats(roundTrips: RoundTrip[], locale: string = 'ko'): PatternStats[] {
+  const loc = locale.startsWith('ko') ? 'ko' : 'en';
+  const noStrategyLabel = loc === 'ko' ? '전략 미설정' : 'No Strategy';
   const strategySet = new Set<string>();
   for (const t of roundTrips) {
     if (t.strategyName) strategySet.add(t.strategyName);
@@ -214,7 +227,7 @@ export function calcStrategyStats(roundTrips: RoundTrip[]): PatternStats[] {
   const stats: PatternStats[] = [];
 
   if (noStratTrips.length > 0) {
-    stats.push(buildPatternStats('전략 미설정', noStratTrips));
+    stats.push(buildPatternStats(noStrategyLabel, noStratTrips));
   }
 
   for (const strat of strategySet) {
@@ -563,10 +576,14 @@ export function generateInsights(
   concentration: ConcentrationItem[],
   streaks: StreakInfo,
   winRate: number,
-  profitFactor: number
+  profitFactor: number,
+  locale: string = 'ko'
 ): InsightItem[] {
+  const loc = locale.startsWith('ko') ? 'ko' : 'en';
   const insights: InsightItem[] = [];
   let id = 0;
+
+  const noStrategyLabel = loc === 'ko' ? '전략 미설정' : 'No Strategy';
 
   // 1. Best weekday
   const bestWeekday = weekdayStats
@@ -577,8 +594,12 @@ export function generateInsights(
       id: `insight-${id++}`,
       icon: '📈',
       type: 'positive',
-      title: `${bestWeekday.label} 매매 성적 우수`,
-      description: `${bestWeekday.label}에 진입한 매매의 승률이 ${bestWeekday.winRate.toFixed(0)}%로 가장 높습니다 (${bestWeekday.count}건).`,
+      title: loc === 'ko'
+        ? `${bestWeekday.label} 매매 성적 우수`
+        : `Strong ${bestWeekday.label} Performance`,
+      description: loc === 'ko'
+        ? `${bestWeekday.label}에 진입한 매매의 승률이 ${bestWeekday.winRate.toFixed(0)}%로 가장 높습니다 (${bestWeekday.count}건).`
+        : `Trades entered on ${bestWeekday.label} have the highest win rate at ${bestWeekday.winRate.toFixed(0)}% (${bestWeekday.count} trades).`,
     });
   }
 
@@ -591,8 +612,12 @@ export function generateInsights(
       id: `insight-${id++}`,
       icon: '📉',
       type: 'warning',
-      title: `${worstWeekday.label} 매매 주의`,
-      description: `${worstWeekday.label}에 진입한 매매의 승률이 ${worstWeekday.winRate.toFixed(0)}%로 가장 낮습니다. 이 요일의 매매를 줄여보세요.`,
+      title: loc === 'ko'
+        ? `${worstWeekday.label} 매매 주의`
+        : `Caution on ${worstWeekday.label}`,
+      description: loc === 'ko'
+        ? `${worstWeekday.label}에 진입한 매매의 승률이 ${worstWeekday.winRate.toFixed(0)}%로 가장 낮습니다. 이 요일의 매매를 줄여보세요.`
+        : `Trades entered on ${worstWeekday.label} have the lowest win rate at ${worstWeekday.winRate.toFixed(0)}%. Consider reducing trades on this day.`,
     });
   }
 
@@ -605,21 +630,28 @@ export function generateInsights(
       id: `insight-${id++}`,
       icon: '⏰',
       type: 'positive',
-      title: `${bestHolding.label} 수익률 우수`,
-      description: `${bestHolding.label}의 평균 수익률이 ${bestHolding.avgReturn.toFixed(1)}%로 가장 높습니다 (${bestHolding.count}건).`,
+      title: loc === 'ko'
+        ? `${bestHolding.label} 수익률 우수`
+        : `${bestHolding.label} Returns Excel`,
+      description: loc === 'ko'
+        ? `${bestHolding.label}의 평균 수익률이 ${bestHolding.avgReturn.toFixed(1)}%로 가장 높습니다 (${bestHolding.count}건).`
+        : `${bestHolding.label} trades have the highest avg return at ${bestHolding.avgReturn.toFixed(1)}% (${bestHolding.count} trades).`,
     });
   }
 
   // 4. Emotion-based insights
-  const plannedStat = emotionStats.find(s => s.label === EMOTION_LABELS['PLANNED']);
-  const fomoStat = emotionStats.find(s => s.label === EMOTION_LABELS['FOMO']);
+  const emotionLabels = EMOTION_LABELS_I18N[loc] || EMOTION_LABELS_I18N.ko;
+  const plannedStat = emotionStats.find(s => s.label === emotionLabels['PLANNED']);
+  const fomoStat = emotionStats.find(s => s.label === emotionLabels['FOMO']);
   if (fomoStat && fomoStat.count >= 2 && fomoStat.winRate < 50) {
     insights.push({
       id: `insight-${id++}`,
       icon: '⚠️',
       type: 'warning',
-      title: 'FOMO 매매 손실 높음',
-      description: `FOMO 매매의 승률이 ${fomoStat.winRate.toFixed(0)}%입니다. 계획된 매매를 우선하세요.`,
+      title: loc === 'ko' ? 'FOMO 매매 손실 높음' : 'High FOMO Trading Losses',
+      description: loc === 'ko'
+        ? `FOMO 매매의 승률이 ${fomoStat.winRate.toFixed(0)}%입니다. 계획된 매매를 우선하세요.`
+        : `FOMO trades have a ${fomoStat.winRate.toFixed(0)}% win rate. Prioritize planned trades.`,
     });
   }
   if (plannedStat && plannedStat.count >= 2 && plannedStat.winRate > 60) {
@@ -627,22 +659,28 @@ export function generateInsights(
       id: `insight-${id++}`,
       icon: '✅',
       type: 'positive',
-      title: '계획된 매매 성적 우수',
-      description: `계획된 매매의 승률이 ${plannedStat.winRate.toFixed(0)}%로, 감정적 매매보다 월등히 높습니다.`,
+      title: loc === 'ko' ? '계획된 매매가 효과적' : 'Planned Trades Are Effective',
+      description: loc === 'ko'
+        ? `계획된 매매의 승률이 ${plannedStat.winRate.toFixed(0)}%로 가장 높습니다.`
+        : `Planned trades have the highest win rate at ${plannedStat.winRate.toFixed(0)}%.`,
     });
   }
 
   // 5. Best strategy
   const bestStrategy = strategyStats
-    .filter(s => s.count >= 2 && s.label !== '전략 미설정')
+    .filter(s => s.count >= 2 && s.label !== noStrategyLabel)
     .sort((a, b) => b.winRate - a.winRate)[0];
   if (bestStrategy && bestStrategy.winRate > 50) {
     insights.push({
       id: `insight-${id++}`,
       icon: '🏆',
       type: 'positive',
-      title: `"${bestStrategy.label}" 전략 성과 우수`,
-      description: `이 전략의 승률이 ${bestStrategy.winRate.toFixed(0)}%로 가장 높습니다 (${bestStrategy.count}건, 평균 수익 ${bestStrategy.avgReturn.toFixed(1)}%).`,
+      title: loc === 'ko'
+        ? `"${bestStrategy.label}" 전략 성과 우수`
+        : `"${bestStrategy.label}" Strategy Excels`,
+      description: loc === 'ko'
+        ? `이 전략의 승률이 ${bestStrategy.winRate.toFixed(0)}%로 가장 높습니다 (${bestStrategy.count}건, 평균 수익 ${bestStrategy.avgReturn.toFixed(1)}%).`
+        : `This strategy has the highest win rate at ${bestStrategy.winRate.toFixed(0)}% (${bestStrategy.count} trades, avg return ${bestStrategy.avgReturn.toFixed(1)}%).`,
     });
   }
 
@@ -654,8 +692,10 @@ export function generateInsights(
       id: `insight-${id++}`,
       icon: '⚡',
       type: 'warning',
-      title: '포트폴리오 집중 위험',
-      description: `전체 투자금의 ${top.percentage.toFixed(0)}%가 ${top.symbolName || top.symbol}에 집중되어 있습니다. 분산 투자를 고려하세요.`,
+      title: loc === 'ko' ? '포트폴리오 집중 위험' : 'Portfolio Concentration Risk',
+      description: loc === 'ko'
+        ? `전체 투자금의 ${top.percentage.toFixed(0)}%가 ${top.symbolName || top.symbol}에 집중되어 있습니다. 분산 투자를 고려하세요.`
+        : `${top.percentage.toFixed(0)}% of your portfolio is concentrated in ${top.symbolName || top.symbol}. Consider diversifying.`,
     });
   }
 
@@ -665,8 +705,12 @@ export function generateInsights(
       id: `insight-${id++}`,
       icon: '🚨',
       type: 'critical',
-      title: `${streaks.currentLoss}연패 진행 중`,
-      description: `현재 ${streaks.currentLoss}연속 손실 중입니다. 포지션 축소 또는 매매 중단을 고려해보세요.`,
+      title: loc === 'ko'
+        ? `${streaks.currentLoss}연패 진행 중`
+        : `${streaks.currentLoss}-Loss Streak in Progress`,
+      description: loc === 'ko'
+        ? `현재 ${streaks.currentLoss}연속 손실 중입니다. 포지션 축소 또는 매매 중단을 고려해보세요.`
+        : `You are on a ${streaks.currentLoss}-trade losing streak. Consider reducing position size or pausing trading.`,
     });
   }
 
@@ -676,8 +720,12 @@ export function generateInsights(
       id: `insight-${id++}`,
       icon: '🔥',
       type: 'positive',
-      title: `${streaks.currentWin}연승 중!`,
-      description: `매우 좋은 흐름입니다. 하지만 과신하지 말고 리스크 관리를 유지하세요.`,
+      title: loc === 'ko'
+        ? `${streaks.currentWin}연승 중!`
+        : `${streaks.currentWin}-Win Streak!`,
+      description: loc === 'ko'
+        ? `매우 좋은 흐름입니다. 하지만 과신하지 말고 리스크 관리를 유지하세요.`
+        : `Great momentum! But stay disciplined and maintain your risk management.`,
     });
   }
 
@@ -688,16 +736,24 @@ export function generateInsights(
         id: `insight-${id++}`,
         icon: '👍',
         type: 'positive',
-        title: `전체 승률 ${winRate.toFixed(0)}% 양호`,
-        description: `현재 투자 스타일이 잘 맞고 있습니다. 일관성을 유지하세요.`,
+        title: loc === 'ko'
+          ? `전체 승률 ${winRate.toFixed(0)}% 양호`
+          : `Overall Win Rate ${winRate.toFixed(0)}% — Solid`,
+        description: loc === 'ko'
+          ? `현재 투자 스타일이 잘 맞고 있습니다. 일관성을 유지하세요.`
+          : `Your current trading style is working well. Stay consistent.`,
       });
     } else if (winRate < 40) {
       insights.push({
         id: `insight-${id++}`,
         icon: '💭',
         type: 'warning',
-        title: `전체 승률 ${winRate.toFixed(0)}% 개선 필요`,
-        description: `진입 타이밍이나 종목 선정을 재검토해보세요. 손절 기준을 명확히 하면 도움이 됩니다.`,
+        title: loc === 'ko'
+          ? `전체 승률 ${winRate.toFixed(0)}% 개선 필요`
+          : `Overall Win Rate ${winRate.toFixed(0)}% — Needs Improvement`,
+        description: loc === 'ko'
+          ? `진입 타이밍이나 종목 선정을 재검토해보세요. 손절 기준을 명확히 하면 도움이 됩니다.`
+          : `Review your entry timing and stock selection. Setting clear stop-loss levels can help.`,
       });
     }
   }
@@ -709,16 +765,24 @@ export function generateInsights(
         id: `insight-${id++}`,
         icon: '💰',
         type: 'positive',
-        title: `수익 팩터 ${profitFactor.toFixed(1)} — 우수`,
-        description: `손실 대비 수익이 ${profitFactor.toFixed(1)}배로, 안정적인 수익 구조를 갖추고 있습니다.`,
+        title: loc === 'ko'
+          ? `수익 팩터 ${profitFactor.toFixed(1)} — 우수`
+          : `Profit Factor ${profitFactor.toFixed(1)} — Excellent`,
+        description: loc === 'ko'
+          ? `손실 대비 수익이 ${profitFactor.toFixed(1)}배로, 안정적인 수익 구조를 갖추고 있습니다.`
+          : `Your gains are ${profitFactor.toFixed(1)}x your losses, indicating a solid profit structure.`,
       });
     } else if (profitFactor < 1) {
       insights.push({
         id: `insight-${id++}`,
         icon: '📊',
         type: 'critical',
-        title: `수익 팩터 ${profitFactor.toFixed(1)} — 손실 구간`,
-        description: `현재 수익보다 손실이 큽니다. 손절 라인을 더 타이트하게 설정해보세요.`,
+        title: loc === 'ko'
+          ? `수익 팩터 ${profitFactor.toFixed(1)} — 손실 구간`
+          : `Profit Factor ${profitFactor.toFixed(1)} — In the Red`,
+        description: loc === 'ko'
+          ? `현재 수익보다 손실이 큽니다. 손절 라인을 더 타이트하게 설정해보세요.`
+          : `Your losses exceed your gains. Consider tightening your stop-loss levels.`,
       });
     }
   }
@@ -729,8 +793,10 @@ export function generateInsights(
       id: `insight-${id++}`,
       icon: '📋',
       type: 'neutral',
-      title: '데이터 수집 중',
-      description: `현재 ${roundTrips.length}건의 완결된 매매가 있습니다. 더 많은 매매 데이터가 쌓이면 유의미한 패턴을 발견할 수 있습니다.`,
+      title: loc === 'ko' ? '데이터 수집 중' : 'Gathering Data',
+      description: loc === 'ko'
+        ? `현재 ${roundTrips.length}건의 완결된 매매가 있습니다. 더 많은 매매 데이터가 쌓이면 유의미한 패턴을 발견할 수 있습니다.`
+        : `You have ${roundTrips.length} completed trades so far. More trade data will reveal meaningful patterns.`,
     });
   }
 
@@ -740,7 +806,8 @@ export function generateInsights(
 // ─── Monthly Stats ───────────────────────────────────────────────────────
 
 /** Group round trips by exit month and return monthly performance stats */
-export function calcMonthlyStats(roundTrips: RoundTrip[]): MonthlyStats[] {
+export function calcMonthlyStats(roundTrips: RoundTrip[], rawLocale: string = 'ko'): MonthlyStats[] {
+  const locale = rawLocale.startsWith('ko') ? 'ko' : 'en';
   const byMonth = new Map<string, RoundTrip[]>();
 
   for (const trip of roundTrips) {
@@ -761,7 +828,10 @@ export function calcMonthlyStats(roundTrips: RoundTrip[]): MonthlyStats[] {
       currencySet.size === 1 ? (currencySet.has('KRW') ? 'KRW' : 'USD') : 'mixed';
 
     const [year, m] = month.split('-');
-    const label = `${year.slice(2)}년 ${parseInt(m)}월`;
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const label = locale === 'ko'
+      ? `${year.slice(2)}년 ${parseInt(m)}월`
+      : `${monthNames[parseInt(m) - 1]} '${year.slice(2)}`;
 
     stats.push({
       month,
@@ -782,18 +852,20 @@ export function calcMonthlyStats(roundTrips: RoundTrip[]): MonthlyStats[] {
 // ─── Equity Curve ────────────────────────────────────────────────────────
 
 /** Build cumulative P&L curve from round trips sorted by exit date */
-export function calcEquityCurve(roundTrips: RoundTrip[]): EquityCurvePoint[] {
+export function calcEquityCurve(roundTrips: RoundTrip[], rawLocale: string = 'ko'): EquityCurvePoint[] {
+  const locale = rawLocale.startsWith('ko') ? 'ko' : 'en';
   const sorted = [...roundTrips].sort(
     (a, b) => new Date(a.exitDate).getTime() - new Date(b.exitDate).getTime()
   );
 
+  const closeLabel = CLOSE_LABEL_I18N[locale] || CLOSE_LABEL_I18N.ko;
   let cumPnl = 0;
   return sorted.map(trip => {
     cumPnl += trip.pnl;
     return {
       date: trip.exitDate,
       cumulativePnl: cumPnl,
-      tradeLabel: `${trip.symbolName || trip.symbol} 청산`,
+      tradeLabel: `${trip.symbolName || trip.symbol} ${closeLabel}`,
     };
   });
 }
@@ -801,13 +873,15 @@ export function calcEquityCurve(roundTrips: RoundTrip[]): EquityCurvePoint[] {
 // ─── Full Analysis Pipeline ──────────────────────────────────────────────
 
 /** Run the complete analysis pipeline on trade data */
-export function analyzeTradesComplete(trades: Trade[]): TradeAnalysis {
+export function analyzeTradesComplete(trades: Trade[], locale: string = 'ko'): TradeAnalysis {
+  // Normalize locale to 'ko' or 'en'
+  const loc = locale.startsWith('ko') ? 'ko' : 'en';
   const roundTrips = matchRoundTrips(trades);
 
-  const weekdayStats = calcWeekdayStats(roundTrips);
-  const holdingPeriodStats = calcHoldingPeriodStats(roundTrips);
-  const emotionStats = calcEmotionStats(roundTrips);
-  const strategyStats = calcStrategyStats(roundTrips);
+  const weekdayStats = calcWeekdayStats(roundTrips, loc);
+  const holdingPeriodStats = calcHoldingPeriodStats(roundTrips, loc);
+  const emotionStats = calcEmotionStats(roundTrips, loc);
+  const strategyStats = calcStrategyStats(roundTrips, loc);
   const concentration = calcConcentration(trades);
   const streaks = calcStreaks(roundTrips);
 
@@ -829,11 +903,13 @@ export function analyzeTradesComplete(trades: Trade[]): TradeAnalysis {
   const riskLevel = detectRiskLevel(roundTrips);
   const overallGrade = calcOverallGrade(winRate, profitFactor, avgReturn, maxDrawdownPct, consistencyScore);
 
+  const tradingStyleLabels = TRADING_STYLE_LABELS_I18N[loc];
+  const riskLevelLabels = RISK_LEVEL_LABELS_I18N[loc];
   const profile: UserProfile = {
     tradingStyle,
-    tradingStyleLabel: TRADING_STYLE_LABELS[tradingStyle],
+    tradingStyleLabel: tradingStyleLabels[tradingStyle],
     riskLevel,
-    riskLevelLabel: RISK_LEVEL_LABELS[riskLevel],
+    riskLevelLabel: riskLevelLabels[riskLevel],
     overallGrade,
     totalTrades,
     winRate,
@@ -846,7 +922,7 @@ export function analyzeTradesComplete(trades: Trade[]): TradeAnalysis {
 
   const insights = generateInsights(
     roundTrips, weekdayStats, holdingPeriodStats, emotionStats,
-    strategyStats, concentration, streaks, winRate, profitFactor
+    strategyStats, concentration, streaks, winRate, profitFactor, loc
   );
 
   const advancedMetrics = calcAdvancedMetrics(roundTrips);

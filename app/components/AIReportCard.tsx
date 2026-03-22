@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Bot, RefreshCw, X, ChevronDown, ChevronUp, Sparkles, Gem } from 'lucide-react';
 import { markdownComponents } from '@/app/components/AIReportHistory';
+import { useTranslations, useLocale } from 'next-intl';
 
 interface AIReportCardProps {
   title: string;
@@ -37,6 +38,10 @@ export function AIReportCard({
   isLoggedIn = true,
 }: AIReportCardProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const t = useTranslations('analysis.aiReport');
+  const tc = useTranslations('common');
+  const locale = useLocale();
+  const numLocale = locale === 'ko' ? 'ko-KR' : 'en-US';
 
   return (
     <div className={`rounded-2xl border transition-all ${report
@@ -59,14 +64,14 @@ export function AIReportCard({
               {report && (
                 <span className="hidden sm:inline-flex items-center gap-1 text-xs text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full">
                   <Sparkles size={9} />
-                  AI 생성
+                  {t('aiGenerated')}
                 </span>
               )}
             </div>
             {subtitle && <p className="text-xs text-white/30 truncate">{subtitle}</p>}
             {generatedAt && (
               <p className="text-xs text-white/20">
-                {new Date(generatedAt).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 생성
+                {new Date(generatedAt).toLocaleString(numLocale, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} {t('generated')}
               </p>
             )}
           </div>
@@ -77,7 +82,7 @@ export function AIReportCard({
             <button
               onClick={() => setCollapsed(c => !c)}
               className="p-1.5 rounded-lg text-white/30 hover:text-white/60 transition-colors"
-              title={collapsed ? '펼치기' : '접기'}
+              title={collapsed ? t('expand') : t('collapse')}
             >
               {collapsed ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
             </button>
@@ -86,20 +91,20 @@ export function AIReportCard({
             <button
               onClick={onClear}
               className="p-1.5 rounded-lg text-white/20 hover:text-white/40 transition-colors"
-              title="초기화"
+              title={t('reset')}
             >
               <X size={14} />
             </button>
           )}
           {!isLoggedIn ? (
-            <div className="text-xs text-white/30 px-2">로그인 필요</div>
+            <div className="text-xs text-white/30 px-2">{tc('loginRequired')}</div>
           ) : coinCost !== undefined && coinBalance < coinCost && !report ? (
             <button
               onClick={onChargeCoins}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border bg-yellow-500/15 text-yellow-400 border-yellow-500/20 hover:bg-yellow-500/25 transition-all"
             >
               <Gem size={11} />
-              코인 부족 ({coinBalance}/{coinCost})
+              {t('coinShort', { balance: coinBalance, cost: coinCost })}
             </button>
           ) : (
             <button
@@ -113,7 +118,7 @@ export function AIReportCard({
                 }`}
             >
               <Sparkles size={11} />
-              {loading ? '생성 중...' : report ? '재생성' : coinCost ? `AI 분석 (${coinCost}💎)` : 'AI 분석'}
+              {loading ? t('generating') : report ? t('regenerate') : coinCost ? t('analyzeWithCoin', { cost: coinCost }) : t('analyze')}
             </button>
           )}
         </div>
@@ -142,8 +147,8 @@ export function AIReportCard({
       {!report && !loading && !error && (
         <div className="px-5 pb-5 text-xs text-white/20 leading-relaxed">
           {compact
-            ? '이 거래에 대한 AI 피드백을 받아보세요.'
-            : '매매 데이터를 기반으로 AI가 투자 코치 리포트를 생성합니다. 승률, 감정 패턴, 전략 효과 등을 종합 분석합니다.'
+            ? t('emptyCompact')
+            : t('emptyFull')
           }
         </div>
       )}

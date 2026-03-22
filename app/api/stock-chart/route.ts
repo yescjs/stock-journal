@@ -36,6 +36,14 @@ export async function GET(request: NextRequest) {
             );
         }
 
+        const SYMBOL_PATTERN = /^[A-Za-z0-9.\-^]{1,20}$/;
+        if (!SYMBOL_PATTERN.test(symbol)) {
+            return NextResponse.json(
+                { error: 'Invalid symbol format' },
+                { status: 400 }
+            );
+        }
+
         // 기간별 interval 설정
         const { range, interval } = getPeriodConfig(period);
 

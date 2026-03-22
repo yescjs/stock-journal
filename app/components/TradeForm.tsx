@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo, ChangeEvent, FormEvent, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import { User } from '@supabase/supabase-js';
 import { TradeSide, Trade } from '@/app/types/trade';
 import { getCurrencySymbol } from '@/app/utils/format';
@@ -51,13 +52,13 @@ interface TradeFormProps {
     };
 }
 
-const EMOTION_OPTIONS = [
-    { value: 'PLANNED', label: '📋 계획된 매매', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
-    { value: 'FOMO', label: '😰 FOMO', color: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20' },
-    { value: 'FEAR', label: '😨 공포', color: 'text-orange-400 bg-orange-500/10 border-orange-500/20' },
-    { value: 'GREED', label: '🤑 탐욕', color: 'text-purple-400 bg-purple-500/10 border-purple-500/20' },
-    { value: 'REVENGE', label: '😤 복수', color: 'text-red-400 bg-red-500/10 border-red-500/20' },
-    { value: 'IMPULSE', label: '⚡ 충동', color: 'text-pink-400 bg-pink-500/10 border-pink-500/20' },
+const EMOTION_OPTION_META = [
+    { value: 'PLANNED', emoji: '📋', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
+    { value: 'FOMO', emoji: '😰', color: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20' },
+    { value: 'FEAR', emoji: '😨', color: 'text-orange-400 bg-orange-500/10 border-orange-500/20' },
+    { value: 'GREED', emoji: '🤑', color: 'text-purple-400 bg-purple-500/10 border-purple-500/20' },
+    { value: 'REVENGE', emoji: '😤', color: 'text-red-400 bg-red-500/10 border-red-500/20' },
+    { value: 'IMPULSE', emoji: '⚡', color: 'text-pink-400 bg-pink-500/10 border-pink-500/20' },
 ];
 
 export function TradeForm({
@@ -71,6 +72,18 @@ export function TradeForm({
     prefill,
     currentUser,
 }: TradeFormProps) {
+    const t = useTranslations('trade.form');
+    const tc = useTranslations('common');
+    const te = useTranslations('emotion');
+    const tRoot = useTranslations();
+
+    const EMOTION_OPTIONS = useMemo(() =>
+        EMOTION_OPTION_META.map(opt => ({
+            ...opt,
+            label: `${opt.emoji} ${te(opt.value as 'PLANNED' | 'FOMO' | 'FEAR' | 'GREED' | 'REVENGE' | 'IMPULSE')}`,
+        })),
+    [te]);
+
     const [form, setForm] = useState({
         date: initialData?.date || new Date().toISOString().slice(0, 10),
         symbol: initialData?.symbol || prefill?.symbol || '',
@@ -149,7 +162,7 @@ export function TradeForm({
 
     const handleInitiateSaveTemplate = () => {
         if (!form.symbol) return;
-        const defaultName = `${form.symbol_name || form.symbol} ${form.side === 'BUY' ? '매수' : '매도'}`;
+        const defaultName = t('defaultTemplateName', { symbol: form.symbol_name || form.symbol, side: form.side === 'BUY' ? tc('buy') : tc('sell') });
         setSavingTemplateName(defaultName);
         setTimeout(() => templateNameInputRef.current?.focus(), 50);
     };
@@ -164,7 +177,7 @@ export function TradeForm({
             quantity: Number(form.quantity) || 1,
         });
         setSavingTemplateName(null);
-        if (!ok) alert(`템플릿은 최대 ${MAX_TEMPLATES}개까지 저장할 수 있습니다.`);
+        if (!ok) alert(t('templateMaxAlert', { max: MAX_TEMPLATES }));
     };
 
     // Update form when initialData changes (편집 모드 - emotion_tag 포함)
@@ -202,15 +215,15 @@ export function TradeForm({
 
     // Validate form and return true/false
     const validateForm = (): boolean => {
-        if (!form.date) { alert('날짜를 선택해주세요.'); return false; }
-        if (!form.symbol || form.symbol.trim() === '') { alert('종목을 선택해주세요.'); return false; }
-        if (!form.price || form.price.trim() === '') { alert('가격을 입력해주세요.'); return false; }
-        if (!form.quantity || form.quantity.trim() === '') { alert('수량을 입력해주세요.'); return false; }
+        if (!form.date) { alert(t('validateDate')); return false; }
+        if (!form.symbol || form.symbol.trim() === '') { alert(t('validateSymbol')); return false; }
+        if (!form.price || form.price.trim() === '') { alert(t('validatePrice')); return false; }
+        if (!form.quantity || form.quantity.trim() === '') { alert(t('validateQuantity')); return false; }
         const p = Number(form.price), q = Number(form.quantity);
-        if (Number.isNaN(p) || Number.isNaN(q)) { alert('가격과 수량은 숫자로 입력해주세요.'); return false; }
-        if (p <= 0) { alert('가격은 0보다 큰 값을 입력해주세요.'); return false; }
-        if (q <= 0) { alert('수량은 0보다 큰 값을 입력해주세요.'); return false; }
-        if (q % 1 !== 0) { alert('수량은 정수로 입력해주세요.'); return false; }
+        if (Number.isNaN(p) || Number.isNaN(q)) { alert(t('validateNumber')); return false; }
+        if (p <= 0) { alert(t('validatePricePositive')); return false; }
+        if (q <= 0) { alert(t('validateQuantityPositive')); return false; }
+        if (q % 1 !== 0) { alert(t('validateQuantityInteger')); return false; }
         return true;
     };
 
@@ -279,8 +292,8 @@ export function TradeForm({
                 <div className="mb-4 p-4 rounded-xl bg-gradient-to-r from-yellow-500/10 to-emerald-500/10 border border-yellow-500/20 flex items-center gap-3">
                     <PartyPopper size={20} className="text-yellow-400 flex-none" />
                     <div>
-                        <div className="text-sm font-bold text-white">첫 거래 기록 완료!</div>
-                        <div className="text-xs text-white/50">매매 일지를 시작했어요. 꾸준히 기록하면 AI가 패턴을 분석해줍니다.</div>
+                        <div className="text-sm font-bold text-white">{t('celebrationTitle')}</div>
+                        <div className="text-xs text-white/50">{t('celebrationDesc')}</div>
                     </div>
                 </div>
             )}
@@ -293,14 +306,14 @@ export function TradeForm({
                         </div>
                         <div>
                             <h2 className="text-lg font-bold text-foreground">
-                                {initialData ? '매매 기록 수정' : '새 매매 기록'}
+                                {initialData ? t('editTrade') : t('newTrade')}
                             </h2>
                             <p className="text-xs font-medium text-muted-foreground">
                                 {prefill
-                                    ? `이전 거래 복사 (${prefill.symbol_name || prefill.symbol})`
+                                    ? t('copiedTrade', { symbol: prefill.symbol_name || prefill.symbol })
                                     : isFirstTrade
-                                    ? '첫 번째 매매를 기록해보세요!'
-                                    : '오늘도 원칙을 지키는 매매 하세요!'}
+                                    ? t('firstTradeGuide')
+                                    : t('dailyMessage')}
                             </p>
                         </div>
                     </div>
@@ -312,7 +325,7 @@ export function TradeForm({
                 <div className="mb-4 p-3 rounded-xl border border-blue-500/15 bg-blue-500/5 flex items-start gap-2">
                     <Info size={14} className="text-blue-400 flex-none mt-0.5" />
                     <p className="text-xs text-blue-300/70 leading-relaxed">
-                        종목 티커(예: AAPL, 005930)를 검색하고, 매수/매도 구분·단가·수량을 입력하세요. 저장하면 AI가 패턴을 분석합니다.
+                        {t('firstTradeHelp')}
                     </p>
                 </div>
             )}
@@ -326,7 +339,7 @@ export function TradeForm({
                         className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-white/10 bg-white/5 text-white/50 hover:text-white/80 hover:bg-white/8 transition-all"
                     >
                         <ChevronDown size={13} className={`transition-transform ${showTemplateDropdown ? 'rotate-180' : ''}`} />
-                        템플릿 불러오기
+                        {t('templateLoad')}
                     </button>
                     {showTemplateDropdown && (
                         <div className="absolute top-full left-0 mt-1 w-64 z-20 rounded-xl border border-white/10 bg-card shadow-toss-lg overflow-hidden">
@@ -338,12 +351,12 @@ export function TradeForm({
                                         className="flex-1 flex items-center gap-2 px-3 py-2.5 text-left"
                                     >
                                         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md flex-none ${tpl.side === 'BUY' ? 'bg-color-up/10 text-color-up' : 'bg-color-down/10 text-color-down'}`}>
-                                            {tpl.side === 'BUY' ? '매수' : '매도'}
+                                            {tpl.side === 'BUY' ? tc('buy') : tc('sell')}
                                         </span>
                                         <div className="flex-1 min-w-0">
                                             <div className="text-xs font-semibold text-white truncate">{tpl.name}</div>
                                             {tpl.symbol_name && tpl.symbol_name !== tpl.name && (
-                                                <div className="text-[10px] text-white/40 truncate">{tpl.symbol} · {tpl.quantity.toLocaleString()}주</div>
+                                                <div className="text-[10px] text-white/40 truncate">{tpl.symbol} · {tpl.quantity.toLocaleString()} {tc('shares')}</div>
                                             )}
                                         </div>
                                     </button>
@@ -351,7 +364,7 @@ export function TradeForm({
                                         type="button"
                                         onClick={() => deleteTemplate(tpl.id)}
                                         className="p-2 text-white/20 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100 mr-1"
-                                        title="삭제"
+                                        title={tc('delete')}
                                     >
                                         <X size={12} />
                                     </button>
@@ -366,7 +379,7 @@ export function TradeForm({
                 {/* Row 1: Date & Side */}
                 <div className="flex flex-col sm:grid sm:grid-cols-12 gap-3 sm:items-end">
                     <div className="sm:col-span-7">
-                        <label className={labelClass}>날짜</label>
+                        <label className={labelClass}>{t('dateLabel')}</label>
                         <DatePicker
                             selectedDate={form.date}
                             onChange={(dateObj, dateStr) => setForm(prev => ({ ...prev, date: dateStr }))}
@@ -384,7 +397,7 @@ export function TradeForm({
                                         : 'bg-color-up/8 text-color-up border-2 border-color-up/25 hover:bg-color-up/15'
                                 }`}
                             >
-                                매수
+                                {tc('buy')}
                             </button>
                             <button
                                 type="button"
@@ -395,7 +408,7 @@ export function TradeForm({
                                         : 'bg-color-down/8 text-color-down border-2 border-color-down/25 hover:bg-color-down/15'
                                 }`}
                             >
-                                매도
+                                {tc('sell')}
                             </button>
                         </div>
                     </div>
@@ -404,8 +417,8 @@ export function TradeForm({
                 {/* Row 2: Symbol with Autocomplete */}
                 <div>
                     <label className={labelClass}>
-                        종목명
-                        {isFirstTrade && <span className="ml-1.5 text-blue-400/60">(티커로 검색 · 예: AAPL, 005930)</span>}
+                        {t('symbolLabel')}
+                        {isFirstTrade && <span className="ml-1.5 text-blue-400/60">{t('symbolFirstTradeHint')}</span>}
                     </label>
                     <StockSymbolInput
                         value={form.symbol}
@@ -419,9 +432,9 @@ export function TradeForm({
                 {/* Row 3: Price & Quantity */}
                 <div className="grid grid-cols-2 gap-3">
                     <div>
-                        <label className={labelClass} title="1주당 매매 단가를 입력하세요">
-                            단가 {form.symbol && <span className={darkMode ? 'text-indigo-400' : 'text-indigo-600'}>({getCurrencySymbol(form.symbol)})</span>}
-                            {isFirstTrade && !form.symbol && <span className="ml-1 text-white/25 text-xs">↑ 종목 선택 후 입력</span>}
+                        <label className={labelClass} title={t('priceTitle')}>
+                            {t('priceLabel')} {form.symbol && <span className={darkMode ? 'text-indigo-400' : 'text-indigo-600'}>({getCurrencySymbol(form.symbol)})</span>}
+                            {isFirstTrade && !form.symbol && <span className="ml-1 text-white/25 text-xs">{t('priceAfterSymbol')}</span>}
                         </label>
                         <div className="relative">
                             {form.symbol && getCurrencySymbol(form.symbol) === '$' && (
@@ -435,7 +448,7 @@ export function TradeForm({
                                 value={form.price}
                                 onChange={handleChange}
                                 className={inputBaseClass + ' font-mono text-right ' + (form.symbol && getCurrencySymbol(form.symbol) === '$' ? 'pl-10' : '') + (form.symbol && getCurrencySymbol(form.symbol) === '원' ? ' pr-10' : '')}
-                                title="매수/매도 단가"
+                                title={t('buyPriceTitle')}
                             />
                             {form.symbol && getCurrencySymbol(form.symbol) === '원' && (
                                 <span className={`absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold ${darkMode ? 'text-indigo-400' : 'text-indigo-500'}`}>원</span>
@@ -443,9 +456,9 @@ export function TradeForm({
                         </div>
                     </div>
                     <div>
-                        <label className={labelClass} title="매매한 수량을 입력하세요">
-                            수량
-                            {isFirstTrade && <span className="ml-1 text-white/25 text-xs">(주식 수)</span>}
+                        <label className={labelClass} title={t('quantityTitle')}>
+                            {t('quantityLabel')}
+                            {isFirstTrade && <span className="ml-1 text-white/25 text-xs">{t('quantityHint')}</span>}
                         </label>
                         <input
                             type="number"
@@ -455,7 +468,7 @@ export function TradeForm({
                             value={form.quantity}
                             onChange={handleChange}
                             className={inputBaseClass + ' text-right font-mono'}
-                            title="매수/매도 수량"
+                            title={t('buyQuantityTitle')}
                         />
                     </div>
                 </div>
@@ -469,10 +482,10 @@ export function TradeForm({
                     >
                         <div className="flex items-center gap-2">
                             <Brain size={13} className="text-white/50 flex-none" />
-                            <span className="text-xs font-semibold">심화 기록 (체크리스트 · 심리태그)</span>
+                            <span className="text-xs font-semibold">{t('advancedToggle')}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-medium text-white/35 border border-white/15 rounded-md px-1.5 py-0.5">선택</span>
+                            <span className="text-[10px] font-medium text-white/35 border border-white/15 rounded-md px-1.5 py-0.5">{t('advancedOptional')}</span>
                             {showAdvanced
                                 ? <ChevronUp size={14} />
                                 : <ChevronDown size={14} />
@@ -498,7 +511,7 @@ export function TradeForm({
                                             <div className="space-y-1.5">
                                                 <div className="flex items-center gap-1.5">
                                                     <AlertTriangle size={13} className="text-yellow-400" />
-                                                    <span className="text-xs font-bold text-yellow-400">감지된 패턴</span>
+                                                    <span className="text-xs font-bold text-yellow-400">{t('detectedPatterns')}</span>
                                                 </div>
                                                 {emotionWarnings.map((w, i) => (
                                                     <div
@@ -511,8 +524,8 @@ export function TradeForm({
                                                                     : 'bg-blue-500/5 border-blue-500/15 text-blue-300'
                                                         }`}
                                                     >
-                                                        <span className="font-bold">{w.icon} {w.title}</span>
-                                                        <p className="text-white/40 mt-0.5">{w.description}</p>
+                                                        <span className="font-bold">{w.icon} {tRoot(w.titleKey)}</span>
+                                                        <p className="text-white/40 mt-0.5">{tRoot(w.descriptionKey, w.descriptionParams)}</p>
                                                     </div>
                                                 ))}
                                             </div>
@@ -523,14 +536,14 @@ export function TradeForm({
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-1.5">
                                                     <Brain size={13} className="text-indigo-400" />
-                                                    <span className="text-xs font-bold text-white">체크리스트</span>
+                                                    <span className="text-xs font-bold text-white">{t('checklist')}</span>
                                                 </div>
                                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                                                     disciplineScore >= 80 ? 'bg-emerald-500/10 text-emerald-400' :
                                                     disciplineScore >= 60 ? 'bg-yellow-500/10 text-yellow-400' :
                                                     'bg-red-500/10 text-red-400'
                                                 }`}>
-                                                    {checklist.filter(c => c.checked).length}/{checklist.length} 완료
+                                                    {t('checklistProgress', { checked: checklist.filter(c => c.checked).length, total: checklist.length })}
                                                 </span>
                                             </div>
                                             {checklist.map(item => (
@@ -550,9 +563,9 @@ export function TradeForm({
                                                     }
                                                     <div className="min-w-0">
                                                         <div className={`text-xs font-bold ${item.checked ? 'text-emerald-400' : 'text-white/60'}`}>
-                                                            {item.label}
+                                                            {tRoot(item.labelKey)}
                                                         </div>
-                                                        <p className="text-[10px] text-white/30 mt-0.5 leading-relaxed">{item.description}</p>
+                                                        <p className="text-[10px] text-white/30 mt-0.5 leading-relaxed">{tRoot(item.descriptionKey)}</p>
                                                     </div>
                                                 </button>
                                             ))}
@@ -560,7 +573,7 @@ export function TradeForm({
 
                                         {/* 심리 태그 */}
                                         <div className="space-y-1.5">
-                                            <span className="text-xs font-bold text-white">진입 심리 태그</span>
+                                            <span className="text-xs font-bold text-white">{t('psychologyTag')}</span>
                                             <div className="flex flex-wrap gap-1.5">
                                                 {EMOTION_OPTIONS.map(opt => (
                                                     <button
@@ -593,7 +606,7 @@ export function TradeForm({
                         className="gap-2"
                     >
                         <Save size={18} strokeWidth={2} />
-                        {initialData ? '수정 완료' : '기록 저장하기'}
+                        {initialData ? t('updateButton') : t('saveButton')}
                     </Button>
 
                     {/* Template Save */}
@@ -609,14 +622,14 @@ export function TradeForm({
                                         if (e.key === 'Enter') { e.preventDefault(); handleConfirmSaveTemplate(); }
                                         if (e.key === 'Escape') setSavingTemplateName(null);
                                     }}
-                                    placeholder="템플릿 이름"
+                                    placeholder={t('templateName')}
                                     className="flex-1 px-3 py-2 h-9 text-xs font-semibold rounded-xl outline-none bg-muted/50 text-foreground border border-border/50 focus:border-primary focus:ring-1 focus:ring-primary/20"
                                 />
                                 <button
                                     type="button"
                                     onClick={handleConfirmSaveTemplate}
                                     className="p-2 rounded-xl bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                                    title="저장"
+                                    title={tc('save')}
                                 >
                                     <Check size={15} />
                                 </button>
@@ -624,7 +637,7 @@ export function TradeForm({
                                     type="button"
                                     onClick={() => setSavingTemplateName(null)}
                                     className="p-2 rounded-xl bg-white/5 text-white/40 hover:text-white transition-colors"
-                                    title="취소"
+                                    title={tc('cancel')}
                                 >
                                     <X size={15} />
                                 </button>
@@ -637,7 +650,7 @@ export function TradeForm({
                                     className="flex items-center justify-center gap-1.5 w-full py-2 rounded-xl text-xs font-semibold text-white/30 hover:text-white/60 hover:bg-white/5 transition-all border border-dashed border-white/10 hover:border-white/20"
                                 >
                                     <BookmarkPlus size={13} />
-                                    템플릿으로 저장
+                                    {t('templateSave')}
                                 </button>
                             )
                         )

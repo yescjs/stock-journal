@@ -12,4 +12,20 @@ export interface NewsArticle {
   source_url: string | null
   published_at: string
   created_at: string
+  // i18n fields
+  title_en?: string | null
+  summary_en?: string | null
+  key_points_en?: string[] | null
+}
+
+export function localizeArticle(article: NewsArticle, locale: string): NewsArticle {
+  if (locale === 'en') {
+    return {
+      ...article,
+      title: article.title_en ?? article.title,
+      summary: article.summary_en ?? article.summary,
+      key_points: article.key_points_en ?? article.key_points,
+    };
+  }
+  return article;
 }

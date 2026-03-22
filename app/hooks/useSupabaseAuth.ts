@@ -30,9 +30,8 @@ export function useSupabaseAuth() {
                 // Enhanced JWT error handling
                 const errorMessage = error instanceof Error ? error.message : 'Unknown error';
                 const isJWTError = errorMessage.includes('JWT') ||
-                    errorMessage.includes('json') ||
-                    errorMessage.includes('token') ||
-                    errorMessage.includes('Expected 3 parts');
+                    errorMessage.includes('Expected 3 parts') ||
+                    (errorMessage.includes('Unexpected token') && errorMessage.includes('JSON'));
 
                 if (isJWTError) {
                     // Clear corrupted auth data from localStorage
@@ -53,9 +52,9 @@ export function useSupabaseAuth() {
                     // Sign out to reset auth state
                     await supabase.auth.signOut();
                     setUser(null);
-                    setAuthError('인증 정보가 손상되었습니다. 다시 로그인해주세요.');
+                    setAuthError('AUTH_CORRUPTED');
                 } else {
-                    setAuthError('인증 확인 중 오류가 발생했습니다.');
+                    setAuthError('AUTH_CHECK_FAILED');
                 }
 
                 if (mounted) {

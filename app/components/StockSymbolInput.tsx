@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, KeyboardEvent } from 'react';
 import { StockSearchResult } from '@/app/types/search';
 import { useDebounce } from '@/app/hooks/useDebounce';
 import { Search, Loader2, TrendingUp } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface StockSymbolInputProps {
     value: string;
@@ -19,9 +20,11 @@ export function StockSymbolInput({
     initialDisplayName,
     onChange,
     darkMode,
-    placeholder = '종목명 또는 코드 검색 (예: 삼성전자, AAPL)',
+    placeholder,
     disabled = false
 }: StockSymbolInputProps) {
+    const t = useTranslations('stockSearch');
+    const resolvedPlaceholder = placeholder ?? t('placeholder');
     const [query, setQuery] = useState(initialDisplayName || value);
     const [results, setResults] = useState<StockSearchResult[]>([]);
     const [isOpen, setIsOpen] = useState(false);
@@ -192,14 +195,14 @@ export function StockSymbolInput({
                     onFocus={() => {
                         if (results.length > 0) setIsOpen(true);
                     }}
-                    placeholder={placeholder}
+                    placeholder={resolvedPlaceholder}
                     disabled={disabled}
                     className={`w-full ${disabled ? 'pl-10 pr-3 py-2 bg-slate-100 text-slate-500 cursor-not-allowed' : 'pl-10 pr-3 py-3'} text-sm font-bold rounded-xl outline-none transition-all border ${darkMode
                         ? (disabled ? 'bg-slate-800/50 text-slate-500 border-slate-700/50' : 'bg-slate-800/40 text-white placeholder-slate-500 border-slate-700/50 focus:bg-slate-800 focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20')
                         : (disabled ? 'bg-slate-100 text-slate-500 border-slate-200' : 'bg-white/50 text-slate-900 placeholder-slate-400 border-indigo-50/50 focus:bg-white focus:border-indigo-200 focus:ring-2 focus:ring-indigo-100 shadow-sm')
                         }`}
                     role="combobox"
-                    aria-label="종목 검색"
+                    aria-label={t('ariaLabel')}
                     aria-autocomplete="list"
                     aria-controls="stock-search-results"
                     aria-expanded={isOpen}
@@ -271,8 +274,8 @@ export function StockSymbolInput({
                         <div className="w-12 h-12 mx-auto mb-2 rounded-xl flex items-center justify-center bg-slate-100 dark:bg-slate-800">
                             <Search className="w-6 h-6 opacity-50" />
                         </div>
-                        <p className="text-sm font-bold">&apos;{debouncedQuery}&apos; 검색 결과 없음</p>
-                        <p className="text-xs mt-1 opacity-70">종목명 또는 종목 코드를 다시 확인해주세요</p>
+                        <p className="text-sm font-bold">{t('noResults', { query: debouncedQuery })}</p>
+                        <p className="text-xs mt-1 opacity-70">{t('noResultsHint')}</p>
                     </div>
                 )
             }

@@ -3,6 +3,7 @@
 import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Download, X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface GuestMigrationModalProps {
     isOpen: boolean;
@@ -19,6 +20,9 @@ export function GuestMigrationModal({
     onMigrate,
     onSkip,
 }: GuestMigrationModalProps) {
+    const t = useTranslations('migration');
+    const tc = useTranslations('common');
+
     return (
         <AnimatePresence>
             {isOpen && (
@@ -45,15 +49,15 @@ export function GuestMigrationModal({
                                         <Download size={18} className="text-blue-400" />
                                     </div>
                                     <div>
-                                        <h2 className="text-white font-bold text-base">게스트 데이터 가져오기</h2>
-                                        <p className="text-white/40 text-xs mt-0.5">로그인 전 기록한 거래 내역</p>
+                                        <h2 className="text-white font-bold text-base">{t('title')}</h2>
+                                        <p className="text-white/40 text-xs mt-0.5">{t('subtitle')}</p>
                                     </div>
                                 </div>
                                 <button
                                     onClick={!loading ? onSkip : undefined}
                                     disabled={loading}
                                     className="text-white/30 hover:text-white/60 transition-colors disabled:opacity-40 shrink-0 ml-2"
-                                    aria-label="닫기"
+                                    aria-label={tc('close')}
                                 >
                                     <X size={16} />
                                 </button>
@@ -61,12 +65,12 @@ export function GuestMigrationModal({
 
                             <div className="bg-blue-500/8 border border-blue-500/20 rounded-xl px-4 py-3 mb-5">
                                 <p className="text-white/80 text-sm leading-relaxed">
-                                    로그인 전 기록한{' '}
-                                    <span className="text-blue-400 font-bold">{tradeCount}개</span>의 거래 내역을
-                                    계정에 저장할까요?
+                                    {t.rich('prompt', {
+                                        count: tradeCount,
+                                    })}
                                 </p>
                                 <p className="text-white/40 text-xs mt-1.5">
-                                    가져오지 않으면 게스트 데이터는 삭제됩니다.
+                                    {t('warning')}
                                 </p>
                             </div>
 
@@ -76,7 +80,7 @@ export function GuestMigrationModal({
                                     disabled={loading}
                                     className="flex-1 py-2.5 rounded-xl border border-white/10 text-white/50 hover:text-white/80 hover:border-white/20 text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
-                                    건너뜀
+                                    {t('skipButton')}
                                 </button>
                                 <button
                                     onClick={onMigrate}
@@ -86,10 +90,10 @@ export function GuestMigrationModal({
                                     {loading ? (
                                         <>
                                             <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                            <span>가져오는 중...</span>
+                                            <span>{t('importing')}</span>
                                         </>
                                     ) : (
-                                        <span>가져오기 ({tradeCount}건)</span>
+                                        <span>{t('importButton', { count: tradeCount })}</span>
                                     )}
                                 </button>
                             </div>

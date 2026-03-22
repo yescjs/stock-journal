@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { History, ChevronDown, Trash2, FileText, Loader2 } from 'lucide-react';
+import { useTranslations, useLocale } from 'next-intl';
 import { SavedReport } from '@/app/hooks/useAIAnalysis';
 
 interface AIReportHistoryProps {
@@ -96,27 +97,18 @@ export const markdownComponents = {
     ),
 };
 
-function formatDate(dateStr: string): string {
-    const d = new Date(dateStr);
-    return d.toLocaleString('ko-KR', {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-    });
-}
-
 function ReportTypeLabel({ type }: { type: string }) {
+    const t = useTranslations('analysis.reportHistory');
     if (type === 'weekly_report') {
         return (
             <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-400">
-                종합 분석
+                {t('weeklyReport')}
             </span>
         );
     }
     return (
         <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-400">
-            거래 리뷰
+            {t('tradeReview')}
         </span>
     );
 }
@@ -124,12 +116,15 @@ function ReportTypeLabel({ type }: { type: string }) {
 export function AIReportHistory({ reports, loading, onDelete }: AIReportHistoryProps) {
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const t = useTranslations('analysis.reportHistory');
+    const tc = useTranslations('common');
+    const locale = useLocale();
 
     if (loading) {
         return (
             <div className="p-5 rounded-2xl border border-white/8 bg-white/3 flex items-center justify-center gap-2 text-white/30 text-sm">
                 <Loader2 size={16} className="animate-spin" />
-                리포트 목록 불러오는 중...
+                {t('loading')}
             </div>
         );
     }
@@ -147,9 +142,9 @@ export function AIReportHistory({ reports, loading, onDelete }: AIReportHistoryP
         <div className="p-5 rounded-2xl border border-white/8 bg-white/3">
             <div className="flex items-center gap-2 mb-4">
                 <History size={16} className="text-indigo-400" />
-                <h3 className="text-sm font-bold text-white">저장된 AI 분석 리포트</h3>
+                <h3 className="text-sm font-bold text-white">{t('title')}</h3>
                 <span className="text-xs text-white/20 bg-white/5 px-2 py-0.5 rounded-full">
-                    {reports.length}건
+                    {tc('count', { count: reports.length })}
                 </span>
             </div>
 
@@ -177,7 +172,12 @@ export function AIReportHistory({ reports, loading, onDelete }: AIReportHistoryP
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-0.5">
                                         <ReportTypeLabel type={report.report_type} />
-                                        <span className="text-xs text-white/20">{formatDate(report.created_at)}</span>
+                                        {report.locale && report.locale !== locale && (
+                                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/8 text-white/40 uppercase">
+                                                {report.locale}
+                                            </span>
+                                        )}
+                                        <span className="text-xs text-white/20">{new Date(report.created_at).toLocaleString(locale === 'ko' ? 'ko-KR' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                                     </div>
                                     <div className="text-xs font-medium text-white/70 truncate">
                                         {report.title}
@@ -191,7 +191,7 @@ export function AIReportHistory({ reports, loading, onDelete }: AIReportHistoryP
                                         }}
                                         disabled={isDeleting}
                                         className="p-1.5 rounded-lg text-white/15 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                                        title="삭제"
+                                        title={tc('delete')}
                                     >
                                         {isDeleting ? (
                                             <Loader2 size={12} className="animate-spin" />

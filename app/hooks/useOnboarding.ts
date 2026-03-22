@@ -135,7 +135,7 @@ export function useOnboarding(user: User | null) {
         }
       }
     },
-    [user, data]
+    [user, data, track]
   );
 
   const dismiss = useCallback(() => {

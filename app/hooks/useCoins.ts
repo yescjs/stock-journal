@@ -61,7 +61,7 @@ export function useCoins(user: User | null): UseCoinsReturn {
       const data = await res.json()
       setTransactions(data.transactions ?? [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : '내역 로딩 실패')
+      setError(err instanceof Error ? err.message : 'Failed to load transactions')
     } finally {
       setLoading(false)
     }

@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import { Trade } from '@/app/types/trade';
-import { formatMonthLabel, formatQuantity, formatPrice, getKoreanWeekdayLabel } from '@/app/utils/format';
+import { formatMonthLabel, formatQuantity, formatPrice } from '@/app/utils/format';
 import { Pencil, Trash2, Copy, ChevronDown, Calendar, ListTodo } from 'lucide-react';
 import { Card } from '@/app/components/ui/Card';
 import { Button } from '@/app/components/ui/Button';
@@ -67,6 +68,10 @@ export function TradeList({
     currentPrices = {},
     heldSymbols,
 }: TradeListProps) {
+    const tl = useTranslations('trade.list');
+    const tc = useTranslations('common');
+    const locale = useLocale();
+
     // Pre-compute avg buy price per symbol for SELL realized P&L
     const avgBuyPriceMap = useMemo(() => {
         const source = allTrades ?? trades;
@@ -107,11 +112,11 @@ export function TradeList({
 
         return keys.map((key) => ({
             key,
-            label: formatMonthLabel(key),
+            label: formatMonthLabel(key, locale),
             trades: map.get(key)!,
             count: map.get(key)!.length,
         }));
-    }, [trades]);
+    }, [trades, locale]);
 
     // Check if any BUY trade has a current price available
     const hasCurrentPrices = Object.keys(currentPrices).length > 0;
@@ -133,9 +138,9 @@ export function TradeList({
                 <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 bg-muted">
                     <ListTodo className="text-muted-foreground" size={32} />
                 </div>
-                <h3 className="font-bold text-lg mb-2 text-foreground">아직 작성된 매매 일지가 없습니다</h3>
+                <h3 className="font-bold text-lg mb-2 text-foreground">{tl('emptyTitle')}</h3>
                 <p className="text-sm text-muted-foreground">
-                    우측의 &apos;일지 작성&apos; 버튼을 눌러 첫 기록을 남겨보세요!
+                    {tl('emptyDesc')}
                 </p>
             </Card>
         );
@@ -165,7 +170,7 @@ export function TradeList({
                                         {group.label}
                                     </h3>
                                     <span className="text-xs font-medium text-muted-foreground">
-                                        총 {group.count}건의 매매 기록
+                                        {tl('totalRecords', { count: group.count })}
                                     </span>
                                 </div>
                             </div>
@@ -184,27 +189,28 @@ export function TradeList({
                                     <table className="w-full text-sm text-left border-collapse">
                                         <thead className="text-xs font-semibold uppercase tracking-wide border-b border-border/50 bg-muted/20 text-muted-foreground">
                                             <tr>
-                                                <th className="px-4 py-3 whitespace-nowrap w-[100px]">날짜</th>
-                                                <th className="px-4 py-3 w-[200px]">종목</th>
-                                                <th className="px-4 py-3 text-right">진입가</th>
+                                                <th className="px-4 py-3 whitespace-nowrap w-[100px]">{tl('dateHeader')}</th>
+                                                <th className="px-4 py-3 w-[200px]">{tl('symbolHeader')}</th>
+                                                <th className="px-4 py-3 text-right">{tl('entryPriceHeader')}</th>
                                                 {hasCurrentPrices && (
                                                     <>
-                                                        <th className="px-4 py-3 text-right">현재가</th>
-                                                        <th className="px-4 py-3 text-right">수익률</th>
-                                                        <th className="px-4 py-3 text-right">평가손익</th>
+                                                        <th className="px-4 py-3 text-right">{tl('currentPriceHeader')}</th>
+                                                        <th className="px-4 py-3 text-right">{tl('returnRateHeader')}</th>
+                                                        <th className="px-4 py-3 text-right">{tl('pnlHeader')}</th>
                                                     </>
                                                 )}
-                                                <th className="px-4 py-3 text-right">수량</th>
-                                                <th className="px-4 py-3 text-right">총액</th>
+                                                <th className="px-4 py-3 text-right">{tl('quantityHeader')}</th>
+                                                <th className="px-4 py-3 text-right">{tl('totalHeader')}</th>
                                                 {(onDelete || onEdit || onCopy) && (
-                                                    <th className="px-4 py-3 z-10 sticky right-0 text-center w-[100px] bg-card">관리</th>
+                                                    <th className="px-4 py-3 z-10 sticky right-0 text-center w-[100px] bg-card">{tl('actionsHeader')}</th>
                                                 )}
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-border/50">
                                             {group.trades.map((t) => {
                                                 const dateObj = new Date(t.date);
-                                                const dayOfWeek = isNaN(dateObj.getTime()) ? '' : new Intl.DateTimeFormat('ko-KR', { weekday: 'short' }).format(dateObj);
+                                                const dayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
+                                                const dayOfWeek = isNaN(dateObj.getTime()) ? '' : tc(`weekdays.${dayKeys[dateObj.getDay()]}`);
                                                 const amount = t.price * t.quantity;
                                                 const cp = currentPrices[t.symbol];
                                                 const isBuy = t.side === 'BUY';
@@ -246,7 +252,7 @@ export function TradeList({
                                                                         ? 'bg-up/15 text-up border-up/30'
                                                                         : 'bg-down/15 text-down border-down/30'}
                                                                 `}>
-                                                                    {t.side === 'BUY' ? '매수' : '매도'}
+                                                                    {t.side === 'BUY' ? tc('buy') : tc('sell')}
                                                                 </span>
 
                                                                 <div className="flex items-center gap-1.5 flex-nowrap">
@@ -255,7 +261,7 @@ export function TradeList({
                                                                     </span>
                                                                     {heldSymbols?.has(t.symbol) && (
                                                                         <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 leading-none whitespace-nowrap self-center shrink-0">
-                                                                            보유
+                                                                            {tc('held')}
                                                                         </span>
                                                                     )}
                                                                 </div>
@@ -331,7 +337,7 @@ export function TradeList({
                                                                         <button
                                                                             onClick={(e) => { e.stopPropagation(); onEdit?.(t); }}
                                                                             className="p-1.5 rounded-lg transition-colors bg-muted hover:bg-primary/10 hover:text-primary text-muted-foreground"
-                                                                            title="수정"
+                                                                            title={tl('editTitle')}
                                                                         >
                                                                             <Pencil size={14} />
                                                                         </button>
@@ -340,7 +346,7 @@ export function TradeList({
                                                                         <button
                                                                             onClick={(e) => { e.stopPropagation(); onCopy?.(t); }}
                                                                             className="p-1.5 rounded-lg transition-colors bg-muted hover:bg-blue-500/10 hover:text-blue-400 text-muted-foreground"
-                                                                            title="복사하여 새 거래 입력"
+                                                                            title={tl('copyTitle')}
                                                                         >
                                                                             <Copy size={14} />
                                                                         </button>
@@ -349,7 +355,7 @@ export function TradeList({
                                                                         <button
                                                                             onClick={(e) => { e.stopPropagation(); onDelete?.(t.id); }}
                                                                             className="p-1.5 rounded-lg transition-colors bg-muted hover:bg-destructive/10 hover:text-destructive text-muted-foreground"
-                                                                            title="삭제"
+                                                                            title={tl('deleteTitle')}
                                                                         >
                                                                             <Trash2 size={14} />
                                                                         </button>
@@ -368,7 +374,9 @@ export function TradeList({
                                 <div className={`md:hidden p-4 space-y-4`} data-testid="trade-list-mobile">
                                     {group.trades.map((t) => {
                                         const amount = t.price * t.quantity;
-                                        const dayOfWeek = getKoreanWeekdayLabel(t.date);
+                                        const mobileDateObj = new Date(t.date);
+                                        const mobileDayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
+                                        const dayOfWeek = isNaN(mobileDateObj.getTime()) ? '' : tc(`weekdayFull.${mobileDayKeys[mobileDateObj.getDay()]}`);
                                         const cp = currentPrices[t.symbol];
                                         const isBuy = t.side === 'BUY';
                                         const isSell = t.side === 'SELL';
@@ -401,7 +409,7 @@ export function TradeList({
                                                                 ? 'bg-up/15 text-up border-up/30'
                                                                 : 'bg-down/15 text-down border-down/30'}
                                                         `}>
-                                                            {t.side === 'BUY' ? '매수' : '매도'}
+                                                            {t.side === 'BUY' ? tc('buy') : tc('sell')}
                                                         </div>
                                                         <div className="min-w-0 flex-1">
                                                             <div className="flex items-center gap-1.5 flex-nowrap">
@@ -410,7 +418,7 @@ export function TradeList({
                                                                 </span>
                                                                 {heldSymbols?.has(t.symbol) && (
                                                                     <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 leading-none whitespace-nowrap self-center shrink-0">
-                                                                        보유
+                                                                        {tc('held')}
                                                                     </span>
                                                                 )}
                                                             </div>
@@ -431,7 +439,7 @@ export function TradeList({
                                                 {hasCp && (
                                                     <div className={`flex items-center justify-between px-3 py-2.5 rounded-xl ${getPnlBgClass(pnlPct)}`}>
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-xs font-medium text-muted-foreground">현재가</span>
+                                                            <span className="text-xs font-medium text-muted-foreground">{tl('currentPrice')}</span>
                                                             <span className="text-sm font-bold text-foreground">{displayPrice(cp, t.symbol)}</span>
                                                         </div>
                                                         <div className="flex items-center gap-3">
@@ -448,7 +456,7 @@ export function TradeList({
                                                 {hasSellPnl && (
                                                     <div className={`flex items-center justify-between px-3 py-2.5 rounded-xl ${getPnlBgClass(sellPnlAmt)}`}>
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-xs font-medium text-muted-foreground">실현 손익</span>
+                                                            <span className="text-xs font-medium text-muted-foreground">{tl('realizedPnl')}</span>
                                                         </div>
                                                         <div className="flex items-center gap-3">
                                                             <span className={`text-sm font-bold ${getPnlColorClass(sellPnlPct)}`}>
@@ -470,7 +478,7 @@ export function TradeList({
                                                             onClick={(e) => { e.stopPropagation(); onEdit?.(t); }}
                                                             className="h-9 px-3 rounded-xl gap-1.5 text-xs font-bold"
                                                         >
-                                                            <Pencil size={14} /> 수정
+                                                            <Pencil size={14} /> {tc('edit')}
                                                         </Button>
                                                     )}
                                                     {onCopy && (
@@ -480,7 +488,7 @@ export function TradeList({
                                                             onClick={(e) => { e.stopPropagation(); onCopy?.(t); }}
                                                             className="h-9 px-3 rounded-xl gap-1.5 text-xs font-bold text-blue-400 hover:bg-blue-500/10"
                                                         >
-                                                            <Copy size={14} /> 복사
+                                                            <Copy size={14} /> {tc('copy')}
                                                         </Button>
                                                     )}
                                                     {onDelete && (
@@ -490,7 +498,7 @@ export function TradeList({
                                                             onClick={(e) => { e.stopPropagation(); onDelete?.(t.id); }}
                                                             className="h-9 px-3 rounded-xl gap-1.5 text-xs font-bold text-destructive hover:bg-destructive/10"
                                                         >
-                                                            <Trash2 size={14} /> 삭제
+                                                            <Trash2 size={14} /> {tc('delete')}
                                                         </Button>
                                                     )}
                                                 </div>

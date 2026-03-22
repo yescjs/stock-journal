@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, getDay, isSameMonth } from 'date-fns';
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { useTranslations, useLocale } from 'next-intl';
 
 interface DatePickerProps {
     selectedDate: Date | string;
@@ -10,6 +11,9 @@ interface DatePickerProps {
 }
 
 export function DatePicker({ selectedDate, onChange, darkMode, className = '' }: DatePickerProps) {
+    const t = useTranslations('calendar');
+    const locale = useLocale();
+    const WEEKDAYS: string[] = t.raw('weekdays');
     const [isOpen, setIsOpen] = useState(false);
     const selectedDateObj = useMemo(() => new Date(selectedDate), [selectedDate]);
     // Derive currentMonth from selectedDate for sync
@@ -73,8 +77,6 @@ export function DatePicker({ selectedDate, onChange, darkMode, className = '' }:
     const displayDate = typeof selectedDate === 'string' ? new Date(selectedDate) : selectedDate;
     const formattedDate = format(displayDate, 'yyyy-MM-dd');
 
-    const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
-
     return (
         <div className={`relative ${className}`} ref={containerRef}>
             {/* Input Trigger */}
@@ -113,7 +115,7 @@ export function DatePicker({ selectedDate, onChange, darkMode, className = '' }:
                             <ChevronLeft size={20} />
                         </button>
                         <span className={`font-bold text-lg ${darkMode ? 'text-white' : 'text-slate-900'}`}>
-                            {format(currentMonth, 'yyyy년 M월')}
+                            {locale === 'ko' ? format(currentMonth, 'yyyy년 M월') : format(currentMonth, 'MMMM yyyy')}
                         </span>
                         <button
                             type="button"
@@ -126,8 +128,8 @@ export function DatePicker({ selectedDate, onChange, darkMode, className = '' }:
 
                     {/* Weekdays */}
                     <div className="grid grid-cols-7 mb-2">
-                        {WEEKDAYS.map(day => (
-                            <div key={day} className={`text-center text-xs font-bold ${day === '일' ? 'text-rose-500' : (day === '토' ? 'text-blue-500' : (darkMode ? 'text-slate-500' : 'text-slate-400'))}`}>
+                        {WEEKDAYS.map((day, idx) => (
+                            <div key={day} className={`text-center text-xs font-bold ${idx === 0 ? 'text-rose-500' : (idx === 6 ? 'text-blue-500' : (darkMode ? 'text-slate-500' : 'text-slate-400'))}`}>
                                 {day}
                             </div>
                         ))}

@@ -16,17 +16,18 @@ interface UseTradeAnalysisReturn {
 
 export function useTradeAnalysis(
   trades: Trade[],
-  user: User | null
+  user: User | null,
+  locale: string = 'ko'
 ): UseTradeAnalysisReturn {
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
 
-  // Memoized analysis — recalculates only when trades change
+  // Memoized analysis — recalculates only when trades or locale change
   const analysis = useMemo<TradeAnalysis | null>(() => {
     if (trades.length === 0) return null;
-    return analyzeTradesComplete(trades);
-  }, [trades]);
+    return analyzeTradesComplete(trades, locale);
+  }, [trades, locale]);
 
   // Sync analysis results to Supabase DB
   const syncToDatabase = useCallback(async () => {

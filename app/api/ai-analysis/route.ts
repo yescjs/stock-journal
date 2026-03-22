@@ -18,16 +18,20 @@ interface TradeReviewRequest {
   roundTrip: RoundTrip;
 }
 
-type AIAnalysisRequest = WeeklyReportRequest | TradeReviewRequest;
+interface BaseRequest {
+  locale?: string;
+}
+
+type AIAnalysisRequest = (WeeklyReportRequest | TradeReviewRequest) & BaseRequest;
 
 interface AIAnalysisResponse {
   report: string;
   generatedAt: string;
 }
 
-// ─── System Prompt ───────────────────────────────────────────────────────
+// ─── System Prompts ──────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `당신은 월스트리트 헤지펀드에서 10년 이상 트레이딩 코치로 활동한 전문 투자 코치입니다.
+const SYSTEM_PROMPT_KO = `당신은 월스트리트 헤지펀드에서 10년 이상 트레이딩 코치로 활동한 전문 투자 코치입니다.
 사용자의 매매 데이터를 심층 분석하고, 전문적이고 실행 가능한 피드백을 한국어로 제공합니다.
 
 반드시 지켜야 할 규칙:
@@ -43,6 +47,27 @@ const SYSTEM_PROMPT = `당신은 월스트리트 헤지펀드에서 10년 이상
 10. 업계 용어(수익 팩터, 최대 낙폭, 손익비, Expectancy 등)를 사용하되 괄호 안에 쉬운 설명을 병기합니다
 11. 체크리스트 섹션(## ✅ 다음 거래 전 체크리스트)은 반드시 \`- [ ]\` 형식의 마크다운 체크박스로만 작성합니다
 12. 체크리스트 각 항목에는 현재 수치를 괄호로 병기합니다. 예: \`- [ ] R:R 1.5 이상 확인 (현재 R:R: 0.8, 목표: 1.5)\``;
+
+const SYSTEM_PROMPT_EN = `You are a professional trading coach with 10+ years of experience at Wall Street hedge funds.
+You analyze users' trading data in depth and provide professional, actionable feedback in English.
+
+Rules you must follow:
+1. Always respond in **markdown** format, using bold/italic for readability
+2. Use emojis **only in ## level section headings**, never in body text (list items, mid-sentence, etc.)
+3. Analysis must be data-driven; do not speculate where data is missing
+4. Present strengths and areas for improvement in a balanced manner, always citing specific evidence
+5. Actively reference and interpret key metrics: win rate, return, profit factor, R:R ratio, Expectancy
+6. Never recommend specific stocks or make investment recommendations
+7. Maintain a professional yet approachable tone
+8. Write detailed responses of 2000-3000 characters
+9. In each section, explain "why" and "how to improve" rather than simply listing numbers
+10. Use industry terms (profit factor, max drawdown, risk-reward ratio, Expectancy) with brief explanations in parentheses
+11. The checklist section (## ✅ Pre-Trade Checklist) must use \`- [ ]\` markdown checkbox format only
+12. Each checklist item should include current metrics in parentheses. Example: \`- [ ] Confirm R:R ≥ 1.5 (Current R:R: 0.8, Target: 1.5)\``;
+
+function getSystemPrompt(locale?: string): string {
+  return locale === 'en' ? SYSTEM_PROMPT_EN : SYSTEM_PROMPT_KO;
+}
 
 // ─── Prompt Builders ─────────────────────────────────────────────────────
 
@@ -338,15 +363,36 @@ export async function POST(req: NextRequest): Promise<NextResponse<AIAnalysisRes
   try {
     const body = (await req.json()) as AIAnalysisRequest;
 
-    // 코인 차감 로직 (인증 사용자만)
+    // 입력 검증
+    if (!body.type || !['weekly_report', 'trade_review'].includes(body.type)) {
+      return NextResponse.json({ error: 'Invalid request type' }, { status: 400 });
+    }
+    if (body.type === 'weekly_report' && !(body as WeeklyReportRequest).analysis?.profile) {
+      return NextResponse.json({ error: 'Missing analysis data' }, { status: 400 });
+    }
+    if (body.type === 'trade_review' && !(body as TradeReviewRequest).roundTrip) {
+      return NextResponse.json({ error: 'Missing roundTrip data' }, { status: 400 });
+    }
+
+    // 인증 확인
     const { user } = await getAuthUser(req);
     const token = req.headers.get('Authorization')?.replace('Bearer ', '');
     const supabase = token ? createAuthedClient(token) : null;
 
+    // Mock mode: API 키 미설정 또는 비인증 사용자
+    if (!process.env.GEMINI_API_KEY || !user) {
+      const mockReport = buildMockReport(body);
+      return NextResponse.json({
+        report: mockReport,
+        generatedAt: new Date().toISOString(),
+      });
+    }
+
+    // 코인 차감 (인증된 사용자 + 실제 API 호출 시에만)
     const cost = body.type === 'weekly_report' ? COIN_COSTS.weekly_report : COIN_COSTS.trade_review;
     let coinDeducted = false;
 
-    if (user && supabase) {
+    if (supabase) {
       const { error: deductError } = await supabase.rpc('deduct_coins', {
         p_user_id: user.id,
         p_amount: cost,
@@ -364,25 +410,14 @@ export async function POST(req: NextRequest): Promise<NextResponse<AIAnalysisRes
     }
 
     try {
-      // Mock mode: API 키가 설정되지 않은 경우 샘플 리포트 반환
-      if (!process.env.GEMINI_API_KEY) {
-        const mockReport = buildMockReport(body);
-        return NextResponse.json({
-          report: mockReport,
-          generatedAt: new Date().toISOString(),
-        });
-      }
-
       let userPrompt: string;
       if (body.type === 'weekly_report') {
         userPrompt = buildWeeklyReportPrompt(body);
-      } else if (body.type === 'trade_review') {
-        userPrompt = buildTradeReviewPrompt(body);
       } else {
-        return NextResponse.json({ error: '알 수 없는 요청 타입입니다.' }, { status: 400 });
+        userPrompt = buildTradeReviewPrompt(body);
       }
 
-      const report = await callGeminiAPI(SYSTEM_PROMPT, userPrompt);
+      const report = await callGeminiAPI(getSystemPrompt(body.locale), userPrompt);
 
       return NextResponse.json({
         report,
@@ -390,14 +425,17 @@ export async function POST(req: NextRequest): Promise<NextResponse<AIAnalysisRes
       });
     } catch (err) {
       // AI 실패 시 코인 반환
-      if (coinDeducted && user && supabase) {
-        await supabase.rpc('add_coins', {
+      if (coinDeducted && supabase) {
+        const { error: refundError } = await supabase.rpc('add_coins', {
           p_user_id: user.id,
           p_amount: cost,
           p_type: 'refund',
           p_ref_type: body.type,
           p_ref_id: null,
         });
+        if (refundError) {
+          console.error('Coin refund failed:', refundError);
+        }
       }
       throw err;
     }
