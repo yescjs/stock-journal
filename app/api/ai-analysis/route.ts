@@ -41,6 +41,8 @@ interface AIAnalysisResponse {
   chatQaDailyUsed?: number;
   /** For chat_qa: daily free limit */
   chatQaDailyLimit?: number;
+  /** For chat_qa: true if this question was free (no coin charged) */
+  wasFree?: boolean;
 }
 
 // ─── System Prompt ───────────────────────────────────────────────────────
@@ -507,8 +509,9 @@ export async function POST(req: NextRequest): Promise<NextResponse<AIAnalysisRes
 
     // chat_qa: check daily free quota before charging coins
     if (body.type === 'chat_qa' && user && supabase) {
+      // Use UTC midnight for consistent day boundary regardless of server timezone
       const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
+      todayStart.setUTCHours(0, 0, 0, 0);
 
       const { count } = await supabase
         .from('coin_transactions')
@@ -520,7 +523,6 @@ export async function POST(req: NextRequest): Promise<NextResponse<AIAnalysisRes
       chatQaDailyUsed = count ?? 0;
 
       if (chatQaDailyUsed < CHAT_QA_FREE_DAILY) {
-        // Free tier — skip coin deduction, but still record the usage
         cost = 0;
       }
     }
@@ -542,22 +544,32 @@ export async function POST(req: NextRequest): Promise<NextResponse<AIAnalysisRes
       coinDeducted = true;
     }
 
-    // For free-tier chat_qa, record a zero-amount transaction for daily count tracking
+    // For free-tier chat_qa, record a zero-amount transaction with real balance for daily count tracking
     if (body.type === 'chat_qa' && user && supabase && cost === 0) {
-      await supabase.from('coin_transactions').insert({
+      // Fetch actual balance to avoid corrupting the ledger with sentinel values
+      const { data: balanceData } = await supabase
+        .from('user_coins')
+        .select('balance')
+        .eq('user_id', user.id)
+        .single();
+
+      const { error: trackError } = await supabase.from('coin_transactions').insert({
         user_id: user.id,
         type: 'spend',
         amount: 0,
-        balance_after: -1, // placeholder, actual balance not changed
+        balance_after: balanceData?.balance ?? 0,
         reference_type: 'chat_qa',
         reference_id: null,
       });
+      if (trackError) {
+        console.error('Failed to record free chat_qa usage:', trackError);
+      }
     }
 
     try {
       // chat_qa usage metadata to include in response
       const chatQaMeta = body.type === 'chat_qa'
-        ? { chatQaDailyUsed: chatQaDailyUsed + 1, chatQaDailyLimit: CHAT_QA_FREE_DAILY }
+        ? { chatQaDailyUsed: chatQaDailyUsed + 1, chatQaDailyLimit: CHAT_QA_FREE_DAILY, wasFree: cost === 0 }
         : {};
 
       // Mock mode: API 키가 설정되지 않은 경우 샘플 리포트 반환

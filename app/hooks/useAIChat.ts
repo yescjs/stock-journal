@@ -92,8 +92,8 @@ export function useAIChat(user: User | null, onCoinsConsumed?: () => void) {
         setDailyUsed(data.chatQaDailyUsed);
       }
 
-      // Only trigger coin refresh if this was a paid question
-      if (data.chatQaDailyUsed > CHAT_QA_FREE_DAILY) {
+      // Only trigger coin refresh if this was a paid question (server authoritative)
+      if (data.wasFree === false) {
         onCoinsConsumed?.();
       }
     } catch (err) {
