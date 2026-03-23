@@ -21,7 +21,9 @@ import {
 } from 'lucide-react';
 import { AIReportCard } from '@/app/components/AIReportCard';
 import { AIReportHistory } from '@/app/components/AIReportHistory';
+import { AIChatPanel } from '@/app/components/AIChatPanel';
 import { useAIAnalysis } from '@/app/hooks/useAIAnalysis';
+import { useAIChat } from '@/app/hooks/useAIChat';
 import { calcEquityCurve, calcMonthlyStats } from '@/app/utils/tradeAnalysis';
 
 interface AnalysisDashboardProps {
@@ -63,12 +65,13 @@ function formatPnl(pnl: number, currency?: 'KRW' | 'USD' | 'mixed'): string {
 
 // ─── Tab Types ────────────────────────────────────────────────────────────
 
-type DashboardTab = 'performance' | 'charts' | 'ai' | 'trades';
+type DashboardTab = 'performance' | 'charts' | 'ai' | 'qa' | 'trades';
 
 const TABS: { id: DashboardTab; label: string; icon: React.ReactNode }[] = [
   { id: 'performance', label: '성과', icon: <Award size={14} /> },
   { id: 'charts',      label: '차트',  icon: <BarChart2 size={14} /> },
   { id: 'ai',          label: 'AI 분석', icon: <Bot size={14} /> },
+  { id: 'qa',          label: 'AI Q&A', icon: <MessageSquare size={14} /> },
   { id: 'trades',      label: '거래 목록', icon: <ListOrdered size={14} /> },
 ];
 
@@ -887,6 +890,10 @@ export function AnalysisDashboard({
     savedReports, loadingSavedReports, deleteReport,
   } = useAIAnalysis(currentUser, onCoinsConsumed);
 
+  const {
+    messages: chatMessages, loading: chatLoading, error: chatError,
+    sendMessage: sendChatMessage, clearChat,
+  } = useAIChat(currentUser, onCoinsConsumed);
 
   if (!analysis || analysis.roundTrips.length === 0) {
     return <EmptyState count={tradesCount} buyCount={buyCount} sellCount={sellCount} />;
@@ -970,6 +977,19 @@ export function AnalysisDashboard({
           />
           <AIReportHistory reports={savedReports} loading={loadingSavedReports} onDelete={deleteReport} />
         </div>
+      )}
+
+      {activeTab === 'qa' && (
+        <AIChatPanel
+          messages={chatMessages}
+          loading={chatLoading}
+          error={chatError}
+          onSend={(q) => sendChatMessage(q, analysis)}
+          onClear={clearChat}
+          isLoggedIn={!!currentUser}
+          coinBalance={coinBalance}
+          onChargeCoins={onChargeCoins}
+        />
       )}
 
       {activeTab === 'trades' && (

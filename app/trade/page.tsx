@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { ArrowRight } from 'lucide-react';
@@ -19,6 +19,8 @@ import { useCoins } from '@/app/hooks/useCoins';
 import { useStreak } from '@/app/hooks/useStreak';
 import { useOnboarding } from '@/app/hooks/useOnboarding';
 import { useEventTracking } from '@/app/hooks/useEventTracking';
+import { useRiskAlert } from '@/app/hooks/useRiskAlert';
+import { usePreTradeCoach } from '@/app/hooks/usePreTradeCoach';
 
 // Components
 import { BottomSheet } from '@/app/components/BottomSheet';
@@ -30,7 +32,10 @@ import { CoinShopModal } from '@/app/components/CoinShopModal';
 import { ImportModal } from '@/app/components/ImportModal';
 import { GuestMigrationModal } from '@/app/components/GuestMigrationModal';
 import { Footer } from '@/app/components/Footer';
+import { RiskAlertToast } from '@/app/components/RiskAlertToast';
+import { PreTradeChecklist } from '@/app/components/PreTradeChecklist';
 import { readGuestTrades, deduplicateGuestTrades, GUEST_TRADES_KEY } from '@/app/utils/migrationUtils';
+import { analyzeTradesComplete } from '@/app/utils/tradeAnalysis';
 
 // Icons
 import { BarChart3, AlertTriangle, LogOut, UserCheck } from 'lucide-react';
@@ -57,6 +62,19 @@ export default function TradePage() {
     const { streak, loading: streakLoading, recordToday } = useStreak(currentUser);
     const onboarding = useOnboarding(currentUser);
     const { track } = useEventTracking(currentUser);
+
+    // --- Risk Alerts ---
+    const { alerts: riskAlerts, hasAlerts: hasRiskAlerts, acknowledge: acknowledgeRisk, dismissToday: dismissRiskToday, resetIfNeeded: resetRiskAlerts } = useRiskAlert(trades);
+
+    // --- Pre-Trade Coach ---
+    const { result: coachResult, loading: coachLoading, error: coachError, generateChecklist, clear: clearCoach } = usePreTradeCoach(currentUser, refreshBalance);
+    const [showCoach, setShowCoach] = useState(false);
+
+    const handleGenerateCoach = useCallback((symbol: string, side: string) => {
+        const analysis = trades.length > 0 ? analyzeTradesComplete(trades) : null;
+        generateChecklist(analysis, symbol, side);
+        setShowCoach(true);
+    }, [trades, generateChecklist]);
 
     // 페이지 진입 시 스트릭 자동 기록 (거래 추가 여부와 무관하게 접속일 카운트)
     const streakRecordedRef = useRef(false);
@@ -176,6 +194,7 @@ export default function TradePage() {
             showNotify('success', '기록이 저장되었습니다.');
             track('trade_created', { symbol: data.symbol, side: data.side });
             recordToday();
+            resetRiskAlerts();
             onboarding.completeStep('firstTrade');
 
             // buySellCycle 체크: 같은 종목에 BUY+SELL이 모두 존재하는지
@@ -320,6 +339,15 @@ export default function TradePage() {
                 )}
             </AnimatePresence>
 
+            {/* Risk Alert Toast */}
+            {hasRiskAlerts && (
+                <RiskAlertToast
+                    alerts={riskAlerts}
+                    onAcknowledge={acknowledgeRisk}
+                    onDismissToday={dismissRiskToday}
+                />
+            )}
+
             {/* Main Content */}
             <div className="flex-1 min-h-0 w-full">
                 <div className="max-w-6xl mx-auto px-6 md:px-10 pt-6 pb-8">
@@ -414,14 +442,29 @@ export default function TradePage() {
             {/* Trade Add/Edit BottomSheet */}
             <BottomSheet
                 isOpen={!!(editingTrade || showAddModal)}
-                onClose={() => { setEditingTrade(null); setShowAddModal(false); setCopyingTrade(null); }}
+                onClose={() => { setEditingTrade(null); setShowAddModal(false); setCopyingTrade(null); clearCoach(); setShowCoach(false); }}
                 title={editingTrade ? '매매 기록 수정' : copyingTrade ? '거래 복사' : '새로운 매매 기록'}
             >
+                {/* Pre-Trade AI Coach */}
+                {!editingTrade && currentUser && (
+                    <PreTradeChecklist
+                        isOpen={showCoach}
+                        checklist={coachResult?.checklist ?? null}
+                        loading={coachLoading}
+                        error={coachError}
+                        onClose={() => { setShowCoach(false); clearCoach(); }}
+                        onGenerate={() => handleGenerateCoach('', 'BUY')}
+                        isLoggedIn={!!currentUser}
+                        coinBalance={coinBalance}
+                        onChargeCoins={() => setShowCoinShop(true)}
+                    />
+                )}
                 <TradeForm
                     darkMode={true}
                     currentUser={currentUser}
                     baseTrades={trades}
                     allTrades={trades}
+                    onCoachRequest={handleGenerateCoach}
                     onAddTrade={async (data, file) => {
                         await handleAddTrade(data, file);
                         setShowAddModal(false);

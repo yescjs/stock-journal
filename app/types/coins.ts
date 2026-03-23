@@ -14,4 +14,6 @@ export interface CoinTransaction {
 export const COIN_COSTS = {
   weekly_report: 5,
   trade_review: 1,
+  pre_trade_coach: 1,
+  chat_qa: 1,
 } as const

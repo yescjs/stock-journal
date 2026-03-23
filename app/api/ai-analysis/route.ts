@@ -18,7 +18,21 @@ interface TradeReviewRequest {
   roundTrip: RoundTrip;
 }
 
-type AIAnalysisRequest = WeeklyReportRequest | TradeReviewRequest;
+interface PreTradeCoachRequest {
+  type: 'pre_trade_coach';
+  analysis: TradeAnalysis;
+  symbol: string;
+  side: string;
+}
+
+interface ChatQARequest {
+  type: 'chat_qa';
+  analysis: TradeAnalysis;
+  question: string;
+  history?: { role: 'user' | 'assistant'; text: string }[];
+}
+
+type AIAnalysisRequest = WeeklyReportRequest | TradeReviewRequest | PreTradeCoachRequest | ChatQARequest;
 
 interface AIAnalysisResponse {
   report: string;
@@ -188,9 +202,135 @@ ${roundTrip.strategyName ? `- 적용 전략: ${roundTrip.strategyName}` : ''}
 (이 거래 경험을 바탕으로 다음에 적용할 수 있는 액션 1-2가지)`;
 }
 
+// ─── Pre-Trade Coach Prompt ──────────────────────────────────────────────
+
+function buildPreTradeCoachPrompt(req: PreTradeCoachRequest): string {
+  const { analysis, symbol, side } = req;
+  const { profile, advancedMetrics, emotionStats, weekdayStats, streaks } = analysis;
+  const today = new Date();
+  const weekday = ['일', '월', '화', '수', '목', '금', '토'][today.getDay()];
+
+  const weekdayStat = weekdayStats.find(s => s.label === `${weekday}요일`);
+  const emotionSummary = emotionStats
+    .filter(s => s.count > 0)
+    .map(s => `${s.label}: 승률 ${s.winRate.toFixed(0)}% (${s.count}건)`)
+    .join(', ');
+
+  return `투자자가 ${symbol} 종목을 ${side === 'BUY' ? '매수' : '매도'}하려고 합니다.
+과거 매매 데이터를 바탕으로 진입 전 체크리스트를 작성해주세요.
+
+## 투자자 프로필
+- 총 완결 거래: ${profile.totalTrades}건
+- 승률: ${profile.winRate.toFixed(1)}%
+- R:R 비율: ${advancedMetrics.rrRatio.toFixed(2)}
+- 현재 연승: ${streaks.currentWin} / 현재 연패: ${streaks.currentLoss}
+- 편향 점수: ${advancedMetrics.biasScore.biasScore.toFixed(0)}/100
+- FOMO 비율: ${(advancedMetrics.biasScore.fomoRatio * 100).toFixed(0)}%
+- 충동매매 비율: ${(advancedMetrics.biasScore.impulsiveRatio * 100).toFixed(0)}%
+
+## 오늘 정보
+- 요일: ${weekday}요일
+${weekdayStat ? `- ${weekday}요일 승률: ${weekdayStat.winRate.toFixed(0)}% (${weekdayStat.count}건)` : ''}
+
+## 감정별 성과
+${emotionSummary || '데이터 없음'}
+
+다음 형식으로 **정확히 3~5개**의 체크리스트 항목을 작성하세요.
+각 항목은 반드시 구체적인 수치를 포함해야 합니다.
+마크다운 체크박스(\`- [ ]\`) 형식으로만 작성하세요.
+본문에 이모지를 사용하지 마세요.
+예시: - [ ] R:R 1.5 이상 확인 (현재 R:R: 0.8)
+
+체크리스트만 출력하세요. 다른 설명이나 인사는 생략하세요.`;
+}
+
+// ─── Chat QA Prompt ─────────────────────────────────────────────────────
+
+const CHAT_SYSTEM_PROMPT = `당신은 개인 트레이딩 데이터 분석가입니다.
+사용자의 매매 데이터를 기반으로 질문에 정확하고 간결하게 답변합니다.
+
+규칙:
+1. 데이터에 근거해 답변하세요. 추측하지 마세요.
+2. 답변은 마크다운 형식으로, 표나 수치를 적극 활용하세요.
+3. 200-500자 분량으로 간결하게 답변하세요.
+4. 투자 권유나 특정 종목 추천은 하지 않습니다.
+5. 이모지는 사용하지 마세요.
+6. 존댓말을 사용하세요.`;
+
+function buildChatQAPrompt(req: ChatQARequest): string {
+  const { analysis, question } = req;
+  const { profile, advancedMetrics, weekdayStats, emotionStats, strategyStats, streaks, holdingPeriodStats } = analysis;
+
+  const emotionSummary = emotionStats
+    .filter(s => s.count > 0)
+    .map(s => `${s.label}: 승률 ${s.winRate.toFixed(0)}% (${s.count}건, 평균수익 ${s.avgReturn.toFixed(1)}%)`)
+    .join('\n  ');
+
+  const strategySummary = strategyStats
+    .filter(s => s.count > 0)
+    .map(s => `${s.label}: 승률 ${s.winRate.toFixed(0)}% (${s.count}건, 평균수익 ${s.avgReturn.toFixed(1)}%)`)
+    .join('\n  ');
+
+  const weekdaySummary = weekdayStats
+    .filter(s => s.count > 0)
+    .map(s => `${s.label}: 승률 ${s.winRate.toFixed(0)}% (${s.count}건)`)
+    .join(', ');
+
+  const holdingSummary = holdingPeriodStats
+    .filter(s => s.count > 0)
+    .map(s => `${s.label}: 승률 ${s.winRate.toFixed(0)}% (${s.count}건, 평균수익 ${s.avgReturn.toFixed(1)}%)`)
+    .join('\n  ');
+
+  return `## 투자자 데이터 요약
+- 총 완결 거래: ${profile.totalTrades}건
+- 승률: ${profile.winRate.toFixed(1)}%
+- 평균 수익률: ${profile.avgReturn >= 0 ? '+' : ''}${profile.avgReturn.toFixed(1)}%
+- 수익 팩터: ${profile.profitFactor.toFixed(2)}
+- R:R 비율: ${advancedMetrics.rrRatio.toFixed(2)}
+- Expectancy: ${advancedMetrics.expectancy.toFixed(2)}%
+- 최대 낙폭: -${profile.maxDrawdownPercent.toFixed(1)}%
+- 종합 등급: ${profile.overallGrade}
+- 투자 스타일: ${profile.tradingStyleLabel}
+- 현재 연승: ${streaks.currentWin} / 연패: ${streaks.currentLoss}
+- 편향 점수: ${advancedMetrics.biasScore.biasScore.toFixed(0)}/100
+
+## 요일별 성과
+  ${weekdaySummary || '데이터 없음'}
+
+## 감정별 성과
+  ${emotionSummary || '데이터 없음'}
+
+## 전략별 성과
+  ${strategySummary || '데이터 없음'}
+
+## 보유 기간별 성과
+  ${holdingSummary || '데이터 없음'}
+
+## 질문
+${question}`;
+}
+
 // ─── Mock Report Builder (when GEMINI_API_KEY is not set) ────────────────
 
 function buildMockReport(body: AIAnalysisRequest): string {
+  if (body.type === 'pre_trade_coach') {
+    return `- [ ] 진입 전 손절가와 목표가를 설정했는지 확인 (현재 R:R: ${body.analysis.advancedMetrics.rrRatio.toFixed(2)})
+- [ ] 감정 상태 점검 — FOMO/충동 매매 여부 확인 (편향 점수: ${body.analysis.advancedMetrics.biasScore.biasScore.toFixed(0)}/100)
+- [ ] 포지션 크기가 전체 자산의 10% 이내인지 확인
+- [ ] 현재 추세 방향과 진입 방향이 일치하는지 확인
+
+> Mock 모드: GEMINI_API_KEY 설정 후 맞춤형 체크리스트를 받을 수 있습니다.`;
+  }
+
+  if (body.type === 'chat_qa') {
+    return `질문: "${body.question}"에 대한 분석입니다.
+
+현재 총 **${body.analysis.profile.totalTrades}건**의 완결 거래 데이터가 있습니다.
+승률 **${body.analysis.profile.winRate.toFixed(1)}%**, 종합 등급 **${body.analysis.profile.overallGrade}**입니다.
+
+> Mock 모드: GEMINI_API_KEY 설정 후 상세한 AI 분석을 받을 수 있습니다.`;
+  }
+
   if (body.type === 'weekly_report') {
     const { profile, advancedMetrics } = body.analysis;
     const { rrRatio, expectancy, biasScore, timing } = advancedMetrics;
@@ -343,7 +483,13 @@ export async function POST(req: NextRequest): Promise<NextResponse<AIAnalysisRes
     const token = req.headers.get('Authorization')?.replace('Bearer ', '');
     const supabase = token ? createAuthedClient(token) : null;
 
-    const cost = body.type === 'weekly_report' ? COIN_COSTS.weekly_report : COIN_COSTS.trade_review;
+    const costMap: Record<string, number> = {
+      weekly_report: COIN_COSTS.weekly_report,
+      trade_review: COIN_COSTS.trade_review,
+      pre_trade_coach: COIN_COSTS.pre_trade_coach,
+      chat_qa: COIN_COSTS.chat_qa,
+    };
+    const cost = costMap[body.type] ?? COIN_COSTS.trade_review;
     let coinDeducted = false;
 
     if (user && supabase) {
@@ -374,15 +520,28 @@ export async function POST(req: NextRequest): Promise<NextResponse<AIAnalysisRes
       }
 
       let userPrompt: string;
+      let systemPrompt = SYSTEM_PROMPT;
+
       if (body.type === 'weekly_report') {
         userPrompt = buildWeeklyReportPrompt(body);
       } else if (body.type === 'trade_review') {
         userPrompt = buildTradeReviewPrompt(body);
+      } else if (body.type === 'pre_trade_coach') {
+        userPrompt = buildPreTradeCoachPrompt(body);
+      } else if (body.type === 'chat_qa') {
+        // Include conversation history in system prompt for context
+        const historyContext = body.history && body.history.length > 0
+          ? '\n\n## 이전 대화\n' + body.history.slice(0, -1).map(h =>
+              h.role === 'user' ? `질문: ${h.text}` : `답변: ${h.text}`
+            ).join('\n')
+          : '';
+        systemPrompt = CHAT_SYSTEM_PROMPT + historyContext;
+        userPrompt = buildChatQAPrompt(body);
       } else {
         return NextResponse.json({ error: '알 수 없는 요청 타입입니다.' }, { status: 400 });
       }
 
-      const report = await callGeminiAPI(SYSTEM_PROMPT, userPrompt);
+      const report = await callGeminiAPI(systemPrompt, userPrompt);
 
       return NextResponse.json({
         report,

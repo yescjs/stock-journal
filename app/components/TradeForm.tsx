@@ -43,6 +43,7 @@ interface TradeFormProps {
         imageFile: File | null
     ) => Promise<void>;
     isCompact?: boolean;
+    onCoachRequest?: (symbol: string, side: string) => void;
     prefill?: {
         symbol: string;
         symbol_name?: string;
@@ -70,6 +71,7 @@ export function TradeForm({
     onUpdateTrade,
     prefill,
     currentUser,
+    onCoachRequest,
 }: TradeFormProps) {
     const [form, setForm] = useState({
         date: initialData?.date || new Date().toISOString().slice(0, 10),
@@ -584,6 +586,18 @@ export function TradeForm({
                             </motion.div>
                         )}
                     </AnimatePresence>
+
+                    {/* AI Coach Button — BUY trades, logged-in, not editing */}
+                    {!initialData && form.side === 'BUY' && currentUser && onCoachRequest && (
+                        <button
+                            type="button"
+                            onClick={() => onCoachRequest(form.symbol, form.side)}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-indigo-500/20 bg-indigo-500/5 text-indigo-300 text-sm font-semibold hover:bg-indigo-500/10 transition-colors"
+                        >
+                            <Brain size={16} />
+                            AI 매매 전 체크리스트
+                        </button>
+                    )}
 
                     <Button
                         type="submit"
