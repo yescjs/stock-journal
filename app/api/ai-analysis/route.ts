@@ -513,11 +513,13 @@ export async function POST(req: NextRequest): Promise<NextResponse<AIAnalysisRes
       const todayStart = new Date();
       todayStart.setUTCHours(0, 0, 0, 0);
 
+      // Count only free-tier tracking records (amount=0) to avoid counting old paid questions
       const { count } = await supabase
         .from('coin_transactions')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
         .eq('reference_type', 'chat_qa')
+        .eq('amount', 0)
         .gte('created_at', todayStart.toISOString());
 
       chatQaDailyUsed = count ?? 0;
