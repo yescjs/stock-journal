@@ -70,6 +70,7 @@ export default function TradePage() {
 
     // --- AI Chat (shared between FAB and AnalysisDashboard Q&A tab) ---
     const aiChat = useAIChat(currentUser, refreshBalance);
+    const [isChatPanelOpen, setIsChatPanelOpen] = useState(false);
 
     // --- Pre-Trade Coach ---
     const { result: coachResult, loading: coachLoading, error: coachError, generateChecklist, clear: clearCoach } = usePreTradeCoach(currentUser, refreshBalance);
@@ -435,14 +436,17 @@ export default function TradePage() {
                     trades={trades}
                     coinBalance={coinBalance}
                     onChargeCoins={() => setShowCoinShop(true)}
+                    onOpenChange={setIsChatPanelOpen}
                 />
             )}
 
-            {/* Mobile FAB — Add Trade (right side) */}
+            {/* FAB — Add Trade (right side, shifts left when chat panel is open) */}
             <button
                 onClick={() => setShowAddModal(true)}
                 aria-label="새 매매 기록 추가"
-                className="fixed bottom-20 md:bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-blue-600 text-white shadow-2xl shadow-blue-600/30 flex items-center justify-center hover:bg-blue-500 hover:scale-105 active:scale-95 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2"
+                className={`fixed bottom-20 md:bottom-6 z-40 w-14 h-14 rounded-full bg-blue-600 text-white shadow-2xl shadow-blue-600/30 flex items-center justify-center hover:bg-blue-500 hover:scale-105 active:scale-95 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 ${
+                    isChatPanelOpen ? 'right-[384px]' : 'right-6'
+                }`}
             >
                 <span className="text-2xl font-light">+</span>
             </button>
