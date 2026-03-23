@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
 import {
   TradeAnalysis,
@@ -889,9 +889,9 @@ export function AnalysisDashboard({
   const [activeTab, setActiveTab] = useState<DashboardTab>(initialTab ?? 'performance');
 
   // initialTab prop이 변경되면 반영 (외부 네비게이션)
-  if (initialTab && activeTab !== initialTab) {
-    setActiveTab(initialTab);
-  }
+  useEffect(() => {
+    if (initialTab) setActiveTab(initialTab);
+  }, [initialTab]);
 
   const {
     weeklyReport, tradeReview, loadingWeekly, loadingReview, error: aiError,
@@ -899,7 +899,8 @@ export function AnalysisDashboard({
     savedReports, loadingSavedReports, deleteReport,
   } = useAIAnalysis(currentUser, onCoinsConsumed);
 
-  const internalChat = useAIChat(currentUser, onCoinsConsumed);
+  // Internal fallback — no onCoinsConsumed to avoid double-refresh when sharedAIChat is provided
+  const internalChat = useAIChat(currentUser, sharedAIChat ? undefined : onCoinsConsumed);
   const {
     messages: chatMessages, loading: chatLoading, error: chatError,
     sendMessage: sendChatMessage, clearChat,

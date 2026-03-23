@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, Gem } from 'lucide-react';
 import { BottomSheet } from '@/app/components/BottomSheet';
@@ -32,18 +32,25 @@ export function AIChatFAB({
   onChargeCoins,
 }: AIChatFABProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [lastReadCount, setLastReadCount] = useState(0);
 
   const analysis = useMemo<TradeAnalysis | null>(() => {
     if (trades.length === 0) return null;
     return analyzeTradesComplete(trades);
   }, [trades]);
 
-  const handleSend = (question: string) => {
+  const handleSend = useCallback((question: string) => {
     if (!analysis) return;
     onSend(question, analysis);
-  };
+  }, [analysis, onSend]);
 
-  const hasUnread = messages.length > 0 && messages[messages.length - 1].role === 'assistant';
+  const handleOpen = useCallback(() => {
+    setIsOpen(true);
+    setLastReadCount(messages.length);
+  }, [messages.length]);
+
+  const hasUnread = messages.length > lastReadCount &&
+    messages[messages.length - 1].role === 'assistant';
 
   return (
     <>
@@ -55,7 +62,7 @@ export function AIChatFAB({
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
             transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-            onClick={() => setIsOpen(true)}
+            onClick={handleOpen}
             aria-label="AI Q&A 열기"
             className="fixed bottom-20 md:bottom-6 left-6 z-40 w-12 h-12 rounded-full bg-indigo-600 text-white shadow-2xl shadow-indigo-600/30 flex items-center justify-center hover:bg-indigo-500 hover:scale-105 active:scale-95 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:ring-offset-2"
           >
