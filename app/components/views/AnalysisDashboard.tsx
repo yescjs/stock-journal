@@ -40,6 +40,14 @@ interface AnalysisDashboardProps {
   onCoinsConsumed?: () => void;
   onCompleteAIReportStep?: () => void;
   initialTab?: DashboardTab;
+  // Shared AI Chat state (optional — if not provided, uses internal hook)
+  sharedAIChat?: {
+    messages: import('@/app/hooks/useAIChat').ChatMessage[];
+    loading: boolean;
+    error: string | null;
+    sendMessage: (question: string, analysis: TradeAnalysis) => void;
+    clearChat: () => void;
+  };
 }
 
 // ─── Chart Colors ────────────────────────────────────────────────────────
@@ -876,6 +884,7 @@ export function AnalysisDashboard({
   onCoinsConsumed,
   onCompleteAIReportStep,
   initialTab,
+  sharedAIChat,
 }: AnalysisDashboardProps) {
   const [activeTab, setActiveTab] = useState<DashboardTab>(initialTab ?? 'performance');
 
@@ -890,10 +899,11 @@ export function AnalysisDashboard({
     savedReports, loadingSavedReports, deleteReport,
   } = useAIAnalysis(currentUser, onCoinsConsumed);
 
+  const internalChat = useAIChat(currentUser, onCoinsConsumed);
   const {
     messages: chatMessages, loading: chatLoading, error: chatError,
     sendMessage: sendChatMessage, clearChat,
-  } = useAIChat(currentUser, onCoinsConsumed);
+  } = sharedAIChat ?? internalChat;
 
   if (!analysis || analysis.roundTrips.length === 0) {
     return <EmptyState count={tradesCount} buyCount={buyCount} sellCount={sellCount} />;

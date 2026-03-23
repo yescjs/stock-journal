@@ -52,6 +52,13 @@ interface TradeListViewProps {
   onCompleteOnboardingStep?: (step: keyof OnboardingSteps) => void;
   onOpenAddTrade?: () => void;
   onCopy?: (trade: Trade) => void;
+  sharedAIChat?: {
+    messages: import('@/app/hooks/useAIChat').ChatMessage[];
+    loading: boolean;
+    error: string | null;
+    sendMessage: (question: string, analysis: import('@/app/types/analysis').TradeAnalysis) => void;
+    clearChat: () => void;
+  };
 }
 
 const DATE_PRESETS: { key: DatePreset; label: string }[] = [
@@ -228,6 +235,7 @@ export function TradeListView({
   onCompleteOnboardingStep,
   onOpenAddTrade,
   onCopy,
+  sharedAIChat,
 }: TradeListViewProps) {
   const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'analysis'>('list');
   const [calendarDate, setCalendarDate] = useState(new Date());
@@ -770,6 +778,7 @@ export function TradeListView({
                 onCoinsConsumed={onCoinsConsumed}
                 onCompleteAIReportStep={() => onCompleteOnboardingStep?.('aiReport')}
                 initialTab={analysisInitialTab}
+                sharedAIChat={sharedAIChat}
               />
             ) : viewMode === 'calendar' ? (
               <>

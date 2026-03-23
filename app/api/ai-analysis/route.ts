@@ -235,11 +235,20 @@ ${weekdayStat ? `- ${weekday}요일 승률: ${weekdayStat.winRate.toFixed(0)}% (
 ## 감정별 성과
 ${emotionSummary || '데이터 없음'}
 
-다음 형식으로 **정확히 3~5개**의 체크리스트 항목을 작성하세요.
-각 항목은 반드시 구체적인 수치를 포함해야 합니다.
-마크다운 체크박스(\`- [ ]\`) 형식으로만 작성하세요.
-본문에 이모지를 사용하지 마세요.
-예시: - [ ] R:R 1.5 이상 확인 (현재 R:R: 0.8)
+**정확히 3개**의 체크리스트를 작성하세요.
+
+작성 규칙:
+1. 마크다운 체크박스(\`- [ ]\`) 형식
+2. 각 항목은 **한 줄, 15자 이내**의 짧은 질문형으로 작성 (예: "손절가 정했나요?")
+3. 괄호 안에 판단 근거가 되는 수치 1개만 병기 (예: "(현재 승률 42%)")
+4. 전문 용어 대신 일상 언어 사용 (R:R → 손익비, Expectancy → 기대수익)
+5. 이모지 사용 금지
+6. 이 투자자의 **가장 약한 부분** 3가지에 집중
+
+예시:
+- [ ] 손절가 정했나요? (평균 손실 -3.2%)
+- [ ] 충동 매매 아닌가요? (최근 충동 비율 25%)
+- [ ] 오늘 너무 많이 거래하진 않았나요? (과매매 3일)
 
 체크리스트만 출력하세요. 다른 설명이나 인사는 생략하세요.`;
 }
@@ -314,10 +323,9 @@ ${question}`;
 
 function buildMockReport(body: AIAnalysisRequest): string {
   if (body.type === 'pre_trade_coach') {
-    return `- [ ] 진입 전 손절가와 목표가를 설정했는지 확인 (현재 R:R: ${body.analysis.advancedMetrics.rrRatio.toFixed(2)})
-- [ ] 감정 상태 점검 — FOMO/충동 매매 여부 확인 (편향 점수: ${body.analysis.advancedMetrics.biasScore.biasScore.toFixed(0)}/100)
-- [ ] 포지션 크기가 전체 자산의 10% 이내인지 확인
-- [ ] 현재 추세 방향과 진입 방향이 일치하는지 확인
+    return `- [ ] 손절가 정했나요? (현재 손익비 ${body.analysis.advancedMetrics.rrRatio.toFixed(1)})
+- [ ] 충동 매매 아닌가요? (규율 점수 ${body.analysis.advancedMetrics.biasScore.biasScore.toFixed(0)}/100)
+- [ ] 오늘 거래 횟수 괜찮나요? (과매매 ${body.analysis.advancedMetrics.biasScore.overTradingDays}일)
 
 > Mock 모드: GEMINI_API_KEY 설정 후 맞춤형 체크리스트를 받을 수 있습니다.`;
   }

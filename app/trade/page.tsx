@@ -21,6 +21,7 @@ import { useOnboarding } from '@/app/hooks/useOnboarding';
 import { useEventTracking } from '@/app/hooks/useEventTracking';
 import { useRiskAlert } from '@/app/hooks/useRiskAlert';
 import { usePreTradeCoach } from '@/app/hooks/usePreTradeCoach';
+import { useAIChat } from '@/app/hooks/useAIChat';
 
 // Components
 import { BottomSheet } from '@/app/components/BottomSheet';
@@ -34,6 +35,7 @@ import { GuestMigrationModal } from '@/app/components/GuestMigrationModal';
 import { Footer } from '@/app/components/Footer';
 import { RiskAlertToast } from '@/app/components/RiskAlertToast';
 import { PreTradeChecklist } from '@/app/components/PreTradeChecklist';
+import { AIChatFAB } from '@/app/components/AIChatFAB';
 import { readGuestTrades, deduplicateGuestTrades, GUEST_TRADES_KEY } from '@/app/utils/migrationUtils';
 import { analyzeTradesComplete } from '@/app/utils/tradeAnalysis';
 
@@ -65,6 +67,9 @@ export default function TradePage() {
 
     // --- Risk Alerts ---
     const { alerts: riskAlerts, hasAlerts: hasRiskAlerts, acknowledge: acknowledgeRisk, dismissToday: dismissRiskToday, resetIfNeeded: resetRiskAlerts } = useRiskAlert(trades);
+
+    // --- AI Chat (shared between FAB and AnalysisDashboard Q&A tab) ---
+    const aiChat = useAIChat(currentUser, refreshBalance);
 
     // --- Pre-Trade Coach ---
     const { result: coachResult, loading: coachLoading, error: coachError, generateChecklist, clear: clearCoach } = usePreTradeCoach(currentUser, refreshBalance);
@@ -411,6 +416,7 @@ export default function TradePage() {
                                 onDismissOnboarding={onboarding.dismiss}
                                 onCompleteOnboardingStep={onboarding.completeStep}
                                 onOpenAddTrade={() => setShowAddModal(true)}
+                                sharedAIChat={currentUser ? aiChat : undefined}
                             />
                 </div>
             </div>
@@ -418,7 +424,21 @@ export default function TradePage() {
             {/* Footer */}
             <Footer />
 
-            {/* Mobile FAB — Add Trade */}
+            {/* AI Q&A FAB — left side, logged-in only */}
+            {currentUser && (
+                <AIChatFAB
+                    messages={aiChat.messages}
+                    loading={aiChat.loading}
+                    error={aiChat.error}
+                    onSend={aiChat.sendMessage}
+                    onClear={aiChat.clearChat}
+                    trades={trades}
+                    coinBalance={coinBalance}
+                    onChargeCoins={() => setShowCoinShop(true)}
+                />
+            )}
+
+            {/* Mobile FAB — Add Trade (right side) */}
             <button
                 onClick={() => setShowAddModal(true)}
                 aria-label="새 매매 기록 추가"

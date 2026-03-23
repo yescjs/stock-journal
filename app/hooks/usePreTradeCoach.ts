@@ -10,11 +10,9 @@ export interface PreTradeCoachResult {
   generatedAt: string;
 }
 
-const DEFAULT_CHECKLIST = `- [ ] 진입 전 손절가와 목표가를 설정했는가?
-- [ ] 현재 감정 상태가 안정적인가? (FOMO/충동 여부 점검)
-- [ ] 포지션 크기가 전체 자산의 적절한 비율인가?
-- [ ] 진입 근거가 나의 매매 전략에 부합하는가?
-- [ ] 오늘 이미 과도한 거래를 하지 않았는가?`;
+const DEFAULT_CHECKLIST = `- [ ] 손절가 정했나요?
+- [ ] 충동 매매 아닌가요?
+- [ ] 진입 근거가 명확한가요?`;
 
 const MIN_TRADES_FOR_AI = 5;
 
