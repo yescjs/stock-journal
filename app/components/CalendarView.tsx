@@ -13,12 +13,13 @@ import {
   startOfWeek,
   endOfWeek
 } from 'date-fns';
-import { ko } from 'date-fns/locale';
+import { ko, enUS } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { useSupabaseAuth } from '@/app/hooks/useSupabaseAuth';
 import { useEventTracking } from '@/app/hooks/useEventTracking';
 import { twMerge } from 'tailwind-merge';
+import { useTranslations, useLocale } from 'next-intl';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -49,6 +50,10 @@ export function CalendarView({
 }: CalendarViewProps) {
   const { user } = useSupabaseAuth();
   const { track } = useEventTracking(user);
+  const t = useTranslations('calendar');
+  const locale = useLocale();
+  const dateFnsLocale = locale === 'ko' ? ko : enUS;
+  const weekdays: string[] = t.raw('weekdays');
 
   useEffect(() => {
     track('calendar_viewed');
@@ -100,9 +105,14 @@ export function CalendarView({
   // Abbreviated KRW for mobile (e.g., 1,234,567 -> 123만)
   const formatKRWShort = (val: number) => {
     const abs = Math.abs(val);
-    if (abs >= 1_0000_0000) return `${(val / 1_0000_0000).toFixed(1)}억`;
-    if (abs >= 1_0000) return `${Math.round(val / 1_0000)}만`;
-    return Math.round(val).toLocaleString();
+    if (locale === 'ko') {
+      if (abs >= 1_0000_0000) return `${(val / 1_0000_0000).toFixed(1)}억`;
+      if (abs >= 1_0000) return `${Math.round(val / 1_0000)}만`;
+    } else {
+      if (abs >= 1_000_000) return `${(val / 1_000_000).toFixed(1)}M`;
+      if (abs >= 1_000) return `${(val / 1_000).toFixed(0)}K`;
+    }
+    return Math.round(val).toLocaleString(locale === 'ko' ? 'ko-KR' : 'en-US');
   };
 
   const formatUSD = (val: number) => {
@@ -125,7 +135,7 @@ export function CalendarView({
                 <CalendarIcon size={20} />
             </div>
             <h2 className={'text-xl font-black tracking-tight ' + (darkMode ? 'text-white' : 'text-slate-900')}>
-            {format(currentDate, 'yyyy년 M월', { locale: ko })}
+            {locale === 'ko' ? format(currentDate, 'yyyy년 M월', { locale: dateFnsLocale }) : format(currentDate, 'MMMM yyyy', { locale: dateFnsLocale })}
             </h2>
         </div>
         <div className={`flex items-center p-1 rounded-xl border ${darkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-white border-slate-200'}`}>
@@ -141,10 +151,10 @@ export function CalendarView({
 
       {/* Weekday Header */}
       <div className="grid grid-cols-7 mb-3 text-center text-xs font-bold tracking-wider">
-        {['일', '월', '화', '수', '목', '금', '토'].map(day => (
+        {weekdays.map((day, idx) => (
           <div key={day} className={cn(
               "py-2",
-              day === '일' ? 'text-rose-500' : (day === '토' ? 'text-blue-500' : (darkMode ? 'text-slate-500' : 'text-slate-400'))
+              idx === 0 ? 'text-rose-500' : (idx === 6 ? 'text-blue-500' : (darkMode ? 'text-slate-500' : 'text-slate-400'))
           )}>
             {day}
           </div>
@@ -171,7 +181,7 @@ export function CalendarView({
               onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelectDate(dateKey)}
               role="button"
               tabIndex={isCurrentMonth ? 0 : -1}
-              aria-label={`${format(day, 'yyyy년 M월 d일', { locale: ko })}${hasData ? `, KRW: ${krw > 0 ? '+' : ''}${formatKRW(krw)}, USD: ${usd > 0 ? '+' : ''}${formatUSD(usd)}` : ''}`}
+              aria-label={`${locale === 'ko' ? format(day, 'yyyy년 M월 d일', { locale: dateFnsLocale }) : format(day, 'MMMM d, yyyy', { locale: dateFnsLocale })}${hasData ? `, KRW: ${krw > 0 ? '+' : ''}${formatKRW(krw)}, USD: ${usd > 0 ? '+' : '-'}${formatUSD(usd)}` : ''}`}
               className={cn(
                 "group relative min-h-[60px] md:min-h-[100px] rounded-xl md:rounded-2xl flex flex-col p-1.5 md:p-3 cursor-pointer transition-all duration-300 border backdrop-blur-sm touch-manipulation focus:outline-none focus:ring-2 focus:ring-indigo-400",
                 // Base styles

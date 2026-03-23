@@ -2,6 +2,7 @@
 // Supports auto-save to Supabase and report history
 import { useState, useCallback, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
+import { useLocale, useTranslations } from 'next-intl';
 import { supabase } from '@/app/lib/supabaseClient';
 import { TradeAnalysis, RoundTrip } from '@/app/types/analysis';
 import { useEventTracking } from '@/app/hooks/useEventTracking';
@@ -17,6 +18,7 @@ export interface SavedReport {
   title: string;
   report: string;
   metadata: Record<string, unknown>;
+  locale?: string;
   created_at: string;
 }
 
@@ -37,6 +39,8 @@ interface UseAIAnalysisReturn {
 }
 
 export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): UseAIAnalysisReturn {
+  const locale = useLocale();
+  const t = useTranslations('analysis.hook');
   const { track } = useEventTracking(user);
   const [weeklyReport, setWeeklyReport] = useState<AIReportResult | null>(null);
   const [tradeReview, setTradeReview] = useState<Record<string, AIReportResult>>({});
@@ -62,7 +66,7 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
       if (fetchError) throw fetchError;
       setSavedReports((data as SavedReport[]) || []);
     } catch (err) {
-      console.error('리포트 목록 조회 실패:', err);
+      console.error('Failed to load reports:', err);
     } finally {
       setLoadingSavedReports(false);
     }
@@ -94,19 +98,20 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
           title,
           report,
           metadata,
+          locale,
         });
 
       if (insertError) {
-        console.error('리포트 저장 실패:', insertError);
+        console.error('Failed to save report:', insertError);
         return;
       }
 
       // 저장 후 목록 갱신
       await loadSavedReports();
     } catch (err) {
-      console.error('리포트 저장 중 오류:', err);
+      console.error('Error saving report:', err);
     }
-  }, [user, loadSavedReports]);
+  }, [user, loadSavedReports, locale]);
 
   // 리포트 삭제
   const deleteReport = useCallback(async (id: string) => {
@@ -121,7 +126,7 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
       if (deleteError) throw deleteError;
       setSavedReports(prev => prev.filter(r => r.id !== id));
     } catch (err) {
-      console.error('리포트 삭제 실패:', err);
+      console.error('Failed to delete report:', err);
     }
   }, [user]);
 
@@ -147,17 +152,18 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
           type: 'weekly_report',
           analysis,
           username,
+          locale,
         }),
       });
 
       if (res.status === 402) {
-        setError('코인이 부족합니다. 코인을 충전해주세요.');
+        setError(t('insufficientCoins'));
         return;
       }
 
       if (!res.ok) {
         const { error: msg } = await res.json();
-        throw new Error(msg || 'AI 리포트 생성에 실패했습니다.');
+        throw new Error(msg || t('unknownError'));
       }
 
       const data: AIReportResult = await res.json();
@@ -167,7 +173,7 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
       onCoinsConsumed?.();
 
       // 자동 저장
-      const title = `${analysis.roundTrips.length}건의 완결 거래 종합 분석`;
+      const title = t('weeklyReportTitle', { count: analysis.roundTrips.length });
       await saveReportToDB('weekly_report', title, data.report, {
         totalTrades: analysis.profile.totalTrades,
         winRate: analysis.profile.winRate,
@@ -175,11 +181,11 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
         generatedAt: data.generatedAt,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.');
+      setError(err instanceof Error ? err.message : t('unknownError'));
     } finally {
       setLoadingWeekly(false);
     }
-  }, [saveReportToDB, onCoinsConsumed]);
+  }, [saveReportToDB, onCoinsConsumed, locale, t, track]);
 
   // 개별 거래 리뷰
   const reviewTrade = useCallback(async (roundTrip: RoundTrip) => {
@@ -196,17 +202,17 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ type: 'trade_review', roundTrip }),
+        body: JSON.stringify({ type: 'trade_review', roundTrip, locale }),
       });
 
       if (res.status === 402) {
-        setError('코인이 부족합니다. 코인을 충전해주세요.');
+        setError(t('insufficientCoins'));
         return;
       }
 
       if (!res.ok) {
         const { error: msg } = await res.json();
-        throw new Error(msg || '거래 리뷰 생성에 실패했습니다.');
+        throw new Error(msg || t('unknownError'));
       }
 
       const data: AIReportResult = await res.json();
@@ -216,7 +222,7 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
 
       // 자동 저장
       const symbolName = roundTrip.symbolName || roundTrip.symbol;
-      const title = `${symbolName} 거래 리뷰 (${roundTrip.exitDate})`;
+      const title = t('tradeReviewTitle', { symbolName, exitDate: roundTrip.exitDate });
       await saveReportToDB('trade_review', title, data.report, {
         symbol: roundTrip.symbol,
         symbolName,
@@ -226,11 +232,11 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
         generatedAt: data.generatedAt,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.');
+      setError(err instanceof Error ? err.message : t('unknownError'));
     } finally {
       setLoadingReview(null);
     }
-  }, [saveReportToDB, onCoinsConsumed]);
+  }, [saveReportToDB, onCoinsConsumed, locale, t, track]);
 
   const clearWeeklyReport = useCallback(() => setWeeklyReport(null), []);
 

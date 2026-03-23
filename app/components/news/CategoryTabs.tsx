@@ -2,19 +2,20 @@
 
 import React, { useState, useMemo } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { NewsCard } from './NewsCard'
 import type { NewsArticle, NewsCategory } from '@/app/types/news'
 
 type FilterCategory = NewsCategory | 'all'
 
-const TABS: { value: FilterCategory; label: string }[] = [
-  { value: 'all',        label: '전체' },
-  { value: 'stock',      label: '📈 주식' },
-  { value: 'forex',      label: '💱 외환' },
-  { value: 'realestate', label: '🏢 부동산' },
-  { value: 'crypto',     label: '₿ 코인' },
-  { value: 'indicator',  label: '📊 경제지표' },
-  { value: 'global',     label: '🌐 해외주식' },
+const TAB_VALUES: { value: FilterCategory; emoji?: string }[] = [
+  { value: 'all' },
+  { value: 'stock', emoji: '📈' },
+  { value: 'forex', emoji: '💱' },
+  { value: 'realestate', emoji: '🏢' },
+  { value: 'crypto', emoji: '₿' },
+  { value: 'indicator', emoji: '📊' },
+  { value: 'global', emoji: '🌐' },
 ]
 
 const PAGE_SIZE = 10
@@ -22,6 +23,7 @@ const PAGE_SIZE = 10
 export function CategoryTabs({ allArticles }: { allArticles: NewsArticle[] }) {
   const [selected, setSelected] = useState<FilterCategory>('all')
   const [page, setPage] = useState(1)
+  const t = useTranslations('news')
 
   const filtered = useMemo(
     () => selected === 'all'
@@ -53,7 +55,7 @@ export function CategoryTabs({ allArticles }: { allArticles: NewsArticle[] }) {
   return (
     <div>
       <div className="flex gap-2 overflow-x-auto overflow-y-hidden pb-2 mb-6 scrollbar-none">
-        {TABS.map(tab => (
+        {TAB_VALUES.map(tab => (
           <button
             key={tab.value}
             onClick={() => handleCategoryChange(tab.value)}
@@ -63,17 +65,17 @@ export function CategoryTabs({ allArticles }: { allArticles: NewsArticle[] }) {
                 : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'
             }`}
           >
-            {tab.label}
+            {tab.emoji ? `${tab.emoji} ` : ''}{t(`categories.${tab.value}`)}
           </button>
         ))}
       </div>
 
       {filtered.length === 0 ? (
-        <p className="text-center text-gray-500 py-16">아직 기사가 없습니다.</p>
+        <p className="text-center text-gray-500 py-16">{t('noArticles')}</p>
       ) : (
         <>
           <p className="text-xs text-gray-500 mb-3">
-            총 {filtered.length}건 중 {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)}
+            {t('totalCount', { total: filtered.length, from: (page - 1) * PAGE_SIZE + 1, to: Math.min(page * PAGE_SIZE, filtered.length) })}
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

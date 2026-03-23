@@ -1,7 +1,8 @@
 'use client';
 
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { ArrowLeft } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 
 interface ToolLayoutProps {
@@ -12,6 +13,8 @@ interface ToolLayoutProps {
 }
 
 export function ToolLayout({ title, description, children, relatedTools }: ToolLayoutProps) {
+  const t = useTranslations('tools');
+
   return (
     <div className="mx-auto max-w-4xl px-6 py-12 md:px-10">
       <Link
@@ -19,7 +22,7 @@ export function ToolLayout({ title, description, children, relatedTools }: ToolL
         className="mb-8 inline-flex items-center gap-1.5 text-sm text-white/40 transition-colors hover:text-white/70"
       >
         <ArrowLeft className="h-4 w-4" />
-        도구 모음
+        {t('backToTools')}
       </Link>
 
       <h1 className="mb-2 text-2xl font-bold tracking-tight">{title}</h1>
@@ -29,19 +32,19 @@ export function ToolLayout({ title, description, children, relatedTools }: ToolL
 
       {/* CTA */}
       <div className="mt-10 rounded-2xl border border-white/8 bg-white/3 p-6 text-center">
-        <p className="mb-3 text-sm text-white/50">이 계산 결과를 매매일지에 기록해보세요</p>
+        <p className="mb-3 text-sm text-white/50">{t('recordPrompt')}</p>
         <Link
           href="/trade"
           className="inline-block rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white shadow-toss-sm transition-colors hover:bg-primary/90"
         >
-          무료로 매매일지 시작하기
+          {t('startJournal')}
         </Link>
       </div>
 
       {/* Related tools */}
       {relatedTools && relatedTools.length > 0 && (
         <div className="mt-10">
-          <h2 className="mb-4 text-sm font-semibold text-white/50">관련 도구</h2>
+          <h2 className="mb-4 text-sm font-semibold text-white/50">{t('relatedTools')}</h2>
           <div className="grid gap-3 sm:grid-cols-2">
             {relatedTools.map((tool) => (
               <Link

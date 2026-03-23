@@ -30,6 +30,7 @@ export function deduplicateGuestTrades(
         existing.map(t => `${t.date}|${t.symbol}|${t.side}|${t.price}`)
     );
     return incoming
-        .map(({ id: _id, user_id: _uid, created_at: _ca, ...rest }) => rest)
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        .map(({ id, user_id, created_at, ...rest }) => rest)
         .filter(t => !existingSet.has(`${t.date}|${t.symbol}|${t.side}|${t.price}`));
 }

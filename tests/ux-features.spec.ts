@@ -1,4 +1,4 @@
-import { test, expect, devices } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import { enterGuestMode, injectGuestTrades, SAMPLE_TRADES } from './helpers';
 import { setupMocks } from './mocks';
 

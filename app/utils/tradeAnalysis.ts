@@ -19,11 +19,15 @@ import {
   TimingMetrics,
   MonthlyStats,
   EquityCurvePoint,
-  HOLDING_PERIOD_LABELS,
-  WEEKDAY_LABELS,
-  EMOTION_LABELS,
-  TRADING_STYLE_LABELS,
-  RISK_LEVEL_LABELS,
+  HOLDING_PERIOD_LABELS_I18N,
+  WEEKDAY_LABELS_I18N,
+  EMOTION_LABELS_I18N,
+  TRADING_STYLE_LABELS_I18N,
+  RISK_LEVEL_LABELS_I18N,
+  NO_TAG_LABEL_I18N,
+  CLOSE_LABEL_I18N,
+  WEEKDAY_SUFFIX_I18N,
+  NO_STRATEGY_LABEL_I18N,
 } from '@/app/types/analysis';
 
 // ─── FIFO Round Trip Matching ────────────────────────────────────────────
@@ -161,17 +165,22 @@ function buildPatternStats(label: string, trips: RoundTrip[]): PatternStats {
 }
 
 /** Calculate stats grouped by entry weekday */
-export function calcWeekdayStats(roundTrips: RoundTrip[]): PatternStats[] {
+export function calcWeekdayStats(roundTrips: RoundTrip[], locale: string = 'ko'): PatternStats[] {
+  const loc = locale.startsWith('ko') ? 'ko' : 'en';
+  const labels = WEEKDAY_LABELS_I18N[loc];
+  const suffix = WEEKDAY_SUFFIX_I18N[loc];
   // Only include trading days (Mon-Fri, indices 1-5)
   return [1, 2, 3, 4, 5].map(day => {
     const dayTrips = roundTrips.filter(t => t.entryWeekday === day);
-    return buildPatternStats(`${WEEKDAY_LABELS[day]}요일`, dayTrips);
+    return buildPatternStats(`${labels[day]}${suffix}`, dayTrips);
   });
 }
 
 /** Calculate stats grouped by holding period category */
-export function calcHoldingPeriodStats(roundTrips: RoundTrip[]): PatternStats[] {
-  return Object.entries(HOLDING_PERIOD_LABELS).map(([, config]) => {
+export function calcHoldingPeriodStats(roundTrips: RoundTrip[], locale: string = 'ko'): PatternStats[] {
+  const loc = locale.startsWith('ko') ? 'ko' : 'en';
+  const labels = HOLDING_PERIOD_LABELS_I18N[loc];
+  return Object.entries(labels).map(([, config]) => {
     const filtered = roundTrips.filter(
       t => t.holdingDays >= config.minDays && t.holdingDays <= config.maxDays
     );
@@ -180,23 +189,26 @@ export function calcHoldingPeriodStats(roundTrips: RoundTrip[]): PatternStats[] 
 }
 
 /** Calculate stats grouped by emotion tag */
-export function calcEmotionStats(roundTrips: RoundTrip[]): PatternStats[] {
+export function calcEmotionStats(roundTrips: RoundTrip[], locale: string = 'ko'): PatternStats[] {
+  const loc = locale.startsWith('ko') ? 'ko' : 'en';
+  const emotionLabels = EMOTION_LABELS_I18N[loc];
+  const noTagLabel = NO_TAG_LABEL_I18N[loc];
   const tagSet = new Set<string>();
   for (const t of roundTrips) {
     if (t.emotionTag) tagSet.add(t.emotionTag);
   }
 
-  // Include "미설정" for trades without emotion tag
+  // Include no-tag label for trades without emotion tag
   const noTagTrips = roundTrips.filter(t => !t.emotionTag);
   const stats: PatternStats[] = [];
 
   if (noTagTrips.length > 0) {
-    stats.push(buildPatternStats('미설정', noTagTrips));
+    stats.push(buildPatternStats(noTagLabel, noTagTrips));
   }
 
   for (const tag of tagSet) {
     const filtered = roundTrips.filter(t => t.emotionTag === tag);
-    const label = EMOTION_LABELS[tag] || tag;
+    const label = emotionLabels[tag] || tag;
     stats.push(buildPatternStats(label, filtered));
   }
 
@@ -204,7 +216,9 @@ export function calcEmotionStats(roundTrips: RoundTrip[]): PatternStats[] {
 }
 
 /** Calculate stats grouped by strategy */
-export function calcStrategyStats(roundTrips: RoundTrip[]): PatternStats[] {
+export function calcStrategyStats(roundTrips: RoundTrip[], locale: string = 'ko'): PatternStats[] {
+  const loc = locale.startsWith('ko') ? 'ko' : 'en';
+  const noStrategyLabel = NO_STRATEGY_LABEL_I18N[loc];
   const strategySet = new Set<string>();
   for (const t of roundTrips) {
     if (t.strategyName) strategySet.add(t.strategyName);
@@ -214,7 +228,7 @@ export function calcStrategyStats(roundTrips: RoundTrip[]): PatternStats[] {
   const stats: PatternStats[] = [];
 
   if (noStratTrips.length > 0) {
-    stats.push(buildPatternStats('전략 미설정', noStratTrips));
+    stats.push(buildPatternStats(noStrategyLabel, noStratTrips));
   }
 
   for (const strat of strategySet) {
@@ -553,6 +567,9 @@ function calcAdvancedMetrics(roundTrips: RoundTrip[]): AdvancedMetrics {
 
 // ─── Insight Generation ──────────────────────────────────────────────────
 
+/** Translation function type for insight generation */
+export type InsightTranslator = (key: string, values?: Record<string, string | number>) => string;
+
 /** Generate rule-based insight sentences from analysis data */
 export function generateInsights(
   roundTrips: RoundTrip[],
@@ -563,10 +580,13 @@ export function generateInsights(
   concentration: ConcentrationItem[],
   streaks: StreakInfo,
   winRate: number,
-  profitFactor: number
+  profitFactor: number,
+  t: InsightTranslator
 ): InsightItem[] {
   const insights: InsightItem[] = [];
   let id = 0;
+
+  const noStrategyLabel = t('noStrategy');
 
   // 1. Best weekday
   const bestWeekday = weekdayStats
@@ -577,8 +597,8 @@ export function generateInsights(
       id: `insight-${id++}`,
       icon: '📈',
       type: 'positive',
-      title: `${bestWeekday.label} 매매 성적 우수`,
-      description: `${bestWeekday.label}에 진입한 매매의 승률이 ${bestWeekday.winRate.toFixed(0)}%로 가장 높습니다 (${bestWeekday.count}건).`,
+      title: t('bestWeekdayTitle', { label: bestWeekday.label }),
+      description: t('bestWeekdayDesc', { label: bestWeekday.label, winRate: bestWeekday.winRate.toFixed(0), count: bestWeekday.count }),
     });
   }
 
@@ -591,8 +611,8 @@ export function generateInsights(
       id: `insight-${id++}`,
       icon: '📉',
       type: 'warning',
-      title: `${worstWeekday.label} 매매 주의`,
-      description: `${worstWeekday.label}에 진입한 매매의 승률이 ${worstWeekday.winRate.toFixed(0)}%로 가장 낮습니다. 이 요일의 매매를 줄여보세요.`,
+      title: t('worstWeekdayTitle', { label: worstWeekday.label }),
+      description: t('worstWeekdayDesc', { label: worstWeekday.label, winRate: worstWeekday.winRate.toFixed(0) }),
     });
   }
 
@@ -605,21 +625,23 @@ export function generateInsights(
       id: `insight-${id++}`,
       icon: '⏰',
       type: 'positive',
-      title: `${bestHolding.label} 수익률 우수`,
-      description: `${bestHolding.label}의 평균 수익률이 ${bestHolding.avgReturn.toFixed(1)}%로 가장 높습니다 (${bestHolding.count}건).`,
+      title: t('bestHoldingTitle', { label: bestHolding.label }),
+      description: t('bestHoldingDesc', { label: bestHolding.label, avgReturn: bestHolding.avgReturn.toFixed(1), count: bestHolding.count }),
     });
   }
 
   // 4. Emotion-based insights
-  const plannedStat = emotionStats.find(s => s.label === EMOTION_LABELS['PLANNED']);
-  const fomoStat = emotionStats.find(s => s.label === EMOTION_LABELS['FOMO']);
+  const emotionLabels = EMOTION_LABELS_I18N.ko; // Use canonical keys for lookup
+  const emotionLabelsEn = EMOTION_LABELS_I18N.en;
+  const plannedStat = emotionStats.find(s => s.label === emotionLabels['PLANNED'] || s.label === emotionLabelsEn['PLANNED']);
+  const fomoStat = emotionStats.find(s => s.label === emotionLabels['FOMO'] || s.label === emotionLabelsEn['FOMO']);
   if (fomoStat && fomoStat.count >= 2 && fomoStat.winRate < 50) {
     insights.push({
       id: `insight-${id++}`,
       icon: '⚠️',
       type: 'warning',
-      title: 'FOMO 매매 손실 높음',
-      description: `FOMO 매매의 승률이 ${fomoStat.winRate.toFixed(0)}%입니다. 계획된 매매를 우선하세요.`,
+      title: t('fomoLossTitle'),
+      description: t('fomoLossDesc', { winRate: fomoStat.winRate.toFixed(0) }),
     });
   }
   if (plannedStat && plannedStat.count >= 2 && plannedStat.winRate > 60) {
@@ -627,22 +649,22 @@ export function generateInsights(
       id: `insight-${id++}`,
       icon: '✅',
       type: 'positive',
-      title: '계획된 매매 성적 우수',
-      description: `계획된 매매의 승률이 ${plannedStat.winRate.toFixed(0)}%로, 감정적 매매보다 월등히 높습니다.`,
+      title: t('plannedEffectiveTitle'),
+      description: t('plannedEffectiveDesc', { winRate: plannedStat.winRate.toFixed(0) }),
     });
   }
 
   // 5. Best strategy
   const bestStrategy = strategyStats
-    .filter(s => s.count >= 2 && s.label !== '전략 미설정')
+    .filter(s => s.count >= 2 && s.label !== noStrategyLabel)
     .sort((a, b) => b.winRate - a.winRate)[0];
   if (bestStrategy && bestStrategy.winRate > 50) {
     insights.push({
       id: `insight-${id++}`,
       icon: '🏆',
       type: 'positive',
-      title: `"${bestStrategy.label}" 전략 성과 우수`,
-      description: `이 전략의 승률이 ${bestStrategy.winRate.toFixed(0)}%로 가장 높습니다 (${bestStrategy.count}건, 평균 수익 ${bestStrategy.avgReturn.toFixed(1)}%).`,
+      title: t('bestStrategyTitle', { label: bestStrategy.label }),
+      description: t('bestStrategyDesc', { winRate: bestStrategy.winRate.toFixed(0), count: bestStrategy.count, avgReturn: bestStrategy.avgReturn.toFixed(1) }),
     });
   }
 
@@ -654,8 +676,8 @@ export function generateInsights(
       id: `insight-${id++}`,
       icon: '⚡',
       type: 'warning',
-      title: '포트폴리오 집중 위험',
-      description: `전체 투자금의 ${top.percentage.toFixed(0)}%가 ${top.symbolName || top.symbol}에 집중되어 있습니다. 분산 투자를 고려하세요.`,
+      title: t('concentrationRiskTitle'),
+      description: t('concentrationRiskDesc', { percentage: top.percentage.toFixed(0), symbol: top.symbolName || top.symbol }),
     });
   }
 
@@ -665,8 +687,8 @@ export function generateInsights(
       id: `insight-${id++}`,
       icon: '🚨',
       type: 'critical',
-      title: `${streaks.currentLoss}연패 진행 중`,
-      description: `현재 ${streaks.currentLoss}연속 손실 중입니다. 포지션 축소 또는 매매 중단을 고려해보세요.`,
+      title: t('lossStreakTitle', { count: streaks.currentLoss }),
+      description: t('lossStreakDesc', { count: streaks.currentLoss }),
     });
   }
 
@@ -676,8 +698,8 @@ export function generateInsights(
       id: `insight-${id++}`,
       icon: '🔥',
       type: 'positive',
-      title: `${streaks.currentWin}연승 중!`,
-      description: `매우 좋은 흐름입니다. 하지만 과신하지 말고 리스크 관리를 유지하세요.`,
+      title: t('winStreakTitle', { count: streaks.currentWin }),
+      description: t('winStreakDesc'),
     });
   }
 
@@ -688,16 +710,16 @@ export function generateInsights(
         id: `insight-${id++}`,
         icon: '👍',
         type: 'positive',
-        title: `전체 승률 ${winRate.toFixed(0)}% 양호`,
-        description: `현재 투자 스타일이 잘 맞고 있습니다. 일관성을 유지하세요.`,
+        title: t('winRateGoodTitle', { winRate: winRate.toFixed(0) }),
+        description: t('winRateGoodDesc'),
       });
     } else if (winRate < 40) {
       insights.push({
         id: `insight-${id++}`,
         icon: '💭',
         type: 'warning',
-        title: `전체 승률 ${winRate.toFixed(0)}% 개선 필요`,
-        description: `진입 타이밍이나 종목 선정을 재검토해보세요. 손절 기준을 명확히 하면 도움이 됩니다.`,
+        title: t('winRateBadTitle', { winRate: winRate.toFixed(0) }),
+        description: t('winRateBadDesc'),
       });
     }
   }
@@ -709,16 +731,16 @@ export function generateInsights(
         id: `insight-${id++}`,
         icon: '💰',
         type: 'positive',
-        title: `수익 팩터 ${profitFactor.toFixed(1)} — 우수`,
-        description: `손실 대비 수익이 ${profitFactor.toFixed(1)}배로, 안정적인 수익 구조를 갖추고 있습니다.`,
+        title: t('profitFactorGoodTitle', { pf: profitFactor.toFixed(1) }),
+        description: t('profitFactorGoodDesc', { pf: profitFactor.toFixed(1) }),
       });
     } else if (profitFactor < 1) {
       insights.push({
         id: `insight-${id++}`,
         icon: '📊',
         type: 'critical',
-        title: `수익 팩터 ${profitFactor.toFixed(1)} — 손실 구간`,
-        description: `현재 수익보다 손실이 큽니다. 손절 라인을 더 타이트하게 설정해보세요.`,
+        title: t('profitFactorBadTitle', { pf: profitFactor.toFixed(1) }),
+        description: t('profitFactorBadDesc'),
       });
     }
   }
@@ -729,8 +751,8 @@ export function generateInsights(
       id: `insight-${id++}`,
       icon: '📋',
       type: 'neutral',
-      title: '데이터 수집 중',
-      description: `현재 ${roundTrips.length}건의 완결된 매매가 있습니다. 더 많은 매매 데이터가 쌓이면 유의미한 패턴을 발견할 수 있습니다.`,
+      title: t('gatheringDataTitle'),
+      description: t('gatheringDataDesc', { count: roundTrips.length }),
     });
   }
 
@@ -740,7 +762,8 @@ export function generateInsights(
 // ─── Monthly Stats ───────────────────────────────────────────────────────
 
 /** Group round trips by exit month and return monthly performance stats */
-export function calcMonthlyStats(roundTrips: RoundTrip[]): MonthlyStats[] {
+export function calcMonthlyStats(roundTrips: RoundTrip[], rawLocale: string = 'ko'): MonthlyStats[] {
+  const locale = rawLocale.startsWith('ko') ? 'ko' : 'en';
   const byMonth = new Map<string, RoundTrip[]>();
 
   for (const trip of roundTrips) {
@@ -761,7 +784,10 @@ export function calcMonthlyStats(roundTrips: RoundTrip[]): MonthlyStats[] {
       currencySet.size === 1 ? (currencySet.has('KRW') ? 'KRW' : 'USD') : 'mixed';
 
     const [year, m] = month.split('-');
-    const label = `${year.slice(2)}년 ${parseInt(m)}월`;
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const label = locale === 'ko'
+      ? `${year.slice(2)}년 ${parseInt(m)}월`
+      : `${monthNames[parseInt(m) - 1]} '${year.slice(2)}`;
 
     stats.push({
       month,
@@ -782,18 +808,20 @@ export function calcMonthlyStats(roundTrips: RoundTrip[]): MonthlyStats[] {
 // ─── Equity Curve ────────────────────────────────────────────────────────
 
 /** Build cumulative P&L curve from round trips sorted by exit date */
-export function calcEquityCurve(roundTrips: RoundTrip[]): EquityCurvePoint[] {
+export function calcEquityCurve(roundTrips: RoundTrip[], rawLocale: string = 'ko'): EquityCurvePoint[] {
+  const locale = rawLocale.startsWith('ko') ? 'ko' : 'en';
   const sorted = [...roundTrips].sort(
     (a, b) => new Date(a.exitDate).getTime() - new Date(b.exitDate).getTime()
   );
 
+  const closeLabel = CLOSE_LABEL_I18N[locale] || CLOSE_LABEL_I18N.ko;
   let cumPnl = 0;
   return sorted.map(trip => {
     cumPnl += trip.pnl;
     return {
       date: trip.exitDate,
       cumulativePnl: cumPnl,
-      tradeLabel: `${trip.symbolName || trip.symbol} 청산`,
+      tradeLabel: `${trip.symbolName || trip.symbol} ${closeLabel}`,
     };
   });
 }
@@ -801,13 +829,15 @@ export function calcEquityCurve(roundTrips: RoundTrip[]): EquityCurvePoint[] {
 // ─── Full Analysis Pipeline ──────────────────────────────────────────────
 
 /** Run the complete analysis pipeline on trade data */
-export function analyzeTradesComplete(trades: Trade[]): TradeAnalysis {
+export function analyzeTradesComplete(trades: Trade[], locale: string = 'ko', t?: InsightTranslator): TradeAnalysis {
+  // Normalize locale to 'ko' or 'en'
+  const loc = locale.startsWith('ko') ? 'ko' : 'en';
   const roundTrips = matchRoundTrips(trades);
 
-  const weekdayStats = calcWeekdayStats(roundTrips);
-  const holdingPeriodStats = calcHoldingPeriodStats(roundTrips);
-  const emotionStats = calcEmotionStats(roundTrips);
-  const strategyStats = calcStrategyStats(roundTrips);
+  const weekdayStats = calcWeekdayStats(roundTrips, loc);
+  const holdingPeriodStats = calcHoldingPeriodStats(roundTrips, loc);
+  const emotionStats = calcEmotionStats(roundTrips, loc);
+  const strategyStats = calcStrategyStats(roundTrips, loc);
   const concentration = calcConcentration(trades);
   const streaks = calcStreaks(roundTrips);
 
@@ -829,11 +859,13 @@ export function analyzeTradesComplete(trades: Trade[]): TradeAnalysis {
   const riskLevel = detectRiskLevel(roundTrips);
   const overallGrade = calcOverallGrade(winRate, profitFactor, avgReturn, maxDrawdownPct, consistencyScore);
 
+  const tradingStyleLabels = TRADING_STYLE_LABELS_I18N[loc];
+  const riskLevelLabels = RISK_LEVEL_LABELS_I18N[loc];
   const profile: UserProfile = {
     tradingStyle,
-    tradingStyleLabel: TRADING_STYLE_LABELS[tradingStyle],
+    tradingStyleLabel: tradingStyleLabels[tradingStyle],
     riskLevel,
-    riskLevelLabel: RISK_LEVEL_LABELS[riskLevel],
+    riskLevelLabel: riskLevelLabels[riskLevel],
     overallGrade,
     totalTrades,
     winRate,
@@ -844,9 +876,12 @@ export function analyzeTradesComplete(trades: Trade[]): TradeAnalysis {
     consistencyScore,
   };
 
+  // Use provided translator or create a fallback from bundled translations
+  const insightT: InsightTranslator = t ?? createFallbackTranslator(loc);
+
   const insights = generateInsights(
     roundTrips, weekdayStats, holdingPeriodStats, emotionStats,
-    strategyStats, concentration, streaks, winRate, profitFactor
+    strategyStats, concentration, streaks, winRate, profitFactor, insightT
   );
 
   const advancedMetrics = calcAdvancedMetrics(roundTrips);
@@ -863,5 +898,83 @@ export function analyzeTradesComplete(trades: Trade[]): TradeAnalysis {
     insights,
     advancedMetrics,
     analyzedAt: new Date().toISOString(),
+  };
+}
+
+/** Fallback translator for when next-intl `t` is not available (e.g., server-side or tests) */
+function createFallbackTranslator(loc: 'ko' | 'en'): InsightTranslator {
+  const messages: Record<string, Record<string, string>> = {
+    ko: {
+      noStrategy: '전략 미설정',
+      bestWeekdayTitle: '{label} 매매 성적 우수',
+      bestWeekdayDesc: '{label}에 진입한 매매의 승률이 {winRate}%로 가장 높습니다 ({count}건).',
+      worstWeekdayTitle: '{label} 매매 주의',
+      worstWeekdayDesc: '{label}에 진입한 매매의 승률이 {winRate}%로 가장 낮습니다. 이 요일의 매매를 줄여보세요.',
+      bestHoldingTitle: '{label} 수익률 우수',
+      bestHoldingDesc: '{label}의 평균 수익률이 {avgReturn}%로 가장 높습니다 ({count}건).',
+      fomoLossTitle: 'FOMO 매매 손실 높음',
+      fomoLossDesc: 'FOMO 매매의 승률이 {winRate}%입니다. 계획된 매매를 우선하세요.',
+      plannedEffectiveTitle: '계획된 매매가 효과적',
+      plannedEffectiveDesc: '계획된 매매의 승률이 {winRate}%로 가장 높습니다.',
+      bestStrategyTitle: '"{label}" 전략 성과 우수',
+      bestStrategyDesc: '이 전략의 승률이 {winRate}%로 가장 높습니다 ({count}건, 평균 수익 {avgReturn}%).',
+      concentrationRiskTitle: '포트폴리오 집중 위험',
+      concentrationRiskDesc: '전체 투자금의 {percentage}%가 {symbol}에 집중되어 있습니다. 분산 투자를 고려하세요.',
+      lossStreakTitle: '{count}연패 진행 중',
+      lossStreakDesc: '현재 {count}연속 손실 중입니다. 포지션 축소 또는 매매 중단을 고려해보세요.',
+      winStreakTitle: '{count}연승 중!',
+      winStreakDesc: '매우 좋은 흐름입니다. 하지만 과신하지 말고 리스크 관리를 유지하세요.',
+      winRateGoodTitle: '전체 승률 {winRate}% 양호',
+      winRateGoodDesc: '현재 투자 스타일이 잘 맞고 있습니다. 일관성을 유지하세요.',
+      winRateBadTitle: '전체 승률 {winRate}% 개선 필요',
+      winRateBadDesc: '진입 타이밍이나 종목 선정을 재검토해보세요. 손절 기준을 명확히 하면 도움이 됩니다.',
+      profitFactorGoodTitle: '수익 팩터 {pf} — 우수',
+      profitFactorGoodDesc: '손실 대비 수익이 {pf}배로, 안정적인 수익 구조를 갖추고 있습니다.',
+      profitFactorBadTitle: '수익 팩터 {pf} — 손실 구간',
+      profitFactorBadDesc: '현재 수익보다 손실이 큽니다. 손절 라인을 더 타이트하게 설정해보세요.',
+      gatheringDataTitle: '데이터 수집 중',
+      gatheringDataDesc: '현재 {count}건의 완결된 매매가 있습니다. 더 많은 매매 데이터가 쌓이면 유의미한 패턴을 발견할 수 있습니다.',
+    },
+    en: {
+      noStrategy: 'No Strategy',
+      bestWeekdayTitle: 'Strong {label} Performance',
+      bestWeekdayDesc: 'Trades entered on {label} have the highest win rate at {winRate}% ({count} trades).',
+      worstWeekdayTitle: 'Caution on {label}',
+      worstWeekdayDesc: 'Trades entered on {label} have the lowest win rate at {winRate}%. Consider reducing trades on this day.',
+      bestHoldingTitle: '{label} Returns Excel',
+      bestHoldingDesc: '{label} trades have the highest avg return at {avgReturn}% ({count} trades).',
+      fomoLossTitle: 'High FOMO Trading Losses',
+      fomoLossDesc: 'FOMO trades have a {winRate}% win rate. Prioritize planned trades.',
+      plannedEffectiveTitle: 'Planned Trades Are Effective',
+      plannedEffectiveDesc: 'Planned trades have the highest win rate at {winRate}%.',
+      bestStrategyTitle: '"{label}" Strategy Excels',
+      bestStrategyDesc: 'This strategy has the highest win rate at {winRate}% ({count} trades, avg return {avgReturn}%).',
+      concentrationRiskTitle: 'Portfolio Concentration Risk',
+      concentrationRiskDesc: '{percentage}% of your portfolio is concentrated in {symbol}. Consider diversifying.',
+      lossStreakTitle: '{count}-Loss Streak in Progress',
+      lossStreakDesc: 'You are on a {count}-trade losing streak. Consider reducing position size or pausing trading.',
+      winStreakTitle: '{count}-Win Streak!',
+      winStreakDesc: 'Great momentum! But stay disciplined and maintain your risk management.',
+      winRateGoodTitle: 'Overall Win Rate {winRate}% — Solid',
+      winRateGoodDesc: 'Your current trading style is working well. Stay consistent.',
+      winRateBadTitle: 'Overall Win Rate {winRate}% — Needs Improvement',
+      winRateBadDesc: 'Review your entry timing and stock selection. Setting clear stop-loss levels can help.',
+      profitFactorGoodTitle: 'Profit Factor {pf} — Excellent',
+      profitFactorGoodDesc: 'Your gains are {pf}x your losses, indicating a solid profit structure.',
+      profitFactorBadTitle: 'Profit Factor {pf} — In the Red',
+      profitFactorBadDesc: 'Your losses exceed your gains. Consider tightening your stop-loss levels.',
+      gatheringDataTitle: 'Gathering Data',
+      gatheringDataDesc: 'You have {count} completed trades so far. More trade data will reveal meaningful patterns.',
+    },
+  };
+
+  return (key: string, values?: Record<string, string | number>): string => {
+    let template = messages[loc]?.[key] ?? messages.en[key] ?? key;
+    if (values) {
+      for (const [k, v] of Object.entries(values)) {
+        template = template.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
+      }
+    }
+    return template;
   };
 }
