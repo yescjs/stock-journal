@@ -37,6 +37,7 @@ import { Footer } from '@/app/components/Footer';
 import { RiskAlertToast } from '@/app/components/RiskAlertToast';
 import { PreTradeChecklist } from '@/app/components/PreTradeChecklist';
 import { AIChatFAB } from '@/app/components/AIChatFAB';
+import { SpeedDialFAB } from '@/app/components/SpeedDialFAB';
 import { readGuestTrades, deduplicateGuestTrades, GUEST_TRADES_KEY } from '@/app/utils/migrationUtils';
 import { analyzeTradesComplete } from '@/app/utils/tradeAnalysis';
 
@@ -74,7 +75,15 @@ export default function TradePage() {
 
     // --- AI Chat (shared between FAB and AnalysisDashboard Q&A tab) ---
     const aiChat = useAIChat(currentUser, refreshBalance);
-    const [isChatPanelOpen, setIsChatPanelOpen] = useState(false);
+    const [isChatOpen, setIsChatOpen] = useState(false);
+    const [lastReadCount, setLastReadCount] = useState(0);
+
+    // Mark messages as read when chat is open
+    useEffect(() => {
+        if (isChatOpen) {
+            setLastReadCount(aiChat.messages.length);
+        }
+    }, [isChatOpen, aiChat.messages.length]);
 
     // --- Pre-Trade Coach ---
     const { result: coachResult, loading: coachLoading, error: coachError, generateChecklist, clear: clearCoach } = usePreTradeCoach(currentUser, refreshBalance);
@@ -429,7 +438,19 @@ export default function TradePage() {
             {/* Footer */}
             <Footer />
 
-            {/* AI Q&A FAB — left side, logged-in only */}
+            {/* Speed Dial FAB — combines Add Trade + AI Q&A into one expandable button */}
+            <SpeedDialFAB
+                onAddTrade={() => setShowAddModal(true)}
+                onOpenChat={() => setIsChatOpen(true)}
+                isChatOpen={isChatOpen}
+                showAIChat={!!currentUser}
+                freeRemaining={aiChat.freeRemaining}
+                isFree={aiChat.isFree}
+                coinBalance={coinBalance}
+                hasUnread={aiChat.messages.length > lastReadCount && aiChat.messages[aiChat.messages.length - 1]?.role === 'assistant'}
+            />
+
+            {/* AI Chat Panel (controlled by SpeedDialFAB) */}
             {currentUser && (
                 <AIChatFAB
                     messages={aiChat.messages}
@@ -440,29 +461,12 @@ export default function TradePage() {
                     trades={trades}
                     coinBalance={coinBalance}
                     onChargeCoins={() => setShowCoinShop(true)}
-                    onOpenChange={setIsChatPanelOpen}
                     freeRemaining={aiChat.freeRemaining}
                     isFree={aiChat.isFree}
+                    isOpen={isChatOpen}
+                    onClose={() => setIsChatOpen(false)}
                 />
             )}
-
-            {/* FAB — Add Trade (right side, hidden on desktop when chat panel is open) */}
-            <AnimatePresence>
-                {!isChatPanelOpen && (
-                    <motion.button
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0, opacity: 0 }}
-                        transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-                        onClick={() => setShowAddModal(true)}
-                        aria-label={t('form.addTradeAriaLabel')}
-                        className="fixed bottom-20 md:bottom-6 right-6 z-40 h-11 w-11 md:h-11 md:w-auto md:px-4 rounded-full bg-blue-600 text-white shadow-2xl shadow-blue-600/30 flex items-center justify-center gap-2 hover:bg-blue-500 hover:scale-105 active:scale-95 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2"
-                    >
-                        <span className="text-xl font-light leading-none">+</span>
-                        <span className="hidden md:inline text-xs font-bold">{t('form.addTradeShort')}</span>
-                    </motion.button>
-                )}
-            </AnimatePresence>
 
             {/* Login BottomSheet */}
             <BottomSheet

@@ -235,17 +235,60 @@ ${roundTrip.strategyName ? `- 적용 전략: ${roundTrip.strategyName}` : ''}
 
 // ─── Pre-Trade Coach Prompt ──────────────────────────────────────────────
 
-function buildPreTradeCoachPrompt(req: PreTradeCoachRequest): string {
-  const { analysis, symbol, side } = req;
+function buildPreTradeCoachPrompt(req: PreTradeCoachRequest & BaseRequest): string {
+  const { analysis, symbol, side, locale } = req;
   const { profile, advancedMetrics, emotionStats, weekdayStats, streaks } = analysis;
   const today = new Date();
-  const weekday = ['일', '월', '화', '수', '목', '금', '토'][today.getDay()];
+  const isEn = locale === 'en';
 
-  const weekdayStat = weekdayStats.find(s => s.label === `${weekday}요일`);
+  const weekdayKo = ['일', '월', '화', '수', '목', '금', '토'][today.getDay()];
+  const weekdayEn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][today.getDay()];
+
+  const weekdayStat = weekdayStats.find(s => s.label === `${weekdayKo}요일`);
   const emotionSummary = emotionStats
     .filter(s => s.count > 0)
-    .map(s => `${s.label}: 승률 ${s.winRate.toFixed(0)}% (${s.count}건)`)
+    .map(s => isEn
+      ? `${s.label}: Win rate ${s.winRate.toFixed(0)}% (${s.count} trades)`
+      : `${s.label}: 승률 ${s.winRate.toFixed(0)}% (${s.count}건)`)
     .join(', ');
+
+  if (isEn) {
+    return `The trader is about to ${side === 'BUY' ? 'buy' : 'sell'} ${symbol}.
+Based on past trading data, create a pre-entry checklist.
+
+## Trader Profile
+- Total closed trades: ${profile.totalTrades}
+- Win rate: ${profile.winRate.toFixed(1)}%
+- R:R ratio: ${advancedMetrics.rrRatio.toFixed(2)}
+- Current win streak: ${streaks.currentWin} / Current loss streak: ${streaks.currentLoss}
+- Bias score: ${advancedMetrics.biasScore.biasScore.toFixed(0)}/100
+- FOMO ratio: ${(advancedMetrics.biasScore.fomoRatio * 100).toFixed(0)}%
+- Impulse trade ratio: ${(advancedMetrics.biasScore.impulsiveRatio * 100).toFixed(0)}%
+
+## Today
+- Day: ${weekdayEn}
+${weekdayStat ? `- ${weekdayEn} win rate: ${weekdayStat.winRate.toFixed(0)}% (${weekdayStat.count} trades)` : ''}
+
+## Performance by Emotion
+${emotionSummary || 'No data'}
+
+Write **exactly 3** checklist items.
+
+Rules:
+1. Use markdown checkbox (\`- [ ]\`) format
+2. Each item must be a **short question under 15 words** (e.g., "Have you set a stop-loss?")
+3. Include one supporting metric in parentheses (e.g., "(current win rate 42%)")
+4. Use plain language, not jargon (R:R → risk-reward, Expectancy → expected return)
+5. Do not use emojis
+6. Focus on the trader's **3 weakest areas**
+
+Example:
+- [ ] Have you set a stop-loss? (avg loss -3.2%)
+- [ ] Is this not an impulse trade? (recent impulse ratio 25%)
+- [ ] Have you traded too much today? (overtrading 3 days)
+
+Output only the checklist. No explanations or greetings.`;
+  }
 
   return `투자자가 ${symbol} 종목을 ${side === 'BUY' ? '매수' : '매도'}하려고 합니다.
 과거 매매 데이터를 바탕으로 진입 전 체크리스트를 작성해주세요.
@@ -260,8 +303,8 @@ function buildPreTradeCoachPrompt(req: PreTradeCoachRequest): string {
 - 충동매매 비율: ${(advancedMetrics.biasScore.impulsiveRatio * 100).toFixed(0)}%
 
 ## 오늘 정보
-- 요일: ${weekday}요일
-${weekdayStat ? `- ${weekday}요일 승률: ${weekdayStat.winRate.toFixed(0)}% (${weekdayStat.count}건)` : ''}
+- 요일: ${weekdayKo}요일
+${weekdayStat ? `- ${weekdayKo}요일 승률: ${weekdayStat.winRate.toFixed(0)}% (${weekdayStat.count}건)` : ''}
 
 ## 감정별 성과
 ${emotionSummary || '데이터 없음'}
@@ -286,7 +329,7 @@ ${emotionSummary || '데이터 없음'}
 
 // ─── Chat QA Prompt ─────────────────────────────────────────────────────
 
-const CHAT_SYSTEM_PROMPT = `당신은 개인 트레이딩 데이터 분석가입니다.
+const CHAT_SYSTEM_PROMPT_KO = `당신은 개인 트레이딩 데이터 분석가입니다.
 사용자의 매매 데이터를 기반으로 질문에 정확하고 간결하게 답변합니다.
 
 규칙:
@@ -297,29 +340,80 @@ const CHAT_SYSTEM_PROMPT = `당신은 개인 트레이딩 데이터 분석가입
 5. 이모지는 사용하지 마세요.
 6. 존댓말을 사용하세요.`;
 
-function buildChatQAPrompt(req: ChatQARequest): string {
+const CHAT_SYSTEM_PROMPT_EN = `You are a personal trading data analyst.
+You answer questions accurately and concisely based on the user's trading data.
+
+Rules:
+1. Base your answers on the data. Do not speculate.
+2. Use markdown format with tables and numbers where helpful.
+3. Keep answers concise (200-500 characters).
+4. Do not recommend investments or specific stocks.
+5. Do not use emojis.
+6. Respond in English.`;
+
+function getChatSystemPrompt(locale?: string): string {
+  return locale === 'en' ? CHAT_SYSTEM_PROMPT_EN : CHAT_SYSTEM_PROMPT_KO;
+}
+
+function buildChatQAPrompt(req: ChatQARequest, locale?: string): string {
   const { analysis, question } = req;
   const { profile, advancedMetrics, weekdayStats, emotionStats, strategyStats, streaks, holdingPeriodStats } = analysis;
+  const isEn = locale === 'en';
+
+  const unitLabel = isEn ? 'trades' : '건';
+  const winRateLabel = isEn ? 'Win rate' : '승률';
+  const avgReturnLabel = isEn ? 'Avg return' : '평균수익';
+  const noData = isEn ? 'No data' : '데이터 없음';
 
   const emotionSummary = emotionStats
     .filter(s => s.count > 0)
-    .map(s => `${s.label}: 승률 ${s.winRate.toFixed(0)}% (${s.count}건, 평균수익 ${s.avgReturn.toFixed(1)}%)`)
+    .map(s => `${s.label}: ${winRateLabel} ${s.winRate.toFixed(0)}% (${s.count}${unitLabel}, ${avgReturnLabel} ${s.avgReturn.toFixed(1)}%)`)
     .join('\n  ');
 
   const strategySummary = strategyStats
     .filter(s => s.count > 0)
-    .map(s => `${s.label}: 승률 ${s.winRate.toFixed(0)}% (${s.count}건, 평균수익 ${s.avgReturn.toFixed(1)}%)`)
+    .map(s => `${s.label}: ${winRateLabel} ${s.winRate.toFixed(0)}% (${s.count}${unitLabel}, ${avgReturnLabel} ${s.avgReturn.toFixed(1)}%)`)
     .join('\n  ');
 
   const weekdaySummary = weekdayStats
     .filter(s => s.count > 0)
-    .map(s => `${s.label}: 승률 ${s.winRate.toFixed(0)}% (${s.count}건)`)
+    .map(s => `${s.label}: ${winRateLabel} ${s.winRate.toFixed(0)}% (${s.count}${unitLabel})`)
     .join(', ');
 
   const holdingSummary = holdingPeriodStats
     .filter(s => s.count > 0)
-    .map(s => `${s.label}: 승률 ${s.winRate.toFixed(0)}% (${s.count}건, 평균수익 ${s.avgReturn.toFixed(1)}%)`)
+    .map(s => `${s.label}: ${winRateLabel} ${s.winRate.toFixed(0)}% (${s.count}${unitLabel}, ${avgReturnLabel} ${s.avgReturn.toFixed(1)}%)`)
     .join('\n  ');
+
+  if (isEn) {
+    return `## Trader Data Summary
+- Total closed trades: ${profile.totalTrades}
+- Win rate: ${profile.winRate.toFixed(1)}%
+- Average return: ${profile.avgReturn >= 0 ? '+' : ''}${profile.avgReturn.toFixed(1)}%
+- Profit factor: ${profile.profitFactor.toFixed(2)}
+- R:R ratio: ${advancedMetrics.rrRatio.toFixed(2)}
+- Expectancy: ${advancedMetrics.expectancy.toFixed(2)}%
+- Max drawdown: -${profile.maxDrawdownPercent.toFixed(1)}%
+- Overall grade: ${profile.overallGrade}
+- Trading style: ${profile.tradingStyleLabel}
+- Current win streak: ${streaks.currentWin} / Loss streak: ${streaks.currentLoss}
+- Bias score: ${advancedMetrics.biasScore.biasScore.toFixed(0)}/100
+
+## Performance by Day of Week
+  ${weekdaySummary || noData}
+
+## Performance by Emotion
+  ${emotionSummary || noData}
+
+## Performance by Strategy
+  ${strategySummary || noData}
+
+## Performance by Holding Period
+  ${holdingSummary || noData}
+
+## Question
+${question}`;
+  }
 
   return `## 투자자 데이터 요약
 - 총 완결 거래: ${profile.totalTrades}건
@@ -335,16 +429,16 @@ function buildChatQAPrompt(req: ChatQARequest): string {
 - 편향 점수: ${advancedMetrics.biasScore.biasScore.toFixed(0)}/100
 
 ## 요일별 성과
-  ${weekdaySummary || '데이터 없음'}
+  ${weekdaySummary || noData}
 
 ## 감정별 성과
-  ${emotionSummary || '데이터 없음'}
+  ${emotionSummary || noData}
 
 ## 전략별 성과
-  ${strategySummary || '데이터 없음'}
+  ${strategySummary || noData}
 
 ## 보유 기간별 성과
-  ${holdingSummary || '데이터 없음'}
+  ${holdingSummary || noData}
 
 ## 질문
 ${question}`;
@@ -354,6 +448,13 @@ ${question}`;
 
 function buildMockReport(body: AIAnalysisRequest): string {
   if (body.type === 'pre_trade_coach') {
+    if (body.locale === 'en') {
+      return `- [ ] Have you set a stop-loss? (Current R:R ${body.analysis.advancedMetrics.rrRatio.toFixed(1)})
+- [ ] Is this not an impulse trade? (Discipline score ${body.analysis.advancedMetrics.biasScore.biasScore.toFixed(0)}/100)
+- [ ] Have you traded too much today? (Overtrading ${body.analysis.advancedMetrics.biasScore.overTradingDays} days)
+
+> Mock mode: Set GEMINI_API_KEY for personalized checklists.`;
+    }
     return `- [ ] 손절가 정했나요? (현재 손익비 ${body.analysis.advancedMetrics.rrRatio.toFixed(1)})
 - [ ] 충동 매매 아닌가요? (규율 점수 ${body.analysis.advancedMetrics.biasScore.biasScore.toFixed(0)}/100)
 - [ ] 오늘 거래 횟수 괜찮나요? (과매매 ${body.analysis.advancedMetrics.biasScore.overTradingDays}일)
@@ -362,6 +463,14 @@ function buildMockReport(body: AIAnalysisRequest): string {
   }
 
   if (body.type === 'chat_qa') {
+    if (body.locale === 'en') {
+      return `Analysis for your question: "${body.question}"
+
+You currently have **${body.analysis.profile.totalTrades}** closed trades.
+Win rate **${body.analysis.profile.winRate.toFixed(1)}%**, overall grade **${body.analysis.profile.overallGrade}**.
+
+> Mock mode: Set GEMINI_API_KEY for detailed AI analysis.`;
+    }
     return `질문: "${body.question}"에 대한 분석입니다.
 
 현재 총 **${body.analysis.profile.totalTrades}건**의 완결 거래 데이터가 있습니다.
@@ -511,7 +620,38 @@ async function callGeminiAPI(systemPrompt: string, userPrompt: string): Promise<
   throw lastError ?? new Error('모든 Gemini 모델 호출에 실패했습니다.');
 }
 
-// ─── Route Handler ───────────────────────────────────────────────────────
+// ─── GET Handler — fetch current daily chat_qa usage ─────────────────────
+
+export async function GET(req: NextRequest): Promise<NextResponse> {
+  try {
+    const { user } = await getAuthUser(req);
+    const token = req.headers.get('Authorization')?.replace('Bearer ', '');
+    if (!user || !token) {
+      return NextResponse.json({ chatQaDailyUsed: 0, chatQaDailyLimit: CHAT_QA_FREE_DAILY });
+    }
+
+    const supabase = createAuthedClient(token);
+    const todayStart = new Date();
+    todayStart.setUTCHours(0, 0, 0, 0);
+
+    const { count } = await supabase
+      .from('coin_transactions')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('reference_type', 'chat_qa')
+      .eq('amount', 0)
+      .gte('created_at', todayStart.toISOString());
+
+    return NextResponse.json({
+      chatQaDailyUsed: count ?? 0,
+      chatQaDailyLimit: CHAT_QA_FREE_DAILY,
+    });
+  } catch {
+    return NextResponse.json({ chatQaDailyUsed: 0, chatQaDailyLimit: CHAT_QA_FREE_DAILY });
+  }
+}
+
+// ─── POST Handler — generate AI analysis ─────────────────────────────────
 
 export async function POST(req: NextRequest): Promise<NextResponse<AIAnalysisResponse | { error: string }>> {
   try {
@@ -616,7 +756,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<AIAnalysisRes
     try {
       // chat_qa usage metadata to include in response
       const chatQaMeta = body.type === 'chat_qa'
-        ? { chatQaDailyUsed: chatQaDailyUsed + 1, chatQaDailyLimit: CHAT_QA_FREE_DAILY, wasFree: cost === 0 }
+        ? { chatQaDailyUsed: cost === 0 ? chatQaDailyUsed + 1 : chatQaDailyUsed, chatQaDailyLimit: CHAT_QA_FREE_DAILY, wasFree: cost === 0 }
         : {};
 
       let userPrompt: string;
@@ -630,13 +770,17 @@ export async function POST(req: NextRequest): Promise<NextResponse<AIAnalysisRes
         userPrompt = buildPreTradeCoachPrompt(body);
       } else if (body.type === 'chat_qa') {
         // Include conversation history in system prompt for context
+        const isEn = body.locale === 'en';
+        const historyLabel = isEn ? '## Previous Conversation' : '## 이전 대화';
+        const qLabel = isEn ? 'Question' : '질문';
+        const aLabel = isEn ? 'Answer' : '답변';
         const historyContext = body.history && body.history.length > 0
-          ? '\n\n## 이전 대화\n' + body.history.slice(0, -1).map(h =>
-              h.role === 'user' ? `질문: ${h.text}` : `답변: ${h.text}`
+          ? `\n\n${historyLabel}\n` + body.history.slice(0, -1).map(h =>
+              h.role === 'user' ? `${qLabel}: ${h.text}` : `${aLabel}: ${h.text}`
             ).join('\n')
           : '';
-        systemPrompt = CHAT_SYSTEM_PROMPT + historyContext;
-        userPrompt = buildChatQAPrompt(body);
+        systemPrompt = getChatSystemPrompt(body.locale) + historyContext;
+        userPrompt = buildChatQAPrompt(body, body.locale);
       } else {
         userPrompt = buildTradeReviewPrompt(body);
       }

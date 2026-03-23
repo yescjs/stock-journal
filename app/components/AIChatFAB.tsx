@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useMemo, useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, Gem, X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { BottomSheet } from '@/app/components/BottomSheet';
 import { AIChatPanel } from '@/app/components/AIChatPanel';
 import { Trade } from '@/app/types/trade';
@@ -24,6 +25,10 @@ interface AIChatFABProps {
   onOpenChange?: (isOpen: boolean) => void;
   freeRemaining: number;
   isFree: boolean;
+  /** Controlled open state from parent (SpeedDialFAB) */
+  isOpen: boolean;
+  /** Called when panel wants to close */
+  onClose: () => void;
 }
 
 export function AIChatFAB({
@@ -38,9 +43,10 @@ export function AIChatFAB({
   onOpenChange,
   freeRemaining,
   isFree,
+  isOpen,
+  onClose,
 }: AIChatFABProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [lastReadCount, setLastReadCount] = useState(0);
+  const t = useTranslations('trade.chat');
   const [isDesktop, setIsDesktop] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(min-width: 768px)').matches : false
   );
@@ -53,7 +59,7 @@ export function AIChatFAB({
     return () => mq.removeEventListener('change', handler);
   }, []);
 
-  // Notify parent of open state changes
+  // Notify parent of open state changes (for desktop side panel layout shift)
   useEffect(() => {
     onOpenChange?.(isOpen && isDesktop);
   }, [isOpen, isDesktop, onOpenChange]);
@@ -68,23 +74,11 @@ export function AIChatFAB({
     onSend(question, analysis);
   }, [analysis, onSend]);
 
-  const handleOpen = useCallback(() => {
-    setIsOpen(true);
-    setLastReadCount(messages.length);
-  }, [messages.length]);
-
-  const handleClose = useCallback(() => {
-    setIsOpen(false);
-  }, []);
-
-  const lastMsg = messages[messages.length - 1];
-  const hasUnread = messages.length > lastReadCount && lastMsg?.role === 'assistant';
-
   const emptyState = (
     <div className="flex flex-col items-center justify-center py-12 text-center">
       <MessageSquare size={32} className="text-white/10 mb-3" />
-      <p className="text-sm text-white/30 mb-1">분석할 데이터가 부족합니다.</p>
-      <p className="text-xs text-white/20">매수 + 매도가 한 쌍 이상 있어야 AI Q&A를 이용할 수 있습니다.</p>
+      <p className="text-sm text-white/30 mb-1">{t('emptyTitle')}</p>
+      <p className="text-xs text-white/20">{t('emptyDesc')}</p>
     </div>
   );
 
@@ -106,34 +100,6 @@ export function AIChatFAB({
 
   return (
     <>
-      {/* FAB Button — right side, well above the "+" FAB with label for clarity */}
-      <AnimatePresence>
-        {!isOpen && (
-          <motion.button
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-            onClick={handleOpen}
-            aria-label="AI Q&A 열기"
-            className="fixed bottom-[5.5rem] md:bottom-[4.5rem] right-6 z-40 h-11 px-4 rounded-full bg-indigo-600 text-white shadow-2xl shadow-indigo-600/30 flex items-center gap-2 hover:bg-indigo-500 hover:scale-105 active:scale-95 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:ring-offset-2"
-          >
-            <MessageSquare size={16} />
-            <span className="text-xs font-bold">AI Q&A</span>
-            {/* Free remaining / coin badge */}
-            <span className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white ${
-              isFree ? 'bg-emerald-500/80' : 'bg-amber-500/80'
-            }`}>
-              {isFree ? `${freeRemaining}` : <><Gem size={8} />{coinBalance}</>}
-            </span>
-            {/* Unread dot */}
-            {hasUnread && (
-              <span className="absolute -top-0.5 -left-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-indigo-600 animate-pulse" />
-            )}
-          </motion.button>
-        )}
-      </AnimatePresence>
-
       {/* Desktop: Overlay Side Panel (right side, NO backdrop — content stays interactive) */}
       {isDesktop && (
         <AnimatePresence>
@@ -153,16 +119,16 @@ export function AIChatFAB({
                     <MessageSquare size={16} className="text-indigo-400" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-white">AI Q&A</h4>
-                    <p className="text-xs text-white/30">매매 데이터 질문</p>
+                    <h4 className="text-sm font-bold text-white">{t('title')}</h4>
+                    <p className="text-xs text-white/30">{t('dataQuestion')}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
                   <span className={`flex items-center gap-0.5 text-xs mr-1 ${isFree ? 'text-emerald-400/60' : 'text-amber-400/60'}`}>
-                    {isFree ? `무료 ${freeRemaining}회` : <><Gem size={9} /> {coinBalance}</>}
+                    {isFree ? t('freeCount', { count: freeRemaining }) : <><Gem size={9} /> {coinBalance}</>}
                   </span>
                   <button
-                    onClick={handleClose}
+                    onClick={onClose}
                     className="p-2 rounded-lg text-white/30 hover:text-white/60 hover:bg-white/5 transition-colors"
                   >
                     <X size={16} />
@@ -183,8 +149,8 @@ export function AIChatFAB({
       {!isDesktop && (
         <BottomSheet
           isOpen={isOpen}
-          onClose={handleClose}
-          title="AI Q&A"
+          onClose={onClose}
+          title={t('title')}
         >
           {chatContent}
         </BottomSheet>

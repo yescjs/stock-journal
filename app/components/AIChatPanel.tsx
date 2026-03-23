@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Send, Bot, User, Loader2, AlertCircle, Gem, Trash2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { markdownComponents } from '@/app/components/AIReportHistory';
 import type { ChatMessage } from '@/app/hooks/useAIChat';
 
@@ -22,12 +23,6 @@ interface AIChatPanelProps {
   isFree?: boolean;
 }
 
-const SUGGESTED_QUESTIONS = [
-  '내 최고 전략은?',
-  '이번 달 승률은?',
-  '감정별 수익률 비교',
-];
-
 export function AIChatPanel({
   messages,
   loading,
@@ -44,6 +39,13 @@ export function AIChatPanel({
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const t = useTranslations('trade.chat');
+
+  const SUGGESTED_QUESTIONS = useMemo(() => [
+    t('suggestBestStrategy'),
+    t('suggestMonthlyWinRate'),
+    t('suggestEmotionReturn'),
+  ], [t]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -71,7 +73,7 @@ export function AIChatPanel({
         <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-4">
           <Bot size={28} className="text-white/20" />
         </div>
-        <p className="text-sm text-white/30">로그인 후 AI Q&A를 이용할 수 있습니다.</p>
+        <p className="text-sm text-white/30">{t('loginRequired')}</p>
       </div>
     );
   }
@@ -87,19 +89,19 @@ export function AIChatPanel({
             <Bot size={16} className="text-indigo-400" />
           </div>
           <div>
-            <h4 className="text-sm font-bold text-white">AI Q&A</h4>
-            <p className="text-xs text-white/30">매매 데이터에 대해 질문하세요</p>
+            <h4 className="text-sm font-bold text-white">{t('title')}</h4>
+            <p className="text-xs text-white/30">{t('subtitle')}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <span className={`flex items-center gap-1 text-xs ${isFree ? 'text-emerald-400/60' : 'text-amber-400/60'}`}>
-            {isFree ? `무료 ${freeRemaining}회` : <><Gem size={10} /> 1코인/질문</>}
+            {isFree ? t('freeCount', { count: freeRemaining }) : <><Gem size={10} /> {t('coinPerQuestion')}</>}
           </span>
           {messages.length > 0 && (
             <button
               onClick={onClear}
               className="p-1.5 rounded-lg text-white/20 hover:text-white/50 transition-colors"
-              title="대화 초기화"
+              title={t('clearChat')}
             >
               <Trash2 size={14} />
             </button>
@@ -112,7 +114,7 @@ export function AIChatPanel({
         {messages.length === 0 && !loading && (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <Bot size={32} className="text-white/10 mb-3" />
-            <p className="text-sm text-white/30 mb-4">매매 데이터를 기반으로 질문에 답변합니다.</p>
+            <p className="text-sm text-white/30 mb-4">{t('emptyPrompt')}</p>
             <div className="flex flex-wrap gap-2 justify-center">
               {SUGGESTED_QUESTIONS.map((q, i) => (
                 <button
@@ -174,7 +176,7 @@ export function AIChatPanel({
             <div className="bg-white/5 border border-white/8 rounded-2xl px-4 py-3">
               <div className="flex items-center gap-2">
                 <Loader2 size={14} className="text-indigo-400 animate-spin" />
-                <span className="text-xs text-white/30">분석 중...</span>
+                <span className="text-xs text-white/30">{t('analyzing')}</span>
               </div>
             </div>
           </div>
@@ -184,10 +186,12 @@ export function AIChatPanel({
         {error && (
           <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
             <AlertCircle size={14} className="text-red-400 flex-none" />
-            <span className="text-xs text-red-300 flex-1">{error}</span>
-            {error.includes('코인') && onChargeCoins && (
+            <span className="text-xs text-red-300 flex-1">
+              {error === 'COIN_SHORTAGE' ? t('coinShortage') : error === 'AI_FAILED' ? t('aiFailed') : error === 'UNKNOWN_ERROR' ? t('unknownError') : error}
+            </span>
+            {error === 'COIN_SHORTAGE' && onChargeCoins && (
               <button onClick={onChargeCoins} className="flex items-center gap-1 text-xs font-bold text-amber-400 hover:text-amber-300">
-                <Gem size={12} /> 충전
+                <Gem size={12} /> {t('charge')}
               </button>
             )}
           </div>
@@ -202,7 +206,7 @@ export function AIChatPanel({
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={isFree ? `무료 ${freeRemaining}회 남음 — 질문하세요...` : '1코인/질문 — 질문하세요...'}
+            placeholder={isFree ? t('placeholderFree', { count: freeRemaining }) : t('placeholderPaid')}
             disabled={loading || (!isFree && coinBalance < 1)}
             className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder:text-white/20 outline-none focus:border-indigo-500/30 transition-colors disabled:opacity-40"
           />
@@ -216,18 +220,18 @@ export function AIChatPanel({
         </div>
         {isFree ? (
           <p className="text-xs text-emerald-400/60 mt-1.5 text-center">
-            오늘 무료 {freeRemaining}회 남음
+            {t('freeRemaining', { count: freeRemaining })}
           </p>
         ) : coinBalance < 1 ? (
           <p className="text-xs text-amber-400/60 mt-1.5 text-center">
-            무료 소진 — 코인이 부족합니다.{' '}
+            {t('freeExhaustedNoCoins')}{' '}
             {onChargeCoins && (
-              <button onClick={onChargeCoins} className="underline hover:text-amber-300">충전하기</button>
+              <button onClick={onChargeCoins} className="underline hover:text-amber-300">{t('freeExhaustedCharge')}</button>
             )}
           </p>
         ) : (
           <p className="text-xs text-white/20 mt-1.5 text-center">
-            무료 소진 — 질문당 1코인
+            {t('freeExhaustedPaid')}
           </p>
         )}
       </form>

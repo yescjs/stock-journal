@@ -15,7 +15,7 @@ import { StockSymbolInput } from '@/app/components/StockSymbolInput';
 import {
     Save, Plus, Info, PartyPopper, Copy, BookmarkPlus,
     ChevronDown, ChevronUp, X, Check,
-    Brain, AlertTriangle, CheckCircle, Circle,
+    Brain, AlertTriangle, CheckCircle, Circle, Gem,
 } from 'lucide-react';
 import { DatePicker } from '@/app/components/DatePicker';
 import { Button } from '@/app/components/ui/Button';
@@ -608,7 +608,10 @@ export function TradeForm({
                             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-indigo-500/20 bg-indigo-500/5 text-indigo-300 text-sm font-semibold hover:bg-indigo-500/10 transition-colors"
                         >
                             <Brain size={16} />
-                            AI 매매 전 체크리스트
+                            {tRoot('trade.preCoach.title')}
+                            <span className="flex items-center gap-0.5 text-xs text-amber-400/80">
+                                <Gem size={10} /> 1
+                            </span>
                         </button>
                     )}
 
