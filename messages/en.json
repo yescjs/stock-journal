@@ -348,6 +348,7 @@
     "tabs": {
       "performance": "Performance",
       "charts": "Charts",
+      "portfolio": "Portfolio",
       "ai": "AI Analysis",
       "qa": "AI Q&A",
       "trades": "Trade List"
@@ -474,6 +475,35 @@
       "analyzing": "Analyzing...",
       "coinShort": "Short ({balance}/1)",
       "reviewCost": "Review (1)"
+    },
+    "portfolio": {
+      "emptyTitle": "No holdings found",
+      "emptyDesc": "Add buy trades to view your portfolio holdings.",
+      "totalCost": "Total Cost",
+      "totalMarketValue": "Market Value",
+      "unrealizedPnl": "Unrealized P&L",
+      "holdingCount": "Holdings",
+      "allocation": "Allocation",
+      "weight": "Weight",
+      "refresh": "Refresh",
+      "holdingList": "Holdings Detail",
+      "shares": " shares",
+      "avg": "Avg"
+    },
+    "shareCard": {
+      "generateBtn": "Share Performance",
+      "title": "Performance Report",
+      "winRate": "Win Rate",
+      "totalTrades": "Total Trades",
+      "totalPnl": "Avg Return",
+      "bestTrade": "Best Trade",
+      "wins": "Wins",
+      "losses": "Losses",
+      "maxWinStreak": "Max Win Streak",
+      "hideAmounts": "Hide Amounts",
+      "showAmounts": "Show Amounts",
+      "download": "Save Image",
+      "share": "Share"
     },
     "aiReport": {
       "weeklyTitle": "AI Investment Coach Report",
@@ -892,6 +922,10 @@
   "streak": {
     "consecutive": " day streak",
     "best": "Best: {count} days"
+  },
+  "dailyBonus": {
+    "received": "Daily Bonus +{amount} coins!",
+    "streakBonus": "{days}-day streak bonus"
   },
   "migration": {
     "title": "Import Guest Data",
