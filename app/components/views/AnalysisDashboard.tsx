@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
 import {
   TradeAnalysis,
@@ -22,7 +22,9 @@ import {
 import { useTranslations, useLocale } from 'next-intl';
 import { AIReportCard } from '@/app/components/AIReportCard';
 import { AIReportHistory } from '@/app/components/AIReportHistory';
+import { AIChatPanel } from '@/app/components/AIChatPanel';
 import { useAIAnalysis } from '@/app/hooks/useAIAnalysis';
+import { useAIChat } from '@/app/hooks/useAIChat';
 import { calcEquityCurve, calcMonthlyStats } from '@/app/utils/tradeAnalysis';
 
 interface AnalysisDashboardProps {
@@ -39,6 +41,16 @@ interface AnalysisDashboardProps {
   onCoinsConsumed?: () => void;
   onCompleteAIReportStep?: () => void;
   initialTab?: DashboardTab;
+  // Shared AI Chat state (optional — if not provided, uses internal hook)
+  sharedAIChat?: {
+    messages: import('@/app/hooks/useAIChat').ChatMessage[];
+    loading: boolean;
+    error: string | null;
+    sendMessage: (question: string, analysis: TradeAnalysis) => void;
+    clearChat: () => void;
+    freeRemaining: number;
+    isFree: boolean;
+  };
 }
 
 // ─── Chart Colors ────────────────────────────────────────────────────────
@@ -64,12 +76,13 @@ function formatPnl(pnl: number, currency?: 'KRW' | 'USD' | 'mixed'): string {
 
 // ─── Tab Types ────────────────────────────────────────────────────────────
 
-type DashboardTab = 'performance' | 'charts' | 'ai' | 'trades';
+type DashboardTab = 'performance' | 'charts' | 'ai' | 'qa' | 'trades';
 
 const TAB_IDS: { id: DashboardTab; icon: React.ReactNode }[] = [
   { id: 'performance', icon: <Award size={14} /> },
   { id: 'charts',      icon: <BarChart2 size={14} /> },
   { id: 'ai',          icon: <Bot size={14} /> },
+  { id: 'qa',          icon: <MessageSquare size={14} /> },
   { id: 'trades',      icon: <ListOrdered size={14} /> },
 ];
 
@@ -887,15 +900,16 @@ export function AnalysisDashboard({
   onCoinsConsumed,
   onCompleteAIReportStep,
   initialTab,
+  sharedAIChat,
 }: AnalysisDashboardProps) {
   const [activeTab, setActiveTab] = useState<DashboardTab>(initialTab ?? 'performance');
   const t = useTranslations('analysis');
   const tc = useTranslations('common');
 
   // initialTab prop이 변경되면 반영 (외부 네비게이션)
-  if (initialTab && activeTab !== initialTab) {
-    setActiveTab(initialTab);
-  }
+  useEffect(() => {
+    if (initialTab) setActiveTab(initialTab); // eslint-disable-line
+  }, [initialTab]);
 
   const {
     weeklyReport, tradeReview, loadingWeekly, loadingReview, error: aiError,
@@ -903,6 +917,14 @@ export function AnalysisDashboard({
     savedReports, loadingSavedReports, deleteReport,
   } = useAIAnalysis(currentUser, onCoinsConsumed);
 
+  // Internal fallback — no onCoinsConsumed to avoid double-refresh when sharedAIChat is provided
+  const internalChat = useAIChat(currentUser, sharedAIChat ? undefined : onCoinsConsumed);
+  const activeChat = sharedAIChat ?? internalChat;
+  const {
+    messages: chatMessages, loading: chatLoading, error: chatError,
+    sendMessage: sendChatMessage, clearChat,
+    freeRemaining: chatFreeRemaining, isFree: chatIsFree,
+  } = activeChat;
 
   if (!analysis || analysis.roundTrips.length === 0) {
     return <EmptyState count={tradesCount} buyCount={buyCount} sellCount={sellCount} />;
@@ -986,6 +1008,21 @@ export function AnalysisDashboard({
           />
           <AIReportHistory reports={savedReports} loading={loadingSavedReports} onDelete={deleteReport} />
         </div>
+      )}
+
+      {activeTab === 'qa' && (
+        <AIChatPanel
+          messages={chatMessages}
+          loading={chatLoading}
+          error={chatError}
+          onSend={(q) => sendChatMessage(q, analysis)}
+          onClear={clearChat}
+          isLoggedIn={!!currentUser}
+          coinBalance={coinBalance}
+          onChargeCoins={onChargeCoins}
+          freeRemaining={chatFreeRemaining}
+          isFree={chatIsFree}
+        />
       )}
 
       {activeTab === 'trades' && (

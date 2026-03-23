@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
@@ -20,6 +20,9 @@ import { useCoins } from '@/app/hooks/useCoins';
 import { useStreak } from '@/app/hooks/useStreak';
 import { useOnboarding } from '@/app/hooks/useOnboarding';
 import { useEventTracking } from '@/app/hooks/useEventTracking';
+import { useRiskAlert } from '@/app/hooks/useRiskAlert';
+import { usePreTradeCoach } from '@/app/hooks/usePreTradeCoach';
+import { useAIChat } from '@/app/hooks/useAIChat';
 
 // Components
 import { BottomSheet } from '@/app/components/BottomSheet';
@@ -31,7 +34,12 @@ import { CoinShopModal } from '@/app/components/CoinShopModal';
 import { ImportModal } from '@/app/components/ImportModal';
 import { GuestMigrationModal } from '@/app/components/GuestMigrationModal';
 import { Footer } from '@/app/components/Footer';
+import { RiskAlertToast } from '@/app/components/RiskAlertToast';
+import { PreTradeChecklist } from '@/app/components/PreTradeChecklist';
+import { AIChatFAB } from '@/app/components/AIChatFAB';
+import { SpeedDialFAB } from '@/app/components/SpeedDialFAB';
 import { readGuestTrades, deduplicateGuestTrades, GUEST_TRADES_KEY } from '@/app/utils/migrationUtils';
+import { analyzeTradesComplete } from '@/app/utils/tradeAnalysis';
 
 // Icons
 import { BarChart3, AlertTriangle, LogOut, UserCheck } from 'lucide-react';
@@ -61,6 +69,31 @@ export default function TradePage() {
     const { streak, loading: streakLoading, recordToday } = useStreak(currentUser);
     const onboarding = useOnboarding(currentUser);
     const { track } = useEventTracking(currentUser);
+
+    // --- Risk Alerts ---
+    const { alerts: riskAlerts, hasAlerts: hasRiskAlerts, acknowledge: acknowledgeRisk, dismissToday: dismissRiskToday, resetIfNeeded: resetRiskAlerts } = useRiskAlert(trades);
+
+    // --- AI Chat (shared between FAB and AnalysisDashboard Q&A tab) ---
+    const aiChat = useAIChat(currentUser, refreshBalance);
+    const [isChatOpen, setIsChatOpen] = useState(false);
+    const [lastReadCount, setLastReadCount] = useState(0);
+
+    // Mark messages as read when chat is open
+    useEffect(() => {
+        if (isChatOpen) {
+            setLastReadCount(aiChat.messages.length);
+        }
+    }, [isChatOpen, aiChat.messages.length]);
+
+    // --- Pre-Trade Coach ---
+    const { result: coachResult, loading: coachLoading, error: coachError, generateChecklist, clear: clearCoach } = usePreTradeCoach(currentUser, refreshBalance);
+    const [showCoach, setShowCoach] = useState(false);
+
+    const handleGenerateCoach = useCallback((symbol: string, side: string) => {
+        const analysis = trades.length > 0 ? analyzeTradesComplete(trades) : null;
+        generateChecklist(analysis, symbol, side);
+        setShowCoach(true);
+    }, [trades, generateChecklist]);
 
     // 페이지 진입 시 스트릭 자동 기록 (거래 추가 여부와 무관하게 접속일 카운트)
     const streakRecordedRef = useRef(false);
@@ -180,6 +213,7 @@ export default function TradePage() {
             showNotify('success', t('notify.saved'));
             track('trade_created', { symbol: data.symbol, side: data.side });
             recordToday();
+            resetRiskAlerts();
             onboarding.completeStep('firstTrade');
 
             // buySellCycle 체크: 같은 종목에 BUY+SELL이 모두 존재하는지
@@ -280,9 +314,9 @@ export default function TradePage() {
                 </div>
             )}
 
-            {/* Toast Notification */}
+            {/* Toast Notification — z-[58] to stay above side panel (z-[55]) */}
             {notify && (
-                <div className={`fixed z-50 px-4 py-2.5 rounded-xl shadow-lg text-sm font-bold animate-in fade-in duration-200
+                <div className={`fixed z-[58] px-4 py-2.5 rounded-xl shadow-lg text-sm font-bold animate-in fade-in duration-200
                     left-1/2 -translate-x-1/2 bottom-20 md:bottom-6
                     ${notify.type === 'success' ? 'bg-emerald-500 text-white' :
                         notify.type === 'error' ? 'bg-rose-500 text-white' :
@@ -302,7 +336,7 @@ export default function TradePage() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 16 }}
                         transition={{ duration: 0.2, ease: 'easeOut' }}
-                        className="fixed z-50 left-1/2 -translate-x-1/2 bottom-36 md:bottom-24 overflow-hidden rounded-xl shadow-2xl"
+                        className="fixed z-[58] left-1/2 -translate-x-1/2 bottom-36 md:bottom-24 overflow-hidden rounded-xl shadow-2xl"
                     >
                         <div className="flex items-center gap-3 px-4 py-3 bg-zinc-800 border border-white/10 text-sm font-semibold text-white">
                             <span className="text-white/50">🗑</span>
@@ -323,6 +357,15 @@ export default function TradePage() {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* Risk Alert Toast */}
+            {hasRiskAlerts && (
+                <RiskAlertToast
+                    alerts={riskAlerts}
+                    onAcknowledge={acknowledgeRisk}
+                    onDismissToday={dismissRiskToday}
+                />
+            )}
 
             {/* Main Content */}
             <div className="flex-1 min-h-0 w-full">
@@ -387,6 +430,7 @@ export default function TradePage() {
                                 onDismissOnboarding={onboarding.dismiss}
                                 onCompleteOnboardingStep={onboarding.completeStep}
                                 onOpenAddTrade={() => setShowAddModal(true)}
+                                sharedAIChat={currentUser ? aiChat : undefined}
                             />
                 </div>
             </div>
@@ -394,14 +438,35 @@ export default function TradePage() {
             {/* Footer */}
             <Footer />
 
-            {/* Mobile FAB — Add Trade */}
-            <button
-                onClick={() => setShowAddModal(true)}
-                aria-label={t('form.addTradeAriaLabel')}
-                className="fixed bottom-20 md:bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-blue-600 text-white shadow-2xl shadow-blue-600/30 flex items-center justify-center hover:bg-blue-500 hover:scale-105 active:scale-95 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2"
-            >
-                <span className="text-2xl font-light">+</span>
-            </button>
+            {/* Speed Dial FAB — combines Add Trade + AI Q&A into one expandable button */}
+            <SpeedDialFAB
+                onAddTrade={() => setShowAddModal(true)}
+                onOpenChat={() => setIsChatOpen(true)}
+                isChatOpen={isChatOpen}
+                showAIChat={!!currentUser}
+                freeRemaining={aiChat.freeRemaining}
+                isFree={aiChat.isFree}
+                coinBalance={coinBalance}
+                hasUnread={aiChat.messages.length > lastReadCount && aiChat.messages[aiChat.messages.length - 1]?.role === 'assistant'}
+            />
+
+            {/* AI Chat Panel (controlled by SpeedDialFAB) */}
+            {currentUser && (
+                <AIChatFAB
+                    messages={aiChat.messages}
+                    loading={aiChat.loading}
+                    error={aiChat.error}
+                    onSend={aiChat.sendMessage}
+                    onClear={aiChat.clearChat}
+                    trades={trades}
+                    coinBalance={coinBalance}
+                    onChargeCoins={() => setShowCoinShop(true)}
+                    freeRemaining={aiChat.freeRemaining}
+                    isFree={aiChat.isFree}
+                    isOpen={isChatOpen}
+                    onClose={() => setIsChatOpen(false)}
+                />
+            )}
 
             {/* Login BottomSheet */}
             <BottomSheet
@@ -418,14 +483,29 @@ export default function TradePage() {
             {/* Trade Add/Edit BottomSheet */}
             <BottomSheet
                 isOpen={!!(editingTrade || showAddModal)}
-                onClose={() => { setEditingTrade(null); setShowAddModal(false); setCopyingTrade(null); }}
+                onClose={() => { setEditingTrade(null); setShowAddModal(false); setCopyingTrade(null); clearCoach(); setShowCoach(false); }}
                 title={editingTrade ? t('form.editTrade') : copyingTrade ? t('form.copiedTrade', { symbol: copyingTrade.symbol_name || copyingTrade.symbol }) : t('form.newTrade')}
             >
+                {/* Pre-Trade AI Coach */}
+                {!editingTrade && currentUser && (
+                    <PreTradeChecklist
+                        isOpen={showCoach}
+                        checklist={coachResult?.checklist ?? null}
+                        loading={coachLoading}
+                        error={coachError}
+                        onClose={() => { setShowCoach(false); clearCoach(); }}
+                        onGenerate={() => handleGenerateCoach('', 'BUY')}
+                        isLoggedIn={!!currentUser}
+                        coinBalance={coinBalance}
+                        onChargeCoins={() => setShowCoinShop(true)}
+                    />
+                )}
                 <TradeForm
                     darkMode={true}
                     currentUser={currentUser}
                     baseTrades={trades}
                     allTrades={trades}
+                    onCoachRequest={handleGenerateCoach}
                     onAddTrade={async (data, file) => {
                         await handleAddTrade(data, file);
                         setShowAddModal(false);

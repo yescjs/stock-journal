@@ -15,7 +15,7 @@ import { StockSymbolInput } from '@/app/components/StockSymbolInput';
 import {
     Save, Plus, Info, PartyPopper, Copy, BookmarkPlus,
     ChevronDown, ChevronUp, X, Check,
-    Brain, AlertTriangle, CheckCircle, Circle,
+    Brain, AlertTriangle, CheckCircle, Circle, Gem,
 } from 'lucide-react';
 import { DatePicker } from '@/app/components/DatePicker';
 import { Button } from '@/app/components/ui/Button';
@@ -44,6 +44,7 @@ interface TradeFormProps {
         imageFile: File | null
     ) => Promise<void>;
     isCompact?: boolean;
+    onCoachRequest?: (symbol: string, side: string) => void;
     prefill?: {
         symbol: string;
         symbol_name?: string;
@@ -71,6 +72,7 @@ export function TradeForm({
     onUpdateTrade,
     prefill,
     currentUser,
+    onCoachRequest,
 }: TradeFormProps) {
     const t = useTranslations('trade.form');
     const tc = useTranslations('common');
@@ -597,6 +599,21 @@ export function TradeForm({
                             </motion.div>
                         )}
                     </AnimatePresence>
+
+                    {/* AI Coach Button — BUY trades, logged-in, not editing */}
+                    {!initialData && form.side === 'BUY' && currentUser && onCoachRequest && (
+                        <button
+                            type="button"
+                            onClick={() => onCoachRequest(form.symbol, form.side)}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-indigo-500/20 bg-indigo-500/5 text-indigo-300 text-sm font-semibold hover:bg-indigo-500/10 transition-colors"
+                        >
+                            <Brain size={16} />
+                            {tRoot('trade.preCoach.title')}
+                            <span className="flex items-center gap-0.5 text-xs text-amber-400/80">
+                                <Gem size={10} /> 1
+                            </span>
+                        </button>
+                    )}
 
                     <Button
                         type="submit"

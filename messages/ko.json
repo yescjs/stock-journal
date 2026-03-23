@@ -231,7 +231,48 @@
       "validatePricePositive": "가격은 0보다 큰 값을 입력해주세요.",
       "validateQuantityPositive": "수량은 0보다 큰 값을 입력해주세요.",
       "validateQuantityInteger": "수량은 정수로 입력해주세요.",
-      "addTradeAriaLabel": "새 매매 기록 추가"
+      "addTradeAriaLabel": "새 매매 기록 추가",
+      "addTradeShort": "기록 추가"
+    },
+    "fab": {
+      "open": "메뉴 열기",
+      "close": "메뉴 닫기"
+    },
+    "preCoach": {
+      "title": "AI 매매 전 체크리스트",
+      "subtitle": "진입 전 확인 사항",
+      "generating": "체크리스트 생성 중...",
+      "charge": "충전",
+      "loginRequired": "로그인 후 AI 체크리스트를 이용할 수 있습니다.",
+      "description": "과거 매매 데이터를 기반으로 개인화된 체크리스트를 생성합니다.",
+      "generateButton": "체크리스트 생성",
+      "footerHint": "체크리스트를 확인한 후 거래를 저장하세요. (강제 사항이 아닙니다)"
+    },
+    "chat": {
+      "title": "AI Q&A",
+      "subtitle": "매매 데이터에 대해 질문하세요",
+      "emptyTitle": "분석할 데이터가 부족합니다.",
+      "emptyDesc": "매수 + 매도가 한 쌍 이상 있어야 AI Q&A를 이용할 수 있습니다.",
+      "emptyPrompt": "매매 데이터를 기반으로 질문에 답변합니다.",
+      "loginRequired": "로그인 후 AI Q&A를 이용할 수 있습니다.",
+      "analyzing": "분석 중...",
+      "clearChat": "대화 초기화",
+      "placeholderFree": "무료 {count}회 남음 — 질문하세요...",
+      "placeholderPaid": "1코인/질문 — 질문하세요...",
+      "freeRemaining": "오늘 무료 {count}회 남음",
+      "freeExhaustedNoCoins": "무료 소진 — 코인이 부족합니다.",
+      "freeExhaustedCharge": "충전하기",
+      "freeExhaustedPaid": "무료 소진 — 질문당 1코인",
+      "coinShortage": "코인이 부족합니다. 코인을 충전해주세요.",
+      "charge": "충전",
+      "aiFailed": "AI 응답 생성에 실패했습니다.",
+      "unknownError": "알 수 없는 오류가 발생했습니다.",
+      "suggestBestStrategy": "내 최고 전략은?",
+      "suggestMonthlyWinRate": "이번 달 승률은?",
+      "suggestEmotionReturn": "감정별 수익률 비교",
+      "freeCount": "무료 {count}회",
+      "coinPerQuestion": "1코인/질문",
+      "dataQuestion": "매매 데이터 질문"
     },
     "list": {
       "emptyTitle": "아직 작성된 매매 일지가 없습니다",
@@ -308,6 +349,7 @@
       "performance": "성과",
       "charts": "차트",
       "ai": "AI 분석",
+      "qa": "AI Q&A",
       "trades": "거래 목록"
     },
     "empty": {

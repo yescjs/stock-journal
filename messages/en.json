@@ -231,7 +231,48 @@
       "validatePricePositive": "Price must be greater than 0.",
       "validateQuantityPositive": "Quantity must be greater than 0.",
       "validateQuantityInteger": "Quantity must be a whole number.",
-      "addTradeAriaLabel": "Add new trade record"
+      "addTradeAriaLabel": "Add new trade record",
+      "addTradeShort": "Add Record"
+    },
+    "fab": {
+      "open": "Open menu",
+      "close": "Close menu"
+    },
+    "preCoach": {
+      "title": "AI Pre-Trade Checklist",
+      "subtitle": "Pre-entry checks",
+      "generating": "Generating checklist...",
+      "charge": "Top up",
+      "loginRequired": "Log in to use the AI checklist.",
+      "description": "Generate a personalized checklist based on your past trading data.",
+      "generateButton": "Generate checklist",
+      "footerHint": "Review the checklist before saving your trade. (Not mandatory)"
+    },
+    "chat": {
+      "title": "AI Q&A",
+      "subtitle": "Ask questions about your trades",
+      "emptyTitle": "Not enough data to analyze.",
+      "emptyDesc": "You need at least one buy + sell pair to use AI Q&A.",
+      "emptyPrompt": "Answers questions based on your trading data.",
+      "loginRequired": "Please log in to use AI Q&A.",
+      "analyzing": "Analyzing...",
+      "clearChat": "Clear chat",
+      "placeholderFree": "{count} free left — ask a question...",
+      "placeholderPaid": "1 coin/question — ask a question...",
+      "freeRemaining": "{count} free remaining today",
+      "freeExhaustedNoCoins": "Free quota used — not enough coins.",
+      "freeExhaustedCharge": "Get coins",
+      "freeExhaustedPaid": "Free quota used — 1 coin per question",
+      "coinShortage": "Not enough coins. Please top up your balance.",
+      "charge": "Top up",
+      "aiFailed": "Failed to generate AI response.",
+      "unknownError": "An unknown error occurred.",
+      "suggestBestStrategy": "What's my best strategy?",
+      "suggestMonthlyWinRate": "This month's win rate?",
+      "suggestEmotionReturn": "Returns by emotion",
+      "freeCount": "{count} free",
+      "coinPerQuestion": "1 coin/question",
+      "dataQuestion": "Trade data questions"
     },
     "list": {
       "emptyTitle": "No trade records yet",
@@ -308,6 +349,7 @@
       "performance": "Performance",
       "charts": "Charts",
       "ai": "AI Analysis",
+      "qa": "AI Q&A",
       "trades": "Trade List"
     },
     "empty": {
