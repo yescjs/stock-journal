@@ -22,6 +22,8 @@ interface AIChatFABProps {
   coinBalance: number;
   onChargeCoins: () => void;
   onOpenChange?: (isOpen: boolean) => void;
+  freeRemaining: number;
+  isFree: boolean;
 }
 
 export function AIChatFAB({
@@ -34,6 +36,8 @@ export function AIChatFAB({
   coinBalance,
   onChargeCoins,
   onOpenChange,
+  freeRemaining,
+  isFree,
 }: AIChatFABProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [lastReadCount, setLastReadCount] = useState(0);
@@ -95,12 +99,14 @@ export function AIChatFAB({
       coinBalance={coinBalance}
       onChargeCoins={onChargeCoins}
       hideHeader={isDesktop}
+      freeRemaining={freeRemaining}
+      isFree={isFree}
     />
   );
 
   return (
     <>
-      {/* FAB Button — always on the left side */}
+      {/* FAB Button — right side, above the "+" FAB */}
       <AnimatePresence>
         {!isOpen && (
           <motion.button
@@ -110,13 +116,14 @@ export function AIChatFAB({
             transition={{ type: 'spring', damping: 20, stiffness: 300 }}
             onClick={handleOpen}
             aria-label="AI Q&A 열기"
-            className="fixed bottom-20 md:bottom-6 left-6 z-40 w-12 h-12 rounded-full bg-indigo-600 text-white shadow-2xl shadow-indigo-600/30 flex items-center justify-center hover:bg-indigo-500 hover:scale-105 active:scale-95 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:ring-offset-2"
+            className="fixed bottom-36 md:bottom-20 right-6 z-40 w-12 h-12 rounded-full bg-indigo-600 text-white shadow-2xl shadow-indigo-600/30 flex items-center justify-center hover:bg-indigo-500 hover:scale-105 active:scale-95 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:ring-offset-2"
           >
             <MessageSquare size={20} />
-            {/* Coin badge */}
-            <span className="absolute -top-1 -right-1 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-amber-500/90 text-[10px] font-bold text-white shadow-lg">
-              <Gem size={8} />
-              {coinBalance}
+            {/* Free remaining / coin badge */}
+            <span className={`absolute -top-1 -right-1 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white shadow-lg ${
+              isFree ? 'bg-emerald-500/90' : 'bg-amber-500/90'
+            }`}>
+              {isFree ? freeRemaining : <><Gem size={8} />{coinBalance}</>}
             </span>
             {/* Unread dot */}
             {hasUnread && (
@@ -150,8 +157,8 @@ export function AIChatFAB({
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  <span className="flex items-center gap-0.5 text-xs text-amber-400/60 mr-1">
-                    <Gem size={9} /> {coinBalance}
+                  <span className={`flex items-center gap-0.5 text-xs mr-1 ${isFree ? 'text-emerald-400/60' : 'text-amber-400/60'}`}>
+                    {isFree ? `무료 ${freeRemaining}회` : <><Gem size={9} /> {coinBalance}</>}
                   </span>
                   <button
                     onClick={handleClose}

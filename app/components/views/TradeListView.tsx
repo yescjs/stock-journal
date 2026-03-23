@@ -58,6 +58,8 @@ interface TradeListViewProps {
     error: string | null;
     sendMessage: (question: string, analysis: import('@/app/types/analysis').TradeAnalysis) => void;
     clearChat: () => void;
+    freeRemaining: number;
+    isFree: boolean;
   };
 }
 

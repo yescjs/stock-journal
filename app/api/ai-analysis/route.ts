@@ -2,7 +2,7 @@
 // Generates AI-powered trading analysis reports using Google Gemini API
 import { NextRequest, NextResponse } from 'next/server';
 import { TradeAnalysis, RoundTrip } from '@/app/types/analysis';
-import { COIN_COSTS } from '@/app/types/coins';
+import { COIN_COSTS, CHAT_QA_FREE_DAILY } from '@/app/types/coins';
 import { getAuthUser, createAuthedClient } from '@/app/lib/supabaseServerAuth';
 
 // ─── Request / Response Types ────────────────────────────────────────────
@@ -37,6 +37,10 @@ type AIAnalysisRequest = WeeklyReportRequest | TradeReviewRequest | PreTradeCoac
 interface AIAnalysisResponse {
   report: string;
   generatedAt: string;
+  /** For chat_qa: how many free questions used today (including this one) */
+  chatQaDailyUsed?: number;
+  /** For chat_qa: daily free limit */
+  chatQaDailyLimit?: number;
 }
 
 // ─── System Prompt ───────────────────────────────────────────────────────
@@ -497,10 +501,31 @@ export async function POST(req: NextRequest): Promise<NextResponse<AIAnalysisRes
       pre_trade_coach: COIN_COSTS.pre_trade_coach,
       chat_qa: COIN_COSTS.chat_qa,
     };
-    const cost = costMap[body.type] ?? COIN_COSTS.trade_review;
+    let cost = costMap[body.type] ?? COIN_COSTS.trade_review;
     let coinDeducted = false;
+    let chatQaDailyUsed = 0;
 
-    if (user && supabase) {
+    // chat_qa: check daily free quota before charging coins
+    if (body.type === 'chat_qa' && user && supabase) {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      const { count } = await supabase
+        .from('coin_transactions')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('reference_type', 'chat_qa')
+        .gte('created_at', todayStart.toISOString());
+
+      chatQaDailyUsed = count ?? 0;
+
+      if (chatQaDailyUsed < CHAT_QA_FREE_DAILY) {
+        // Free tier — skip coin deduction, but still record the usage
+        cost = 0;
+      }
+    }
+
+    if (user && supabase && cost > 0) {
       const { error: deductError } = await supabase.rpc('deduct_coins', {
         p_user_id: user.id,
         p_amount: cost,
@@ -517,13 +542,31 @@ export async function POST(req: NextRequest): Promise<NextResponse<AIAnalysisRes
       coinDeducted = true;
     }
 
+    // For free-tier chat_qa, record a zero-amount transaction for daily count tracking
+    if (body.type === 'chat_qa' && user && supabase && cost === 0) {
+      await supabase.from('coin_transactions').insert({
+        user_id: user.id,
+        type: 'spend',
+        amount: 0,
+        balance_after: -1, // placeholder, actual balance not changed
+        reference_type: 'chat_qa',
+        reference_id: null,
+      });
+    }
+
     try {
+      // chat_qa usage metadata to include in response
+      const chatQaMeta = body.type === 'chat_qa'
+        ? { chatQaDailyUsed: chatQaDailyUsed + 1, chatQaDailyLimit: CHAT_QA_FREE_DAILY }
+        : {};
+
       // Mock mode: API 키가 설정되지 않은 경우 샘플 리포트 반환
       if (!process.env.GEMINI_API_KEY) {
         const mockReport = buildMockReport(body);
         return NextResponse.json({
           report: mockReport,
           generatedAt: new Date().toISOString(),
+          ...chatQaMeta,
         });
       }
 
@@ -554,6 +597,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<AIAnalysisRes
       return NextResponse.json({
         report,
         generatedAt: new Date().toISOString(),
+        ...chatQaMeta,
       });
     } catch (err) {
       // AI 실패 시 코인 반환

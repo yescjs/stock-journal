@@ -1,9 +1,11 @@
 // Hook for AI conversational Q&A about trading data
 // Maintains session-scoped chat history (up to 3 context messages)
+// Tracks daily free quota from server responses
 import { useState, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/app/lib/supabaseClient';
 import { TradeAnalysis } from '@/app/types/analysis';
+import { CHAT_QA_FREE_DAILY } from '@/app/types/coins';
 
 export interface ChatMessage {
   id: string;
@@ -18,6 +20,11 @@ export function useAIChat(user: User | null, onCoinsConsumed?: () => void) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dailyUsed, setDailyUsed] = useState(0);
+  const dailyLimit = CHAT_QA_FREE_DAILY;
+
+  const freeRemaining = Math.max(0, dailyLimit - dailyUsed);
+  const isFree = freeRemaining > 0;
 
   const sendMessage = useCallback(async (
     question: string,
@@ -79,7 +86,16 @@ export function useAIChat(user: User | null, onCoinsConsumed?: () => void) {
       };
 
       setMessages(prev => [...prev, assistantMsg]);
-      onCoinsConsumed?.();
+
+      // Update daily usage from server response
+      if (typeof data.chatQaDailyUsed === 'number') {
+        setDailyUsed(data.chatQaDailyUsed);
+      }
+
+      // Only trigger coin refresh if this was a paid question
+      if (data.chatQaDailyUsed > CHAT_QA_FREE_DAILY) {
+        onCoinsConsumed?.();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.');
     } finally {
@@ -98,5 +114,9 @@ export function useAIChat(user: User | null, onCoinsConsumed?: () => void) {
     error,
     sendMessage,
     clearChat,
+    freeRemaining,
+    dailyUsed,
+    dailyLimit,
+    isFree,
   };
 }

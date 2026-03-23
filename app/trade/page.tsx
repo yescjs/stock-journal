@@ -437,6 +437,8 @@ export default function TradePage() {
                     coinBalance={coinBalance}
                     onChargeCoins={() => setShowCoinShop(true)}
                     onOpenChange={setIsChatPanelOpen}
+                    freeRemaining={aiChat.freeRemaining}
+                    isFree={aiChat.isFree}
                 />
             )}
 

@@ -18,6 +18,8 @@ interface AIChatPanelProps {
   coinBalance?: number;
   onChargeCoins?: () => void;
   hideHeader?: boolean;
+  freeRemaining?: number;
+  isFree?: boolean;
 }
 
 const SUGGESTED_QUESTIONS = [
@@ -36,6 +38,8 @@ export function AIChatPanel({
   coinBalance = 0,
   onChargeCoins,
   hideHeader = false,
+  freeRemaining = 0,
+  isFree = false,
 }: AIChatPanelProps) {
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -88,8 +92,8 @@ export function AIChatPanel({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1 text-xs text-amber-400/60">
-            <Gem size={10} /> 1/질문
+          <span className={`flex items-center gap-1 text-xs ${isFree ? 'text-emerald-400/60' : 'text-amber-400/60'}`}>
+            {isFree ? `무료 ${freeRemaining}회` : <><Gem size={10} /> 1코인/질문</>}
           </span>
           {messages.length > 0 && (
             <button
@@ -198,24 +202,32 @@ export function AIChatPanel({
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="매매 데이터에 대해 질문하세요..."
-            disabled={loading || coinBalance < 1}
+            placeholder={isFree ? `무료 ${freeRemaining}회 남음 — 질문하세요...` : '1코인/질문 — 질문하세요...'}
+            disabled={loading || (!isFree && coinBalance < 1)}
             className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder:text-white/20 outline-none focus:border-indigo-500/30 transition-colors disabled:opacity-40"
           />
           <button
             type="submit"
-            disabled={loading || !input.trim() || coinBalance < 1}
+            disabled={loading || !input.trim() || (!isFree && coinBalance < 1)}
             className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-300 hover:bg-indigo-500/30 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <Send size={16} />
           </button>
         </div>
-        {coinBalance < 1 && (
+        {isFree ? (
+          <p className="text-xs text-emerald-400/60 mt-1.5 text-center">
+            오늘 무료 {freeRemaining}회 남음
+          </p>
+        ) : coinBalance < 1 ? (
           <p className="text-xs text-amber-400/60 mt-1.5 text-center">
-            코인이 부족합니다.{' '}
+            무료 소진 — 코인이 부족합니다.{' '}
             {onChargeCoins && (
               <button onClick={onChargeCoins} className="underline hover:text-amber-300">충전하기</button>
             )}
+          </p>
+        ) : (
+          <p className="text-xs text-white/20 mt-1.5 text-center">
+            무료 소진 — 질문당 1코인
           </p>
         )}
       </form>

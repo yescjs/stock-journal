@@ -47,6 +47,8 @@ interface AnalysisDashboardProps {
     error: string | null;
     sendMessage: (question: string, analysis: TradeAnalysis) => void;
     clearChat: () => void;
+    freeRemaining: number;
+    isFree: boolean;
   };
 }
 
@@ -890,7 +892,7 @@ export function AnalysisDashboard({
 
   // initialTab prop이 변경되면 반영 (외부 네비게이션)
   useEffect(() => {
-    if (initialTab) setActiveTab(initialTab);
+    if (initialTab) setActiveTab(initialTab); // eslint-disable-line
   }, [initialTab]);
 
   const {
@@ -901,10 +903,12 @@ export function AnalysisDashboard({
 
   // Internal fallback — no onCoinsConsumed to avoid double-refresh when sharedAIChat is provided
   const internalChat = useAIChat(currentUser, sharedAIChat ? undefined : onCoinsConsumed);
+  const activeChat = sharedAIChat ?? internalChat;
   const {
     messages: chatMessages, loading: chatLoading, error: chatError,
     sendMessage: sendChatMessage, clearChat,
-  } = sharedAIChat ?? internalChat;
+    freeRemaining: chatFreeRemaining, isFree: chatIsFree,
+  } = activeChat;
 
   if (!analysis || analysis.roundTrips.length === 0) {
     return <EmptyState count={tradesCount} buyCount={buyCount} sellCount={sellCount} />;
@@ -1000,6 +1004,8 @@ export function AnalysisDashboard({
           isLoggedIn={!!currentUser}
           coinBalance={coinBalance}
           onChargeCoins={onChargeCoins}
+          freeRemaining={chatFreeRemaining}
+          isFree={chatIsFree}
         />
       )}
 
