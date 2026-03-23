@@ -73,8 +73,8 @@ export function AIChatFAB({
     setIsOpen(false);
   }, []);
 
-  const hasUnread = messages.length > lastReadCount &&
-    messages[messages.length - 1].role === 'assistant';
+  const lastMsg = messages[messages.length - 1];
+  const hasUnread = messages.length > lastReadCount && lastMsg?.role === 'assistant';
 
   const emptyState = (
     <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -94,6 +94,7 @@ export function AIChatFAB({
       isLoggedIn={true}
       coinBalance={coinBalance}
       onChargeCoins={onChargeCoins}
+      hideHeader={isDesktop}
     />
   );
 
@@ -125,40 +126,33 @@ export function AIChatFAB({
         )}
       </AnimatePresence>
 
-      {/* Desktop: Overlay Side Panel (right side) */}
+      {/* Desktop: Overlay Side Panel (right side, NO backdrop — content stays interactive) */}
       {isDesktop && (
         <AnimatePresence>
           {isOpen && (
-            <>
-              {/* Subtle backdrop — click to close, but transparent enough to see content */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={handleClose}
-                className="fixed inset-0 z-[55] bg-black/20"
-              />
-
-              {/* Side Panel */}
-              <motion.div
-                initial={{ x: SIDE_PANEL_WIDTH + 20 }}
-                animate={{ x: 0 }}
-                exit={{ x: SIDE_PANEL_WIDTH + 20 }}
-                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="fixed top-14 bottom-0 right-0 z-[56] flex flex-col bg-card border-l border-white/10 shadow-2xl"
-                style={{ width: SIDE_PANEL_WIDTH }}
-              >
-                {/* Panel Header */}
-                <div className="flex items-center justify-between px-4 py-3 border-b border-white/8">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-indigo-500/15 flex items-center justify-center">
-                      <MessageSquare size={16} className="text-indigo-400" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-white">AI Q&A</h4>
-                      <p className="text-xs text-white/30">매매 데이터 질문</p>
-                    </div>
+            <motion.div
+              initial={{ x: SIDE_PANEL_WIDTH + 20 }}
+              animate={{ x: 0 }}
+              exit={{ x: SIDE_PANEL_WIDTH + 20 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed top-14 bottom-0 right-0 z-[55] flex flex-col bg-card border-l border-white/10 shadow-2xl"
+              style={{ width: SIDE_PANEL_WIDTH }}
+            >
+              {/* Panel Header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-white/8">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-500/15 flex items-center justify-center">
+                    <MessageSquare size={16} className="text-indigo-400" />
                   </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">AI Q&A</h4>
+                    <p className="text-xs text-white/30">매매 데이터 질문</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="flex items-center gap-0.5 text-xs text-amber-400/60 mr-1">
+                    <Gem size={9} /> {coinBalance}
+                  </span>
                   <button
                     onClick={handleClose}
                     className="p-2 rounded-lg text-white/30 hover:text-white/60 hover:bg-white/5 transition-colors"
@@ -166,13 +160,13 @@ export function AIChatFAB({
                     <X size={16} />
                   </button>
                 </div>
+              </div>
 
-                {/* Panel Body */}
-                <div className="flex-1 min-h-0 overflow-hidden">
-                  {chatContent}
-                </div>
-              </motion.div>
-            </>
+              {/* Panel Body */}
+              <div className="flex-1 min-h-0 overflow-hidden">
+                {chatContent}
+              </div>
+            </motion.div>
           )}
         </AnimatePresence>
       )}

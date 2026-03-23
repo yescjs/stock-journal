@@ -17,6 +17,7 @@ interface AIChatPanelProps {
   isLoggedIn: boolean;
   coinBalance?: number;
   onChargeCoins?: () => void;
+  hideHeader?: boolean;
 }
 
 const SUGGESTED_QUESTIONS = [
@@ -34,6 +35,7 @@ export function AIChatPanel({
   isLoggedIn,
   coinBalance = 0,
   onChargeCoins,
+  hideHeader = false,
 }: AIChatPanelProps) {
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -71,9 +73,11 @@ export function AIChatPanel({
   }
 
   return (
-    <div className="flex flex-col h-full min-h-[400px] max-h-[calc(100vh-8rem)] rounded-2xl border border-white/8 bg-white/3 overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/8">
+    <div className={`flex flex-col h-full min-h-[400px] overflow-hidden ${
+      hideHeader ? '' : 'max-h-[calc(100vh-8rem)] rounded-2xl border border-white/8 bg-white/3'
+    }`}>
+      {/* Header — hidden when rendered inside side panel (panel has its own header) */}
+      {!hideHeader && <div className="flex items-center justify-between px-4 py-3 border-b border-white/8">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-xl bg-indigo-500/15 flex items-center justify-center">
             <Bot size={16} className="text-indigo-400" />
@@ -97,7 +101,7 @@ export function AIChatPanel({
             </button>
           )}
         </div>
-      </div>
+      </div>}
 
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">

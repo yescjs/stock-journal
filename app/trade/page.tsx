@@ -301,9 +301,9 @@ export default function TradePage() {
                 </div>
             )}
 
-            {/* Toast Notification */}
+            {/* Toast Notification — z-[58] to stay above side panel (z-[55]) */}
             {notify && (
-                <div className={`fixed z-50 px-4 py-2.5 rounded-xl shadow-lg text-sm font-bold animate-in fade-in duration-200
+                <div className={`fixed z-[58] px-4 py-2.5 rounded-xl shadow-lg text-sm font-bold animate-in fade-in duration-200
                     left-1/2 -translate-x-1/2 bottom-20 md:bottom-6
                     ${notify.type === 'success' ? 'bg-emerald-500 text-white' :
                         notify.type === 'error' ? 'bg-rose-500 text-white' :
@@ -323,7 +323,7 @@ export default function TradePage() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 16 }}
                         transition={{ duration: 0.2, ease: 'easeOut' }}
-                        className="fixed z-50 left-1/2 -translate-x-1/2 bottom-36 md:bottom-24 overflow-hidden rounded-xl shadow-2xl"
+                        className="fixed z-[58] left-1/2 -translate-x-1/2 bottom-36 md:bottom-24 overflow-hidden rounded-xl shadow-2xl"
                     >
                         <div className="flex items-center gap-3 px-4 py-3 bg-zinc-800 border border-white/10 text-sm font-semibold text-white">
                             <span className="text-white/50">🗑</span>
@@ -440,16 +440,22 @@ export default function TradePage() {
                 />
             )}
 
-            {/* FAB — Add Trade (right side, shifts left when chat panel is open) */}
-            <button
-                onClick={() => setShowAddModal(true)}
-                aria-label="새 매매 기록 추가"
-                className={`fixed bottom-20 md:bottom-6 z-40 w-14 h-14 rounded-full bg-blue-600 text-white shadow-2xl shadow-blue-600/30 flex items-center justify-center hover:bg-blue-500 hover:scale-105 active:scale-95 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 ${
-                    isChatPanelOpen ? 'right-[384px]' : 'right-6'
-                }`}
-            >
-                <span className="text-2xl font-light">+</span>
-            </button>
+            {/* FAB — Add Trade (right side, hidden on desktop when chat panel is open) */}
+            <AnimatePresence>
+                {!isChatPanelOpen && (
+                    <motion.button
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0, opacity: 0 }}
+                        transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+                        onClick={() => setShowAddModal(true)}
+                        aria-label="새 매매 기록 추가"
+                        className="fixed bottom-20 md:bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-blue-600 text-white shadow-2xl shadow-blue-600/30 flex items-center justify-center hover:bg-blue-500 hover:scale-105 active:scale-95 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2"
+                    >
+                        <span className="text-2xl font-light">+</span>
+                    </motion.button>
+                )}
+            </AnimatePresence>
 
             {/* Login BottomSheet */}
             <BottomSheet
