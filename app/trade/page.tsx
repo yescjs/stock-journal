@@ -452,9 +452,10 @@ export default function TradePage() {
                         transition={{ type: 'spring', damping: 20, stiffness: 300 }}
                         onClick={() => setShowAddModal(true)}
                         aria-label="새 매매 기록 추가"
-                        className="fixed bottom-20 md:bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-blue-600 text-white shadow-2xl shadow-blue-600/30 flex items-center justify-center hover:bg-blue-500 hover:scale-105 active:scale-95 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2"
+                        className="fixed bottom-20 md:bottom-6 right-6 z-40 h-11 w-11 md:h-11 md:w-auto md:px-4 rounded-full bg-blue-600 text-white shadow-2xl shadow-blue-600/30 flex items-center justify-center gap-2 hover:bg-blue-500 hover:scale-105 active:scale-95 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2"
                     >
-                        <span className="text-2xl font-light">+</span>
+                        <span className="text-xl font-light leading-none">+</span>
+                        <span className="hidden md:inline text-xs font-bold">기록 추가</span>
                     </motion.button>
                 )}
             </AnimatePresence>

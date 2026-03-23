@@ -106,7 +106,7 @@ export function AIChatFAB({
 
   return (
     <>
-      {/* FAB Button — right side, above the "+" FAB */}
+      {/* FAB Button — right side, well above the "+" FAB with label for clarity */}
       <AnimatePresence>
         {!isOpen && (
           <motion.button
@@ -116,18 +116,19 @@ export function AIChatFAB({
             transition={{ type: 'spring', damping: 20, stiffness: 300 }}
             onClick={handleOpen}
             aria-label="AI Q&A 열기"
-            className="fixed bottom-36 md:bottom-20 right-6 z-40 w-12 h-12 rounded-full bg-indigo-600 text-white shadow-2xl shadow-indigo-600/30 flex items-center justify-center hover:bg-indigo-500 hover:scale-105 active:scale-95 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:ring-offset-2"
+            className="fixed bottom-[5.5rem] md:bottom-[4.5rem] right-6 z-40 h-11 px-4 rounded-full bg-indigo-600 text-white shadow-2xl shadow-indigo-600/30 flex items-center gap-2 hover:bg-indigo-500 hover:scale-105 active:scale-95 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:ring-offset-2"
           >
-            <MessageSquare size={20} />
+            <MessageSquare size={16} />
+            <span className="text-xs font-bold">AI Q&A</span>
             {/* Free remaining / coin badge */}
-            <span className={`absolute -top-1 -right-1 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white shadow-lg ${
-              isFree ? 'bg-emerald-500/90' : 'bg-amber-500/90'
+            <span className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white ${
+              isFree ? 'bg-emerald-500/80' : 'bg-amber-500/80'
             }`}>
-              {isFree ? freeRemaining : <><Gem size={8} />{coinBalance}</>}
+              {isFree ? `${freeRemaining}` : <><Gem size={8} />{coinBalance}</>}
             </span>
             {/* Unread dot */}
             {hasUnread && (
-              <span className="absolute top-0 left-0 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-indigo-600 animate-pulse" />
+              <span className="absolute -top-0.5 -left-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-indigo-600 animate-pulse" />
             )}
           </motion.button>
         )}
