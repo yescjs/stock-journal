@@ -28,6 +28,9 @@ import {
   CLOSE_LABEL_I18N,
   WEEKDAY_SUFFIX_I18N,
   NO_STRATEGY_LABEL_I18N,
+  HeatmapRow,
+  PeriodMetrics,
+  PeriodComparison,
 } from '@/app/types/analysis';
 
 // ─── FIFO Round Trip Matching ────────────────────────────────────────────
@@ -757,6 +760,139 @@ export function generateInsights(
   }
 
   return insights;
+}
+
+// ─── Symbol × Month Heatmap ──────────────────────────────────────────────
+
+/** Build a symbol × month heatmap matrix from round trips */
+export function calcSymbolMonthlyHeatmap(roundTrips: RoundTrip[]): {
+  rows: HeatmapRow[];
+  months: string[];   // sorted YYYY-MM list
+} {
+  const rowMap = new Map<string, HeatmapRow>();
+  const monthSet = new Set<string>();
+
+  for (const trip of roundTrips) {
+    const month = trip.exitDate.slice(0, 7);
+    monthSet.add(month);
+
+    let row = rowMap.get(trip.symbol);
+    if (!row) {
+      row = { symbol: trip.symbol, symbolName: trip.symbolName, cells: new Map() };
+      rowMap.set(trip.symbol, row);
+    }
+
+    let cell = row.cells.get(month);
+    if (!cell) {
+      cell = {
+        symbol: trip.symbol,
+        symbolName: trip.symbolName,
+        month,
+        avgReturn: 0,
+        totalPnl: 0,
+        tradeCount: 0,
+        roundTrips: [],
+      };
+      row.cells.set(month, cell);
+    }
+
+    cell.roundTrips.push(trip);
+    cell.tradeCount += 1;
+    cell.totalPnl += trip.pnl;
+  }
+
+  // Calculate avgReturn per cell
+  for (const row of rowMap.values()) {
+    for (const cell of row.cells.values()) {
+      cell.avgReturn = cell.roundTrips.reduce((s, t) => s + t.pnlPercent, 0) / cell.tradeCount;
+    }
+  }
+
+  const months = [...monthSet].sort();
+  // Show last 6 months by default
+  const recentMonths = months.slice(-6);
+  const rows = [...rowMap.values()].sort((a, b) => a.symbol.localeCompare(b.symbol));
+
+  return { rows, months: recentMonths };
+}
+
+// ─── Period Comparison ──────────────────────────────────────────────────
+
+/** Calculate metrics for a single period (month) from round trips */
+function calcPeriodMetrics(trips: RoundTrip[], month: string, label: string): PeriodMetrics {
+  const wins = trips.filter(t => t.isWin).length;
+  const winRate = trips.length > 0 ? (wins / trips.length) * 100 : 0;
+  const avgReturn = trips.length > 0
+    ? trips.reduce((s, t) => s + t.pnlPercent, 0) / trips.length
+    : 0;
+  const totalPnl = trips.reduce((s, t) => s + t.pnl, 0);
+  const grossProfit = trips.filter(t => t.pnl > 0).reduce((s, t) => s + t.pnl, 0);
+  const grossLoss = Math.abs(trips.filter(t => t.pnl < 0).reduce((s, t) => s + t.pnl, 0));
+  const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0;
+  const maxLoss = trips.length > 0
+    ? Math.min(...trips.map(t => t.pnlPercent))
+    : 0;
+
+  const currencySet = new Set(trips.map(t => t.currency));
+  const currency: PeriodMetrics['currency'] =
+    currencySet.size === 1 ? (currencySet.has('KRW') ? 'KRW' : 'USD') : 'mixed';
+
+  return { month, label, winRate, avgReturn, profitFactor, maxLoss, tradeCount: trips.length, totalPnl, currency };
+}
+
+/** Compare two periods and compute changes */
+export function calcPeriodComparison(
+  roundTrips: RoundTrip[],
+  monthA: string,
+  monthB: string,
+  locale: string = 'ko'
+): PeriodComparison | null {
+  const loc = locale.startsWith('ko') ? 'ko' : 'en';
+  const tripsA = roundTrips.filter(t => t.exitDate.startsWith(monthA));
+  const tripsB = roundTrips.filter(t => t.exitDate.startsWith(monthB));
+
+  if (tripsA.length === 0 && tripsB.length === 0) return null;
+
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const makeLabel = (m: string) => {
+    const [year, mon] = m.split('-');
+    return loc === 'ko'
+      ? `${year.slice(2)}년 ${parseInt(mon)}월`
+      : `${monthNames[parseInt(mon) - 1]} '${year.slice(2)}`;
+  };
+
+  const periodA = calcPeriodMetrics(tripsA, monthA, makeLabel(monthA));
+  const periodB = calcPeriodMetrics(tripsB, monthB, makeLabel(monthB));
+
+  return {
+    periodA,
+    periodB,
+    changes: {
+      winRate: periodB.winRate - periodA.winRate,
+      avgReturn: periodB.avgReturn - periodA.avgReturn,
+      profitFactor: periodB.profitFactor - periodA.profitFactor,
+      maxLoss: periodB.maxLoss - periodA.maxLoss,
+      tradeCount: periodB.tradeCount - periodA.tradeCount,
+      totalPnl: periodB.totalPnl - periodA.totalPnl,
+    },
+  };
+}
+
+/** Get available months from round trips (sorted) */
+export function getAvailableMonths(roundTrips: RoundTrip[], locale: string = 'ko'): { value: string; label: string }[] {
+  const loc = locale.startsWith('ko') ? 'ko' : 'en';
+  const monthSet = new Set<string>();
+  for (const trip of roundTrips) {
+    monthSet.add(trip.exitDate.slice(0, 7));
+  }
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return [...monthSet].sort().map(m => {
+    const [year, mon] = m.split('-');
+    const label = loc === 'ko'
+      ? `${year.slice(2)}년 ${parseInt(mon)}월`
+      : `${monthNames[parseInt(mon) - 1]} '${year.slice(2)}`;
+    return { value: m, label };
+  });
 }
 
 // ─── Monthly Stats ───────────────────────────────────────────────────────
