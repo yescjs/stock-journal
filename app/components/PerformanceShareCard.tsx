@@ -6,6 +6,16 @@ import { Share2, Download, Eye, EyeOff, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { TradeAnalysis } from '@/app/types/analysis';
 
+// html2canvas 대신 html-to-image 사용 — Tailwind CSS 4의 oklab/CSS 변수를 안정적으로 처리
+import { toPng } from 'html-to-image';
+
+/**
+ * html-to-image 캡처 영역에서 사용할 폰트 스택.
+ * CSS 변수(var(--font-sans))는 html-to-image가 resolve하지 못할 수 있으므로
+ * 실제 폰트명을 직접 명시한다.
+ */
+const CAPTURE_FONT = '"Noto Sans KR", "Inter", -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", sans-serif';
+
 interface PerformanceShareCardProps {
   analysis: TradeAnalysis | null;
   isOpen: boolean;
@@ -18,18 +28,18 @@ export function PerformanceShareCard({ analysis, isOpen, onClose }: PerformanceS
   const [maskAmounts, setMaskAmounts] = useState(false);
   const [generating, setGenerating] = useState(false);
 
-  const generateImage = useCallback(async (): Promise<HTMLCanvasElement | null> => {
+  const generateImage = useCallback(async (): Promise<string | null> => {
     if (!cardRef.current) return null;
     setGenerating(true);
     try {
-      const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(cardRef.current, {
+      // 웹폰트 로딩 완료 대기
+      await document.fonts.ready;
+
+      const dataUrl = await toPng(cardRef.current, {
+        pixelRatio: 2,
         backgroundColor: '#0a0d16',
-        scale: 2,
-        useCORS: true,
-        logging: false,
       });
-      return canvas;
+      return dataUrl;
     } catch (err) {
       console.error('Failed to generate share card:', err);
       return null;
@@ -39,29 +49,28 @@ export function PerformanceShareCard({ analysis, isOpen, onClose }: PerformanceS
   }, []);
 
   const handleDownload = useCallback(async () => {
-    const canvas = await generateImage();
-    if (!canvas) return;
+    const dataUrl = await generateImage();
+    if (!dataUrl) return;
 
     const link = document.createElement('a');
-    link.download = `stock-journal-performance.png`;
-    link.href = canvas.toDataURL('image/png');
+    link.download = 'stock-journal-performance.png';
+    link.href = dataUrl;
     link.click();
   }, [generateImage]);
 
   const handleShare = useCallback(async () => {
-    const canvas = await generateImage();
-    if (!canvas) return;
+    const dataUrl = await generateImage();
+    if (!dataUrl) return;
 
-    canvas.toBlob(async (blob) => {
-      if (!blob) return;
-      const file = new File([blob], 'stock-journal-performance.png', { type: 'image/png' });
-      try {
-        await navigator.share({ files: [file] });
-      } catch {
-        // User cancelled or share failed — fallback to download
-        handleDownload();
-      }
-    }, 'image/png');
+    // dataURL → Blob → File
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+    const file = new File([blob], 'stock-journal-performance.png', { type: 'image/png' });
+    try {
+      await navigator.share({ files: [file] });
+    } catch {
+      handleDownload();
+    }
   }, [generateImage, handleDownload]);
 
   // Guard: analysis가 null이거나 roundTrips가 비어있으면 렌더링하지 않음
@@ -113,18 +122,23 @@ export function PerformanceShareCard({ analysis, isOpen, onClose }: PerformanceS
             </button>
           </div>
 
-          {/* Share Card — html2canvas 호환을 위해 인라인 rgba() 사용 (Tailwind 4 oklab 미지원) */}
+          {/* Share Card — 캡처 영역: 인라인 스타일 + 명시적 폰트 (CSS 변수/oklab 회피) */}
           <div
             ref={cardRef}
-            className="rounded-2xl overflow-hidden"
-            style={{ backgroundColor: '#0a0d16', border: '1px solid rgba(255,255,255,0.10)' }}
+            style={{
+              backgroundColor: '#0a0d16',
+              border: '1px solid rgba(255,255,255,0.10)',
+              borderRadius: '16px',
+              overflow: 'hidden',
+              fontFamily: CAPTURE_FONT,
+            }}
           >
             <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
               {/* Header */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
-                  <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#ffffff' }}>{t('title')}</h3>
-                  <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.30)', marginTop: '2px' }}>Stock Journal</p>
+                  <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#ffffff', margin: 0 }}>{t('title')}</h3>
+                  <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.30)', marginTop: '2px', margin: 0 }}>Stock Journal</p>
                 </div>
                 <div style={{ padding: '4px 12px', borderRadius: '9999px', backgroundColor: 'rgba(99,102,241,0.20)', border: '1px solid rgba(99,102,241,0.30)' }}>
                   <span style={{ fontSize: '12px', fontWeight: 700, color: '#818cf8' }}>{profile.overallGrade}</span>
@@ -134,27 +148,27 @@ export function PerformanceShareCard({ analysis, isOpen, onClose }: PerformanceS
               {/* Stats Grid */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div style={{ padding: '12px', borderRadius: '12px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                  <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.40)' }}>{t('winRate')}</p>
-                  <p style={{ fontSize: '20px', fontWeight: 700, color: '#ffffff', marginTop: '4px' }}>{profile.winRate.toFixed(1)}%</p>
+                  <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.40)', margin: 0 }}>{t('winRate')}</p>
+                  <p style={{ fontSize: '20px', fontWeight: 700, color: '#ffffff', marginTop: '4px', margin: 0 }}>{profile.winRate.toFixed(1)}%</p>
                 </div>
                 <div style={{ padding: '12px', borderRadius: '12px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                  <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.40)' }}>{t('totalTrades')}</p>
-                  <p style={{ fontSize: '20px', fontWeight: 700, color: '#ffffff', marginTop: '4px' }}>{roundTrips.length}</p>
+                  <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.40)', margin: 0 }}>{t('totalTrades')}</p>
+                  <p style={{ fontSize: '20px', fontWeight: 700, color: '#ffffff', marginTop: '4px', margin: 0 }}>{roundTrips.length}</p>
                 </div>
                 <div style={{ padding: '12px', borderRadius: '12px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                  <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.40)' }}>{t('totalPnl')}</p>
-                  <p style={{ fontSize: '20px', fontWeight: 700, marginTop: '4px', color: totalPnl >= 0 ? '#34d399' : '#f87171' }}>
+                  <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.40)', margin: 0 }}>{t('totalPnl')}</p>
+                  <p style={{ fontSize: '20px', fontWeight: 700, marginTop: '4px', margin: 0, color: totalPnl >= 0 ? '#34d399' : '#f87171' }}>
                     {maskAmounts
                       ? `${totalPnl >= 0 ? '+' : '-'}***`
                       : `${totalPnl >= 0 ? '+' : ''}${profile.avgReturn.toFixed(1)}%`}
                   </p>
                 </div>
                 <div style={{ padding: '12px', borderRadius: '12px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                  <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.40)' }}>{t('bestTrade')}</p>
-                  <p style={{ fontSize: '14px', fontWeight: 700, color: '#ffffff', marginTop: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.40)', margin: 0 }}>{t('bestTrade')}</p>
+                  <p style={{ fontSize: '14px', fontWeight: 700, color: '#ffffff', marginTop: '4px', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {bestTrade?.symbolName || bestTrade?.symbol || '-'}
                   </p>
-                  <p style={{ fontSize: '12px', color: '#34d399' }}>
+                  <p style={{ fontSize: '12px', color: '#34d399', margin: 0 }}>
                     {maskAmounts ? '+***' : `+${bestTrade?.pnlPercent.toFixed(1)}%`}
                   </p>
                 </div>
