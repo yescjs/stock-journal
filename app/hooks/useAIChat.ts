@@ -6,6 +6,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useLocale } from 'next-intl';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/app/lib/supabaseClient';
+import { readSSEStream } from '@/app/lib/sseReader';
 import { TradeAnalysis } from '@/app/types/analysis';
 import { CHAT_QA_FREE_DAILY } from '@/app/types/coins';
 
@@ -264,7 +265,7 @@ export function useAIChat(user: User | null, onCoinsConsumed?: () => void) {
 
         let metaProcessed = false;
 
-        const fullText = await readChatSSEStream(
+        const fullText = await readSSEStream(
           res,
           (text) => {
             setMessages(prev =>
@@ -352,61 +353,3 @@ export function useAIChat(user: User | null, onCoinsConsumed?: () => void) {
   };
 }
 
-// ─── SSE stream reader for chat ──────────────────────────────────────────
-
-async function readChatSSEStream(
-  response: Response,
-  onChunk: (fullText: string) => void,
-  onMeta: (meta: Record<string, unknown>) => void,
-  signal?: AbortSignal,
-): Promise<string> {
-  const reader = response.body!.getReader();
-  const decoder = new TextDecoder();
-  let fullText = '';
-  let buffer = '';
-
-  try {
-    while (true) {
-      if (signal?.aborted) {
-        reader.cancel();
-        break;
-      }
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6).trim();
-          if (data === '[DONE]') continue;
-          try {
-            const parsed = JSON.parse(data);
-            if (parsed.error) {
-              throw new Error(parsed.error);
-            }
-            if (parsed.meta) {
-              onMeta(parsed.meta);
-              continue;
-            }
-            if (parsed.chunk) {
-              fullText += parsed.chunk;
-              onChunk(fullText);
-            }
-          } catch (e) {
-            if (e instanceof Error && e.message !== data) throw e;
-          }
-        }
-      }
-    }
-  } catch (err) {
-    if (signal?.aborted) {
-      return fullText;
-    }
-    throw err;
-  }
-
-  return fullText;
-}

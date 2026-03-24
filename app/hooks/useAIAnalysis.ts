@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { useLocale, useTranslations } from 'next-intl';
 import { supabase } from '@/app/lib/supabaseClient';
+import { readSSEStream } from '@/app/lib/sseReader';
 import { TradeAnalysis, RoundTrip } from '@/app/types/analysis';
 import { useEventTracking } from '@/app/hooks/useEventTracking';
 
@@ -44,66 +45,6 @@ interface UseAIAnalysisReturn {
   stopStreaming: () => void;
 }
 
-// ─── SSE stream reader utility ──────────────────────────────────────────
-
-async function readSSEStream(
-  response: Response,
-  onChunk: (text: string) => void,
-  onMeta?: (meta: Record<string, unknown>) => void,
-  signal?: AbortSignal,
-): Promise<string> {
-  const reader = response.body!.getReader();
-  const decoder = new TextDecoder();
-  let fullText = '';
-  let buffer = '';
-
-  try {
-    while (true) {
-      if (signal?.aborted) {
-        reader.cancel();
-        break;
-      }
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6).trim();
-          if (data === '[DONE]') continue;
-          try {
-            const parsed = JSON.parse(data);
-            if (parsed.error) {
-              throw new Error(parsed.error);
-            }
-            if (parsed.meta && onMeta) {
-              onMeta(parsed.meta);
-              continue;
-            }
-            if (parsed.chunk) {
-              fullText += parsed.chunk;
-              onChunk(fullText);
-            }
-          } catch (e) {
-            if (e instanceof Error && e.message !== data) throw e;
-          }
-        }
-      }
-    }
-  } catch (err) {
-    if (signal?.aborted) {
-      // Aborted by user — return partial content
-      return fullText;
-    }
-    throw err;
-  }
-
-  return fullText;
-}
-
 export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): UseAIAnalysisReturn {
   const locale = useLocale();
   const t = useTranslations('analysis.hook');
@@ -119,7 +60,8 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
   const [streamedWeeklyContent, setStreamedWeeklyContent] = useState('');
   const [isStreamingReview, setIsStreamingReview] = useState(false);
   const [streamedReviewContent, setStreamedReviewContent] = useState('');
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const weeklyAbortRef = useRef<AbortController | null>(null);
+  const reviewAbortRef = useRef<AbortController | null>(null);
 
   // 저장된 리포트
   const [savedReports, setSavedReports] = useState<SavedReport[]>([]);
@@ -205,9 +147,13 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
 
   // Stop streaming
   const stopStreaming = useCallback(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
+    if (weeklyAbortRef.current) {
+      weeklyAbortRef.current.abort();
+      weeklyAbortRef.current = null;
+    }
+    if (reviewAbortRef.current) {
+      reviewAbortRef.current.abort();
+      reviewAbortRef.current = null;
     }
   }, []);
 
@@ -223,7 +169,8 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
     setError(null);
 
     const abortController = new AbortController();
-    abortControllerRef.current = abortController;
+    weeklyAbortRef.current = abortController;
+    let fullReport = '';
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -259,9 +206,9 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
       if (contentType.includes('text/event-stream')) {
         onCoinsConsumed?.();
 
-        const fullReport = await readSSEStream(
+        fullReport = await readSSEStream(
           res,
-          (text) => setStreamedWeeklyContent(text),
+          (text) => { fullReport = text; setStreamedWeeklyContent(text); },
           undefined,
           abortController.signal,
         );
@@ -282,6 +229,7 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
       } else {
         // JSON fallback (mock mode)
         const data: AIReportResult = await res.json();
+        fullReport = data.report;
         setWeeklyReport(data);
         setStreamedWeeklyContent(data.report);
         track('ai_analysis_run', { report_type: 'weekly_report' });
@@ -298,11 +246,10 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
       }
     } catch (err) {
       if (abortController.signal.aborted) {
-        // User cancelled — keep partial content as the report
-        const partial = streamedWeeklyContent;
-        if (partial) {
+        // User cancelled — keep partial content using local variable (not stale state)
+        if (fullReport) {
           const generatedAt = new Date().toISOString();
-          setWeeklyReport({ report: partial, generatedAt });
+          setWeeklyReport({ report: fullReport, generatedAt });
         }
       } else {
         setError(err instanceof Error ? err.message : t('unknownError'));
@@ -310,7 +257,7 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
     } finally {
       setLoadingWeekly(false);
       setIsStreamingWeekly(false);
-      abortControllerRef.current = null;
+      weeklyAbortRef.current = null;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saveReportToDB, onCoinsConsumed, locale, t, track]);
@@ -324,7 +271,8 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
     setError(null);
 
     const abortController = new AbortController();
-    abortControllerRef.current = abortController;
+    reviewAbortRef.current = abortController;
+    let fullReport = '';
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -353,9 +301,9 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
       if (contentType.includes('text/event-stream')) {
         onCoinsConsumed?.();
 
-        const fullReport = await readSSEStream(
+        fullReport = await readSSEStream(
           res,
-          (text) => setStreamedReviewContent(text),
+          (text) => { fullReport = text; setStreamedReviewContent(text); },
           undefined,
           abortController.signal,
         );
@@ -376,6 +324,7 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
         });
       } else {
         const data: AIReportResult = await res.json();
+        fullReport = data.report;
         setTradeReview(prev => ({ ...prev, [key]: data }));
         setStreamedReviewContent(data.report);
         track('ai_analysis_run', { report_type: 'trade_review' });
@@ -394,10 +343,10 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
       }
     } catch (err) {
       if (abortController.signal.aborted) {
-        const partial = streamedReviewContent;
-        if (partial) {
+        // User cancelled — keep partial content using local variable (not stale state)
+        if (fullReport) {
           const generatedAt = new Date().toISOString();
-          setTradeReview(prev => ({ ...prev, [key]: { report: partial, generatedAt } }));
+          setTradeReview(prev => ({ ...prev, [key]: { report: fullReport, generatedAt } }));
         }
       } else {
         setError(err instanceof Error ? err.message : t('unknownError'));
@@ -405,7 +354,7 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
     } finally {
       setLoadingReview(null);
       setIsStreamingReview(false);
-      abortControllerRef.current = null;
+      reviewAbortRef.current = null;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saveReportToDB, onCoinsConsumed, locale, t, track]);
