@@ -1026,7 +1026,7 @@ export function AnalysisDashboard({
             streamedContent={streamedWeeklyContent}
             onStopStreaming={stopWeeklyStreaming}
           />
-          <AIReportHistory reports={savedReports} loading={loadingSavedReports} onDelete={deleteReport} />
+          <AIReportHistory reports={savedReports} loading={loadingSavedReports} onDelete={deleteReport} userBalance={coinBalance} onCoinsConsumed={onCoinsConsumed} isLoggedIn={!!currentUser} />
         </div>
       )}
 
