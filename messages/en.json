@@ -1020,6 +1020,24 @@
       "global": "Global Stocks"
     }
   },
+  "insight": {
+    "title": {
+      "win_rate_drop": "Win Rate Decline Detected",
+      "win_rate_rise": "Win Rate Improvement Detected",
+      "overtrading": "Overtrading Warning",
+      "emotion_shift": "Emotional Trading Increase",
+      "losing_streak": "Losing Streak Warning"
+    },
+    "winRateDrop": "Your win rate dropped from {previous}% to {current}% ({diff}pp) over the last 7 days.",
+    "winRateRise": "Your win rate improved from {previous}% to {current}% (+{diff}pp) over the last 7 days.",
+    "overtrading": "Daily average trades increased from {previousAvg} to {currentAvg} ({multiplier}x increase).",
+    "emotionShift": "{tag} tag ratio increased from {previousPercent}% to {currentPercent}% (+{diff}pp) in the last 7 days.",
+    "losingStreak": "You are on a {count}-trade losing streak. Beware of revenge trading.",
+    "getAIComment": "Get AI Comment (1 coin)",
+    "analyzing": "Analyzing...",
+    "dismiss": "Dismiss",
+    "loginForAI": "Log in for AI insights"
+  },
   "format": {
     "monthLabel": "{month} {year}",
     "billionWon": "{value}B KRW",

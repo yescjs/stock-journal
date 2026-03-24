@@ -32,11 +32,18 @@ interface ChatQARequest {
   history?: { role: 'user' | 'assistant'; text: string }[];
 }
 
+interface PatternInsightRequest {
+  type: 'pattern_insight';
+  patternType: string;
+  patternData: Record<string, unknown>;
+  summaryValues: Record<string, string | number>;
+}
+
 interface BaseRequest {
   locale?: string;
 }
 
-type AIAnalysisRequest = (WeeklyReportRequest | TradeReviewRequest | PreTradeCoachRequest | ChatQARequest) & BaseRequest;
+type AIAnalysisRequest = (WeeklyReportRequest | TradeReviewRequest | PreTradeCoachRequest | ChatQARequest | PatternInsightRequest) & BaseRequest;
 
 interface AIAnalysisResponse {
   report: string;
@@ -444,9 +451,59 @@ ${question}`;
 ${question}`;
 }
 
+// ─── Pattern Insight Prompt ──────────────────────────────────────────────
+
+const PATTERN_INSIGHT_SYSTEM_KO = `당신은 트레이딩 심리 전문가입니다.
+사용자의 매매 패턴 변화 데이터를 보고 원인 분석과 조언을 2~3문장으로 간결하게 제공합니다.
+이모지 사용 금지. 존댓말 사용. 마크다운 미사용. 투자 권유 금지.`;
+
+const PATTERN_INSIGHT_SYSTEM_EN = `You are a trading psychology expert.
+Given a user's trading pattern change data, provide a 2-3 sentence cause analysis and advice.
+No emojis. No markdown. No investment recommendations.`;
+
+function buildPatternInsightPrompt(req: PatternInsightRequest & BaseRequest): string {
+  const { patternType, patternData, summaryValues, locale } = req;
+  const isEn = locale === 'en';
+
+  const patternLabels: Record<string, { ko: string; en: string }> = {
+    win_rate_drop: { ko: '승률 하락', en: 'Win rate decline' },
+    win_rate_rise: { ko: '승률 상승', en: 'Win rate improvement' },
+    overtrading: { ko: '과매매 증가', en: 'Overtrading increase' },
+    emotion_shift: { ko: '감정적 매매 증가', en: 'Emotional trading increase' },
+    losing_streak: { ko: '연속 손실', en: 'Consecutive losses' },
+  };
+
+  const label = patternLabels[patternType]?.[isEn ? 'en' : 'ko'] || patternType;
+
+  if (isEn) {
+    return `Pattern detected: ${label}
+Data: ${JSON.stringify(summaryValues)}
+Raw metrics: ${JSON.stringify(patternData)}
+
+In 2-3 concise sentences, explain the likely cause of this pattern change and give one actionable suggestion to address it.`;
+  }
+
+  return `감지된 패턴: ${label}
+데이터: ${JSON.stringify(summaryValues)}
+원시 지표: ${JSON.stringify(patternData)}
+
+이 패턴 변화의 원인을 분석하고 개선을 위한 조언을 2~3문장으로 간결하게 제공하세요.`;
+}
+
 // ─── Mock Report Builder (when GEMINI_API_KEY is not set) ────────────────
 
 function buildMockReport(body: AIAnalysisRequest): string {
+  if (body.type === 'pattern_insight') {
+    if (body.locale === 'en') {
+      return `This pattern change may be related to increased emotional trading or deviation from your trading rules. Consider reviewing your recent entries and returning to your documented strategy before the next trade.
+
+> Mock mode: Set GEMINI_API_KEY for personalized AI insights.`;
+    }
+    return `이 패턴 변화는 감정적 매매 증가나 기존 매매 규칙 이탈과 관련이 있을 수 있습니다. 최근 매매 기록을 검토하고, 다음 거래 전 문서화된 전략으로 돌아가는 것을 권장합니다.
+
+> Mock 모드: GEMINI_API_KEY 설정 후 맞춤형 AI 인사이트를 받을 수 있습니다.`;
+  }
+
   if (body.type === 'pre_trade_coach') {
     if (body.locale === 'en') {
       return `- [ ] Have you set a stop-loss? (Current R:R ${body.analysis.advancedMetrics.rrRatio.toFixed(1)})
@@ -658,7 +715,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<AIAnalysisRes
     const body = (await req.json()) as AIAnalysisRequest;
 
     // 입력 검증
-    if (!body.type || !['weekly_report', 'trade_review', 'pre_trade_coach', 'chat_qa'].includes(body.type)) {
+    if (!body.type || !['weekly_report', 'trade_review', 'pre_trade_coach', 'chat_qa', 'pattern_insight'].includes(body.type)) {
       return NextResponse.json({ error: 'Invalid request type' }, { status: 400 });
     }
     if (body.type === 'weekly_report' && !(body as WeeklyReportRequest).analysis?.profile) {
@@ -678,6 +735,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<AIAnalysisRes
       trade_review: COIN_COSTS.trade_review,
       pre_trade_coach: COIN_COSTS.pre_trade_coach,
       chat_qa: COIN_COSTS.chat_qa,
+      pattern_insight: COIN_COSTS.pattern_insight,
     };
     let cost = costMap[body.type] ?? COIN_COSTS.trade_review;
     let coinDeducted = false;
@@ -768,6 +826,9 @@ export async function POST(req: NextRequest): Promise<NextResponse<AIAnalysisRes
         userPrompt = buildTradeReviewPrompt(body);
       } else if (body.type === 'pre_trade_coach') {
         userPrompt = buildPreTradeCoachPrompt(body);
+      } else if (body.type === 'pattern_insight') {
+        systemPrompt = body.locale === 'en' ? PATTERN_INSIGHT_SYSTEM_EN : PATTERN_INSIGHT_SYSTEM_KO;
+        userPrompt = buildPatternInsightPrompt(body);
       } else if (body.type === 'chat_qa') {
         // Include conversation history in system prompt for context
         const isEn = body.locale === 'en';
