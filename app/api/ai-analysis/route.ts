@@ -782,6 +782,12 @@ export async function POST(req: NextRequest): Promise<NextResponse<AIAnalysisRes
     if (body.type === 'trade_review' && !(body as TradeReviewRequest).roundTrip) {
       return NextResponse.json({ error: 'Missing roundTrip data' }, { status: 400 });
     }
+    if (body.type === 'pattern_insight') {
+      const pi = body as PatternInsightRequest;
+      if (!pi.patternType || !pi.patternData || !pi.summaryValues) {
+        return NextResponse.json({ error: 'Missing pattern insight data (patternType, patternData, summaryValues)' }, { status: 400 });
+      }
+    }
 
     // 인증 확인
     const { user } = await getAuthUser(req);

@@ -2,7 +2,7 @@
 // Detects significant trading pattern changes and returns insight cards
 // Works in both guest and user modes (local computation, no API call)
 
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { Trade } from '@/app/types/trade';
 
 // ─── Constants ───────────────────────────────────────────────────────────
@@ -83,14 +83,16 @@ function splitByPeriod(trades: Trade[]): { recent: Trade[]; previous: Trade[] } 
 function calcWinRate(trades: Trade[]): { winRate: number; wins: number; total: number } {
   const sorted = [...trades].sort((a, b) => a.date.localeCompare(b.date));
   const sells = sorted.filter(t => t.side === 'SELL');
+  const usedBuyIds = new Set<string>();
   let wins = 0;
   let total = 0;
 
   for (const sell of sells) {
     const matchingBuy = sorted.find(
-      t => t.side === 'BUY' && t.symbol === sell.symbol && t.date <= sell.date
+      t => t.side === 'BUY' && t.symbol === sell.symbol && t.date <= sell.date && !usedBuyIds.has(t.id)
     );
     if (matchingBuy) {
+      usedBuyIds.add(matchingBuy.id);
       total++;
       if (sell.price >= matchingBuy.price) wins++;
     }
@@ -208,13 +210,15 @@ function detectEmotionShift(recent: Trade[], previous: Trade[]): DetectedPattern
 function detectLosingStreak(trades: Trade[]): DetectedPattern | null {
   const sorted = [...trades].sort((a, b) => b.date.localeCompare(a.date));
   const sells = sorted.filter(t => t.side === 'SELL');
+  const usedBuyIds = new Set<string>();
 
   let streak = 0;
   for (const sell of sells) {
     const matchingBuy = sorted.find(
-      t => t.side === 'BUY' && t.symbol === sell.symbol && t.date <= sell.date
+      t => t.side === 'BUY' && t.symbol === sell.symbol && t.date <= sell.date && !usedBuyIds.has(t.id)
     );
     if (matchingBuy && sell.price < matchingBuy.price) {
+      usedBuyIds.add(matchingBuy.id);
       streak++;
     } else {
       break;
@@ -270,6 +274,16 @@ export function usePatternDetection(
 
   const [aiComments, setAiComments] = useState<Record<string, string>>({});
   const [aiLoading, setAiLoading] = useState<Record<string, boolean>>({});
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Abort in-flight AI requests on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   const allPatterns = useMemo<DetectedPattern[]>(() => {
     if (trades.length < 3) return [];
@@ -291,7 +305,7 @@ export function usePatternDetection(
 
   const patterns = useMemo(() => {
     return allPatterns
-      .filter(p => !dismissedTypes.has(p.type) && !isDismissed(p.type))
+      .filter(p => !dismissedTypes.has(p.type))
       .sort((a, b) => {
         const order = { critical: 0, warning: 1 };
         return order[a.severity] - order[b.severity];
@@ -306,6 +320,13 @@ export function usePatternDetection(
 
   const requestAIComment = useCallback(async (pattern: DetectedPattern) => {
     if (!user) return;
+
+    // Cancel any previous in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     setAiLoading(prev => ({ ...prev, [pattern.type]: true }));
     try {
@@ -326,6 +347,7 @@ export function usePatternDetection(
           summaryValues: pattern.summaryValues,
           locale,
         }),
+        signal: controller.signal,
       });
 
       if (!res.ok) {
@@ -337,6 +359,7 @@ export function usePatternDetection(
       setAiComments(prev => ({ ...prev, [pattern.type]: data.report }));
       onCoinsConsumed?.();
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return;
       console.error('AI insight error:', err);
       throw err;
     } finally {
