@@ -478,6 +478,8 @@ export default function TradePage() {
                     isFree={aiChat.isFree}
                     isOpen={isChatOpen}
                     onClose={() => setIsChatOpen(false)}
+                    isStreaming={aiChat.isStreaming}
+                    onStopStreaming={aiChat.stopStreaming}
                 />
             )}
 

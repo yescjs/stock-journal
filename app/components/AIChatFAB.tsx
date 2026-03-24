@@ -29,6 +29,9 @@ interface AIChatFABProps {
   isOpen: boolean;
   /** Called when panel wants to close */
   onClose: () => void;
+  // Streaming props
+  isStreaming?: boolean;
+  onStopStreaming?: () => void;
 }
 
 export function AIChatFAB({
@@ -45,6 +48,8 @@ export function AIChatFAB({
   isFree,
   isOpen,
   onClose,
+  isStreaming = false,
+  onStopStreaming,
 }: AIChatFABProps) {
   const t = useTranslations('trade.chat');
   const [isDesktop, setIsDesktop] = useState(() =>
@@ -95,6 +100,8 @@ export function AIChatFAB({
       hideHeader={isDesktop}
       freeRemaining={freeRemaining}
       isFree={isFree}
+      isStreaming={isStreaming}
+      onStopStreaming={onStopStreaming}
     />
   );
 

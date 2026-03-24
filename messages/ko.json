@@ -272,7 +272,8 @@
       "suggestEmotionReturn": "감정별 수익률 비교",
       "freeCount": "무료 {count}회",
       "coinPerQuestion": "1코인/질문",
-      "dataQuestion": "매매 데이터 질문"
+      "dataQuestion": "매매 데이터 질문",
+      "stop": "중단"
     },
     "list": {
       "emptyTitle": "아직 작성된 매매 일지가 없습니다",
@@ -519,7 +520,9 @@
       "reset": "초기화",
       "coinShort": "코인 부족 ({balance}/{cost})",
       "emptyCompact": "이 거래에 대한 AI 피드백을 받아보세요.",
-      "emptyFull": "매매 데이터를 기반으로 AI가 투자 코치 리포트를 생성합니다. 승률, 감정 패턴, 전략 효과 등을 종합 분석합니다."
+      "emptyFull": "매매 데이터를 기반으로 AI가 투자 코치 리포트를 생성합니다. 승률, 감정 패턴, 전략 효과 등을 종합 분석합니다.",
+      "streaming": "생성 중...",
+      "stop": "중단"
     },
     "reportHistory": {
       "title": "저장된 AI 분석 리포트",
