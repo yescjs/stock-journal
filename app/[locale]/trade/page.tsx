@@ -444,7 +444,6 @@ export default function TradePage() {
                                 onDismissOnboarding={onboarding.dismiss}
                                 onCompleteOnboardingStep={onboarding.completeStep}
                                 onOpenAddTrade={() => setShowAddModal(true)}
-                                sharedAIChat={currentUser ? aiChat : undefined}
                             />
                 </div>
             </div>
