@@ -115,6 +115,32 @@ Business logic layer. All hooks return `{ data, loading, error, ...operations }`
 - **Prop drilling**: Max 2 levels — use composition or context beyond that
 - **Charts**: Handle empty/null data gracefully
 
+## html2canvas / DOM-to-Image Compatibility (Critical)
+
+Tailwind CSS 4 generates `oklab()` color functions for opacity modifiers (`bg-white/10`, `border-white/8`, `text-white/40`, etc.). **html2canvas does NOT support `oklab()`** and will throw "Attempting to parse an unsupported color function 'oklab'".
+
+**Rule**: Any DOM element captured by `html2canvas` (or similar DOM-to-image libraries) must use **inline `rgba()` styles** instead of Tailwind opacity classes.
+
+```tsx
+// BAD — html2canvas crashes on oklab()
+<div ref={cardRef} className="bg-white/10 border border-white/8 text-white/40">
+
+// GOOD — html2canvas renders correctly
+<div ref={cardRef} style={{
+  backgroundColor: 'rgba(255,255,255,0.10)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  color: 'rgba(255,255,255,0.40)',
+}}>
+```
+
+This applies to: share cards, export images, PDF generation, social preview cards — any feature that captures DOM as an image. Elements **outside** the capture area can use normal Tailwind classes.
+
+## Supabase Coin System
+
+- `daily_bonus`: pg_cron 일일 리셋 전용 (매일 KST 자정, 10코인으로 리셋)
+- `attendance_bonus`: 출석 스트릭 보너스 전용 (로그인 시 1~5코인 추가)
+- 두 타입은 분리되어야 함. `daily_bonus`를 다른 용도로 사용하면 크론과 충돌.
+
 ## Key localStorage Keys
 
 - `stock-journal-guest-trades-v1` — Guest trade data
