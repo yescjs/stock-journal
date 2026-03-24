@@ -1020,6 +1020,24 @@
       "global": "🌐 해외주식"
     }
   },
+  "insight": {
+    "title": {
+      "win_rate_drop": "승률 하락 감지",
+      "win_rate_rise": "승률 상승 감지",
+      "overtrading": "과매매 경고",
+      "emotion_shift": "감정적 매매 증가",
+      "losing_streak": "연속 손실 경고"
+    },
+    "winRateDrop": "최근 7일 승률이 {previous}%에서 {current}%로 {diff}%p 하락했습니다.",
+    "winRateRise": "최근 7일 승률이 {previous}%에서 {current}%로 {diff}%p 상승했습니다.",
+    "overtrading": "일일 평균 거래 횟수가 {previousAvg}건에서 {currentAvg}건으로 {multiplier}배 증가했습니다.",
+    "emotionShift": "최근 7일간 {tag} 태그 비율이 {previousPercent}%에서 {currentPercent}%로 {diff}%p 증가했습니다.",
+    "losingStreak": "현재 {count}연패 중입니다. 복수 매매(revenge trading) 위험에 주의하세요.",
+    "getAIComment": "AI 코멘트 받기 (1코인)",
+    "analyzing": "분석 중...",
+    "dismiss": "닫기",
+    "loginForAI": "로그인하고 AI 분석 받기"
+  },
   "format": {
     "monthLabel": "{year}년 {month}월",
     "billionWon": "{value}억원",
