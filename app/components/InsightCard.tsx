@@ -4,6 +4,9 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TrendingUp, TrendingDown, AlertTriangle, Activity, Brain, X, Sparkles, LogIn } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { markdownComponents } from '@/app/components/AIReportHistory';
 import type { DetectedPattern, PatternType } from '@/app/hooks/usePatternDetection';
 
 // ─── Icon mapping ────────────────────────────────────────────────────────
@@ -142,15 +145,19 @@ export function InsightCard({
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="text-xs text-white/70 leading-relaxed bg-white/5 rounded-xl p-3 border border-white/5"
+              className="bg-white/5 rounded-xl p-3 border border-white/5"
             >
-              <div className="flex items-center gap-1.5 mb-1.5">
+              <div className="flex items-center gap-1.5 mb-2">
                 <Sparkles size={12} className="text-blue-400" />
                 <span className="text-[10px] font-semibold text-blue-400 uppercase tracking-wider">
                   AI Insight
                 </span>
               </div>
-              {aiComment}
+              <div className="text-xs [&_h2]:text-sm [&_h2]:mt-3 [&_h2]:mb-1.5 [&_h2]:border-0 [&_p]:text-xs [&_p]:mb-2 [&_ul]:mb-2 [&_li]:text-xs">
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                  {aiComment}
+                </ReactMarkdown>
+              </div>
             </motion.div>
           ) : (
             <motion.div key="button" className="flex items-center gap-2">

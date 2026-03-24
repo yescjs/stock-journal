@@ -453,13 +453,45 @@ ${question}`;
 
 // ─── Pattern Insight Prompt ──────────────────────────────────────────────
 
-const PATTERN_INSIGHT_SYSTEM_KO = `당신은 트레이딩 심리 전문가입니다.
-사용자의 매매 패턴 변화 데이터를 보고 원인 분석과 조언을 2~3문장으로 간결하게 제공합니다.
-이모지 사용 금지. 존댓말 사용. 마크다운 미사용. 투자 권유 금지.`;
+const PATTERN_INSIGHT_SYSTEM_KO = `당신은 전문 트레이딩 분석가이자 1:1 매매 코치입니다.
+사용자의 매매 패턴 변화 데이터를 분석하여 구체적인 수치를 기반으로 원인과 개선 방안을 제시합니다.
+존댓말 사용. 투자 권유 금지. 격려하되 위험 요소는 직설적으로 전달합니다.
 
-const PATTERN_INSIGHT_SYSTEM_EN = `You are a trading psychology expert.
-Given a user's trading pattern change data, provide a 2-3 sentence cause analysis and advice.
-No emojis. No markdown. No investment recommendations.`;
+반드시 아래 마크다운 구조로 응답하세요:
+
+**패턴 감지: [패턴 유형]**
+[감지된 내용을 구체적 수치와 함께 1~2문장으로 설명]
+
+**원인 분석**
+- [가능한 원인 1]
+- [가능한 원인 2]
+
+**개선 제안**
+- [실천 가능한 조언 1]
+- [실천 가능한 조언 2]
+
+**즉시 실천 사항**
+[다음 매매 전 반드시 해야 할 한 가지 구체적 행동]`;
+
+const PATTERN_INSIGHT_SYSTEM_EN = `You are a professional trading analyst and dedicated 1:1 trading coach.
+Analyze users' trading pattern changes with specific numbers and provide causes and actionable improvement plans.
+No investment recommendations. Be encouraging but direct about risks.
+
+You MUST respond in the following markdown structure:
+
+**Pattern Detected: [pattern type]**
+[1-2 sentence explanation of what was detected with specific numbers]
+
+**Root Cause Analysis**
+- [possible cause 1]
+- [possible cause 2]
+
+**Improvement Suggestions**
+- [actionable advice 1]
+- [actionable advice 2]
+
+**Immediate Action Item**
+[one specific thing to do before the next trade]`;
 
 function buildPatternInsightPrompt(req: PatternInsightRequest & BaseRequest): string {
   const { patternType, patternData, summaryValues, locale } = req;
@@ -477,17 +509,19 @@ function buildPatternInsightPrompt(req: PatternInsightRequest & BaseRequest): st
 
   if (isEn) {
     return `Pattern detected: ${label}
-Data: ${JSON.stringify(summaryValues)}
-Raw metrics: ${JSON.stringify(patternData)}
+Summary data: ${JSON.stringify(summaryValues)}
+Detailed metrics: ${JSON.stringify(patternData)}
 
-In 2-3 concise sentences, explain the likely cause of this pattern change and give one actionable suggestion to address it.`;
+Analyze this pattern change in detail. Include specific numbers from the data (e.g., "win rate dropped from 80% to 30%, a 50pp decline").
+Provide 5-8 sentences total across all sections. Follow the exact markdown structure from your system instructions.`;
   }
 
   return `감지된 패턴: ${label}
-데이터: ${JSON.stringify(summaryValues)}
-원시 지표: ${JSON.stringify(patternData)}
+요약 데이터: ${JSON.stringify(summaryValues)}
+상세 지표: ${JSON.stringify(patternData)}
 
-이 패턴 변화의 원인을 분석하고 개선을 위한 조언을 2~3문장으로 간결하게 제공하세요.`;
+이 패턴 변화를 상세히 분석하세요. 데이터의 구체적인 수치를 포함하세요 (예: "승률이 80%에서 30%로 50%p 하락").
+모든 섹션을 합쳐 5~8문장으로 작성하세요. 시스템 지침의 마크다운 구조를 정확히 따르세요.`;
 }
 
 // ─── Mock Report Builder (when GEMINI_API_KEY is not set) ────────────────
@@ -495,11 +529,35 @@ In 2-3 concise sentences, explain the likely cause of this pattern change and gi
 function buildMockReport(body: AIAnalysisRequest): string {
   if (body.type === 'pattern_insight') {
     if (body.locale === 'en') {
-      return `This pattern change may be related to increased emotional trading or deviation from your trading rules. Consider reviewing your recent entries and returning to your documented strategy before the next trade.
+      return `**Pattern Detected: Trading Pattern Change**
+A notable shift has been detected in your recent trading behavior compared to your historical baseline.
+
+**Root Cause Analysis**
+- Increased emotional trading or deviation from your documented trading rules
+- Possible overconfidence after a winning streak or fear-driven decisions after losses
+
+**Improvement Suggestions**
+- Review your last 10 trades and compare them against your strategy checklist
+- Set strict entry/exit rules and commit to following them for the next 5 trades
+
+**Immediate Action Item**
+Before your next trade, write down your entry reason, stop-loss, and target price — and only execute if all three are defined.
 
 > Mock mode: Set GEMINI_API_KEY for personalized AI insights.`;
     }
-    return `이 패턴 변화는 감정적 매매 증가나 기존 매매 규칙 이탈과 관련이 있을 수 있습니다. 최근 매매 기록을 검토하고, 다음 거래 전 문서화된 전략으로 돌아가는 것을 권장합니다.
+    return `**패턴 감지: 매매 패턴 변화**
+최근 매매 행동에서 과거 기준 대비 주목할 만한 변화가 감지되었습니다.
+
+**원인 분석**
+- 감정적 매매 증가 또는 기존 매매 규칙에서의 이탈 가능성
+- 연속 수익 후 과신 또는 손실 후 공포 기반 의사결정 가능성
+
+**개선 제안**
+- 최근 10건의 거래를 전략 체크리스트와 비교 검토하세요
+- 엄격한 진입/청산 규칙을 설정하고 향후 5건의 거래에서 반드시 준수하세요
+
+**즉시 실천 사항**
+다음 매매 전, 진입 사유, 손절가, 목표가를 반드시 기록하고 세 가지가 모두 정해졌을 때만 실행하세요.
 
 > Mock 모드: GEMINI_API_KEY 설정 후 맞춤형 AI 인사이트를 받을 수 있습니다.`;
   }
