@@ -106,7 +106,7 @@ export default function TradePage() {
     // --- Pattern Detection ---
     const {
         patterns: insightPatterns,
-        dismissPatern: dismissInsight,
+        dismissPattern: dismissInsight,
         aiComments: insightAIComments,
         aiLoading: insightAILoading,
         requestAIComment: requestInsightAI,

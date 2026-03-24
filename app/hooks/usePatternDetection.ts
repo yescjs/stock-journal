@@ -55,7 +55,7 @@ function isDismissed(type: PatternType): boolean {
   return Date.now() - entry.dismissedAt < DISMISS_DURATION_MS;
 }
 
-function dismissPattern(type: PatternType) {
+function persistDismissPattern(type: PatternType) {
   const entries = getDismissedEntries().filter(e => e.type !== type);
   entries.push({ type, dismissedAt: Date.now() });
   saveDismissedEntries(entries);
@@ -238,7 +238,7 @@ function detectLosingStreak(trades: Trade[]): DetectedPattern | null {
 
 export interface UsePatternDetectionReturn {
   patterns: DetectedPattern[];
-  dismissPatern: (type: PatternType) => void;
+  dismissPattern: (type: PatternType) => void;
   /** AI comment state per pattern type */
   aiComments: Record<string, string>;
   aiLoading: Record<string, boolean>;
@@ -299,8 +299,8 @@ export function usePatternDetection(
       .slice(0, MAX_VISIBLE_INSIGHTS);
   }, [allPatterns, dismissedTypes]);
 
-  const dismissPatern = useCallback((type: PatternType) => {
-    dismissPattern(type);
+  const dismissPattern = useCallback((type: PatternType) => {
+    persistDismissPattern(type);
     setDismissedTypes(prev => new Set([...prev, type]));
   }, []);
 
@@ -346,7 +346,7 @@ export function usePatternDetection(
 
   return {
     patterns,
-    dismissPatern,
+    dismissPattern,
     aiComments,
     aiLoading,
     requestAIComment,
