@@ -113,62 +113,62 @@ export function PerformanceShareCard({ analysis, isOpen, onClose }: PerformanceS
             </button>
           </div>
 
-          {/* Share Card (rendered as image) */}
+          {/* Share Card — html2canvas 호환을 위해 인라인 rgba() 사용 (Tailwind 4 oklab 미지원) */}
           <div
             ref={cardRef}
-            className="rounded-2xl overflow-hidden border border-white/10"
-            style={{ backgroundColor: '#0a0d16' }}
+            className="rounded-2xl overflow-hidden"
+            style={{ backgroundColor: '#0a0d16', border: '1px solid rgba(255,255,255,0.10)' }}
           >
-            <div className="p-6 space-y-5">
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
               {/* Header */}
-              <div className="flex items-center justify-between">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
-                  <h3 className="text-lg font-bold text-white">{t('title')}</h3>
-                  <p className="text-xs text-white/30 mt-0.5">Stock Journal</p>
+                  <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#ffffff' }}>{t('title')}</h3>
+                  <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.30)', marginTop: '2px' }}>Stock Journal</p>
                 </div>
-                <div className="px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30">
-                  <span className="text-xs font-bold text-indigo-400">{profile.overallGrade}</span>
+                <div style={{ padding: '4px 12px', borderRadius: '9999px', backgroundColor: 'rgba(99,102,241,0.20)', border: '1px solid rgba(99,102,241,0.30)' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#818cf8' }}>{profile.overallGrade}</span>
                 </div>
               </div>
 
               {/* Stats Grid */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 rounded-xl bg-white/5 border border-white/8">
-                  <p className="text-xs text-white/40">{t('winRate')}</p>
-                  <p className="text-xl font-bold text-white mt-1">{profile.winRate.toFixed(1)}%</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div style={{ padding: '12px', borderRadius: '12px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.40)' }}>{t('winRate')}</p>
+                  <p style={{ fontSize: '20px', fontWeight: 700, color: '#ffffff', marginTop: '4px' }}>{profile.winRate.toFixed(1)}%</p>
                 </div>
-                <div className="p-3 rounded-xl bg-white/5 border border-white/8">
-                  <p className="text-xs text-white/40">{t('totalTrades')}</p>
-                  <p className="text-xl font-bold text-white mt-1">{roundTrips.length}</p>
+                <div style={{ padding: '12px', borderRadius: '12px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.40)' }}>{t('totalTrades')}</p>
+                  <p style={{ fontSize: '20px', fontWeight: 700, color: '#ffffff', marginTop: '4px' }}>{roundTrips.length}</p>
                 </div>
-                <div className="p-3 rounded-xl bg-white/5 border border-white/8">
-                  <p className="text-xs text-white/40">{t('totalPnl')}</p>
-                  <p className={`text-xl font-bold mt-1 ${totalPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                <div style={{ padding: '12px', borderRadius: '12px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.40)' }}>{t('totalPnl')}</p>
+                  <p style={{ fontSize: '20px', fontWeight: 700, marginTop: '4px', color: totalPnl >= 0 ? '#34d399' : '#f87171' }}>
                     {maskAmounts
                       ? `${totalPnl >= 0 ? '+' : '-'}***`
                       : `${totalPnl >= 0 ? '+' : ''}${profile.avgReturn.toFixed(1)}%`}
                   </p>
                 </div>
-                <div className="p-3 rounded-xl bg-white/5 border border-white/8">
-                  <p className="text-xs text-white/40">{t('bestTrade')}</p>
-                  <p className="text-sm font-bold text-white mt-1 truncate">
+                <div style={{ padding: '12px', borderRadius: '12px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.40)' }}>{t('bestTrade')}</p>
+                  <p style={{ fontSize: '14px', fontWeight: 700, color: '#ffffff', marginTop: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {bestTrade?.symbolName || bestTrade?.symbol || '-'}
                   </p>
-                  <p className="text-xs text-emerald-400">
+                  <p style={{ fontSize: '12px', color: '#34d399' }}>
                     {maskAmounts ? '+***' : `+${bestTrade?.pnlPercent.toFixed(1)}%`}
                   </p>
                 </div>
               </div>
 
               {/* Bottom Stats */}
-              <div className="flex items-center justify-between text-xs text-white/30 pt-2 border-t border-white/8">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', color: 'rgba(255,255,255,0.30)', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
                 <span>{t('wins')}: {winCount} / {t('losses')}: {roundTrips.length - winCount}</span>
                 <span>{t('maxWinStreak')}: {streaks.maxWin}</span>
               </div>
 
               {/* Watermark */}
-              <div className="flex items-center justify-center pt-1">
-                <span className="text-[10px] text-white/15 tracking-wider">STOCK JOURNAL</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: '4px' }}>
+                <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.15)', letterSpacing: '0.05em' }}>STOCK JOURNAL</span>
               </div>
             </div>
           </div>
