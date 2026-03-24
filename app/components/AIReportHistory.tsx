@@ -1,5 +1,5 @@
 // 저장된 AI 분석 리포트 목록 컴포넌트
-import React, { useState } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { History, ChevronDown, Trash2, FileText, Loader2, TrendingUp } from 'lucide-react';
@@ -125,6 +125,19 @@ export function AIReportHistory({ reports, loading, onDelete, userBalance, onCoi
     const tt = useTranslations('analysis.reportTrend');
     const tc = useTranslations('common');
     const locale = useLocale();
+    const reportRefsMap = useRef<Map<string, HTMLDivElement>>(new Map());
+
+    // Bug 3: Navigate to report — expand it and scroll into view
+    const handleNavigateToReport = useCallback((reportId: string) => {
+        setExpandedId(reportId);
+        // Use requestAnimationFrame to wait for DOM update after state change
+        requestAnimationFrame(() => {
+            const el = reportRefsMap.current.get(reportId);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        });
+    }, []);
 
     if (loading) {
         return (
@@ -171,7 +184,7 @@ export function AIReportHistory({ reports, loading, onDelete, userBalance, onCoi
                 <div className="mb-4">
                     <ReportTrendView
                         reports={reports}
-                        onNavigateToReport={(id) => setExpandedId(id)}
+                        onNavigateToReport={handleNavigateToReport}
                         userBalance={userBalance}
                         onCoinsConsumed={onCoinsConsumed}
                         isLoggedIn={isLoggedIn}
@@ -187,6 +200,10 @@ export function AIReportHistory({ reports, loading, onDelete, userBalance, onCoi
                     return (
                         <div
                             key={report.id}
+                            ref={(el) => {
+                                if (el) reportRefsMap.current.set(report.id, el);
+                                else reportRefsMap.current.delete(report.id);
+                            }}
                             className={`rounded-xl border transition-all ${isExpanded
                                     ? 'border-indigo-500/20 bg-indigo-500/5'
                                     : 'border-white/5 bg-white/3 hover:bg-white/5'

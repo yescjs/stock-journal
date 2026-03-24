@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   LineChart,
   Line,
@@ -28,7 +28,10 @@ const TREND_COLORS = {
   tradeCount: '#f472b6', // pink
 };
 
+const SESSION_STORAGE_KEY = 'stock-journal-trend-summary-v1';
+
 interface TrendDataPoint {
+  index: number;       // unique numeric index for XAxis (Bug 1 fix)
   date: string;
   displayDate: string;
   reportId: string;
@@ -46,12 +49,49 @@ interface ReportTrendViewProps {
   isLoggedIn?: boolean;
 }
 
+/** Compute a fingerprint from report IDs to detect changes */
+function reportsFingerprint(reports: SavedReport[]): string {
+  return reports
+    .filter(r => r.report_type === 'weekly_report')
+    .map(r => r.id)
+    .sort()
+    .join(',');
+}
+
 export function ReportTrendView({ reports, onNavigateToReport, userBalance, onCoinsConsumed, isLoggedIn = false }: ReportTrendViewProps) {
   const t = useTranslations('analysis.reportTrend');
   const locale = useLocale();
-  const [trendSummary, setTrendSummary] = useState<string | null>(null);
+
+  // Bug 5: Restore cached trend summary from sessionStorage on mount
+  const [trendSummary, setTrendSummary] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const cached = sessionStorage.getItem(SESSION_STORAGE_KEY);
+      if (!cached) return null;
+      const parsed = JSON.parse(cached);
+      // Only restore if reports haven't changed
+      if (parsed.fingerprint === reportsFingerprint(reports)) {
+        return parsed.summary;
+      }
+      sessionStorage.removeItem(SESSION_STORAGE_KEY);
+      return null;
+    } catch {
+      return null;
+    }
+  });
   const [loadingTrend, setLoadingTrend] = useState(false);
   const [trendError, setTrendError] = useState<string | null>(null);
+
+  // Bug 5: Clear cached summary when reports change
+  const prevFingerprintRef = useRef(reportsFingerprint(reports));
+  useEffect(() => {
+    const current = reportsFingerprint(reports);
+    if (current !== prevFingerprintRef.current) {
+      prevFingerprintRef.current = current;
+      setTrendSummary(null);
+      try { sessionStorage.removeItem(SESSION_STORAGE_KEY); } catch { /* noop */ }
+    }
+  }, [reports]);
 
   // Extract metrics from report metadata, sorted oldest-first for chart
   const trendData = useMemo<TrendDataPoint[]>(() => {
@@ -61,7 +101,7 @@ export function ReportTrendView({ reports, onNavigateToReport, userBalance, onCo
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
       .slice(-12); // Last 12 reports max
 
-    return weeklyReports.map(r => {
+    return weeklyReports.map((r, idx) => {
       const meta = r.metadata || {};
       const date = (meta.generatedAt as string) || r.created_at;
       const displayDate = new Date(date).toLocaleDateString(
@@ -70,6 +110,7 @@ export function ReportTrendView({ reports, onNavigateToReport, userBalance, onCo
       );
 
       const point: TrendDataPoint = {
+        index: idx,
         date,
         displayDate,
         reportId: r.id,
@@ -97,12 +138,17 @@ export function ReportTrendView({ reports, onNavigateToReport, userBalance, onCo
     return metrics;
   }, [trendData, t]);
 
+  // Bug 3: Handle click on chart data point to navigate to that report
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleChartClick = useCallback((data: any) => {
-    const reportId = data?.activePayload?.[0]?.payload?.reportId;
-    if (reportId && onNavigateToReport) {
-      onNavigateToReport(reportId);
-    }
+  const handleChartClick = useCallback((_data: any, event: any) => {
+    // When clicking on a dot/activeDot, activePayload is available
+    // But we also need to handle the case where the user clicks on the chart area
+    const payload = _data?.activePayload?.[0]?.payload;
+    if (!payload?.reportId || !onNavigateToReport) return;
+
+    // Prevent event from bubbling (avoid double-trigger)
+    if (event?.stopPropagation) event.stopPropagation();
+    onNavigateToReport(payload.reportId);
   }, [onNavigateToReport]);
 
   const cost = COIN_COSTS.report_trend;
@@ -151,12 +197,20 @@ export function ReportTrendView({ reports, onNavigateToReport, userBalance, onCo
       const data = await res.json();
       setTrendSummary(data.report);
       onCoinsConsumed?.();
+
+      // Bug 5: Persist to sessionStorage
+      try {
+        sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
+          summary: data.report,
+          fingerprint: reportsFingerprint(reports),
+        }));
+      } catch { /* sessionStorage full or unavailable */ }
     } catch (err) {
       setTrendError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setLoadingTrend(false);
     }
-  }, [canAfford, trendData, locale, t, userBalance, cost, onCoinsConsumed]);
+  }, [canAfford, trendData, locale, t, userBalance, cost, onCoinsConsumed, reports]);
 
   // Guest mode guard
   if (!isLoggedIn) {
@@ -222,8 +276,14 @@ export function ReportTrendView({ reports, onNavigateToReport, userBalance, onCo
             margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+            {/* Bug 1 fix: Use numeric index as dataKey for correct tooltip alignment,
+                render displayDate as the tick label via tickFormatter */}
             <XAxis
-              dataKey="displayDate"
+              dataKey="index"
+              type="number"
+              domain={[0, trendData.length - 1]}
+              tickCount={trendData.length}
+              tickFormatter={(idx: number) => trendData[idx]?.displayDate ?? ''}
               tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }}
               axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
               tickLine={false}
@@ -243,6 +303,7 @@ export function ReportTrendView({ reports, onNavigateToReport, userBalance, onCo
                 color: 'rgba(255,255,255,0.8)',
               }}
               labelStyle={{ color: 'rgba(255,255,255,0.5)' }}
+              labelFormatter={(idx: number) => trendData[idx]?.displayDate ?? ''}
               cursor={{ stroke: 'rgba(255,255,255,0.1)' }}
             />
             <Legend

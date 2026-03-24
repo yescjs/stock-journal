@@ -454,6 +454,9 @@ ${question}`;
 function buildReportTrendPrompt(req: ReportTrendRequest, locale?: string): string {
   const { trendData } = req;
   const isEn = locale === 'en';
+  const count = trendData.length;
+  const first = trendData[0];
+  const last = trendData[count - 1];
 
   const dataRows = trendData.map(d => {
     const parts = [`Date: ${d.date}`];
@@ -464,23 +467,59 @@ function buildReportTrendPrompt(req: ReportTrendRequest, locale?: string): strin
     return `- ${parts.join(' | ')}`;
   }).join('\n');
 
-  if (isEn) {
-    return `Analyze the following trading report trend data and provide a 2-3 sentence growth summary.
-Focus on: improving/declining patterns, key turning points, and one actionable suggestion.
+  // Compute summary stats for the prompt
+  const winRates = trendData.filter(d => d.winRate != null).map(d => d.winRate!);
+  const pnls = trendData.filter(d => d.pnlPercent != null).map(d => d.pnlPercent!);
+  const bestWinRate = winRates.length > 0 ? Math.max(...winRates) : null;
+  const worstWinRate = winRates.length > 0 ? Math.min(...winRates) : null;
+  const bestPnl = pnls.length > 0 ? Math.max(...pnls) : null;
+  const worstPnl = pnls.length > 0 ? Math.min(...pnls) : null;
 
-## Report History (${trendData.length} reports, oldest to newest)
+  const summaryStats = [
+    first?.winRate != null && last?.winRate != null ? `Win rate: ${first.winRate.toFixed(1)}% (first) -> ${last.winRate.toFixed(1)}% (latest)` : null,
+    first?.pnlPercent != null && last?.pnlPercent != null ? `P&L: ${first.pnlPercent >= 0 ? '+' : ''}${first.pnlPercent.toFixed(2)}% (first) -> ${last.pnlPercent >= 0 ? '+' : ''}${last.pnlPercent.toFixed(2)}% (latest)` : null,
+    first?.rrRatio != null && last?.rrRatio != null ? `R:R: ${first.rrRatio.toFixed(2)} (first) -> ${last.rrRatio.toFixed(2)} (latest)` : null,
+    bestWinRate != null && worstWinRate != null ? `Best win rate: ${bestWinRate.toFixed(1)}%, Worst: ${worstWinRate.toFixed(1)}%` : null,
+    bestPnl != null && worstPnl != null ? `Best P&L: ${bestPnl >= 0 ? '+' : ''}${bestPnl.toFixed(2)}%, Worst: ${worstPnl >= 0 ? '+' : ''}${worstPnl.toFixed(2)}%` : null,
+  ].filter(Boolean).join('\n');
+
+  if (isEn) {
+    return `You are a senior trading performance analyst. Analyze the following trading report trend data and produce a professional, data-driven trend analysis.
+
+## Report History (${count} reports, oldest to newest)
 ${dataRows}
 
-Write exactly 2-3 sentences. Be specific with numbers. Do not use emojis.`;
+## Key Comparisons (first vs latest period)
+${summaryStats}
+
+## Instructions
+Write a structured analysis in 4-5 sentences covering the following:
+
+1. **Performance Trend**: Compare the first and latest periods with specific numbers and percentage changes. Is the trader improving, declining, or plateauing?
+2. **Key Turning Point**: Identify the most significant shift in metrics (e.g., "Win rate jumped from X% to Y% between report #3 and #4"). Explain what this could indicate.
+3. **Best/Worst Performance**: Highlight the best and worst performing periods with specific metrics.
+4. **Actionable Coaching**: Provide one specific, actionable recommendation based on the trend data. Reference concrete numbers (e.g., "Your R:R dropped below 1.0 in the last 2 reports — consider tightening stop-losses to restore it above 1.5").
+
+Use professional financial analyst language. Be concise but specific with numbers. Do not use emojis. Do not use markdown headings — write as a continuous analytical paragraph.`;
   }
 
-  return `아래 매매 리포트 추이 데이터를 분석하고 2~3문장으로 성장 트렌드를 요약해주세요.
-중점 분석 항목: 개선/하락 패턴, 핵심 전환점, 실행 가능한 제안 1가지.
+  return `당신은 시니어 트레이딩 퍼포먼스 애널리스트입니다. 아래 매매 리포트 추이 데이터를 분석하고 전문적이고 데이터 기반의 트렌드 분석을 작성하세요.
 
-## 리포트 히스토리 (${trendData.length}개 리포트, 오래된 순)
+## 리포트 히스토리 (${count}개 리포트, 오래된 순)
 ${dataRows}
 
-정확히 2~3문장으로 작성하세요. 구체적인 수치를 포함하세요. 이모지는 사용하지 마세요.`;
+## 핵심 비교 (첫 번째 vs 최근 기간)
+${summaryStats}
+
+## 작성 지침
+아래 4가지 항목을 포함하여 4~5문장으로 구조화된 분석을 작성하세요:
+
+1. **성과 추이**: 첫 번째와 최근 기간을 구체적인 수치와 변화율로 비교하세요. 트레이더가 개선 중인지, 하락 중인지, 정체 중인지 판단하세요.
+2. **핵심 전환점**: 지표에서 가장 눈에 띄는 변화를 식별하세요 (예: "리포트 #3과 #4 사이에 승률이 X%에서 Y%로 급등"). 이것이 의미하는 바를 설명하세요.
+3. **최고/최저 성과**: 가장 좋았던 기간과 나빴던 기간을 구체적인 지표와 함께 강조하세요.
+4. **실행 가능한 코칭**: 트렌드 데이터에 기반한 구체적이고 실행 가능한 조언 1가지를 제시하세요. 구체적 수치를 인용하세요 (예: "최근 2개 리포트에서 손익비가 1.0 미만으로 하락했습니다 — 손절 기준을 강화하여 1.5 이상으로 복원하세요").
+
+전문적인 금융 애널리스트 어조를 사용하세요. 간결하되 수치를 구체적으로 제시하세요. 이모지를 사용하지 마세요. 마크다운 헤딩은 사용하지 말고, 연속적인 분석 문단으로 작성하세요.`;
 }
 
 // ─── Mock Report Builder (when GEMINI_API_KEY is not set) ────────────────
@@ -839,6 +878,10 @@ export async function POST(req: NextRequest): Promise<NextResponse<AIAnalysisRes
         systemPrompt = getChatSystemPrompt(body.locale) + historyContext;
         userPrompt = buildChatQAPrompt(body, body.locale);
       } else if (body.type === 'report_trend') {
+        // Use a focused system prompt for trend analysis
+        systemPrompt = body.locale === 'en'
+          ? 'You are a quantitative trading performance analyst. Analyze time-series trading metrics with precision. Focus on statistical trends, inflection points, and data-driven coaching. Be concise, professional, and always reference specific numbers from the data. Never use emojis.'
+          : '당신은 정량적 트레이딩 퍼포먼스 애널리스트입니다. 시계열 매매 지표를 정밀하게 분석합니다. 통계적 추세, 전환점, 데이터 기반 코칭에 집중합니다. 간결하고 전문적이며, 항상 데이터의 구체적 수치를 인용합니다. 이모지를 사용하지 않습니다.';
         userPrompt = buildReportTrendPrompt(body, body.locale);
       } else {
         userPrompt = buildTradeReviewPrompt(body);
