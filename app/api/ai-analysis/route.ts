@@ -37,11 +37,18 @@ interface ReportTrendRequest {
   trendData: { date: string; winRate?: number; totalTrades?: number; pnlPercent?: number; rrRatio?: number }[];
 }
 
+interface PatternInsightRequest {
+  type: 'pattern_insight';
+  patternType: string;
+  patternData: Record<string, unknown>;
+  summaryValues: Record<string, string | number>;
+}
+
 interface BaseRequest {
   locale?: string;
 }
 
-type AIAnalysisRequest = (WeeklyReportRequest | TradeReviewRequest | PreTradeCoachRequest | ChatQARequest | ReportTrendRequest) & BaseRequest;
+type AIAnalysisRequest = (WeeklyReportRequest | TradeReviewRequest | PreTradeCoachRequest | ChatQARequest | ReportTrendRequest | PatternInsightRequest) & BaseRequest;
 
 interface AIAnalysisResponse {
   report: string;
@@ -546,9 +553,117 @@ ${summaryStats}
 개선된 부분은 따뜻하게 격려하되, 개선이 필요한 부분은 솔직하게 짚어주세요. 항상 구체적 수치를 인용하세요.`;
 }
 
+// ─── Pattern Insight Prompt ──────────────────────────────────────────────
+
+const PATTERN_INSIGHT_SYSTEM_KO = `당신은 전문 트레이딩 분석가이자 1:1 매매 코치입니다.
+사용자의 매매 패턴 변화 데이터를 분석하여 구체적인 수치를 기반으로 원인과 개선 방안을 제시합니다.
+존댓말 사용. 투자 권유 금지. 격려하되 위험 요소는 직설적으로 전달합니다.
+
+반드시 아래 마크다운 구조로 응답하세요:
+
+**패턴 감지: [패턴 유형]**
+[감지된 내용을 구체적 수치와 함께 1~2문장으로 설명]
+
+**원인 분석**
+- [가능한 원인 1]
+- [가능한 원인 2]
+
+**개선 제안**
+- [실천 가능한 조언 1]
+- [실천 가능한 조언 2]
+
+**즉시 실천 사항**
+[다음 매매 전 반드시 해야 할 한 가지 구체적 행동]`;
+
+const PATTERN_INSIGHT_SYSTEM_EN = `You are a professional trading analyst and dedicated 1:1 trading coach.
+Analyze users' trading pattern changes with specific numbers and provide causes and actionable improvement plans.
+No investment recommendations. Be encouraging but direct about risks.
+
+You MUST respond in the following markdown structure:
+
+**Pattern Detected: [pattern type]**
+[1-2 sentence explanation of what was detected with specific numbers]
+
+**Root Cause Analysis**
+- [possible cause 1]
+- [possible cause 2]
+
+**Improvement Suggestions**
+- [actionable advice 1]
+- [actionable advice 2]
+
+**Immediate Action Item**
+[one specific thing to do before the next trade]`;
+
+function buildPatternInsightPrompt(req: PatternInsightRequest & BaseRequest): string {
+  const { patternType, patternData, summaryValues, locale } = req;
+  const isEn = locale === 'en';
+
+  const patternLabels: Record<string, { ko: string; en: string }> = {
+    win_rate_drop: { ko: '승률 하락', en: 'Win rate decline' },
+    win_rate_rise: { ko: '승률 상승', en: 'Win rate improvement' },
+    overtrading: { ko: '과매매 증가', en: 'Overtrading increase' },
+    emotion_shift: { ko: '감정적 매매 증가', en: 'Emotional trading increase' },
+    losing_streak: { ko: '연속 손실', en: 'Consecutive losses' },
+  };
+
+  const label = patternLabels[patternType]?.[isEn ? 'en' : 'ko'] || patternType;
+
+  if (isEn) {
+    return `Pattern detected: ${label}
+Summary data: ${JSON.stringify(summaryValues)}
+Detailed metrics: ${JSON.stringify(patternData)}
+
+Analyze this pattern change in detail. Include specific numbers from the data (e.g., "win rate dropped from 80% to 30%, a 50pp decline").
+Provide 5-8 sentences total across all sections. Follow the exact markdown structure from your system instructions.`;
+  }
+
+  return `감지된 패턴: ${label}
+요약 데이터: ${JSON.stringify(summaryValues)}
+상세 지표: ${JSON.stringify(patternData)}
+
+이 패턴 변화를 상세히 분석하세요. 데이터의 구체적인 수치를 포함하세요 (예: "승률이 80%에서 30%로 50%p 하락").
+모든 섹션을 합쳐 5~8문장으로 작성하세요. 시스템 지침의 마크다운 구조를 정확히 따르세요.`;
+}
+
 // ─── Mock Report Builder (when GEMINI_API_KEY is not set) ────────────────
 
 function buildMockReport(body: AIAnalysisRequest): string {
+  if (body.type === 'pattern_insight') {
+    if (body.locale === 'en') {
+      return `**Pattern Detected: Trading Pattern Change**
+A notable shift has been detected in your recent trading behavior compared to your historical baseline.
+
+**Root Cause Analysis**
+- Increased emotional trading or deviation from your documented trading rules
+- Possible overconfidence after a winning streak or fear-driven decisions after losses
+
+**Improvement Suggestions**
+- Review your last 10 trades and compare them against your strategy checklist
+- Set strict entry/exit rules and commit to following them for the next 5 trades
+
+**Immediate Action Item**
+Before your next trade, write down your entry reason, stop-loss, and target price — and only execute if all three are defined.
+
+> Mock mode: Set GEMINI_API_KEY for personalized AI insights.`;
+    }
+    return `**패턴 감지: 매매 패턴 변화**
+최근 매매 행동에서 과거 기준 대비 주목할 만한 변화가 감지되었습니다.
+
+**원인 분석**
+- 감정적 매매 증가 또는 기존 매매 규칙에서의 이탈 가능성
+- 연속 수익 후 과신 또는 손실 후 공포 기반 의사결정 가능성
+
+**개선 제안**
+- 최근 10건의 거래를 전략 체크리스트와 비교 검토하세요
+- 엄격한 진입/청산 규칙을 설정하고 향후 5건의 거래에서 반드시 준수하세요
+
+**즉시 실천 사항**
+다음 매매 전, 진입 사유, 손절가, 목표가를 반드시 기록하고 세 가지가 모두 정해졌을 때만 실행하세요.
+
+> Mock 모드: GEMINI_API_KEY 설정 후 맞춤형 AI 인사이트를 받을 수 있습니다.`;
+  }
+
   if (body.type === 'pre_trade_coach') {
     if (body.locale === 'en') {
       return `- [ ] Have you set a stop-loss? (Current R:R ${body.analysis.advancedMetrics.rrRatio.toFixed(1)})
@@ -774,7 +889,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<AIAnalysisRes
     const body = (await req.json()) as AIAnalysisRequest;
 
     // 입력 검증
-    if (!body.type || !['weekly_report', 'trade_review', 'pre_trade_coach', 'chat_qa', 'report_trend'].includes(body.type)) {
+    if (!body.type || !['weekly_report', 'trade_review', 'pre_trade_coach', 'chat_qa', 'report_trend', 'pattern_insight'].includes(body.type)) {
       return NextResponse.json({ error: 'Invalid request type' }, { status: 400 });
     }
     if (body.type === 'weekly_report' && !(body as WeeklyReportRequest).analysis?.profile) {
@@ -809,6 +924,12 @@ export async function POST(req: NextRequest): Promise<NextResponse<AIAnalysisRes
         }
       }
     }
+    if (body.type === 'pattern_insight') {
+      const pi = body as PatternInsightRequest;
+      if (!pi.patternType || !pi.patternData || !pi.summaryValues) {
+        return NextResponse.json({ error: 'Missing pattern insight data (patternType, patternData, summaryValues)' }, { status: 400 });
+      }
+    }
 
     // 인증 확인
     const { user } = await getAuthUser(req);
@@ -821,6 +942,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<AIAnalysisRes
       pre_trade_coach: COIN_COSTS.pre_trade_coach,
       chat_qa: COIN_COSTS.chat_qa,
       report_trend: COIN_COSTS.report_trend,
+      pattern_insight: COIN_COSTS.pattern_insight,
     };
     let cost = costMap[body.type] ?? COIN_COSTS.trade_review;
     let coinDeducted = false;
@@ -911,6 +1033,9 @@ export async function POST(req: NextRequest): Promise<NextResponse<AIAnalysisRes
         userPrompt = buildTradeReviewPrompt(body);
       } else if (body.type === 'pre_trade_coach') {
         userPrompt = buildPreTradeCoachPrompt(body);
+      } else if (body.type === 'pattern_insight') {
+        systemPrompt = body.locale === 'en' ? PATTERN_INSIGHT_SYSTEM_EN : PATTERN_INSIGHT_SYSTEM_KO;
+        userPrompt = buildPatternInsightPrompt(body);
       } else if (body.type === 'chat_qa') {
         // Include conversation history in system prompt for context
         const isEn = body.locale === 'en';
