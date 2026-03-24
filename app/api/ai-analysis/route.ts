@@ -720,6 +720,9 @@ export async function POST(req: NextRequest): Promise<NextResponse<AIAnalysisRes
     if (body.type === 'trade_review' && !(body as TradeReviewRequest).roundTrip) {
       return NextResponse.json({ error: 'Missing roundTrip data' }, { status: 400 });
     }
+    if (body.type === 'report_trend' && (!Array.isArray((body as ReportTrendRequest).trendData) || (body as ReportTrendRequest).trendData.length === 0)) {
+      return NextResponse.json({ error: 'Missing or empty trendData' }, { status: 400 });
+    }
 
     // 인증 확인
     const { user } = await getAuthUser(req);

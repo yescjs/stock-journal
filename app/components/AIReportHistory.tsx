@@ -13,6 +13,7 @@ interface AIReportHistoryProps {
     onDelete: (id: string) => void;
     userBalance?: number;
     onCoinsConsumed?: () => void;
+    isLoggedIn?: boolean;
 }
 
 // 인터랙티브 체크박스 컴포넌트
@@ -116,7 +117,7 @@ function ReportTypeLabel({ type }: { type: string }) {
     );
 }
 
-export function AIReportHistory({ reports, loading, onDelete, userBalance, onCoinsConsumed }: AIReportHistoryProps) {
+export function AIReportHistory({ reports, loading, onDelete, userBalance, onCoinsConsumed, isLoggedIn }: AIReportHistoryProps) {
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [showTrend, setShowTrend] = useState(false);
@@ -173,6 +174,7 @@ export function AIReportHistory({ reports, loading, onDelete, userBalance, onCoi
                         onNavigateToReport={(id) => setExpandedId(id)}
                         userBalance={userBalance}
                         onCoinsConsumed={onCoinsConsumed}
+                        isLoggedIn={isLoggedIn}
                     />
                 </div>
             )}

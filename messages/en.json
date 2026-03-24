@@ -535,8 +535,6 @@
       "pnlPercent": "P&L %",
       "rrRatio": "R:R Ratio",
       "tradeCount": "Trade Count",
-      "date": "Date",
-      "value": "Value",
       "emptyState": "Generate 2 or more reports to view trends.",
       "guestNotice": "This feature is available after logging in.",
       "aiTrendButton": "AI Trend Analysis ({cost} coin)",

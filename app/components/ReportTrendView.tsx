@@ -43,9 +43,10 @@ interface ReportTrendViewProps {
   onNavigateToReport?: (reportId: string) => void;
   userBalance?: number;
   onCoinsConsumed?: () => void;
+  isLoggedIn?: boolean;
 }
 
-export function ReportTrendView({ reports, onNavigateToReport, userBalance, onCoinsConsumed }: ReportTrendViewProps) {
+export function ReportTrendView({ reports, onNavigateToReport, userBalance, onCoinsConsumed, isLoggedIn = false }: ReportTrendViewProps) {
   const t = useTranslations('analysis.reportTrend');
   const locale = useLocale();
   const [trendSummary, setTrendSummary] = useState<string | null>(null);
@@ -156,6 +157,21 @@ export function ReportTrendView({ reports, onNavigateToReport, userBalance, onCo
       setLoadingTrend(false);
     }
   }, [canAfford, trendData, locale, t, userBalance, cost, onCoinsConsumed]);
+
+  // Guest mode guard
+  if (!isLoggedIn) {
+    return (
+      <div className="p-5 rounded-2xl border border-white/8 bg-white/3">
+        <div className="flex items-center gap-2 mb-3">
+          <TrendingUp size={16} className="text-indigo-400" />
+          <h3 className="text-sm font-bold text-white">{t('title')}</h3>
+        </div>
+        <p className="text-sm text-white/40 text-center py-6">
+          {t('guestNotice')}
+        </p>
+      </div>
+    );
+  }
 
   // Empty state: less than 2 weekly reports
   if (trendData.length < 2) {
