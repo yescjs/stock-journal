@@ -1,15 +1,19 @@
 // 저장된 AI 분석 리포트 목록 컴포넌트
-import React, { useState } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { History, ChevronDown, Trash2, FileText, Loader2 } from 'lucide-react';
+import { History, ChevronDown, Trash2, FileText, Loader2, TrendingUp } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import { SavedReport } from '@/app/hooks/useAIAnalysis';
+import { ReportTrendView } from './ReportTrendView';
 
 interface AIReportHistoryProps {
     reports: SavedReport[];
     loading: boolean;
     onDelete: (id: string) => void;
+    userBalance?: number;
+    onCoinsConsumed?: () => void;
+    isLoggedIn?: boolean;
 }
 
 // 인터랙티브 체크박스 컴포넌트
@@ -113,12 +117,27 @@ function ReportTypeLabel({ type }: { type: string }) {
     );
 }
 
-export function AIReportHistory({ reports, loading, onDelete }: AIReportHistoryProps) {
+export function AIReportHistory({ reports, loading, onDelete, userBalance, onCoinsConsumed, isLoggedIn }: AIReportHistoryProps) {
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [showTrend, setShowTrend] = useState(false);
     const t = useTranslations('analysis.reportHistory');
+    const tt = useTranslations('analysis.reportTrend');
     const tc = useTranslations('common');
     const locale = useLocale();
+    const reportRefsMap = useRef<Map<string, HTMLDivElement>>(new Map());
+
+    // Bug 3: Navigate to report — expand it and scroll into view
+    const handleNavigateToReport = useCallback((reportId: string) => {
+        setExpandedId(reportId);
+        // Use requestAnimationFrame to wait for DOM update after state change
+        requestAnimationFrame(() => {
+            const el = reportRefsMap.current.get(reportId);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        });
+    }, []);
 
     if (loading) {
         return (
@@ -146,7 +165,32 @@ export function AIReportHistory({ reports, loading, onDelete }: AIReportHistoryP
                 <span className="text-xs text-white/20 bg-white/5 px-2 py-0.5 rounded-full">
                     {tc('count', { count: reports.length })}
                 </span>
+                <div className="flex-1" />
+                <button
+                    onClick={() => setShowTrend(prev => !prev)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        showTrend
+                            ? 'bg-indigo-500/15 text-indigo-400'
+                            : 'bg-white/5 text-white/40 hover:bg-white/8 hover:text-white/60'
+                    }`}
+                >
+                    <TrendingUp size={13} />
+                    {showTrend ? tt('hideTrends') : tt('viewTrends')}
+                </button>
             </div>
+
+            {/* Trend view */}
+            {showTrend && (
+                <div className="mb-4">
+                    <ReportTrendView
+                        reports={reports}
+                        onNavigateToReport={handleNavigateToReport}
+                        userBalance={userBalance}
+                        onCoinsConsumed={onCoinsConsumed}
+                        isLoggedIn={isLoggedIn}
+                    />
+                </div>
+            )}
 
             <div className="space-y-2">
                 {reports.map((report) => {
@@ -156,6 +200,10 @@ export function AIReportHistory({ reports, loading, onDelete }: AIReportHistoryP
                     return (
                         <div
                             key={report.id}
+                            ref={(el) => {
+                                if (el) reportRefsMap.current.set(report.id, el);
+                                else reportRefsMap.current.delete(report.id);
+                            }}
                             className={`rounded-xl border transition-all ${isExpanded
                                     ? 'border-indigo-500/20 bg-indigo-500/5'
                                     : 'border-white/5 bg-white/3 hover:bg-white/5'

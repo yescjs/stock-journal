@@ -16,6 +16,7 @@ export const COIN_COSTS = {
   trade_review: 1,
   pre_trade_coach: 1,
   chat_qa: 1,
+  report_trend: 1,
   pattern_insight: 1,
 } as const
 
