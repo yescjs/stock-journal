@@ -91,11 +91,12 @@ export function usePreTradeCoach(user: User | null, onCoinsConsumed?: () => void
         checklist: data.report,
         generatedAt: data.generatedAt,
       });
-      onCoinsConsumed?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'UNKNOWN_ERROR');
     } finally {
       setLoading(false);
+      // Refresh coin balance after operation completes
+      onCoinsConsumed?.();
     }
   }, [user, onCoinsConsumed, locale, defaultChecklist]);
 

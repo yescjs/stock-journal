@@ -1,9 +1,10 @@
 // Hook for calling the AI analysis API endpoint
-// Supports auto-save to Supabase and report history
-import { useState, useCallback, useEffect } from 'react';
+// Supports auto-save to Supabase, report history, and streaming responses
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { useLocale, useTranslations } from 'next-intl';
 import { supabase } from '@/app/lib/supabaseClient';
+import { readSSEStream } from '@/app/lib/sseReader';
 import { TradeAnalysis, RoundTrip } from '@/app/types/analysis';
 import { useEventTracking } from '@/app/hooks/useEventTracking';
 
@@ -36,6 +37,13 @@ interface UseAIAnalysisReturn {
   loadingSavedReports: boolean;
   loadSavedReports: () => Promise<void>;
   deleteReport: (id: string) => Promise<void>;
+  // Streaming 관련
+  isStreamingWeekly: boolean;
+  streamedWeeklyContent: string;
+  isStreamingReview: boolean;
+  streamedReviewContent: string;
+  stopWeeklyStreaming: () => void;
+  stopReviewStreaming: () => void;
 }
 
 export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): UseAIAnalysisReturn {
@@ -47,6 +55,14 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
   const [loadingWeekly, setLoadingWeekly] = useState(false);
   const [loadingReview, setLoadingReview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Streaming state
+  const [isStreamingWeekly, setIsStreamingWeekly] = useState(false);
+  const [streamedWeeklyContent, setStreamedWeeklyContent] = useState('');
+  const [isStreamingReview, setIsStreamingReview] = useState(false);
+  const [streamedReviewContent, setStreamedReviewContent] = useState('');
+  const weeklyAbortRef = useRef<AbortController | null>(null);
+  const reviewAbortRef = useRef<AbortController | null>(null);
 
   // 저장된 리포트
   const [savedReports, setSavedReports] = useState<SavedReport[]>([]);
@@ -130,14 +146,35 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
     }
   }, [user]);
 
-  // 주간 코치 리포트 생성
+  // Stop streaming — separated so aborting weekly doesn't cancel review and vice versa
+  const stopWeeklyStreaming = useCallback(() => {
+    if (weeklyAbortRef.current) {
+      weeklyAbortRef.current.abort();
+      weeklyAbortRef.current = null;
+    }
+  }, []);
+
+  const stopReviewStreaming = useCallback(() => {
+    if (reviewAbortRef.current) {
+      reviewAbortRef.current.abort();
+      reviewAbortRef.current = null;
+    }
+  }, []);
+
+  // 주간 코치 리포트 생성 (스트리밍)
   const generateWeeklyReport = useCallback(async (
     analysis: TradeAnalysis,
     username?: string,
     onSuccess?: () => void
   ) => {
     setLoadingWeekly(true);
+    setIsStreamingWeekly(true);
+    setStreamedWeeklyContent('');
     setError(null);
+
+    const abortController = new AbortController();
+    weeklyAbortRef.current = abortController;
+    let fullReport = '';
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -153,7 +190,9 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
           analysis,
           username,
           locale,
+          stream: true,
         }),
+        signal: abortController.signal,
       });
 
       if (res.status === 402) {
@@ -166,32 +205,77 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
         throw new Error(msg || t('unknownError'));
       }
 
-      const data: AIReportResult = await res.json();
-      setWeeklyReport(data);
-      track('ai_analysis_run', { report_type: 'weekly_report' });
-      onSuccess?.();
-      onCoinsConsumed?.();
+      // Check if response is SSE stream or JSON fallback
+      const contentType = res.headers.get('Content-Type') || '';
+      if (contentType.includes('text/event-stream')) {
+        fullReport = await readSSEStream(
+          res,
+          (text) => { fullReport = text; setStreamedWeeklyContent(text); },
+          undefined,
+          abortController.signal,
+        );
 
-      // 자동 저장
-      const title = t('weeklyReportTitle', { count: analysis.roundTrips.length });
-      await saveReportToDB('weekly_report', title, data.report, {
-        totalTrades: analysis.profile.totalTrades,
-        winRate: analysis.profile.winRate,
-        overallGrade: analysis.profile.overallGrade,
-        generatedAt: data.generatedAt,
-      });
+        const generatedAt = new Date().toISOString();
+        setWeeklyReport({ report: fullReport, generatedAt });
+        track('ai_analysis_run', { report_type: 'weekly_report' });
+        onSuccess?.();
+
+        // 자동 저장
+        const title = t('weeklyReportTitle', { count: analysis.roundTrips.length });
+        await saveReportToDB('weekly_report', title, fullReport, {
+          totalTrades: analysis.profile.totalTrades,
+          winRate: analysis.profile.winRate,
+          overallGrade: analysis.profile.overallGrade,
+          generatedAt,
+        });
+      } else {
+        // JSON fallback (mock mode)
+        const data: AIReportResult = await res.json();
+        fullReport = data.report;
+        setWeeklyReport(data);
+        setStreamedWeeklyContent(data.report);
+        track('ai_analysis_run', { report_type: 'weekly_report' });
+        onSuccess?.();
+
+        const title = t('weeklyReportTitle', { count: analysis.roundTrips.length });
+        await saveReportToDB('weekly_report', title, data.report, {
+          totalTrades: analysis.profile.totalTrades,
+          winRate: analysis.profile.winRate,
+          overallGrade: analysis.profile.overallGrade,
+          generatedAt: data.generatedAt,
+        });
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('unknownError'));
+      if (abortController.signal.aborted) {
+        // User cancelled — keep partial content using local variable (not stale state)
+        if (fullReport) {
+          const generatedAt = new Date().toISOString();
+          setWeeklyReport({ report: fullReport, generatedAt });
+        }
+      } else {
+        setError(err instanceof Error ? err.message : t('unknownError'));
+      }
     } finally {
       setLoadingWeekly(false);
+      setIsStreamingWeekly(false);
+      weeklyAbortRef.current = null;
+      // Refresh coin balance after operation completes (deduction happens server-side before streaming)
+      onCoinsConsumed?.();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saveReportToDB, onCoinsConsumed, locale, t, track]);
 
-  // 개별 거래 리뷰
+  // 개별 거래 리뷰 (스트리밍)
   const reviewTrade = useCallback(async (roundTrip: RoundTrip) => {
     const key = `${roundTrip.symbol}-${roundTrip.entryDate}`;
     setLoadingReview(key);
+    setIsStreamingReview(true);
+    setStreamedReviewContent('');
     setError(null);
+
+    const abortController = new AbortController();
+    reviewAbortRef.current = abortController;
+    let fullReport = '';
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -202,7 +286,8 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ type: 'trade_review', roundTrip, locale }),
+        body: JSON.stringify({ type: 'trade_review', roundTrip, locale, stream: true }),
+        signal: abortController.signal,
       });
 
       if (res.status === 402) {
@@ -215,30 +300,71 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
         throw new Error(msg || t('unknownError'));
       }
 
-      const data: AIReportResult = await res.json();
-      setTradeReview(prev => ({ ...prev, [key]: data }));
-      track('ai_analysis_run', { report_type: 'trade_review' });
-      onCoinsConsumed?.();
+      const contentType = res.headers.get('Content-Type') || '';
+      if (contentType.includes('text/event-stream')) {
+        fullReport = await readSSEStream(
+          res,
+          (text) => { fullReport = text; setStreamedReviewContent(text); },
+          undefined,
+          abortController.signal,
+        );
 
-      // 자동 저장
-      const symbolName = roundTrip.symbolName || roundTrip.symbol;
-      const title = t('tradeReviewTitle', { symbolName, exitDate: roundTrip.exitDate });
-      await saveReportToDB('trade_review', title, data.report, {
-        symbol: roundTrip.symbol,
-        symbolName,
-        entryDate: roundTrip.entryDate,
-        exitDate: roundTrip.exitDate,
-        pnlPercent: roundTrip.pnlPercent,
-        generatedAt: data.generatedAt,
-      });
+        const generatedAt = new Date().toISOString();
+        setTradeReview(prev => ({ ...prev, [key]: { report: fullReport, generatedAt } }));
+        track('ai_analysis_run', { report_type: 'trade_review' });
+
+        const symbolName = roundTrip.symbolName || roundTrip.symbol;
+        const title = t('tradeReviewTitle', { symbolName, exitDate: roundTrip.exitDate });
+        await saveReportToDB('trade_review', title, fullReport, {
+          symbol: roundTrip.symbol,
+          symbolName,
+          entryDate: roundTrip.entryDate,
+          exitDate: roundTrip.exitDate,
+          pnlPercent: roundTrip.pnlPercent,
+          generatedAt,
+        });
+      } else {
+        const data: AIReportResult = await res.json();
+        fullReport = data.report;
+        setTradeReview(prev => ({ ...prev, [key]: data }));
+        setStreamedReviewContent(data.report);
+        track('ai_analysis_run', { report_type: 'trade_review' });
+
+        const symbolName = roundTrip.symbolName || roundTrip.symbol;
+        const title = t('tradeReviewTitle', { symbolName, exitDate: roundTrip.exitDate });
+        await saveReportToDB('trade_review', title, data.report, {
+          symbol: roundTrip.symbol,
+          symbolName,
+          entryDate: roundTrip.entryDate,
+          exitDate: roundTrip.exitDate,
+          pnlPercent: roundTrip.pnlPercent,
+          generatedAt: data.generatedAt,
+        });
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('unknownError'));
+      if (abortController.signal.aborted) {
+        // User cancelled — keep partial content using local variable (not stale state)
+        if (fullReport) {
+          const generatedAt = new Date().toISOString();
+          setTradeReview(prev => ({ ...prev, [key]: { report: fullReport, generatedAt } }));
+        }
+      } else {
+        setError(err instanceof Error ? err.message : t('unknownError'));
+      }
     } finally {
       setLoadingReview(null);
+      setIsStreamingReview(false);
+      reviewAbortRef.current = null;
+      // Refresh coin balance after operation completes (deduction happens server-side before streaming)
+      onCoinsConsumed?.();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saveReportToDB, onCoinsConsumed, locale, t, track]);
 
-  const clearWeeklyReport = useCallback(() => setWeeklyReport(null), []);
+  const clearWeeklyReport = useCallback(() => {
+    setWeeklyReport(null);
+    setStreamedWeeklyContent('');
+  }, []);
 
   return {
     weeklyReport,
@@ -253,5 +379,11 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
     loadingSavedReports,
     loadSavedReports,
     deleteReport,
+    isStreamingWeekly,
+    streamedWeeklyContent,
+    isStreamingReview,
+    streamedReviewContent,
+    stopWeeklyStreaming,
+    stopReviewStreaming,
   };
 }

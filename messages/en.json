@@ -272,7 +272,8 @@
       "suggestEmotionReturn": "Returns by emotion",
       "freeCount": "{count} free",
       "coinPerQuestion": "1 coin/question",
-      "dataQuestion": "Trade data questions"
+      "dataQuestion": "Trade data questions",
+      "stop": "Stop"
     },
     "list": {
       "emptyTitle": "No trade records yet",
@@ -519,7 +520,9 @@
       "reset": "Reset",
       "coinShort": "Not enough coins ({balance}/{cost})",
       "emptyCompact": "Get AI feedback on this trade.",
-      "emptyFull": "AI generates an investment coach report based on your trade data. It comprehensively analyzes win rate, emotion patterns, strategy effectiveness, and more."
+      "emptyFull": "AI generates an investment coach report based on your trade data. It comprehensively analyzes win rate, emotion patterns, strategy effectiveness, and more.",
+      "streaming": "Generating...",
+      "stop": "Stop"
     },
     "reportHistory": {
       "title": "Saved AI Analysis Reports",

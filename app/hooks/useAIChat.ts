@@ -1,10 +1,12 @@
 // Hook for AI conversational Q&A about trading data
 // Maintains session-scoped chat history (up to 3 context messages)
 // Tracks daily free quota: localStorage cache + server sync
+// Supports streaming responses
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useLocale } from 'next-intl';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/app/lib/supabaseClient';
+import { readSSEStream } from '@/app/lib/sseReader';
 import { TradeAnalysis } from '@/app/types/analysis';
 import { CHAT_QA_FREE_DAILY } from '@/app/types/coins';
 
@@ -13,6 +15,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   text: string;
   timestamp: string;
+  isStreaming?: boolean;
 }
 
 const MAX_HISTORY = 3; // Keep last 3 exchanges for context
@@ -87,6 +90,8 @@ export function useAIChat(user: User | null, onCoinsConsumed?: () => void) {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Wrapper: update messages state (sessionStorage sync is handled by useEffect below)
   const setMessages = useCallback((updater: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => {
@@ -177,6 +182,14 @@ export function useAIChat(user: User | null, onCoinsConsumed?: () => void) {
     return () => { cancelled = true; };
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps -- intentionally keyed on user.id to avoid re-runs from object reference changes
 
+  // Stop streaming
+  const stopStreaming = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+  }, []);
+
   const sendMessage = useCallback(async (
     question: string,
     analysis: TradeAnalysis,
@@ -190,9 +203,15 @@ export function useAIChat(user: User | null, onCoinsConsumed?: () => void) {
       timestamp: new Date().toISOString(),
     };
 
+    const assistantMsgId = `assistant-${Date.now()}`;
+
     setMessages(prev => [...prev, userMsg]);
     setLoading(true);
+    setIsStreaming(true);
     setError(null);
+
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -216,7 +235,9 @@ export function useAIChat(user: User | null, onCoinsConsumed?: () => void) {
           question,
           history,
           locale,
+          stream: true,
         }),
+        signal: abortController.signal,
       });
 
       if (res.status === 402) {
@@ -229,30 +250,80 @@ export function useAIChat(user: User | null, onCoinsConsumed?: () => void) {
         throw new Error(msg || 'AI_FAILED');
       }
 
-      const data = await res.json();
-      const assistantMsg: ChatMessage = {
-        id: `assistant-${Date.now()}`,
-        role: 'assistant',
-        text: data.report,
-        timestamp: data.generatedAt,
-      };
+      const contentType = res.headers.get('Content-Type') || '';
 
-      setMessages(prev => [...prev, assistantMsg]);
+      if (contentType.includes('text/event-stream')) {
+        // Add a placeholder streaming message
+        const streamingMsg: ChatMessage = {
+          id: assistantMsgId,
+          role: 'assistant',
+          text: '',
+          timestamp: new Date().toISOString(),
+          isStreaming: true,
+        };
+        setMessages(prev => [...prev, streamingMsg]);
 
-      // Update daily usage from server response + persist to localStorage
-      if (typeof data.chatQaDailyUsed === 'number') {
-        setDailyUsed(data.chatQaDailyUsed);
-        writeCachedDailyUsed(user.id, data.chatQaDailyUsed);
-      }
+        let metaProcessed = false;
 
-      // Only trigger coin refresh if this was a paid question (server authoritative)
-      if (data.wasFree === false) {
-        onCoinsConsumed?.();
+        const fullText = await readSSEStream(
+          res,
+          (text) => {
+            setMessages(prev =>
+              prev.map(m => m.id === assistantMsgId ? { ...m, text } : m)
+            );
+          },
+          (meta) => {
+            if (metaProcessed) return;
+            metaProcessed = true;
+            if (typeof meta.chatQaDailyUsed === 'number') {
+              setDailyUsed(meta.chatQaDailyUsed as number);
+              if (user) writeCachedDailyUsed(user.id, meta.chatQaDailyUsed as number);
+            }
+          },
+          abortController.signal,
+        );
+
+        // Finalize the message (remove streaming flag)
+        setMessages(prev =>
+          prev.map(m => m.id === assistantMsgId
+            ? { ...m, text: fullText, isStreaming: false, timestamp: new Date().toISOString() }
+            : m
+          )
+        );
+      } else {
+        // JSON fallback (mock mode)
+        const data = await res.json();
+        const assistantMsg: ChatMessage = {
+          id: assistantMsgId,
+          role: 'assistant',
+          text: data.report,
+          timestamp: data.generatedAt,
+        };
+
+        setMessages(prev => [...prev, assistantMsg]);
+
+        if (typeof data.chatQaDailyUsed === 'number') {
+          setDailyUsed(data.chatQaDailyUsed);
+          writeCachedDailyUsed(user.id, data.chatQaDailyUsed);
+        }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'UNKNOWN_ERROR');
+      if (abortController.signal.aborted) {
+        // User cancelled — finalize partial message
+        setMessages(prev =>
+          prev.map(m => m.id === assistantMsgId ? { ...m, isStreaming: false } : m)
+        );
+      } else {
+        setError(err instanceof Error ? err.message : 'UNKNOWN_ERROR');
+        // Remove the empty streaming message on error
+        setMessages(prev => prev.filter(m => m.id !== assistantMsgId || m.text));
+      }
     } finally {
       setLoading(false);
+      setIsStreaming(false);
+      abortControllerRef.current = null;
+      // Always refresh coin balance after operation completes (covers both free and paid usage)
+      onCoinsConsumed?.();
     }
   }, [user, messages, setMessages, onCoinsConsumed, locale]);
 
@@ -272,5 +343,8 @@ export function useAIChat(user: User | null, onCoinsConsumed?: () => void) {
     dailyUsed,
     dailyLimit,
     isFree,
+    isStreaming,
+    stopStreaming,
   };
 }
+
