@@ -23,6 +23,7 @@ import { useEventTracking } from '@/app/hooks/useEventTracking';
 import { useRiskAlert } from '@/app/hooks/useRiskAlert';
 import { usePreTradeCoach } from '@/app/hooks/usePreTradeCoach';
 import { useAIChat } from '@/app/hooks/useAIChat';
+import { useDailyBonus } from '@/app/hooks/useDailyBonus';
 
 // Components
 import { BottomSheet } from '@/app/components/BottomSheet';
@@ -35,6 +36,7 @@ import { ImportModal } from '@/app/components/ImportModal';
 import { GuestMigrationModal } from '@/app/components/GuestMigrationModal';
 import { Footer } from '@/app/components/Footer';
 import { RiskAlertToast } from '@/app/components/RiskAlertToast';
+import { DailyBonusToast } from '@/app/components/DailyBonusToast';
 import { PreTradeChecklist } from '@/app/components/PreTradeChecklist';
 import { AIChatFAB } from '@/app/components/AIChatFAB';
 import { SpeedDialFAB } from '@/app/components/SpeedDialFAB';
@@ -94,6 +96,9 @@ export default function TradePage() {
         generateChecklist(analysis, symbol, side);
         setShowCoach(true);
     }, [trades, generateChecklist]);
+
+    // --- Daily Bonus ---
+    const { bonusResult, dismissBonus } = useDailyBonus(currentUser, streak.currentStreak, streakLoading, refreshBalance);
 
     // 페이지 진입 시 스트릭 자동 기록 (거래 추가 여부와 무관하게 접속일 카운트)
     const streakRecordedRef = useRef(false);
@@ -367,6 +372,15 @@ export default function TradePage() {
                 />
             )}
 
+            {/* Daily Bonus Toast */}
+            {bonusResult && (
+                <DailyBonusToast
+                    amount={bonusResult.amount}
+                    streak={bonusResult.streak}
+                    onDismiss={dismissBonus}
+                />
+            )}
+
             {/* Main Content */}
             <div className="flex-1 min-h-0 w-full">
                 <div className="max-w-6xl mx-auto px-6 md:px-10 pt-6 pb-8">
@@ -430,7 +444,6 @@ export default function TradePage() {
                                 onDismissOnboarding={onboarding.dismiss}
                                 onCompleteOnboardingStep={onboarding.completeStep}
                                 onOpenAddTrade={() => setShowAddModal(true)}
-                                sharedAIChat={currentUser ? aiChat : undefined}
                             />
                 </div>
             </div>

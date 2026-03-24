@@ -348,8 +348,8 @@
     "tabs": {
       "performance": "성과",
       "charts": "차트",
+      "portfolio": "포트폴리오",
       "ai": "AI 분석",
-      "qa": "AI Q&A",
       "trades": "거래 목록"
     },
     "empty": {
@@ -474,6 +474,35 @@
       "analyzing": "분석 중...",
       "coinShort": "부족 ({balance}/1)",
       "reviewCost": "리뷰 (1)"
+    },
+    "portfolio": {
+      "emptyTitle": "보유 중인 종목이 없습니다",
+      "emptyDesc": "매수 기록을 추가하면 포트폴리오 현황을 확인할 수 있습니다.",
+      "totalCost": "총 매입금액",
+      "totalMarketValue": "총 평가금액",
+      "unrealizedPnl": "미실현 손익",
+      "holdingCount": "보유 종목",
+      "allocation": "종목별 비중",
+      "weight": "비중",
+      "refresh": "새로고침",
+      "holdingList": "보유 종목 상세",
+      "shares": "주",
+      "avg": "평균"
+    },
+    "shareCard": {
+      "generateBtn": "성과 공유",
+      "title": "매매 성과 리포트",
+      "winRate": "승률",
+      "totalTrades": "총 거래 수",
+      "totalPnl": "평균 수익률",
+      "bestTrade": "최고 수익 종목",
+      "wins": "수익",
+      "losses": "손실",
+      "maxWinStreak": "최대 연승",
+      "hideAmounts": "금액 숨기기",
+      "showAmounts": "금액 보기",
+      "download": "이미지 저장",
+      "share": "공유"
     },
     "aiReport": {
       "weeklyTitle": "AI 투자 코치 리포트",
@@ -782,6 +811,7 @@
     "balance": "잔액",
     "transactionTypes": {
       "daily_bonus": "일일 코인 지급",
+      "attendance_bonus": "출석 보너스",
       "signup_bonus": "가입 보너스",
       "spend": "코인 사용",
       "refund": "환불"
@@ -892,6 +922,10 @@
   "streak": {
     "consecutive": "일 연속",
     "best": "최고 {count}일"
+  },
+  "dailyBonus": {
+    "received": "출석 보너스 +{amount} 코인!",
+    "streakBonus": "{days}일 연속 출석 보너스"
   },
   "migration": {
     "title": "게스트 데이터 가져오기",

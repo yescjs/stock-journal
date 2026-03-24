@@ -17,15 +17,16 @@ import {
   Calendar, Clock, Heart,
   AlertTriangle, CheckCircle, Info, XCircle,
   ChevronDown, MessageSquare, Gem, Sparkles, RefreshCw,
-  BarChart2, Bot, ListOrdered, Award,
+  BarChart2, Bot, ListOrdered, Award, Briefcase, Share2,
 } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import { AIReportCard } from '@/app/components/AIReportCard';
 import { AIReportHistory } from '@/app/components/AIReportHistory';
-import { AIChatPanel } from '@/app/components/AIChatPanel';
+import { PortfolioView } from '@/app/components/PortfolioView';
+import { PerformanceShareCard } from '@/app/components/PerformanceShareCard';
 import { useAIAnalysis } from '@/app/hooks/useAIAnalysis';
-import { useAIChat } from '@/app/hooks/useAIChat';
 import { calcEquityCurve, calcMonthlyStats } from '@/app/utils/tradeAnalysis';
+import type { PortfolioSummary } from '@/app/hooks/usePortfolio';
 
 interface AnalysisDashboardProps {
   analysis: TradeAnalysis | null;
@@ -40,17 +41,10 @@ interface AnalysisDashboardProps {
   onChargeCoins?: () => void;
   onCoinsConsumed?: () => void;
   onCompleteAIReportStep?: () => void;
+  portfolio?: PortfolioSummary;
+  pricesLoading?: boolean;
+  onRefreshPrices?: () => void;
   initialTab?: DashboardTab;
-  // Shared AI Chat state (optional — if not provided, uses internal hook)
-  sharedAIChat?: {
-    messages: import('@/app/hooks/useAIChat').ChatMessage[];
-    loading: boolean;
-    error: string | null;
-    sendMessage: (question: string, analysis: TradeAnalysis) => void;
-    clearChat: () => void;
-    freeRemaining: number;
-    isFree: boolean;
-  };
 }
 
 // ─── Chart Colors ────────────────────────────────────────────────────────
@@ -76,13 +70,13 @@ function formatPnl(pnl: number, currency?: 'KRW' | 'USD' | 'mixed'): string {
 
 // ─── Tab Types ────────────────────────────────────────────────────────────
 
-type DashboardTab = 'performance' | 'charts' | 'ai' | 'qa' | 'trades';
+type DashboardTab = 'performance' | 'charts' | 'portfolio' | 'ai' | 'trades';
 
 const TAB_IDS: { id: DashboardTab; icon: React.ReactNode }[] = [
   { id: 'performance', icon: <Award size={14} /> },
   { id: 'charts',      icon: <BarChart2 size={14} /> },
+  { id: 'portfolio',   icon: <Briefcase size={14} /> },
   { id: 'ai',          icon: <Bot size={14} /> },
-  { id: 'qa',          icon: <MessageSquare size={14} /> },
   { id: 'trades',      icon: <ListOrdered size={14} /> },
 ];
 
@@ -899,10 +893,13 @@ export function AnalysisDashboard({
   onChargeCoins,
   onCoinsConsumed,
   onCompleteAIReportStep,
+  portfolio,
+  pricesLoading,
+  onRefreshPrices,
   initialTab,
-  sharedAIChat,
 }: AnalysisDashboardProps) {
   const [activeTab, setActiveTab] = useState<DashboardTab>(initialTab ?? 'performance');
+  const [showShareCard, setShowShareCard] = useState(false);
   const t = useTranslations('analysis');
   const tc = useTranslations('common');
 
@@ -916,15 +913,6 @@ export function AnalysisDashboard({
     generateWeeklyReport, reviewTrade, clearWeeklyReport,
     savedReports, loadingSavedReports, deleteReport,
   } = useAIAnalysis(currentUser, onCoinsConsumed);
-
-  // Internal fallback — no onCoinsConsumed to avoid double-refresh when sharedAIChat is provided
-  const internalChat = useAIChat(currentUser, sharedAIChat ? undefined : onCoinsConsumed);
-  const activeChat = sharedAIChat ?? internalChat;
-  const {
-    messages: chatMessages, loading: chatLoading, error: chatError,
-    sendMessage: sendChatMessage, clearChat,
-    freeRemaining: chatFreeRemaining, isFree: chatIsFree,
-  } = activeChat;
 
   if (!analysis || analysis.roundTrips.length === 0) {
     return <EmptyState count={tradesCount} buyCount={buyCount} sellCount={sellCount} />;
@@ -956,6 +944,16 @@ export function AnalysisDashboard({
       {/* Tab Content */}
       {activeTab === 'performance' && (
         <div className="space-y-4">
+          {/* Share Card Button */}
+          <div className="flex justify-end">
+            <button
+              onClick={() => setShowShareCard(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/8 text-xs font-bold text-white/40 hover:text-white/80 hover:bg-white/10 transition-all"
+            >
+              <Share2 size={12} />
+              {t('shareCard.generateBtn')}
+            </button>
+          </div>
           <ProfileCard analysis={analysis} />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <StyleRadarChart analysis={analysis} />
@@ -990,6 +988,15 @@ export function AnalysisDashboard({
         </div>
       )}
 
+      {activeTab === 'portfolio' && (
+        <PortfolioView
+          portfolio={portfolio ?? { holdings: [], totalCost: 0, totalMarketValue: null, totalUnrealizedPnl: null, totalUnrealizedPnlPercent: null, profitCount: 0, lossCount: 0, neutralCount: 0 }}
+          exchangeRate={exchangeRate}
+          pricesLoading={pricesLoading}
+          onRefreshPrices={onRefreshPrices}
+        />
+      )}
+
       {activeTab === 'ai' && (
         <div className="space-y-4">
           <AIReportCard
@@ -1010,21 +1017,6 @@ export function AnalysisDashboard({
         </div>
       )}
 
-      {activeTab === 'qa' && (
-        <AIChatPanel
-          messages={chatMessages}
-          loading={chatLoading}
-          error={chatError}
-          onSend={(q) => sendChatMessage(q, analysis)}
-          onClear={clearChat}
-          isLoggedIn={!!currentUser}
-          coinBalance={coinBalance}
-          onChargeCoins={onChargeCoins}
-          freeRemaining={chatFreeRemaining}
-          isFree={chatIsFree}
-        />
-      )}
-
       {activeTab === 'trades' && (
         <RoundTripList
           roundTrips={analysis.roundTrips}
@@ -1036,6 +1028,13 @@ export function AnalysisDashboard({
           onChargeCoins={onChargeCoins}
         />
       )}
+
+      {/* Performance Share Card Modal */}
+      <PerformanceShareCard
+        analysis={analysis}
+        isOpen={showShareCard}
+        onClose={() => setShowShareCard(false)}
+      />
     </div>
   );
 }

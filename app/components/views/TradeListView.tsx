@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useTradeFilter, DatePreset } from '@/app/hooks/useTradeFilter';
 import { useTradeAnalysis } from '@/app/hooks/useTradeAnalysis';
+import { usePortfolio } from '@/app/hooks/usePortfolio';
 import { StreakBadge } from '@/app/components/StreakBadge';
 import { OnboardingChecklist } from '@/app/components/OnboardingChecklist';
 import type { OnboardingSteps } from '@/app/hooks/useOnboarding';
@@ -53,15 +54,6 @@ interface TradeListViewProps {
   onCompleteOnboardingStep?: (step: keyof OnboardingSteps) => void;
   onOpenAddTrade?: () => void;
   onCopy?: (trade: Trade) => void;
-  sharedAIChat?: {
-    messages: import('@/app/hooks/useAIChat').ChatMessage[];
-    loading: boolean;
-    error: string | null;
-    sendMessage: (question: string, analysis: import('@/app/types/analysis').TradeAnalysis) => void;
-    clearChat: () => void;
-    freeRemaining: number;
-    isFree: boolean;
-  };
 }
 
 const DATE_PRESET_KEYS: DatePreset[] = ['today', 'week', 'month', 'year', 'all'];
@@ -257,7 +249,6 @@ export function TradeListView({
   onCompleteOnboardingStep,
   onOpenAddTrade,
   onCopy,
-  sharedAIChat,
 }: TradeListViewProps) {
   const tv = useTranslations('trade.view');
   const currentLocale = useLocale();
@@ -305,6 +296,7 @@ export function TradeListView({
 
   // Trade analysis engine — uses filteredTrades so analysis view respects active filters
   const { analysis } = useTradeAnalysis(filteredTrades, currentUser, currentLocale);
+  const portfolio = usePortfolio(trades, currentPrices, exchangeRate);
 
   // USD 종목 존재 여부 (환율 적용 버튼 표시 조건)
   const hasUSDTrades = useMemo(
@@ -813,8 +805,10 @@ export function TradeListView({
                 onChargeCoins={onChargeCoins}
                 onCoinsConsumed={onCoinsConsumed}
                 onCompleteAIReportStep={() => onCompleteOnboardingStep?.('aiReport')}
+                portfolio={portfolio}
+                pricesLoading={pricesLoading}
+                onRefreshPrices={onRefreshPrices}
                 initialTab={analysisInitialTab}
-                sharedAIChat={sharedAIChat}
               />
             ) : viewMode === 'calendar' ? (
               <>
