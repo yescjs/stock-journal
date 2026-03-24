@@ -46,7 +46,7 @@ export function useDailyBonus(
       .from('coin_transactions')
       .select('id')
       .eq('user_id', user.id)
-      .eq('type', 'daily_bonus')
+      .eq('type', 'attendance_bonus')
       .eq('reference_id', today)
       .limit(1);
 
@@ -63,8 +63,8 @@ export function useDailyBonus(
     const { error: addError } = await supabase.rpc('add_coins', {
       p_user_id: user.id,
       p_amount: amount,
-      p_type: 'daily_bonus',
-      p_ref_type: 'daily_bonus',
+      p_type: 'attendance_bonus',
+      p_ref_type: 'attendance_bonus',
       p_ref_id: today,
     });
 

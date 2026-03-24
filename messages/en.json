@@ -812,6 +812,7 @@
     "balance": "Balance",
     "transactionTypes": {
       "daily_bonus": "Daily coin credit",
+      "attendance_bonus": "Attendance bonus",
       "signup_bonus": "Sign-up bonus",
       "spend": "Coins used",
       "refund": "Refund"

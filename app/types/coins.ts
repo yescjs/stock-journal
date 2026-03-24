@@ -1,4 +1,4 @@
-export type CoinTransactionType = 'signup_bonus' | 'daily_bonus' | 'spend' | 'refund'
+export type CoinTransactionType = 'signup_bonus' | 'daily_bonus' | 'attendance_bonus' | 'spend' | 'refund'
 
 export interface CoinTransaction {
   id: string

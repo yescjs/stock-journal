@@ -812,6 +812,7 @@
     "balance": "잔액",
     "transactionTypes": {
       "daily_bonus": "일일 코인 지급",
+      "attendance_bonus": "출석 보너스",
       "signup_bonus": "가입 보너스",
       "spend": "코인 사용",
       "refund": "환불"
