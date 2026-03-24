@@ -1037,6 +1037,16 @@
       "global": "Global Stocks"
     }
   },
+  "riskAlert": {
+    "criticalTitle": "Critical Alert",
+    "warningTitle": "Warning",
+    "dismissToday": "Dismiss for today",
+    "acknowledge": "OK",
+    "lossStreak": "You are on a {streak}-loss streak. Consider pausing and reviewing your strategy.",
+    "overtrading": "You have made {count} trades today. Watch out for overtrading.",
+    "emotionalStreak": "Your last {streak} trades were emotional ({tags}). Check if you are following your rules.",
+    "dailyLoss": "Today's cumulative loss is {percent}% of invested capital. Be cautious of further losses."
+  },
   "format": {
     "monthLabel": "{month} {year}",
     "billionWon": "{value}B KRW",
