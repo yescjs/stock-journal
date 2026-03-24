@@ -82,6 +82,11 @@ export function ReportTrendView({ reports, onNavigateToReport, userBalance, onCo
   const [loadingTrend, setLoadingTrend] = useState(false);
   const [trendError, setTrendError] = useState<string | null>(null);
 
+  // M4: In-flight guard to prevent double-click
+  const inFlightRef = useRef(false);
+  // M5: AbortController for fetch cancellation on unmount
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   // Bug 5: Clear cached summary when reports change
   const prevFingerprintRef = useRef(reportsFingerprint(reports));
   useEffect(() => {
@@ -92,6 +97,13 @@ export function ReportTrendView({ reports, onNavigateToReport, userBalance, onCo
       try { sessionStorage.removeItem(SESSION_STORAGE_KEY); } catch { /* noop */ }
     }
   }, [reports]);
+
+  // M5: Abort in-flight fetch on unmount
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
 
   // Extract metrics from report metadata, sorted oldest-first for chart
   const trendData = useMemo<TrendDataPoint[]>(() => {
@@ -140,14 +152,9 @@ export function ReportTrendView({ reports, onNavigateToReport, userBalance, onCo
 
   // Bug 3: Handle click on chart data point to navigate to that report
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleChartClick = useCallback((_data: any, event: any) => {
-    // When clicking on a dot/activeDot, activePayload is available
-    // But we also need to handle the case where the user clicks on the chart area
-    const payload = _data?.activePayload?.[0]?.payload;
+  const handleChartClick = useCallback((data: any) => {
+    const payload = data?.activePayload?.[0]?.payload;
     if (!payload?.reportId || !onNavigateToReport) return;
-
-    // Prevent event from bubbling (avoid double-trigger)
-    if (event?.stopPropagation) event.stopPropagation();
     onNavigateToReport(payload.reportId);
   }, [onNavigateToReport]);
 
@@ -156,6 +163,15 @@ export function ReportTrendView({ reports, onNavigateToReport, userBalance, onCo
 
   const requestTrendSummary = useCallback(async () => {
     if (!canAfford) return;
+    // M4: Prevent double-click
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+
+    // M5: Abort previous request if any, create new controller
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setLoadingTrend(true);
     setTrendError(null);
 
@@ -182,6 +198,7 @@ export function ReportTrendView({ reports, onNavigateToReport, userBalance, onCo
           trendData: trendPayload,
           locale,
         }),
+        signal: controller.signal,
       });
 
       if (res.status === 402) {
@@ -206,8 +223,11 @@ export function ReportTrendView({ reports, onNavigateToReport, userBalance, onCo
         }));
       } catch { /* sessionStorage full or unavailable */ }
     } catch (err) {
+      // M5: Don't set error state if request was aborted
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       setTrendError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
+      inFlightRef.current = false;
       setLoadingTrend(false);
     }
   }, [canAfford, trendData, locale, t, userBalance, cost, onCoinsConsumed, reports]);

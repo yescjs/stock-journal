@@ -783,8 +783,31 @@ export async function POST(req: NextRequest): Promise<NextResponse<AIAnalysisRes
     if (body.type === 'trade_review' && !(body as TradeReviewRequest).roundTrip) {
       return NextResponse.json({ error: 'Missing roundTrip data' }, { status: 400 });
     }
-    if (body.type === 'report_trend' && (!Array.isArray((body as ReportTrendRequest).trendData) || (body as ReportTrendRequest).trendData.length === 0)) {
-      return NextResponse.json({ error: 'Missing or empty trendData' }, { status: 400 });
+    if (body.type === 'report_trend') {
+      const trendReq = body as ReportTrendRequest;
+      if (!Array.isArray(trendReq.trendData) || trendReq.trendData.length === 0) {
+        return NextResponse.json({ error: 'Missing or empty trendData' }, { status: 400 });
+      }
+      if (trendReq.trendData.length > 20) {
+        return NextResponse.json({ error: 'trendData exceeds maximum of 20 items' }, { status: 400 });
+      }
+      for (const item of trendReq.trendData) {
+        if (typeof item.date !== 'string' || item.date.length > 50) {
+          return NextResponse.json({ error: 'Invalid trendData item: date must be a string (max 50 chars)' }, { status: 400 });
+        }
+        if (item.winRate !== undefined && typeof item.winRate !== 'number') {
+          return NextResponse.json({ error: 'Invalid trendData item: winRate must be a number' }, { status: 400 });
+        }
+        if (item.totalTrades !== undefined && typeof item.totalTrades !== 'number') {
+          return NextResponse.json({ error: 'Invalid trendData item: totalTrades must be a number' }, { status: 400 });
+        }
+        if (item.pnlPercent !== undefined && typeof item.pnlPercent !== 'number') {
+          return NextResponse.json({ error: 'Invalid trendData item: pnlPercent must be a number' }, { status: 400 });
+        }
+        if (item.rrRatio !== undefined && typeof item.rrRatio !== 'number') {
+          return NextResponse.json({ error: 'Invalid trendData item: rrRatio must be a number' }, { status: 400 });
+        }
+      }
     }
 
     // 인증 확인
