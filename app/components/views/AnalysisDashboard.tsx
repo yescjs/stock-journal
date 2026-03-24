@@ -26,7 +26,7 @@ import { PortfolioView } from '@/app/components/PortfolioView';
 import { PerformanceShareCard } from '@/app/components/PerformanceShareCard';
 import { useAIAnalysis } from '@/app/hooks/useAIAnalysis';
 import { calcEquityCurve, calcMonthlyStats, calcSymbolMonthlyHeatmap, calcPeriodComparison, getAvailableMonths } from '@/app/utils/tradeAnalysis';
-import type { RoundTrip, HeatmapCell } from '@/app/types/analysis';
+import type { HeatmapCell } from '@/app/types/analysis';
 import type { PortfolioSummary } from '@/app/hooks/usePortfolio';
 
 interface AnalysisDashboardProps {
@@ -749,9 +749,8 @@ function ConcentrationChart({ data }: { data: { symbol: string; symbolName?: str
 
 // ─── Symbol Heatmap Section ──────────────────────────────────────────────
 
-function HeatmapSection({ analysis, exchangeRate = 1, onCellClick }: {
+function HeatmapSection({ analysis, onCellClick }: {
   analysis: TradeAnalysis;
-  exchangeRate?: number;
   onCellClick?: (cell: HeatmapCell) => void;
 }) {
   const tc = useTranslations('analysis.charts');
@@ -776,7 +775,7 @@ function HeatmapSection({ analysis, exchangeRate = 1, onCellClick }: {
 
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const formatMonth = (m: string) => {
-    const [year, mon] = m.split('-');
+    const [, mon] = m.split('-');
     return locale === 'ko'
       ? `${parseInt(mon)}월`
       : `${monthNames[parseInt(mon) - 1]}`;
@@ -879,18 +878,12 @@ function PeriodComparisonSection({ analysis, exchangeRate = 1 }: {
     [analysis.roundTrips, locale]
   );
 
-  const [monthA, setMonthA] = useState<string>('');
-  const [monthB, setMonthB] = useState<string>('');
-
-  // Auto-select last two months on mount
-  useEffect(() => {
-    if (availableMonths.length >= 2) {
-      setMonthA(availableMonths[availableMonths.length - 2].value);
-      setMonthB(availableMonths[availableMonths.length - 1].value);
-    } else if (availableMonths.length === 1) {
-      setMonthA(availableMonths[0].value);
-    }
-  }, [availableMonths]);
+  const [monthA, setMonthA] = useState<string>(() =>
+    availableMonths.length >= 2 ? availableMonths[availableMonths.length - 2].value : availableMonths[0]?.value ?? ''
+  );
+  const [monthB, setMonthB] = useState<string>(() =>
+    availableMonths.length >= 2 ? availableMonths[availableMonths.length - 1].value : ''
+  );
 
   const comparison = useMemo(() => {
     if (!monthA || !monthB) return null;
@@ -1277,7 +1270,7 @@ export function AnalysisDashboard({
             <StatsBarChart data={analysis.emotionStats} title={t('charts.emotionTagWinRate')} icon={<Heart size={16} className="text-pink-400" />} dataKey="winRate" />
             <ConcentrationChart data={analysis.concentration} />
           </div>
-          <HeatmapSection analysis={analysis} exchangeRate={exchangeRate} onCellClick={setSelectedHeatmapCell} />
+          <HeatmapSection analysis={analysis} onCellClick={setSelectedHeatmapCell} />
           <PeriodComparisonSection analysis={analysis} exchangeRate={exchangeRate} />
         </div>
       )}
