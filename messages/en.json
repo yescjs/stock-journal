@@ -527,6 +527,25 @@
       "weeklyReport": "Comprehensive Analysis",
       "tradeReview": "Trade Review"
     },
+    "reportTrend": {
+      "viewTrends": "View Trends",
+      "hideTrends": "Hide Trends",
+      "title": "Report Trend Analysis",
+      "winRate": "Win Rate",
+      "pnlPercent": "P&L %",
+      "rrRatio": "R:R Ratio",
+      "tradeCount": "Trade Count",
+      "date": "Date",
+      "value": "Value",
+      "emptyState": "Generate 2 or more reports to view trends.",
+      "guestNotice": "This feature is available after logging in.",
+      "aiTrendButton": "AI Trend Analysis ({cost} coin)",
+      "aiTrendTitle": "AI Growth Trend Summary",
+      "aiTrendLoading": "Analyzing trend...",
+      "noMetrics": "No metrics available to display trends.",
+      "coinShort": "Not enough coins ({balance}/{cost})",
+      "reports": "reports"
+    },
     "hook": {
       "insufficientCoins": "Not enough coins. Please recharge your coins.",
       "weeklyReportTitle": "Comprehensive analysis of {count} completed trades",

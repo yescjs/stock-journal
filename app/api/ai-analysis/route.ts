@@ -32,11 +32,16 @@ interface ChatQARequest {
   history?: { role: 'user' | 'assistant'; text: string }[];
 }
 
+interface ReportTrendRequest {
+  type: 'report_trend';
+  trendData: { date: string; winRate?: number; totalTrades?: number; pnlPercent?: number; rrRatio?: number }[];
+}
+
 interface BaseRequest {
   locale?: string;
 }
 
-type AIAnalysisRequest = (WeeklyReportRequest | TradeReviewRequest | PreTradeCoachRequest | ChatQARequest) & BaseRequest;
+type AIAnalysisRequest = (WeeklyReportRequest | TradeReviewRequest | PreTradeCoachRequest | ChatQARequest | ReportTrendRequest) & BaseRequest;
 
 interface AIAnalysisResponse {
   report: string;
@@ -444,6 +449,40 @@ ${question}`;
 ${question}`;
 }
 
+// ─── Report Trend Prompt ─────────────────────────────────────────────────
+
+function buildReportTrendPrompt(req: ReportTrendRequest, locale?: string): string {
+  const { trendData } = req;
+  const isEn = locale === 'en';
+
+  const dataRows = trendData.map(d => {
+    const parts = [`Date: ${d.date}`];
+    if (d.winRate != null) parts.push(`Win rate: ${d.winRate.toFixed(1)}%`);
+    if (d.totalTrades != null) parts.push(`Trades: ${d.totalTrades}`);
+    if (d.pnlPercent != null) parts.push(`P&L: ${d.pnlPercent >= 0 ? '+' : ''}${d.pnlPercent.toFixed(2)}%`);
+    if (d.rrRatio != null) parts.push(`R:R: ${d.rrRatio.toFixed(2)}`);
+    return `- ${parts.join(' | ')}`;
+  }).join('\n');
+
+  if (isEn) {
+    return `Analyze the following trading report trend data and provide a 2-3 sentence growth summary.
+Focus on: improving/declining patterns, key turning points, and one actionable suggestion.
+
+## Report History (${trendData.length} reports, oldest to newest)
+${dataRows}
+
+Write exactly 2-3 sentences. Be specific with numbers. Do not use emojis.`;
+  }
+
+  return `아래 매매 리포트 추이 데이터를 분석하고 2~3문장으로 성장 트렌드를 요약해주세요.
+중점 분석 항목: 개선/하락 패턴, 핵심 전환점, 실행 가능한 제안 1가지.
+
+## 리포트 히스토리 (${trendData.length}개 리포트, 오래된 순)
+${dataRows}
+
+정확히 2~3문장으로 작성하세요. 구체적인 수치를 포함하세요. 이모지는 사용하지 마세요.`;
+}
+
 // ─── Mock Report Builder (when GEMINI_API_KEY is not set) ────────────────
 
 function buildMockReport(body: AIAnalysisRequest): string {
@@ -477,6 +516,20 @@ Win rate **${body.analysis.profile.winRate.toFixed(1)}%**, overall grade **${bod
 승률 **${body.analysis.profile.winRate.toFixed(1)}%**, 종합 등급 **${body.analysis.profile.overallGrade}**입니다.
 
 > Mock 모드: GEMINI_API_KEY 설정 후 상세한 AI 분석을 받을 수 있습니다.`;
+  }
+
+  if (body.type === 'report_trend') {
+    const count = body.trendData.length;
+    const first = body.trendData[0];
+    const last = body.trendData[count - 1];
+    if (body.locale === 'en') {
+      return `Over ${count} reports (${first?.date} to ${last?.date}), your trading metrics show a developing pattern. ${last?.winRate != null && first?.winRate != null ? `Win rate moved from ${first.winRate.toFixed(1)}% to ${last.winRate.toFixed(1)}%.` : ''} Continue tracking to identify sustained trends.
+
+> Mock mode: Set GEMINI_API_KEY for AI-powered trend analysis.`;
+    }
+    return `${count}개 리포트(${first?.date} ~ ${last?.date}) 기간 동안의 매매 지표 추이입니다. ${last?.winRate != null && first?.winRate != null ? `승률이 ${first.winRate.toFixed(1)}%에서 ${last.winRate.toFixed(1)}%로 변화했습니다.` : ''} 지속적인 추적을 통해 안정적인 트렌드를 확인하세요.
+
+> Mock 모드: GEMINI_API_KEY 설정 후 AI 트렌드 분석을 받을 수 있습니다.`;
   }
 
   if (body.type === 'weekly_report') {
@@ -658,7 +711,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<AIAnalysisRes
     const body = (await req.json()) as AIAnalysisRequest;
 
     // 입력 검증
-    if (!body.type || !['weekly_report', 'trade_review', 'pre_trade_coach', 'chat_qa'].includes(body.type)) {
+    if (!body.type || !['weekly_report', 'trade_review', 'pre_trade_coach', 'chat_qa', 'report_trend'].includes(body.type)) {
       return NextResponse.json({ error: 'Invalid request type' }, { status: 400 });
     }
     if (body.type === 'weekly_report' && !(body as WeeklyReportRequest).analysis?.profile) {
@@ -678,6 +731,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<AIAnalysisRes
       trade_review: COIN_COSTS.trade_review,
       pre_trade_coach: COIN_COSTS.pre_trade_coach,
       chat_qa: COIN_COSTS.chat_qa,
+      report_trend: COIN_COSTS.report_trend,
     };
     let cost = costMap[body.type] ?? COIN_COSTS.trade_review;
     let coinDeducted = false;
@@ -781,6 +835,8 @@ export async function POST(req: NextRequest): Promise<NextResponse<AIAnalysisRes
           : '';
         systemPrompt = getChatSystemPrompt(body.locale) + historyContext;
         userPrompt = buildChatQAPrompt(body, body.locale);
+      } else if (body.type === 'report_trend') {
+        userPrompt = buildReportTrendPrompt(body, body.locale);
       } else {
         userPrompt = buildTradeReviewPrompt(body);
       }

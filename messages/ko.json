@@ -527,6 +527,25 @@
       "weeklyReport": "종합 분석",
       "tradeReview": "거래 리뷰"
     },
+    "reportTrend": {
+      "viewTrends": "추이 보기",
+      "hideTrends": "추이 닫기",
+      "title": "리포트 추이 분석",
+      "winRate": "승률",
+      "pnlPercent": "수익률",
+      "rrRatio": "R:R 비율",
+      "tradeCount": "거래 횟수",
+      "date": "날짜",
+      "value": "값",
+      "emptyState": "리포트를 2개 이상 생성하면 추이를 볼 수 있습니다.",
+      "guestNotice": "로그인 후 이용할 수 있는 기능입니다.",
+      "aiTrendButton": "AI 트렌드 분석 ({cost}코인)",
+      "aiTrendTitle": "AI 성장 트렌드 요약",
+      "aiTrendLoading": "트렌드 분석 중...",
+      "noMetrics": "추이를 표시할 수 있는 지표가 없습니다.",
+      "coinShort": "코인 부족 ({balance}/{cost})",
+      "reports": "개의 리포트"
+    },
     "hook": {
       "insufficientCoins": "코인이 부족합니다. 코인을 충전해주세요.",
       "weeklyReportTitle": "{count}건의 완결 거래 종합 분석",

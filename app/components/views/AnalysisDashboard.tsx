@@ -1013,7 +1013,7 @@ export function AnalysisDashboard({
             onChargeCoins={onChargeCoins}
             isLoggedIn={!!currentUser}
           />
-          <AIReportHistory reports={savedReports} loading={loadingSavedReports} onDelete={deleteReport} />
+          <AIReportHistory reports={savedReports} loading={loadingSavedReports} onDelete={deleteReport} userBalance={coinBalance} onCoinsConsumed={onCoinsConsumed} />
         </div>
       )}
 
