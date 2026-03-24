@@ -279,9 +279,6 @@ export function useAIChat(user: User | null, onCoinsConsumed?: () => void) {
               setDailyUsed(meta.chatQaDailyUsed as number);
               if (user) writeCachedDailyUsed(user.id, meta.chatQaDailyUsed as number);
             }
-            if (meta.wasFree === false) {
-              onCoinsConsumed?.();
-            }
           },
           abortController.signal,
         );
@@ -309,10 +306,6 @@ export function useAIChat(user: User | null, onCoinsConsumed?: () => void) {
           setDailyUsed(data.chatQaDailyUsed);
           writeCachedDailyUsed(user.id, data.chatQaDailyUsed);
         }
-
-        if (data.wasFree === false) {
-          onCoinsConsumed?.();
-        }
       }
     } catch (err) {
       if (abortController.signal.aborted) {
@@ -329,6 +322,8 @@ export function useAIChat(user: User | null, onCoinsConsumed?: () => void) {
       setLoading(false);
       setIsStreaming(false);
       abortControllerRef.current = null;
+      // Always refresh coin balance after operation completes (covers both free and paid usage)
+      onCoinsConsumed?.();
     }
   }, [user, messages, setMessages, onCoinsConsumed, locale]);
 

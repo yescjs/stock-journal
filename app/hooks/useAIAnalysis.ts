@@ -204,8 +204,6 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
       // Check if response is SSE stream or JSON fallback
       const contentType = res.headers.get('Content-Type') || '';
       if (contentType.includes('text/event-stream')) {
-        onCoinsConsumed?.();
-
         fullReport = await readSSEStream(
           res,
           (text) => { fullReport = text; setStreamedWeeklyContent(text); },
@@ -234,7 +232,6 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
         setStreamedWeeklyContent(data.report);
         track('ai_analysis_run', { report_type: 'weekly_report' });
         onSuccess?.();
-        onCoinsConsumed?.();
 
         const title = t('weeklyReportTitle', { count: analysis.roundTrips.length });
         await saveReportToDB('weekly_report', title, data.report, {
@@ -258,6 +255,8 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
       setLoadingWeekly(false);
       setIsStreamingWeekly(false);
       weeklyAbortRef.current = null;
+      // Refresh coin balance after operation completes (deduction happens server-side before streaming)
+      onCoinsConsumed?.();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saveReportToDB, onCoinsConsumed, locale, t, track]);
@@ -299,8 +298,6 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
 
       const contentType = res.headers.get('Content-Type') || '';
       if (contentType.includes('text/event-stream')) {
-        onCoinsConsumed?.();
-
         fullReport = await readSSEStream(
           res,
           (text) => { fullReport = text; setStreamedReviewContent(text); },
@@ -328,7 +325,6 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
         setTradeReview(prev => ({ ...prev, [key]: data }));
         setStreamedReviewContent(data.report);
         track('ai_analysis_run', { report_type: 'trade_review' });
-        onCoinsConsumed?.();
 
         const symbolName = roundTrip.symbolName || roundTrip.symbol;
         const title = t('tradeReviewTitle', { symbolName, exitDate: roundTrip.exitDate });
@@ -355,6 +351,8 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
       setLoadingReview(null);
       setIsStreamingReview(false);
       reviewAbortRef.current = null;
+      // Refresh coin balance after operation completes (deduction happens server-side before streaming)
+      onCoinsConsumed?.();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saveReportToDB, onCoinsConsumed, locale, t, track]);
