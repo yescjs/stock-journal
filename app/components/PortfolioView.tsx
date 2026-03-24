@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -21,14 +21,25 @@ function formatPnlSign(value: number, currency: 'KRW' | 'USD'): string {
   return `${sign}${Math.abs(value).toLocaleString('ko-KR', { maximumFractionDigits: 0 })}`;
 }
 
+/** 요약 카드의 KRW 환산 합계: 로캘에 따라 원화/달러 표기 */
+function formatSummaryValue(value: number, locale: string, exchangeRate: number): string {
+  if (locale === 'en') {
+    const usd = value / (exchangeRate || 1);
+    return `$${Math.round(usd).toLocaleString('en-US')}`;
+  }
+  return `${Math.round(value).toLocaleString('ko-KR')}`;
+}
+
 interface PortfolioViewProps {
   portfolio: PortfolioSummary;
+  exchangeRate?: number;
   pricesLoading?: boolean;
   onRefreshPrices?: () => void;
 }
 
-export function PortfolioView({ portfolio, pricesLoading, onRefreshPrices }: PortfolioViewProps) {
+export function PortfolioView({ portfolio, exchangeRate = 1, pricesLoading, onRefreshPrices }: PortfolioViewProps) {
   const t = useTranslations('analysis.portfolio');
+  const locale = useLocale();
 
   if (portfolio.holdings.length === 0) {
     return (
@@ -57,13 +68,13 @@ export function PortfolioView({ portfolio, pricesLoading, onRefreshPrices }: Por
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="p-4 rounded-2xl border border-white/8 bg-white/3">
           <p className="text-xs text-white/40 mb-1">{t('totalCost')}</p>
-          <p className="text-sm font-bold text-white">{totalCost.toLocaleString('ko-KR', { maximumFractionDigits: 0 })}</p>
+          <p className="text-sm font-bold text-white">{formatSummaryValue(totalCost, locale, exchangeRate)}</p>
         </div>
         <div className="p-4 rounded-2xl border border-white/8 bg-white/3">
           <p className="text-xs text-white/40 mb-1">{t('totalMarketValue')}</p>
           <p className="text-sm font-bold text-white">
             {totalMarketValue !== null
-              ? totalMarketValue.toLocaleString('ko-KR', { maximumFractionDigits: 0 })
+              ? formatSummaryValue(totalMarketValue, locale, exchangeRate)
               : '-'}
           </p>
         </div>
@@ -71,7 +82,7 @@ export function PortfolioView({ portfolio, pricesLoading, onRefreshPrices }: Por
           <p className="text-xs text-white/40 mb-1">{t('unrealizedPnl')}</p>
           <p className={`text-sm font-bold ${totalUnrealizedPnl !== null ? (totalUnrealizedPnl >= 0 ? 'text-emerald-400' : 'text-rose-400') : 'text-white/40'}`}>
             {totalUnrealizedPnl !== null
-              ? `${totalUnrealizedPnl >= 0 ? '+' : ''}${totalUnrealizedPnl.toLocaleString('ko-KR', { maximumFractionDigits: 0 })}`
+              ? `${totalUnrealizedPnl >= 0 ? '+' : '-'}${formatSummaryValue(Math.abs(totalUnrealizedPnl), locale, exchangeRate)}`
               : '-'}
             {totalUnrealizedPnlPercent !== null && (
               <span className="text-xs ml-1">({totalUnrealizedPnlPercent >= 0 ? '+' : ''}{totalUnrealizedPnlPercent.toFixed(1)}%)</span>

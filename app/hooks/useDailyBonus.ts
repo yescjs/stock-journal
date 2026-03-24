@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/app/lib/supabaseClient';
 import type { User } from '@supabase/supabase-js';
+import { format } from 'date-fns';
 
 interface DailyBonusResult {
   amount: number;
@@ -28,29 +29,36 @@ export function useDailyBonus(
 ) {
   const [bonusResult, setBonusResult] = useState<DailyBonusResult | null>(null);
   const checkedRef = useRef(false);
+  // Ref로 최신 streak 값 추적 (stale closure 방지)
+  const streakRef = useRef(currentStreak);
+  useEffect(() => {
+    streakRef.current = currentStreak;
+  }, [currentStreak]);
 
-  const claimDailyBonus = useCallback(async () => {
-    if (!user) return;
+  const claimDailyBonus = useCallback(async (): Promise<DailyBonusResult | null> => {
+    if (!user) return null;
 
-    // Check if already claimed today
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    // 로컬 타임존 기준 오늘 날짜 (useStreak와 동일한 date-fns format 사용)
+    const today = format(new Date(), 'yyyy-MM-dd');
+
+    // p_ref_id에 날짜를 저장하므로, 같은 날짜로 중복 체크
     const { data: existing, error: checkError } = await supabase
       .from('coin_transactions')
       .select('id')
       .eq('user_id', user.id)
       .eq('type', 'daily_bonus')
-      .gte('created_at', `${today}T00:00:00.000Z`)
-      .lt('created_at', `${today}T23:59:59.999Z`)
+      .eq('reference_id', today)
       .limit(1);
 
     if (checkError) {
       console.error('Failed to check daily bonus:', checkError);
-      return;
+      return null;
     }
 
-    if (existing && existing.length > 0) return; // Already claimed today
+    if (existing && existing.length > 0) return null; // Already claimed today
 
-    const amount = getBonusAmount(currentStreak);
+    const streak = streakRef.current;
+    const amount = getBonusAmount(streak);
 
     const { error: addError } = await supabase.rpc('add_coins', {
       p_user_id: user.id,
@@ -62,18 +70,24 @@ export function useDailyBonus(
 
     if (addError) {
       console.error('Failed to add daily bonus:', addError);
-      return;
+      return null;
     }
 
-    setBonusResult({ amount, streak: currentStreak });
     await onCoinsChanged?.();
-  }, [user, currentStreak, onCoinsChanged]);
+    return { amount, streak };
+  }, [user, onCoinsChanged]);
 
   // Auto-claim on page load (once, after streak is loaded)
   useEffect(() => {
     if (!user || streakLoading || checkedRef.current) return;
     checkedRef.current = true;
-    claimDailyBonus();
+
+    // 비동기 함수를 분리하여 lint 규칙 준수 (setState는 콜백 내에서 호출)
+    claimDailyBonus().then((result) => {
+      if (result) {
+        setBonusResult(result);
+      }
+    });
   }, [user, streakLoading, claimDailyBonus]);
 
   const dismissBonus = useCallback(() => {

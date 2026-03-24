@@ -1011,9 +1011,10 @@ export function AnalysisDashboard({
         </div>
       )}
 
-      {activeTab === 'portfolio' && portfolio && (
+      {activeTab === 'portfolio' && (
         <PortfolioView
-          portfolio={portfolio}
+          portfolio={portfolio ?? { holdings: [], totalCost: 0, totalMarketValue: null, totalUnrealizedPnl: null, totalUnrealizedPnlPercent: null, profitCount: 0, lossCount: 0, neutralCount: 0 }}
+          exchangeRate={exchangeRate}
           pricesLoading={pricesLoading}
           onRefreshPrices={onRefreshPrices}
         />
