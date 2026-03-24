@@ -647,97 +647,106 @@ async function callGeminiStreamAPI(
 
   let lastError: Error | null = null;
 
+  // 각 모델에 대해 최대 2회 재시도 (503/429 시 1초 대기)
   for (const model of GEMINI_MODELS) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        if (attempt > 0) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
 
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: requestBody,
-      });
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
 
-      if (response.status === 503 || response.status === 429) {
-        const errorBody = await response.text();
-        console.warn(`Gemini stream ${model}: ${response.status} — ${errorBody.slice(0, 200)}`);
-        lastError = new Error(`Gemini ${model}: ${response.status}`);
-        continue;
-      }
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: requestBody,
+        });
 
-      if (!response.ok) {
-        const errorBody = await response.text();
-        console.error(`Gemini stream ${model} error:`, errorBody);
-        lastError = new Error(`Gemini API 스트리밍 요청 실패 (${response.status})`);
-        continue;
-      }
+        if (response.status === 503 || response.status === 429) {
+          const errorBody = await response.text();
+          console.warn(`Gemini stream ${model} (attempt ${attempt + 1}): ${response.status} — ${errorBody.slice(0, 200)}`);
+          lastError = new Error(`Gemini ${model}: ${response.status}`);
+          continue;
+        }
 
-      if (!response.body) {
-        lastError = new Error('Gemini API에서 스트리밍 body를 받지 못했습니다.');
-        continue;
-      }
+        if (!response.ok) {
+          const errorBody = await response.text();
+          console.error(`Gemini stream ${model} error:`, errorBody);
+          lastError = new Error(`Gemini API 스트리밍 요청 실패 (${response.status})`);
+          break; // 4xx 등 다른 에러는 재시도 불필요, 다음 모델로
+        }
 
-      // Transform Gemini SSE stream into our own SSE format
-      const encoder = new TextEncoder();
-      const decoder = new TextDecoder();
-      const reader = response.body.getReader();
+        if (!response.body) {
+          lastError = new Error('Gemini API에서 스트리밍 body를 받지 못했습니다.');
+          break;
+        }
 
-      return new ReadableStream<Uint8Array>({
-        async start(controller) {
-          let buffer = '';
-          try {
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
+        // Transform Gemini SSE stream into our own SSE format
+        const encoder = new TextEncoder();
+        const decoder = new TextDecoder();
+        const reader = response.body.getReader();
 
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split('\n');
-              buffer = lines.pop() || '';
+        return new ReadableStream<Uint8Array>({
+          async start(controller) {
+            let buffer = '';
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
 
-              for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                  const jsonStr = line.slice(6).trim();
-                  if (!jsonStr) continue;
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                  if (line.startsWith('data: ')) {
+                    const jsonStr = line.slice(6).trim();
+                    if (!jsonStr) continue;
+                    try {
+                      const parsed = JSON.parse(jsonStr);
+                      const text = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
+                      if (text) {
+                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ chunk: text })}\n\n`));
+                      }
+                    } catch {
+                      // skip malformed JSON
+                    }
+                  }
+                }
+              }
+              // Process remaining buffer
+              if (buffer.startsWith('data: ')) {
+                const jsonStr = buffer.slice(6).trim();
+                if (jsonStr) {
                   try {
                     const parsed = JSON.parse(jsonStr);
                     const text = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
                     if (text) {
                       controller.enqueue(encoder.encode(`data: ${JSON.stringify({ chunk: text })}\n\n`));
                     }
-                  } catch {
-                    // skip malformed JSON
-                  }
+                  } catch { /* skip */ }
                 }
               }
+              controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+              controller.close();
+            } catch (err) {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: err instanceof Error ? err.message : 'Stream error' })}\n\n`));
+              controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+              controller.close();
             }
-            // Process remaining buffer
-            if (buffer.startsWith('data: ')) {
-              const jsonStr = buffer.slice(6).trim();
-              if (jsonStr) {
-                try {
-                  const parsed = JSON.parse(jsonStr);
-                  const text = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
-                  if (text) {
-                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ chunk: text })}\n\n`));
-                  }
-                } catch { /* skip */ }
-              }
-            }
-            controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-            controller.close();
-          } catch (err) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: err instanceof Error ? err.message : 'Stream error' })}\n\n`));
-            controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-            controller.close();
-          }
-        },
-        cancel() {
-          reader.cancel();
-        },
-      });
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-      console.warn(`Gemini stream ${model} network error:`, lastError.message);
+          },
+          cancel() {
+            reader.cancel();
+          },
+        });
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        console.warn(`Gemini stream ${model} network error (attempt ${attempt + 1}):`, lastError.message);
+      }
     }
+    // 현재 모델 실패 — 다음 모델 시도
+    console.warn(`⚠ ${model} 스트리밍 실패, 다음 모델로 폴백...`);
   }
 
   throw lastError ?? new Error('모든 Gemini 모델 스트리밍 호출에 실패했습니다.');
@@ -777,6 +786,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 // ─── Shared logic: build prompts and handle coin deduction ────────────────
 
 interface PreparedRequest {
+  body: AIAnalysisRequest;
   userPrompt: string;
   systemPrompt: string;
   chatQaMeta: Record<string, unknown>;
@@ -911,17 +921,13 @@ async function prepareAIRequest(req: NextRequest): Promise<PreparedRequest | Nex
     userPrompt = buildTradeReviewPrompt(body);
   }
 
-  return { userPrompt, systemPrompt, chatQaMeta, coinDeducted, cost, user, supabase };
+  return { body, userPrompt, systemPrompt, chatQaMeta, coinDeducted, cost, user, supabase };
 }
 
 // ─── POST Handler — generate AI analysis (non-streaming + streaming) ─────
 
 export async function POST(req: NextRequest): Promise<NextResponse | Response> {
   try {
-    // Clone the request to read body twice (once to check stream flag, once in prepare)
-    const clonedBody = await req.clone().json();
-    const wantsStream = clonedBody.stream === true;
-
     const prepared = await prepareAIRequest(req);
 
     // If prepareAIRequest returned a NextResponse (error or mock), return it directly
@@ -929,7 +935,8 @@ export async function POST(req: NextRequest): Promise<NextResponse | Response> {
       return prepared;
     }
 
-    const { userPrompt, systemPrompt, chatQaMeta, coinDeducted, cost, user, supabase } = prepared;
+    const { body, userPrompt, systemPrompt, chatQaMeta, coinDeducted, cost, user, supabase } = prepared;
+    const wantsStream = body.stream === true;
 
     if (wantsStream) {
       // ─── Streaming path ──────────────────────────────────────────
@@ -980,7 +987,7 @@ export async function POST(req: NextRequest): Promise<NextResponse | Response> {
             p_user_id: user.id,
             p_amount: cost,
             p_type: 'refund',
-            p_ref_type: clonedBody.type,
+            p_ref_type: body.type,
             p_ref_id: null,
           });
           if (refundError) console.error('Coin refund failed:', refundError);
@@ -1003,7 +1010,7 @@ export async function POST(req: NextRequest): Promise<NextResponse | Response> {
             p_user_id: user.id,
             p_amount: cost,
             p_type: 'refund',
-            p_ref_type: clonedBody.type,
+            p_ref_type: body.type,
             p_ref_id: null,
           });
           if (refundError) console.error('Coin refund failed:', refundError);

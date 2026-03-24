@@ -7,7 +7,8 @@ export async function readSSEStream(
   onMeta?: (meta: Record<string, unknown>) => void,
   signal?: AbortSignal,
 ): Promise<string> {
-  const reader = response.body!.getReader();
+  if (!response.body) throw new Error('Response body is null');
+  const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let fullText = '';
   let buffer = '';

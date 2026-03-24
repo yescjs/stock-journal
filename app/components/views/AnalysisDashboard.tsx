@@ -921,7 +921,7 @@ export function AnalysisDashboard({
     savedReports, loadingSavedReports, deleteReport,
     isStreamingWeekly, streamedWeeklyContent,
     isStreamingReview, streamedReviewContent,
-    stopStreaming,
+    stopWeeklyStreaming, stopReviewStreaming,
   } = useAIAnalysis(currentUser, onCoinsConsumed);
 
   if (!analysis || analysis.roundTrips.length === 0) {
@@ -1024,7 +1024,7 @@ export function AnalysisDashboard({
             isLoggedIn={!!currentUser}
             isStreaming={isStreamingWeekly}
             streamedContent={streamedWeeklyContent}
-            onStopStreaming={stopStreaming}
+            onStopStreaming={stopWeeklyStreaming}
           />
           <AIReportHistory reports={savedReports} loading={loadingSavedReports} onDelete={deleteReport} />
         </div>
@@ -1041,7 +1041,7 @@ export function AnalysisDashboard({
           onChargeCoins={onChargeCoins}
           isStreamingReview={isStreamingReview}
           streamedReviewContent={streamedReviewContent}
-          onStopStreaming={stopStreaming}
+          onStopStreaming={stopReviewStreaming}
         />
       )}
 

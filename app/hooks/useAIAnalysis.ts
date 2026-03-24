@@ -42,7 +42,8 @@ interface UseAIAnalysisReturn {
   streamedWeeklyContent: string;
   isStreamingReview: boolean;
   streamedReviewContent: string;
-  stopStreaming: () => void;
+  stopWeeklyStreaming: () => void;
+  stopReviewStreaming: () => void;
 }
 
 export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): UseAIAnalysisReturn {
@@ -145,12 +146,15 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
     }
   }, [user]);
 
-  // Stop streaming
-  const stopStreaming = useCallback(() => {
+  // Stop streaming — separated so aborting weekly doesn't cancel review and vice versa
+  const stopWeeklyStreaming = useCallback(() => {
     if (weeklyAbortRef.current) {
       weeklyAbortRef.current.abort();
       weeklyAbortRef.current = null;
     }
+  }, []);
+
+  const stopReviewStreaming = useCallback(() => {
     if (reviewAbortRef.current) {
       reviewAbortRef.current.abort();
       reviewAbortRef.current = null;
@@ -379,6 +383,7 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
     streamedWeeklyContent,
     isStreamingReview,
     streamedReviewContent,
-    stopStreaming,
+    stopWeeklyStreaming,
+    stopReviewStreaming,
   };
 }
