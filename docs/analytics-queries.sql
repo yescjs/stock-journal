@@ -60,31 +60,6 @@ select
 from user_events;
 
 
--- ─── AI 리포트 루프 분석 ──────────────────────────────────────────────────────
-
--- 코인 부족으로 차단된 AI 분석 요청 (잠재 수요)
-select
-  properties->>'report_type' as report_type,
-  count(*) as blocked_count
-from user_events
-where event_name = 'ai_report_blocked'
-group by report_type;
-
--- AI 리포트 평균 체류시간 (ms)
-select
-  round(avg((properties->>'view_duration_ms')::numeric)) as avg_duration_ms,
-  count(*) as view_count
-from user_events
-where event_name = 'ai_report_viewed';
-
--- AI 분석 요청 vs 실제 열람 비율
-select
-  count(*) filter (where event_name = 'ai_analysis_run') as requested,
-  count(*) filter (where event_name = 'ai_report_viewed') as viewed,
-  count(*) filter (where event_name = 'ai_report_blocked') as blocked
-from user_events;
-
-
 -- ─── DAU (일별 활성 사용자) ──────────────────────────────────────────────────
 
 select

@@ -1,6 +1,5 @@
-import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
-import { useEventTracking } from '@/app/hooks/useEventTracking';
 import {
   TradeAnalysis,
   PatternStats,
@@ -1199,7 +1198,6 @@ export function AnalysisDashboard({
   const [selectedHeatmapCell, setSelectedHeatmapCell] = useState<HeatmapCell | null>(null);
   const t = useTranslations('analysis');
   const tc = useTranslations('common');
-  const { track } = useEventTracking(currentUser);
 
   // Escape key closes heatmap modal
   useEffect(() => {
@@ -1222,35 +1220,6 @@ export function AnalysisDashboard({
     isStreamingReview, streamedReviewContent,
     stopWeeklyStreaming, stopReviewStreaming,
   } = useAIAnalysis(currentUser, onCoinsConsumed);
-
-  // AI 리포트 체류시간 측정
-  const aiViewStartRef = useRef<number | null>(null);
-  const sendAiReportViewed = useCallback(() => {
-    if (aiViewStartRef.current) {
-      const duration = Date.now() - aiViewStartRef.current;
-      if (duration > 1000) {
-        track('ai_report_viewed', { view_duration_ms: duration });
-      }
-      aiViewStartRef.current = null;
-    }
-  }, [track]);
-
-  useEffect(() => {
-    if (activeTab === 'ai' && (weeklyReport || streamedWeeklyContent)) {
-      aiViewStartRef.current = Date.now();
-      const handleVisibilityChange = () => {
-        if (document.hidden) sendAiReportViewed();
-        else aiViewStartRef.current = Date.now();
-      };
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-      return () => {
-        sendAiReportViewed();
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-      };
-    } else {
-      sendAiReportViewed();
-    }
-  }, [activeTab, weeklyReport, streamedWeeklyContent, sendAiReportViewed]);
 
   if (!analysis || analysis.roundTrips.length === 0) {
     return <EmptyState count={tradesCount} buyCount={buyCount} sellCount={sellCount} />;
