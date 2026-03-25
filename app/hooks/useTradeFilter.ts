@@ -132,6 +132,7 @@ export function useTradeFilter(trades: Trade[]) {
         setSelectedSymbol('');
         setHoldingOnly(false);
         setSideFilter('ALL');
+        setSortBy('date-desc');
         setActiveDatePreset(null);
     };
 

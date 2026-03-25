@@ -134,7 +134,7 @@ export function TradeForm({
                 if (seen.has(t.symbol)) continue;
                 seen.add(t.symbol);
                 const qty = netQty.get(t.symbol) ?? 0;
-                if (qty > 0) {
+                if (qty > 0.0001) {
                     result.push({ symbol: t.symbol, symbol_name: nameMap.get(t.symbol) || t.symbol, heldQty: qty });
                 }
                 if (result.length >= 5) break;

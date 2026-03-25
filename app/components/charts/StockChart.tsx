@@ -71,6 +71,13 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
 
         // 매수/매도 마커 데이터 준비
         const symbolTrades = trades.filter(t => t.symbol === symbol);
+        if (symbolTrades.length === 0) return chartData.map((d, i) => ({
+            ...d,
+            ma5: ma5[i],
+            ma20: ma20[i],
+            ma60: ma60[i],
+            priceRange: [d.low, d.high] as [number, number],
+        }));
         const tradesByDate = new Map<number, {
             buys: { price: number; quantity: number }[];
             sells: { price: number; quantity: number }[];

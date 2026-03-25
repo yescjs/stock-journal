@@ -366,10 +366,6 @@ export function TradeListView({
         (t.symbol_name && t.symbol_name.toLowerCase().includes(lower))
       );
     }
-    // Side Filter
-    if (sideFilter !== 'ALL') {
-      source = source.filter(t => t.side === sideFilter);
-    }
     // Apply date filter so calendar reflects active preset/date range
     if (dateFrom) source = source.filter(t => t.date >= dateFrom);
     if (dateTo) source = source.filter(t => t.date <= dateTo);
