@@ -234,6 +234,7 @@
       "addTradeAriaLabel": "Add new trade record",
       "addTradeShort": "Add Record",
       "recentSymbols": "Recent",
+      "heldSymbols": "Holdings",
       "fetchingPrice": "Fetching price..."
     },
     "fab": {

@@ -234,6 +234,7 @@
       "addTradeAriaLabel": "새 매매 기록 추가",
       "addTradeShort": "기록 추가",
       "recentSymbols": "최근 종목",
+      "heldSymbols": "보유 종목",
       "fetchingPrice": "가격 조회 중..."
     },
     "fab": {

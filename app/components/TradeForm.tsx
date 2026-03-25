@@ -115,9 +115,34 @@ export function TradeForm({
 
     const isFirstTrade = baseTrades.length === 0 && !initialData;
 
-    // Recent symbols for quick entry
-    const recentSymbols = useMemo(() => {
+    // Quick entry symbols: BUY → recent symbols, SELL → held symbols only
+    const quickSymbols = useMemo(() => {
         if (initialData || isCompact) return [];
+
+        if (form.side === 'SELL') {
+            // Held symbols: net BUY qty > 0
+            const netQty = new Map<string, number>();
+            const nameMap = new Map<string, string>();
+            for (const t of allTrades) {
+                netQty.set(t.symbol, (netQty.get(t.symbol) ?? 0) + (t.side === 'BUY' ? t.quantity : -t.quantity));
+                if (t.symbol_name && !nameMap.has(t.symbol)) nameMap.set(t.symbol, t.symbol_name);
+            }
+            const result: { symbol: string; symbol_name: string }[] = [];
+            // Sort by most recent trade date
+            const sorted = [...allTrades].sort((a, b) => b.date.localeCompare(a.date));
+            const seen = new Set<string>();
+            for (const t of sorted) {
+                if (seen.has(t.symbol)) continue;
+                seen.add(t.symbol);
+                if ((netQty.get(t.symbol) ?? 0) > 0) {
+                    result.push({ symbol: t.symbol, symbol_name: nameMap.get(t.symbol) || t.symbol });
+                }
+                if (result.length >= 5) break;
+            }
+            return result;
+        }
+
+        // BUY: recent symbols
         const seen = new Set<string>();
         const result: { symbol: string; symbol_name: string }[] = [];
         const sorted = [...allTrades].sort((a, b) => b.date.localeCompare(a.date));
@@ -128,7 +153,7 @@ export function TradeForm({
             if (result.length >= 5) break;
         }
         return result;
-    }, [allTrades, initialData, isCompact]);
+    }, [allTrades, initialData, isCompact, form.side]);
 
     const [priceFetching, setPriceFetching] = useState(false);
 
@@ -418,12 +443,12 @@ export function TradeForm({
                 </div>
             )}
 
-            {/* Recent Symbols Quick Select */}
-            {recentSymbols.length > 0 && !initialData && (
+            {/* Quick Symbol Select */}
+            {quickSymbols.length > 0 && !initialData && (
                 <div className="mb-3">
-                    <div className="text-[10px] font-bold text-white/30 uppercase tracking-wider mb-1.5">{t('recentSymbols')}</div>
+                    <div className="text-[10px] font-bold text-white/30 uppercase tracking-wider mb-1.5">{form.side === 'SELL' ? t('heldSymbols') : t('recentSymbols')}</div>
                     <div className="flex items-center gap-1.5 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden">
-                        {recentSymbols.map(rs => (
+                        {quickSymbols.map(rs => (
                             <button
                                 key={rs.symbol}
                                 type="button"
