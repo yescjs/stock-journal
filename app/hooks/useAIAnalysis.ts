@@ -196,6 +196,7 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
       });
 
       if (res.status === 402) {
+        track('ai_report_blocked', { report_type: 'weekly_report', reason: 'insufficient_coins' });
         setError(t('insufficientCoins'));
         return;
       }
@@ -291,6 +292,7 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
       });
 
       if (res.status === 402) {
+        track('ai_report_blocked', { report_type: 'trade_review', reason: 'insufficient_coins' });
         setError(t('insufficientCoins'));
         return;
       }
