@@ -239,7 +239,8 @@
     },
     "fab": {
       "open": "Open menu",
-      "close": "Close menu"
+      "close": "Close menu",
+      "duplicateCheck": "Duplicate Check"
     },
     "preCoach": {
       "title": "AI Pre-Trade Checklist",
@@ -785,6 +786,22 @@
     "nhStep4": "Set date range → Product type: <b>Stocks</b> → [Search]",
     "nhStep5": "Click the <b>[Excel Download]</b> button at the bottom",
     "nhTip": "The web interface is more convenient for file downloads than HTS",
+    "brokerSamsung": "Samsung Securities",
+    "samsungChannel": "POP HTS (PC)",
+    "samsungStep1": "Launch POP HTS and log in",
+    "samsungStep2": "Top menu → <b>Account</b> → <b>Order History</b>",
+    "samsungStep3": "Set date range → Transaction type: <b>Executed</b> → Click [Search]",
+    "samsungStep4": "<b>Right-click</b> on the results list",
+    "samsungStep5": "Click <b>[Save as Excel]</b> → Save as CSV",
+    "samsungTip": "Navigate to Account → Order History to view executed trades",
+    "brokerHankook": "Korea Investment & Securities",
+    "hankookChannel": "eFriend Expert (PC)",
+    "hankookStep1": "Launch eFriend Expert and log in",
+    "hankookStep2": "Enter screen number <b>8011</b> in the input field and press Enter",
+    "hankookStep3": "Set date range → Trade type: <b>All</b> → Click [Search]",
+    "hankookStep4": "<b>Right-click</b> on the results list",
+    "hankookStep5": "Click <b>[Save as Excel]</b> → Save as CSV",
+    "hankookTip": "Screen 8011: Trade history by period",
     "importComplete": "Import Complete",
     "importedCount": "{count} items",
     "importedSaved": "saved",
@@ -809,6 +826,25 @@
     "headerSide": "Side",
     "headerQuantity": "Qty",
     "headerPrice": "Price"
+  },
+  "duplicateCleanup": {
+    "title": "Duplicate Trade Check",
+    "groupsFound": "{count} duplicate groups found",
+    "noDuplicates": "No duplicate trades found",
+    "cleanupComplete": "Cleanup Complete",
+    "deletedCount": "{count} deleted",
+    "duplicateCount": "{count} duplicates",
+    "priceUnit": "",
+    "quantityUnit": " shares",
+    "keep": "Keep",
+    "remove": "Remove",
+    "deleteButton": "Delete {count} items",
+    "confirmDelete": "This will delete {count} duplicate trades. This action cannot be undone.",
+    "cancel": "Cancel",
+    "confirmButton": "Confirm Delete",
+    "deleting": "Deleting...",
+    "doneButton": "Done",
+    "closeButton": "Close"
   },
   "calendar": {
     "weekdays": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],

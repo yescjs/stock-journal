@@ -1,6 +1,6 @@
 import { TradeSide } from '@/app/types/trade';
 
-export type BrokerType = 'kiwoom' | 'mirae' | 'nh' | 'unknown';
+export type BrokerType = 'kiwoom' | 'mirae' | 'nh' | 'samsung' | 'hankook' | 'unknown';
 
 export interface ParsedTradeRow {
   date: string;        // YYYY-MM-DD
@@ -148,6 +148,14 @@ export function detectBroker(headerLine: string): BrokerType {
   // NH투자증권: 거래유형 OR 매도/매수 조합
   if (h.includes('거래유형') && (h.includes('거래일') || h.includes('거래일자'))) return 'nh';
   if (h.includes('매도/매수') || h.includes('매도매수구분')) return 'nh';
+
+  // 삼성증권: 거래일 + 매매구분 + 체결가격 조합 (POP HTS)
+  if (h.includes('체결가격') && h.includes('매매구분')) return 'samsung';
+  if (h.includes('거래일') && h.includes('매매구분') && h.includes('체결가')) return 'samsung';
+
+  // 한국투자증권: 주문일 + 매매구분 + 체결단가 조합 (eFriend Expert)
+  if (h.includes('주문일') && h.includes('매매구분') && h.includes('체결단가')) return 'hankook';
+  if (h.includes('거래일') && h.includes('매도매수') && h.includes('체결단가')) return 'hankook';
 
   // 미래에셋: 거래일자 + 거래구분
   if (h.includes('거래일자') && h.includes('거래구분')) return 'mirae';
@@ -323,6 +331,36 @@ function parseNH(lines: string[]): ParseResult {
   );
 }
 
+/** 삼성증권 POP HTS CSV 파서 */
+function parseSamsung(lines: string[]): ParseResult {
+  return parseGeneric(
+    lines,
+    'samsung',
+    ['거래일', '주문일', '체결일'],
+    ['종목코드', '종목번호'],
+    ['종목명'],
+    ['매매구분', '구분'],
+    ['체결가격', '체결가', '단가'],
+    ['체결수량', '수량'],
+    '매매구분',
+  );
+}
+
+/** 한국투자증권 eFriend Expert CSV 파서 */
+function parseHankook(lines: string[]): ParseResult {
+  return parseGeneric(
+    lines,
+    'hankook',
+    ['주문일', '거래일', '체결일'],
+    ['종목코드', '종목번호'],
+    ['종목명'],
+    ['매매구분', '매도매수', '구분'],
+    ['체결단가', '체결가격', '단가'],
+    ['체결수량', '수량'],
+    '매매구분',
+  );
+}
+
 // ─── 메인 진입점 ─────────────────────────────────────────────────────────────
 
 /** CSV 파일 파싱 메인 함수 */
@@ -348,11 +386,13 @@ export async function parseCSV(file: File): Promise<ParseResult> {
     case 'kiwoom': return parseKiwoom(lines);
     case 'mirae': return parseMirae(lines);
     case 'nh': return parseNH(lines);
+    case 'samsung': return parseSamsung(lines);
+    case 'hankook': return parseHankook(lines);
     default:
       return {
         broker: 'unknown',
         trades: [],
-        errors: [{ row: 0, message: '지원하지 않는 형식입니다. 키움증권, 미래에셋증권, NH투자증권 CSV 파일만 지원합니다.' }],
+        errors: [{ row: 0, message: '지원하지 않는 형식입니다. 키움증권, 미래에셋증권, NH투자증권, 삼성증권, 한국투자증권 CSV 파일만 지원합니다.' }],
         totalRows: 0,
       };
   }

@@ -159,6 +159,25 @@ export function useTrades(user: User | null) {
         setTrades(prev => prev.filter(t => t.id !== id));
     };
 
+    const removeTrades = async (ids: string[]) => {
+        if (ids.length === 0) return;
+        if (user) {
+            // Supabase bulk delete in chunks of 500
+            const CHUNK_SIZE = 500;
+            for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
+                const chunk = ids.slice(i, i + CHUNK_SIZE);
+                const { error } = await supabase
+                    .from('trades')
+                    .delete()
+                    .in('id', chunk)
+                    .eq('user_id', user.id);
+                if (error) throw error;
+            }
+        }
+        const idSet = new Set(ids);
+        setTrades(prev => prev.filter(t => !idSet.has(t.id)));
+    };
+
     const clearAllTrades = async () => {
         if (user) {
             const { error } = await supabase
@@ -251,5 +270,5 @@ export function useTrades(user: User | null) {
         }
     };
 
-    return { trades, loading, error, addTrade, removeTrade, updateTrade, clearAllTrades, setTrades, importTrades };
+    return { trades, loading, error, addTrade, removeTrade, removeTrades, updateTrade, clearAllTrades, setTrades, importTrades };
 }

@@ -30,6 +30,8 @@ const BROKER_LABEL_KEYS: Record<BrokerType, string> = {
   kiwoom: 'brokerKiwoom',
   mirae: 'brokerMirae',
   nh: 'brokerNH',
+  samsung: 'brokerSamsung',
+  hankook: 'brokerHankook',
   unknown: 'brokerUnknown',
 };
 
@@ -78,6 +80,26 @@ const BROKER_GUIDES: BrokerGuide[] = [
     stepKeys: ['nhStep1', 'nhStep2', 'nhStep3', 'nhStep4', 'nhStep5'],
     tipKey: 'nhTip',
     fileFormat: 'xlsx',
+  },
+  {
+    id: 'samsung',
+    nameKey: 'brokerSamsung',
+    color: 'text-blue-400',
+    channelKey: 'samsungChannel',
+    channelIcon: 'monitor',
+    stepKeys: ['samsungStep1', 'samsungStep2', 'samsungStep3', 'samsungStep4', 'samsungStep5'],
+    tipKey: 'samsungTip',
+    fileFormat: 'xlsx / csv',
+  },
+  {
+    id: 'hankook',
+    nameKey: 'brokerHankook',
+    color: 'text-emerald-400',
+    channelKey: 'hankookChannel',
+    channelIcon: 'monitor',
+    stepKeys: ['hankookStep1', 'hankookStep2', 'hankookStep3', 'hankookStep4', 'hankookStep5'],
+    tipKey: 'hankookTip',
+    fileFormat: 'xlsx / csv',
   },
 ];
 
@@ -303,7 +325,7 @@ export function ImportModal({ isOpen, onClose, existingTrades, onImport }: Impor
                   {/* 증권사별 다운로드 가이드 — 3열 그리드 */}
                   <div>
                     <p className="text-sm font-semibold text-white/40 mb-2.5">{t('downloadGuideTitle')}</p>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                       {BROKER_GUIDES.map(guide => (
                         <div
                           key={guide.id}
