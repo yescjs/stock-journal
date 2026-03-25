@@ -325,8 +325,7 @@
       "sort_date-asc": "오래된순",
       "sort_pnl-desc": "수익 높은순",
       "sort_pnl-asc": "손실 큰순",
-      "compactView": "간략히",
-      "viewDensityToggle": "뷰 밀도 전환"
+      "moreActions": "더보기"
     },
     "empty": {
       "title": "매매 일지를 시작해보세요",

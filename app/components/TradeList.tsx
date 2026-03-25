@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { Trade } from '@/app/types/trade';
 import { formatMonthLabel, formatQuantity, formatPrice } from '@/app/utils/format';
-import type { SortBy, ViewDensity } from '@/app/hooks/useTradeFilter';
+import type { SortBy } from '@/app/hooks/useTradeFilter';
 import { Pencil, Trash2, Copy, ChevronDown, Calendar, ListTodo } from 'lucide-react';
 import { Card } from '@/app/components/ui/Card';
 import { Button } from '@/app/components/ui/Button';
@@ -23,7 +23,6 @@ interface TradeListProps {
     currentPrices?: Record<string, number>;
     heldSymbols?: Set<string>;
     sortBy?: SortBy;
-    viewDensity?: ViewDensity;
 }
 
 // Calculate profit/loss percentage
@@ -71,7 +70,6 @@ export function TradeList({
     currentPrices = {},
     heldSymbols,
     sortBy = 'date-desc',
-    viewDensity = 'default',
 }: TradeListProps) {
     const tl = useTranslations('trade.list');
     const tc = useTranslations('common');
@@ -109,7 +107,7 @@ export function TradeList({
                     const getCp = (t: Trade) => currentPrices?.[t.symbol] ?? 0;
                     const getAvg = (t: Trade) => avgBuyPriceMap.get(t.symbol) ?? 0;
                     const getPnl = (t: Trade) => {
-                        if (t.side === 'BUY' && getCp(t) > 0) return (getCp(t) - t.price) * t.quantity;
+                        if (t.side === 'BUY' && getCp(t) > 0 && heldSymbols?.has(t.symbol)) return (getCp(t) - t.price) * t.quantity;
                         if (t.side === 'SELL' && getAvg(t) > 0) return (t.price - getAvg(t)) * t.quantity;
                         return 0;
                     };
@@ -140,7 +138,7 @@ export function TradeList({
             trades: map.get(key)!,
             count: map.get(key)!.length,
         }));
-    }, [trades, locale, sortBy, currentPrices, avgBuyPriceMap]);
+    }, [trades, locale, sortBy, currentPrices, avgBuyPriceMap, heldSymbols]);
 
     // Check if any BUY trade has a current price available
     const hasCurrentPrices = Object.keys(currentPrices).length > 0;
@@ -239,7 +237,7 @@ export function TradeList({
                                                 const cp = currentPrices[t.symbol];
                                                 const isBuy = t.side === 'BUY';
                                                 const isSell = t.side === 'SELL';
-                                                const hasCp = isBuy && cp !== undefined && cp > 0;
+                                                const hasCp = isBuy && cp !== undefined && cp > 0 && heldSymbols?.has(t.symbol);
                                                 const pnlPct = hasCp ? calcPnlPercent(t.price, cp) : 0;
                                                 const pnlAmt = hasCp ? calcPnlAmount(t.price, cp, t.quantity) : 0;
 
@@ -253,7 +251,7 @@ export function TradeList({
                                                     <tr
                                                         key={t.id}
                                                         onClick={() => onSymbolClick?.(t.symbol)}
-                                                        className={`group transition-colors duration-150 cursor-pointer ${viewDensity === 'compact' ? 'h-10' : 'h-14'} hover:bg-muted/30 border-l-[3px] ${
+                                                        className={`group transition-colors duration-150 cursor-pointer h-14 hover:bg-muted/30 border-l-[3px] ${
                                                             t.side === 'BUY'
                                                                 ? 'border-l-up bg-up/5'
                                                                 : 'border-l-down bg-down/5'
@@ -395,7 +393,7 @@ export function TradeList({
                                 </div>
 
                                 {/* Mobile Card View */}
-                                <div className={`md:hidden p-4 ${viewDensity === 'compact' ? 'space-y-2' : 'space-y-4'}`} data-testid="trade-list-mobile">
+                                <div className="md:hidden p-4 space-y-4" data-testid="trade-list-mobile">
                                     {group.trades.map((t) => {
                                         const amount = t.price * t.quantity;
                                         const mobileDateObj = new Date(t.date);
@@ -404,7 +402,7 @@ export function TradeList({
                                         const cp = currentPrices[t.symbol];
                                         const isBuy = t.side === 'BUY';
                                         const isSell = t.side === 'SELL';
-                                        const hasCp = isBuy && cp !== undefined && cp > 0;
+                                        const hasCp = isBuy && cp !== undefined && cp > 0 && heldSymbols?.has(t.symbol);
                                         const pnlPct = hasCp ? calcPnlPercent(t.price, cp) : 0;
                                         const pnlAmt = hasCp ? calcPnlAmount(t.price, cp, t.quantity) : 0;
 
@@ -413,34 +411,6 @@ export function TradeList({
                                         const hasSellPnl = isSell && avgBuyPrice > 0;
                                         const sellPnlPct = hasSellPnl ? calcPnlPercent(avgBuyPrice, t.price) : 0;
                                         const sellPnlAmt = hasSellPnl ? (t.price - avgBuyPrice) * t.quantity : 0;
-
-                                        if (viewDensity === 'compact') {
-                                            return (
-                                                <div
-                                                    key={t.id}
-                                                    onClick={() => onSymbolClick?.(t.symbol)}
-                                                    className={`flex items-center gap-3 px-4 py-3 rounded-xl border border-border/10 transition-all active:scale-[0.98] border-l-4 ${
-                                                        t.side === 'BUY' ? 'border-l-up bg-up/5' : 'border-l-down bg-down/5'
-                                                    }`}
-                                                >
-                                                    <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-md flex-none border ${
-                                                        t.side === 'BUY' ? 'bg-up/15 text-up border-up/30' : 'bg-down/15 text-down border-down/30'
-                                                    }`}>
-                                                        {t.side === 'BUY' ? tc('buy') : tc('sell')}
-                                                    </span>
-                                                    <span className="text-sm font-semibold text-foreground truncate flex-1 min-w-0">
-                                                        {t.symbol_name || t.symbol}
-                                                    </span>
-                                                    <span className="text-xs text-muted-foreground tabular-nums flex-none">{t.date.slice(5)}</span>
-                                                    <span className="text-sm font-bold text-foreground tabular-nums flex-none">{displayPrice(amount, t.symbol)}</span>
-                                                    {(hasCp || hasSellPnl) && (
-                                                        <span className={`text-xs font-bold tabular-nums flex-none ${getPnlColorClass(hasCp ? pnlPct : sellPnlPct)}`}>
-                                                            {formatPnlPercent(hasCp ? pnlPct : sellPnlPct)}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            );
-                                        }
 
                                         return (
                                             <div

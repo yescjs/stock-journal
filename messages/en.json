@@ -325,8 +325,7 @@
       "sort_date-asc": "Oldest",
       "sort_pnl-desc": "Top P&L",
       "sort_pnl-asc": "Worst P&L",
-      "compactView": "Compact",
-      "viewDensityToggle": "Toggle view density"
+      "moreActions": "More"
     },
     "empty": {
       "title": "Start your trade journal",

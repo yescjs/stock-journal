@@ -4,7 +4,7 @@ import { Trade } from '@/app/types/trade';
 export type DatePreset = 'today' | 'week' | 'month' | 'year' | 'all';
 export type SideFilter = 'ALL' | 'BUY' | 'SELL';
 export type SortBy = 'date-desc' | 'date-asc' | 'pnl-desc' | 'pnl-asc';
-export type ViewDensity = 'default' | 'compact';
+
 
 /**
  * Calculate held symbols: symbols where total BUY qty > total SELL qty.
@@ -32,13 +32,9 @@ export function useTradeFilter(trades: Trade[]) {
     // Date preset state
     const [activeDatePreset, setActiveDatePreset] = useState<DatePreset | null>(null);
 
-    // Sort, Side Filter, View Density
+    // Sort, Side Filter
     const [sideFilter, setSideFilter] = useState<SideFilter>('ALL');
     const [sortBy, setSortBy] = useState<SortBy>('date-desc');
-    const [viewDensity, setViewDensity] = useState<ViewDensity>(() => {
-        if (typeof window === 'undefined') return 'default';
-        return (localStorage.getItem('stock-journal-view-density-v1') as ViewDensity) || 'default';
-    });
 
     // Drill-down State
     const [selectedSymbol, setSelectedSymbol] = useState<string>('');
@@ -55,11 +51,6 @@ export function useTradeFilter(trades: Trade[]) {
     const setDateTo = useCallback((v: string) => {
         setDateToInternal(v);
         setActiveDatePreset(null);
-    }, []);
-
-    const updateViewDensity = useCallback((v: ViewDensity) => {
-        setViewDensity(v);
-        localStorage.setItem('stock-journal-view-density-v1', v);
     }, []);
 
     // Apply a date preset (bypasses wrapper to keep preset active)
@@ -164,7 +155,5 @@ export function useTradeFilter(trades: Trade[]) {
         setSideFilter,
         sortBy,
         setSortBy,
-        viewDensity,
-        updateViewDensity,
     };
 }
