@@ -760,7 +760,7 @@ export function TradeListView({
                   <MoreHorizontal size={15} />
                 </button>
                 {showMoreDropdown && (
-                  <div className="absolute top-full right-0 mt-1 w-48 z-20 rounded-xl border border-white/10 bg-card shadow-toss-lg overflow-hidden">
+                  <div className="absolute top-full left-0 sm:left-auto sm:right-0 mt-1 w-48 z-20 rounded-xl border border-white/10 bg-card shadow-toss-lg overflow-hidden">
                     {/* KRW Conversion Toggle */}
                     {hasUSDTrades && (
                       <button
