@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { User } from '@supabase/supabase-js';
 import { TradeSide, Trade } from '@/app/types/trade';
-import { getCurrencySymbol } from '@/app/utils/format';
+import { getCurrencySymbol, isKRWSymbol } from '@/app/utils/format';
 import {
     EmotionWarning,
     ChecklistItem,
@@ -115,6 +115,73 @@ export function TradeForm({
 
     const isFirstTrade = baseTrades.length === 0 && !initialData;
 
+    // Quick entry symbols: BUY → recent symbols, SELL → held symbols with qty
+    const quickSymbols = useMemo(() => {
+        if (initialData || isCompact) return [];
+
+        if (form.side === 'SELL') {
+            // Held symbols: net BUY qty > 0
+            const netQty = new Map<string, number>();
+            const nameMap = new Map<string, string>();
+            for (const t of allTrades) {
+                netQty.set(t.symbol, (netQty.get(t.symbol) ?? 0) + (t.side === 'BUY' ? t.quantity : -t.quantity));
+                if (t.symbol_name && !nameMap.has(t.symbol)) nameMap.set(t.symbol, t.symbol_name);
+            }
+            const result: { symbol: string; symbol_name: string; heldQty?: number }[] = [];
+            const sorted = [...allTrades].sort((a, b) => b.date.localeCompare(a.date));
+            const seen = new Set<string>();
+            for (const t of sorted) {
+                if (seen.has(t.symbol)) continue;
+                seen.add(t.symbol);
+                const qty = netQty.get(t.symbol) ?? 0;
+                if (qty > 0.0001) {
+                    result.push({ symbol: t.symbol, symbol_name: nameMap.get(t.symbol) || t.symbol, heldQty: qty });
+                }
+                if (result.length >= 5) break;
+            }
+            return result;
+        }
+
+        // BUY: recent symbols
+        const seen = new Set<string>();
+        const result: { symbol: string; symbol_name: string; heldQty?: number }[] = [];
+        const sorted = [...allTrades].sort((a, b) => b.date.localeCompare(a.date));
+        for (const trade of sorted) {
+            if (seen.has(trade.symbol)) continue;
+            seen.add(trade.symbol);
+            result.push({ symbol: trade.symbol, symbol_name: trade.symbol_name || trade.symbol });
+            if (result.length >= 5) break;
+        }
+        return result;
+    }, [allTrades, initialData, isCompact, form.side]);
+
+    const [priceFetching, setPriceFetching] = useState(false);
+
+    const handleRecentSymbolClick = useCallback(async (sym: string, symName: string, heldQty?: number) => {
+        setForm(prev => ({
+            ...prev,
+            symbol: sym,
+            symbol_name: symName,
+            ...(heldQty != null ? { quantity: String(heldQty) } : {}),
+        }));
+        // Auto-fetch current price
+        setPriceFetching(true);
+        try {
+            const res = await fetch(`/api/stock-price?symbols=${encodeURIComponent(sym)}`);
+            if (res.ok) {
+                const data = await res.json();
+                const price = data.prices?.[sym];
+                if (price) {
+                    setForm(prev => ({ ...prev, price: String(price) }));
+                }
+            }
+        } catch {
+            // silently fail - user can enter price manually
+        } finally {
+            setPriceFetching(false);
+        }
+    }, []);
+
     // showAdvanced가 열릴 때만 패턴 계산 (성능 최적화)
     const emotionWarnings = useMemo<EmotionWarning[]>(() => {
         if (!showAdvanced) return [];
@@ -225,7 +292,7 @@ export function TradeForm({
         if (Number.isNaN(p) || Number.isNaN(q)) { alert(t('validateNumber')); return false; }
         if (p <= 0) { alert(t('validatePricePositive')); return false; }
         if (q <= 0) { alert(t('validateQuantityPositive')); return false; }
-        if (q % 1 !== 0) { alert(t('validateQuantityInteger')); return false; }
+        if (isKRWSymbol(form.symbol) && q % 1 !== 0) { alert(t('validateQuantityInteger')); return false; }
         return true;
     };
 
@@ -377,6 +444,33 @@ export function TradeForm({
                 </div>
             )}
 
+            {/* Quick Symbol Select */}
+            {quickSymbols.length > 0 && !initialData && (
+                <div className="mb-3">
+                    <div className="text-[10px] font-bold text-white/30 uppercase tracking-wider mb-1.5">{form.side === 'SELL' ? t('heldSymbols') : t('recentSymbols')}</div>
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden">
+                        {quickSymbols.map(rs => (
+                            <button
+                                key={rs.symbol}
+                                type="button"
+                                onClick={() => handleRecentSymbolClick(rs.symbol, rs.symbol_name, rs.heldQty)}
+                                disabled={priceFetching}
+                                className={`flex-none px-3 py-1.5 rounded-xl text-xs font-bold border transition-all whitespace-nowrap ${
+                                    form.symbol === rs.symbol
+                                        ? 'bg-primary/15 text-primary border-primary/30'
+                                        : 'text-white/50 bg-white/5 border-white/8 hover:text-white/70 hover:bg-white/8'
+                                }`}
+                            >
+                                {rs.symbol_name}{rs.heldQty != null && <span className="text-white/30 ml-1">({rs.heldQty})</span>}
+                            </button>
+                        ))}
+                        {priceFetching && (
+                            <span className="text-[10px] text-white/30 ml-1">{t('fetchingPrice')}</span>
+                        )}
+                    </div>
+                </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Row 1: Date & Side */}
                 <div className="flex flex-col sm:grid sm:grid-cols-12 gap-3 sm:items-end">
@@ -464,7 +558,7 @@ export function TradeForm({
                         </label>
                         <input
                             type="number"
-                            inputMode="numeric"
+                            inputMode={form.symbol && !isKRWSymbol(form.symbol) ? 'decimal' : 'numeric'}
                             name="quantity"
                             placeholder="0"
                             value={form.quantity}

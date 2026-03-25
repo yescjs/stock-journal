@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { Trade } from '@/app/types/trade';
 import { formatMonthLabel, formatQuantity, formatPrice } from '@/app/utils/format';
+import type { SortBy } from '@/app/hooks/useTradeFilter';
 import { Pencil, Trash2, Copy, ChevronDown, Calendar, ListTodo } from 'lucide-react';
 import { Card } from '@/app/components/ui/Card';
 import { Button } from '@/app/components/ui/Button';
@@ -21,6 +22,7 @@ interface TradeListProps {
     showConverted: boolean;
     currentPrices?: Record<string, number>;
     heldSymbols?: Set<string>;
+    sortBy?: SortBy;
 }
 
 // Calculate profit/loss percentage
@@ -67,6 +69,7 @@ export function TradeList({
     showConverted,
     currentPrices = {},
     heldSymbols,
+    sortBy = 'date-desc',
 }: TradeListProps) {
     const tl = useTranslations('trade.list');
     const tc = useTranslations('common');
@@ -95,8 +98,31 @@ export function TradeList({
         if (trades.length === 0) return [];
 
         const sorted = [...trades].sort((a, b) => {
-            if (a.date === b.date) return b.id.localeCompare(a.id);
-            return b.date.localeCompare(a.date);
+            switch (sortBy) {
+                case 'date-asc':
+                    if (a.date === b.date) return a.id.localeCompare(b.id);
+                    return a.date.localeCompare(b.date);
+                case 'pnl-desc':
+                case 'pnl-asc': {
+                    const getCp = (t: Trade) => currentPrices?.[t.symbol] ?? 0;
+                    const getAvg = (t: Trade) => avgBuyPriceMap.get(t.symbol) ?? 0;
+                    const SORT_BOTTOM = sortBy === 'pnl-desc' ? -Infinity : Infinity;
+                    const getPnl = (t: Trade) => {
+                        if (t.side === 'BUY' && getCp(t) > 0 && heldSymbols?.has(t.symbol)) return (getCp(t) - t.price) * t.quantity;
+                        if (t.side === 'SELL' && getAvg(t) > 0) return (t.price - getAvg(t)) * t.quantity;
+                        return SORT_BOTTOM;
+                    };
+                    const pnlA = getPnl(a);
+                    const pnlB = getPnl(b);
+                    if (pnlA === SORT_BOTTOM && pnlB === SORT_BOTTOM) {
+                        return b.date.localeCompare(a.date);
+                    }
+                    return sortBy === 'pnl-desc' ? pnlB - pnlA : pnlA - pnlB;
+                }
+                default: // date-desc
+                    if (a.date === b.date) return b.id.localeCompare(a.id);
+                    return b.date.localeCompare(a.date);
+            }
         });
 
         const map = new Map<string, Trade[]>();
@@ -116,7 +142,7 @@ export function TradeList({
             trades: map.get(key)!,
             count: map.get(key)!.length,
         }));
-    }, [trades, locale]);
+    }, [trades, locale, sortBy, currentPrices, avgBuyPriceMap, heldSymbols]);
 
     // Check if any BUY trade has a current price available
     const hasCurrentPrices = Object.keys(currentPrices).length > 0;
@@ -215,7 +241,7 @@ export function TradeList({
                                                 const cp = currentPrices[t.symbol];
                                                 const isBuy = t.side === 'BUY';
                                                 const isSell = t.side === 'SELL';
-                                                const hasCp = isBuy && cp !== undefined && cp > 0;
+                                                const hasCp = isBuy && cp !== undefined && cp > 0 && heldSymbols?.has(t.symbol);
                                                 const pnlPct = hasCp ? calcPnlPercent(t.price, cp) : 0;
                                                 const pnlAmt = hasCp ? calcPnlAmount(t.price, cp, t.quantity) : 0;
 
@@ -371,7 +397,7 @@ export function TradeList({
                                 </div>
 
                                 {/* Mobile Card View */}
-                                <div className={`md:hidden p-4 space-y-4`} data-testid="trade-list-mobile">
+                                <div className="md:hidden p-4 space-y-4" data-testid="trade-list-mobile">
                                     {group.trades.map((t) => {
                                         const amount = t.price * t.quantity;
                                         const mobileDateObj = new Date(t.date);
@@ -380,7 +406,7 @@ export function TradeList({
                                         const cp = currentPrices[t.symbol];
                                         const isBuy = t.side === 'BUY';
                                         const isSell = t.side === 'SELL';
-                                        const hasCp = isBuy && cp !== undefined && cp > 0;
+                                        const hasCp = isBuy && cp !== undefined && cp > 0 && heldSymbols?.has(t.symbol);
                                         const pnlPct = hasCp ? calcPnlPercent(t.price, cp) : 0;
                                         const pnlAmt = hasCp ? calcPnlAmount(t.price, cp, t.quantity) : 0;
 

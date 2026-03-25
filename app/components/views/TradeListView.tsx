@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { Trade } from '@/app/types/trade';
 import { User } from '@supabase/supabase-js';
@@ -14,9 +14,9 @@ import { isKRWSymbol } from '@/app/utils/format';
 import {
   LayoutGrid, List as ListIcon, Search, X, ChevronDown,
   TrendingUp, TrendingDown, Wallet, BarChart3, DollarSign, Briefcase, Calendar, RotateCw, Brain,
-  BookOpen, PenLine, BarChart2, Sparkles, ArrowDown, Upload
+  BookOpen, PenLine, BarChart2, Sparkles, ArrowDown, Upload, ArrowUpDown, MoreHorizontal
 } from 'lucide-react';
-import { useTradeFilter, DatePreset } from '@/app/hooks/useTradeFilter';
+import { useTradeFilter, DatePreset, SideFilter } from '@/app/hooks/useTradeFilter';
 import { useTradeAnalysis } from '@/app/hooks/useTradeAnalysis';
 import { usePortfolio } from '@/app/hooks/usePortfolio';
 import { StreakBadge } from '@/app/components/StreakBadge';
@@ -251,6 +251,7 @@ export function TradeListView({
   onCopy,
 }: TradeListViewProps) {
   const tv = useTranslations('trade.view');
+  const tc = useTranslations('common');
   const currentLocale = useLocale();
 
   const DATE_PRESETS = useMemo(() => DATE_PRESET_KEYS.map(key => ({
@@ -265,6 +266,10 @@ export function TradeListView({
   const [isMobileView, setIsMobileView] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)').matches : false
   );
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
+  const [showMoreDropdown, setShowMoreDropdown] = useState(false);
+  const moreDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 767px)');
@@ -272,6 +277,28 @@ export function TradeListView({
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
   }, []);
+
+  useEffect(() => {
+    if (!showSortDropdown) return;
+    const handler = (e: MouseEvent) => {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(e.target as Node)) {
+        setShowSortDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showSortDropdown]);
+
+  useEffect(() => {
+    if (!showMoreDropdown) return;
+    const handler = (e: MouseEvent) => {
+      if (moreDropdownRef.current && !moreDropdownRef.current.contains(e.target as Node)) {
+        setShowMoreDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showMoreDropdown]);
 
   const switchToAnalysis = useCallback(() => {
     setViewMode('analysis');
@@ -315,6 +342,8 @@ export function TradeListView({
     dateTo, setDateTo,
     holdingOnly, setHoldingOnly,
     activeDatePreset, applyDatePreset,
+    sideFilter, setSideFilter,
+    sortBy, setSortBy,
   } = filterState;
 
   // Derive Daily Data for Calendar (evaluation P&L for held, realized P&L for sold)
@@ -406,7 +435,7 @@ export function TradeListView({
       krwValue: krw,
       usdValue: usd,
     }));
-  }, [trades, selectedSymbol, holdingOnly, filterSymbol, filterState.heldSymbols, showConverted, exchangeRate, currentPrices, dateFrom, dateTo]);
+  }, [trades, selectedSymbol, holdingOnly, filterSymbol, filterState.heldSymbols, showConverted, exchangeRate, currentPrices, dateFrom, dateTo, sideFilter]);
 
   // Trades and P&L for the selected calendar day
   const calendarDayTrades = useMemo(() => {
@@ -643,56 +672,130 @@ export function TradeListView({
 
             {/* Filter Buttons */}
             <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+              {/* Side Filter */}
+              <div className="flex p-0.5 rounded-xl bg-white/5 border border-white/8 gap-0.5">
+                {(['ALL', 'BUY', 'SELL'] as const).map(side => (
+                  <button
+                    key={side}
+                    onClick={() => setSideFilter(side as SideFilter)}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                      sideFilter === side
+                        ? 'bg-white/10 text-white shadow-sm'
+                        : 'text-white/30 hover:text-white/60'
+                    }`}
+                  >
+                    {side === 'ALL' ? tv('sideAll') : side === 'BUY' ? tc('buy') : tc('sell')}
+                  </button>
+                ))}
+              </div>
+
+              {/* Sort */}
+              <div className="relative" ref={sortDropdownRef}>
+                <button
+                  onClick={() => setShowSortDropdown(v => !v)}
+                  className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border transition-all whitespace-nowrap ${
+                    sortBy !== 'date-desc'
+                      ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30'
+                      : 'text-white/40 bg-white/5 border-white/8 hover:text-white/60 hover:bg-white/8'
+                  }`}
+                >
+                  <ArrowUpDown size={13} />
+                  {tv({
+                    'date-desc': 'sort_date-desc' as const,
+                    'date-asc': 'sort_date-asc' as const,
+                    'pnl-desc': 'sort_pnl-desc' as const,
+                    'pnl-asc': 'sort_pnl-asc' as const,
+                  }[sortBy])}
+                </button>
+                {showSortDropdown && (
+                  <div className="absolute top-full left-0 mt-1 w-40 z-20 rounded-xl border border-white/10 bg-card shadow-toss-lg overflow-hidden">
+                    {(['date-desc', 'date-asc', 'pnl-desc', 'pnl-asc'] as const).map(opt => (
+                      <button
+                        key={opt}
+                        onClick={() => { setSortBy(opt); setShowSortDropdown(false); }}
+                        className={`w-full text-left px-3 py-2.5 text-xs font-semibold transition-colors ${
+                          sortBy === opt ? 'bg-indigo-500/10 text-indigo-400' : 'text-white/60 hover:bg-white/5'
+                        }`}
+                      >
+                        {tv({
+                          'date-desc': 'sort_date-desc' as const,
+                          'date-asc': 'sort_date-asc' as const,
+                          'pnl-desc': 'sort_pnl-desc' as const,
+                          'pnl-asc': 'sort_pnl-asc' as const,
+                        }[opt])}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Holding Only Toggle */}
               <button
                 onClick={() => setHoldingOnly(!holdingOnly)}
                 className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border transition-all whitespace-nowrap ${holdingOnly
                   ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
                   : 'text-white/40 bg-white/5 border-white/8 hover:text-white/60 hover:bg-white/8'
-                  }`}
+                }`}
               >
                 <Briefcase size={13} />
                 {tv('holdingOnly')}
               </button>
 
-              {/* KRW Conversion Toggle (USD 종목 있을 때만 표시) */}
-              {hasUSDTrades && (
+              {/* More Actions Dropdown */}
+              {(hasUSDTrades || onRefreshPrices || onImport) && (
+              <div className="relative" ref={moreDropdownRef}>
                 <button
-                  onClick={() => onToggleConverted(!showConverted)}
-                  className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border transition-all whitespace-nowrap ${showConverted
-                    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                    : 'text-white/40 bg-white/5 border-white/8 hover:text-white/60 hover:bg-white/8'
-                    }`}
+                  onClick={() => setShowMoreDropdown(v => !v)}
+                  className={`flex items-center gap-1.5 px-2.5 py-2.5 rounded-xl text-xs font-bold border transition-all whitespace-nowrap ${
+                    showMoreDropdown || showConverted
+                      ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30'
+                      : 'text-white/40 bg-white/5 border-white/8 hover:text-white/60 hover:bg-white/8'
+                  }`}
+                  title={tv('moreActions')}
                 >
-                  <DollarSign size={13} />
-                  {tv('applyExchangeRate')}
+                  <MoreHorizontal size={15} />
                 </button>
-              )}
-
-              {/* Refresh Current Prices */}
-              {onRefreshPrices && (
-                <button
-                  onClick={onRefreshPrices}
-                  disabled={pricesLoading}
-                  className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border transition-all whitespace-nowrap ${pricesLoading
-                    ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30 cursor-wait'
-                    : 'text-white/40 bg-white/5 border-white/8 hover:text-white/60 hover:bg-white/8'
-                    }`}
-                >
-                  <RotateCw size={13} className={pricesLoading ? 'animate-spin' : ''} />
-                  {tv('refreshPrices')}
-                </button>
-              )}
-
-              {/* Import Trades */}
-              {onImport && (
-                <button
-                  onClick={onImport}
-                  className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border border-white/8 text-white/40 bg-white/5 hover:text-white/60 hover:bg-white/8 transition-all whitespace-nowrap"
-                >
-                  <Upload size={13} />
-                  {tv('importTrades')}
-                </button>
+                {showMoreDropdown && (
+                  <div className="absolute top-full left-0 sm:left-auto sm:right-0 mt-1 w-48 z-20 rounded-xl border border-white/10 bg-card shadow-toss-lg overflow-hidden">
+                    {/* KRW Conversion Toggle */}
+                    {hasUSDTrades && (
+                      <button
+                        onClick={() => { onToggleConverted(!showConverted); setShowMoreDropdown(false); }}
+                        className={`w-full flex items-center gap-2 px-3 py-2.5 text-xs font-semibold transition-colors ${
+                          showConverted ? 'text-emerald-400 bg-emerald-500/10' : 'text-white/60 hover:bg-white/5'
+                        }`}
+                      >
+                        <DollarSign size={13} />
+                        {tv('applyExchangeRate')}
+                        {showConverted && <span className="ml-auto text-emerald-400 text-[10px]">ON</span>}
+                      </button>
+                    )}
+                    {/* Refresh Current Prices */}
+                    {onRefreshPrices && (
+                      <button
+                        onClick={() => { onRefreshPrices(); setShowMoreDropdown(false); }}
+                        disabled={pricesLoading}
+                        className={`w-full flex items-center gap-2 px-3 py-2.5 text-xs font-semibold transition-colors ${
+                          pricesLoading ? 'text-indigo-400 cursor-wait' : 'text-white/60 hover:bg-white/5'
+                        }`}
+                      >
+                        <RotateCw size={13} className={pricesLoading ? 'animate-spin' : ''} />
+                        {tv('refreshPrices')}
+                      </button>
+                    )}
+                    {/* Import Trades */}
+                    {onImport && (
+                      <button
+                        onClick={() => { onImport(); setShowMoreDropdown(false); }}
+                        className="w-full flex items-center gap-2 px-3 py-2.5 text-xs font-semibold text-white/60 hover:bg-white/5 transition-colors"
+                      >
+                        <Upload size={13} />
+                        {tv('importTrades')}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
               )}
 
               {/* Date Filter Active Badge */}
@@ -891,6 +994,7 @@ export function TradeListView({
                 showConverted={showConverted}
                 currentPrices={currentPrices}
                 heldSymbols={filterState.heldSymbols}
+                sortBy={sortBy}
               />
             )
           )}

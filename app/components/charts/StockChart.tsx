@@ -71,7 +71,17 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
 
         // 매수/매도 마커 데이터 준비
         const symbolTrades = trades.filter(t => t.symbol === symbol);
-        const tradesByDate = new Map<number, { side: string; price: number; quantity: number }>();
+        if (symbolTrades.length === 0) return chartData.map((d, i) => ({
+            ...d,
+            ma5: ma5[i],
+            ma20: ma20[i],
+            ma60: ma60[i],
+            priceRange: [d.low, d.high] as [number, number],
+        }));
+        const tradesByDate = new Map<number, {
+            buys: { price: number; quantity: number }[];
+            sells: { price: number; quantity: number }[];
+        }>();
 
         symbolTrades.forEach(trade => {
             const tradeTimestamp = new Date(trade.date).getTime();
@@ -79,12 +89,14 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
             const closestDataPoint = chartData.reduce((prev, curr) => {
                 return Math.abs(curr.date - tradeTimestamp) < Math.abs(prev.date - tradeTimestamp) ? curr : prev;
             });
-            // 날짜별로 마지막 거래만 저장 (또는 병합 가능)
-            tradesByDate.set(closestDataPoint.date, {
-                side: trade.side,
-                price: trade.price,
-                quantity: trade.quantity,
-            });
+            const key = closestDataPoint.date;
+            const existing = tradesByDate.get(key) ?? { buys: [], sells: [] };
+            if (trade.side === 'BUY') {
+                existing.buys.push({ price: trade.price, quantity: trade.quantity });
+            } else {
+                existing.sells.push({ price: trade.price, quantity: trade.quantity });
+            }
+            tradesByDate.set(key, existing);
         });
 
         return chartData.map((d, i) => {
@@ -97,9 +109,21 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
                 // Range for candlestick wick (low to high)
                 priceRange: [d.low, d.high] as [number, number],
                 // 매수/매도 마커 데이터
-                markerPrice: marker?.price,
-                markerSide: marker?.side,
-                markerQty: marker?.quantity,
+                markerBuys: marker?.buys,
+                markerSells: marker?.sells,
+                // For the scatter plot position, use the weighted average price across all trades
+                markerPrice: marker ? (
+                    marker.buys.length > 0 && marker.sells.length > 0
+                        ? (marker.buys.reduce((s, b) => s + b.price * b.quantity, 0) + marker.sells.reduce((s, b) => s + b.price * b.quantity, 0)) /
+                          (marker.buys.reduce((s, b) => s + b.quantity, 0) + marker.sells.reduce((s, b) => s + b.quantity, 0))
+                        : marker.buys.length > 0
+                            ? marker.buys.reduce((s, b) => s + b.price * b.quantity, 0) / marker.buys.reduce((s, b) => s + b.quantity, 0)
+                            : marker.sells.reduce((s, b) => s + b.price * b.quantity, 0) / marker.sells.reduce((s, b) => s + b.quantity, 0)
+                ) : undefined,
+                markerSide: marker ? (
+                    marker.buys.length > 0 && marker.sells.length > 0 ? 'BOTH'
+                    : marker.buys.length > 0 ? 'BUY' : 'SELL'
+                ) : undefined,
             };
         });
     }, [chartData, trades, symbol]);
@@ -212,6 +236,8 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
         payload?: {
             markerSide?: string;
             markerPrice?: number;
+            markerBuys?: { price: number; quantity: number }[];
+            markerSells?: { price: number; quantity: number }[];
         };
     }
 
@@ -222,8 +248,19 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
         if (!payload || !payload.markerSide || !payload.markerPrice) return null;
 
         const isBuy = payload.markerSide === 'BUY';
-        const color = isBuy ? '#ef4444' : '#3b82f6';  // Red: buy, Blue: sell
+        const isBoth = payload.markerSide === 'BOTH';
+        const color = isBoth ? '#a855f7' : isBuy ? '#ef4444' : '#3b82f6';
         const size = compact ? 6 : 8;
+
+        if (isBoth) {
+            // Diamond shape for mixed trades
+            const points = `${cx},${cy - size} ${cx + size},${cy} ${cx},${cy + size} ${cx - size},${cy}`;
+            return (
+                <g>
+                    <polygon points={points} fill={color} stroke="white" strokeWidth={1} />
+                </g>
+            );
+        }
 
         if (isBuy) {
             // Up arrow: tip at trade price (cy), body extends downward
@@ -231,14 +268,7 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
             return (
                 <g>
                     <polygon points={points} fill={color} stroke="white" strokeWidth={1} />
-                    <text
-                        x={cx}
-                        y={cy + size * 2 + 12}
-                        textAnchor="middle"
-                        fontSize={compact ? 8 : 9}
-                        fontWeight="bold"
-                        fill={color}
-                    >
+                    <text x={cx} y={cy + size * 2 + 12} textAnchor="middle" fontSize={compact ? 8 : 9} fontWeight="bold" fill={color}>
                         {formatNumber(payload.markerPrice, undefined, numLocale)}
                     </text>
                 </g>
@@ -249,14 +279,7 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
             return (
                 <g>
                     <polygon points={points} fill={color} stroke="white" strokeWidth={1} />
-                    <text
-                        x={cx}
-                        y={cy - size * 2 - 4}
-                        textAnchor="middle"
-                        fontSize={compact ? 8 : 9}
-                        fontWeight="bold"
-                        fill={color}
-                    >
+                    <text x={cx} y={cy - size * 2 - 4} textAnchor="middle" fontSize={compact ? 8 : 9} fontWeight="bold" fill={color}>
                         {formatNumber(payload.markerPrice, undefined, numLocale)}
                     </text>
                 </g>
@@ -271,7 +294,8 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
             payload: StockChartData & {
                 markerSide?: string;
                 markerPrice?: number;
-                markerQty?: number;
+                markerBuys?: { price: number; quantity: number }[];
+                markerSells?: { price: number; quantity: number }[];
             };
         }>;
     }
@@ -280,7 +304,7 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
         if (!active || !payload || !payload[0]) return null;
 
         const data = payload[0].payload;
-        const { date, open, high, low, close, markerSide, markerPrice, markerQty } = data;
+        const { date, open, high, low, close, markerSide, markerPrice, markerBuys, markerSells } = data;
 
         return (
             <div
@@ -315,10 +339,18 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
                 {/* 매수/매도 거래 정보 */}
                 {markerSide && markerPrice != null && (
                     <div className={`mt-1.5 pt-1.5 border-t ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
-                        <div className={`font-bold ${markerSide === 'BUY' ? 'text-rose-500' : 'text-blue-500'}`}>
-                            {markerSide === 'BUY' ? t('tooltipBuy') : t('tooltipSell')} {formatNumber(markerPrice, undefined, numLocale)}
-                            {markerQty && <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}> ({markerQty}{tc('shares')})</span>}
-                        </div>
+                        {markerBuys && markerBuys.length > 0 && (
+                            <div className="text-rose-500 font-bold">
+                                {t('tooltipBuy')} {markerBuys.map(b => `${formatNumber(b.price, undefined, numLocale)}`).join(', ')}
+                                <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}> ({markerBuys.reduce((s, b) => s + b.quantity, 0)}{tc('shares')})</span>
+                            </div>
+                        )}
+                        {markerSells && markerSells.length > 0 && (
+                            <div className="text-blue-500 font-bold">
+                                {t('tooltipSell')} {markerSells.map(b => `${formatNumber(b.price, undefined, numLocale)}`).join(', ')}
+                                <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}> ({markerSells.reduce((s, b) => s + b.quantity, 0)}{tc('shares')})</span>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

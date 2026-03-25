@@ -2,6 +2,9 @@ import { useState, useMemo, useCallback } from 'react';
 import { Trade } from '@/app/types/trade';
 
 export type DatePreset = 'today' | 'week' | 'month' | 'year' | 'all';
+export type SideFilter = 'ALL' | 'BUY' | 'SELL';
+export type SortBy = 'date-desc' | 'date-asc' | 'pnl-desc' | 'pnl-asc';
+
 
 /**
  * Calculate held symbols: symbols where total BUY qty > total SELL qty.
@@ -28,6 +31,10 @@ export function useTradeFilter(trades: Trade[]) {
 
     // Date preset state
     const [activeDatePreset, setActiveDatePreset] = useState<DatePreset | null>(null);
+
+    // Sort, Side Filter
+    const [sideFilter, setSideFilter] = useState<SideFilter>('ALL');
+    const [sortBy, setSortBy] = useState<SortBy>('date-desc');
 
     // Drill-down State
     const [selectedSymbol, setSelectedSymbol] = useState<string>('');
@@ -88,6 +95,11 @@ export function useTradeFilter(trades: Trade[]) {
             result = result.filter(t => heldSymbols.has(t.symbol));
         }
 
+        // Side Filter
+        if (sideFilter !== 'ALL') {
+            result = result.filter(t => t.side === sideFilter);
+        }
+
         // Symbol Filter (Input)
         if (filterSymbol) {
             const lower = filterSymbol.toLowerCase();
@@ -111,7 +123,7 @@ export function useTradeFilter(trades: Trade[]) {
         }
 
         return result;
-    }, [trades, filterSymbol, selectedSymbol, dateFrom, dateTo, holdingOnly, heldSymbols]);
+    }, [trades, filterSymbol, selectedSymbol, dateFrom, dateTo, holdingOnly, heldSymbols, sideFilter]);
 
     const resetFilters = () => {
         setFilterSymbol('');
@@ -119,6 +131,8 @@ export function useTradeFilter(trades: Trade[]) {
         setDateToInternal('');
         setSelectedSymbol('');
         setHoldingOnly(false);
+        setSideFilter('ALL');
+        setSortBy('date-desc');
         setActiveDatePreset(null);
     };
 
@@ -138,5 +152,9 @@ export function useTradeFilter(trades: Trade[]) {
         resetFilters,
         activeDatePreset,
         applyDatePreset,
+        sideFilter,
+        setSideFilter,
+        sortBy,
+        setSortBy,
     };
 }

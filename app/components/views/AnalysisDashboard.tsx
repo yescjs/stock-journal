@@ -1199,6 +1199,14 @@ export function AnalysisDashboard({
   const t = useTranslations('analysis');
   const tc = useTranslations('common');
 
+  // Escape key closes heatmap modal
+  useEffect(() => {
+    if (!selectedHeatmapCell) return;
+    const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') setSelectedHeatmapCell(null); };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [selectedHeatmapCell]);
+
   // initialTab prop이 변경되면 반영 (외부 네비게이션)
   useEffect(() => {
     if (initialTab) setActiveTab(initialTab); // eslint-disable-line
@@ -1291,10 +1299,10 @@ export function AnalysisDashboard({
 
       {/* Heatmap Cell Detail Modal */}
       {selectedHeatmapCell && (
-        <div className="fixed inset-0 z-60 flex items-end sm:items-center justify-center" onClick={() => setSelectedHeatmapCell(null)}>
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center" onClick={() => setSelectedHeatmapCell(null)}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
           <div
-            className="relative z-70 w-full max-w-md max-h-[80vh] bg-gray-900 border border-white/10 rounded-t-2xl sm:rounded-2xl p-5 overflow-y-auto"
+            className="relative z-[70] w-full max-w-md max-h-[80vh] bg-gray-900 border border-white/10 rounded-t-2xl sm:rounded-2xl p-5 overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">

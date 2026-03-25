@@ -870,7 +870,9 @@ export function calcPeriodComparison(
     changes: {
       winRate: periodB.winRate - periodA.winRate,
       avgReturn: periodB.avgReturn - periodA.avgReturn,
-      profitFactor: periodB.profitFactor - periodA.profitFactor,
+      profitFactor: (isFinite(periodA.profitFactor) && isFinite(periodB.profitFactor))
+        ? periodB.profitFactor - periodA.profitFactor
+        : (isFinite(periodB.profitFactor) ? periodB.profitFactor : (isFinite(periodA.profitFactor) ? -periodA.profitFactor : 0)),
       maxLoss: periodB.maxLoss - periodA.maxLoss,
       tradeCount: periodB.tradeCount - periodA.tradeCount,
       totalPnl: periodB.totalPnl - periodA.totalPnl,
