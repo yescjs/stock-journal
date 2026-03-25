@@ -1070,6 +1070,7 @@ function StreaksCard({ streaks }: { streaks: { currentWin: number; currentLoss: 
 
 function RoundTripList({
   roundTrips, onReviewTrade, tradeReview, loadingReview, coinBalance = 0, isLoggedIn = true, onChargeCoins,
+  isStreamingReview = false, streamedReviewContent = '', onStopStreaming,
 }: {
   roundTrips: TradeAnalysis['roundTrips'];
   onReviewTrade: (trip: TradeAnalysis['roundTrips'][0]) => void;
@@ -1078,6 +1079,9 @@ function RoundTripList({
   coinBalance?: number;
   isLoggedIn?: boolean;
   onChargeCoins?: () => void;
+  isStreamingReview?: boolean;
+  streamedReviewContent?: string;
+  onStopStreaming?: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const t = useTranslations('analysis.roundTrips');
@@ -1143,17 +1147,20 @@ function RoundTripList({
                   )}
                 </div>
               </div>
-              {review && (
+              {(review || (isLoadingThis && isStreamingReview && streamedReviewContent)) && (
                 <div className="px-3 pb-3">
                   <AIReportCard
                     title={ta('tradeReviewTitle')}
                     subtitle={`${trip.symbolName || trip.symbol} · ${trip.exitDate}`}
-                    report={review.report}
-                    generatedAt={review.generatedAt}
+                    report={review?.report ?? null}
+                    generatedAt={review?.generatedAt ?? null}
                     loading={isLoadingThis}
                     error={null}
                     onGenerate={() => onReviewTrade(trip)}
                     compact
+                    isStreaming={isLoadingThis && isStreamingReview}
+                    streamedContent={isLoadingThis ? streamedReviewContent : undefined}
+                    onStopStreaming={onStopStreaming}
                   />
                 </div>
               )}
@@ -1209,6 +1216,9 @@ export function AnalysisDashboard({
     weeklyReport, tradeReview, loadingWeekly, loadingReview, error: aiError,
     generateWeeklyReport, reviewTrade, clearWeeklyReport,
     savedReports, loadingSavedReports, deleteReport,
+    isStreamingWeekly, streamedWeeklyContent,
+    isStreamingReview, streamedReviewContent,
+    stopWeeklyStreaming, stopReviewStreaming,
   } = useAIAnalysis(currentUser, onCoinsConsumed);
 
   if (!analysis || analysis.roundTrips.length === 0) {
@@ -1344,8 +1354,11 @@ export function AnalysisDashboard({
             coinBalance={coinBalance}
             onChargeCoins={onChargeCoins}
             isLoggedIn={!!currentUser}
+            isStreaming={isStreamingWeekly}
+            streamedContent={streamedWeeklyContent}
+            onStopStreaming={stopWeeklyStreaming}
           />
-          <AIReportHistory reports={savedReports} loading={loadingSavedReports} onDelete={deleteReport} />
+          <AIReportHistory reports={savedReports} loading={loadingSavedReports} onDelete={deleteReport} userBalance={coinBalance} onCoinsConsumed={onCoinsConsumed} isLoggedIn={!!currentUser} />
         </div>
       )}
 
@@ -1358,6 +1371,9 @@ export function AnalysisDashboard({
           coinBalance={coinBalance}
           isLoggedIn={!!currentUser}
           onChargeCoins={onChargeCoins}
+          isStreamingReview={isStreamingReview}
+          streamedReviewContent={streamedReviewContent}
+          onStopStreaming={stopReviewStreaming}
         />
       )}
 

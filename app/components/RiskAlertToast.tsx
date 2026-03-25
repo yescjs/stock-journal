@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, ShieldAlert, X, BellOff } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import type { RiskAlert } from '@/app/hooks/useRiskAlert';
 
 interface RiskAlertToastProps {
@@ -12,6 +13,8 @@ interface RiskAlertToastProps {
 }
 
 export function RiskAlertToast({ alerts, onAcknowledge, onDismissToday }: RiskAlertToastProps) {
+  const t = useTranslations('riskAlert');
+
   if (alerts.length === 0) return null;
 
   // Show the most severe alert first
@@ -50,10 +53,10 @@ export function RiskAlertToast({ alerts, onAcknowledge, onDismissToday }: RiskAl
               <h4 className={`text-sm font-bold ${
                 isCritical ? 'text-red-300' : 'text-amber-300'
               }`}>
-                {isCritical ? '위험 경고' : '주의 알림'}
+                {isCritical ? t('criticalTitle') : t('warningTitle')}
               </h4>
               <p className="text-xs text-white/60 mt-1 leading-relaxed">
-                {primary.message}
+                {t(primary.messageKey, primary.messageParams)}
               </p>
             </div>
             <button
@@ -69,7 +72,7 @@ export function RiskAlertToast({ alerts, onAcknowledge, onDismissToday }: RiskAl
             <div className="px-4 pb-2 space-y-1">
               {sorted.slice(1).map((alert, i) => (
                 <p key={i} className="text-xs text-white/40 pl-12 leading-relaxed">
-                  {alert.message}
+                  {t(alert.messageKey, alert.messageParams)}
                 </p>
               ))}
             </div>
@@ -82,7 +85,7 @@ export function RiskAlertToast({ alerts, onAcknowledge, onDismissToday }: RiskAl
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white/40 hover:text-white/60 hover:bg-white/5 transition-colors"
             >
               <BellOff size={12} />
-              오늘 알림 끄기
+              {t('dismissToday')}
             </button>
             <button
               onClick={onAcknowledge}
@@ -92,7 +95,7 @@ export function RiskAlertToast({ alerts, onAcknowledge, onDismissToday }: RiskAl
                   : 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
               }`}
             >
-              확인
+              {t('acknowledge')}
             </button>
           </div>
         </div>

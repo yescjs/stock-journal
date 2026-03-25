@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Send, Bot, User, Loader2, AlertCircle, Gem, Trash2 } from 'lucide-react';
+import { Send, Bot, User, Loader2, AlertCircle, Gem, Trash2, Square } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { markdownComponents } from '@/app/components/AIReportHistory';
 import type { ChatMessage } from '@/app/hooks/useAIChat';
@@ -21,6 +21,9 @@ interface AIChatPanelProps {
   hideHeader?: boolean;
   freeRemaining?: number;
   isFree?: boolean;
+  // Streaming props
+  isStreaming?: boolean;
+  onStopStreaming?: () => void;
 }
 
 export function AIChatPanel({
@@ -35,6 +38,8 @@ export function AIChatPanel({
   hideHeader = false,
   freeRemaining = 0,
   isFree = false,
+  isStreaming = false,
+  onStopStreaming,
 }: AIChatPanelProps) {
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -47,7 +52,7 @@ export function AIChatPanel({
     t('suggestEmotionReturn'),
   ], [t]);
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll to bottom on new messages or streaming updates
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -155,6 +160,9 @@ export function AIChatPanel({
                     <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                       {msg.text}
                     </ReactMarkdown>
+                    {msg.isStreaming && (
+                      <span className="inline-block w-1.5 h-3.5 bg-indigo-400 animate-pulse ml-0.5 align-middle" />
+                    )}
                   </div>
                 )}
               </div>
@@ -167,8 +175,8 @@ export function AIChatPanel({
           ))}
         </AnimatePresence>
 
-        {/* Loading indicator */}
-        {loading && (
+        {/* Loading indicator (when loading but not yet streaming) */}
+        {loading && !isStreaming && !messages.some(m => m.isStreaming) && (
           <div className="flex gap-2.5">
             <div className="w-7 h-7 rounded-lg bg-indigo-500/15 flex items-center justify-center flex-none">
               <Bot size={14} className="text-indigo-400" />
@@ -201,6 +209,17 @@ export function AIChatPanel({
       {/* Input */}
       <form onSubmit={handleSubmit} className="p-3 border-t border-white/8">
         <div className="flex items-center gap-2">
+          {/* Stop button during streaming */}
+          {isStreaming && onStopStreaming && (
+            <button
+              type="button"
+              onClick={onStopStreaming}
+              className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center text-red-400 hover:bg-red-500/30 transition-colors flex-none"
+              title={t('stop')}
+            >
+              <Square size={14} className="fill-current" />
+            </button>
+          )}
           <input
             ref={inputRef}
             type="text"

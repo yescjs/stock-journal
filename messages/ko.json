@@ -275,7 +275,8 @@
       "suggestEmotionReturn": "감정별 수익률 비교",
       "freeCount": "무료 {count}회",
       "coinPerQuestion": "1코인/질문",
-      "dataQuestion": "매매 데이터 질문"
+      "dataQuestion": "매매 데이터 질문",
+      "stop": "중단"
     },
     "list": {
       "emptyTitle": "아직 작성된 매매 일지가 없습니다",
@@ -549,13 +550,32 @@
       "reset": "초기화",
       "coinShort": "코인 부족 ({balance}/{cost})",
       "emptyCompact": "이 거래에 대한 AI 피드백을 받아보세요.",
-      "emptyFull": "매매 데이터를 기반으로 AI가 투자 코치 리포트를 생성합니다. 승률, 감정 패턴, 전략 효과 등을 종합 분석합니다."
+      "emptyFull": "매매 데이터를 기반으로 AI가 투자 코치 리포트를 생성합니다. 승률, 감정 패턴, 전략 효과 등을 종합 분석합니다.",
+      "streaming": "생성 중...",
+      "stop": "중단"
     },
     "reportHistory": {
       "title": "저장된 AI 분석 리포트",
       "loading": "리포트 목록 불러오는 중...",
       "weeklyReport": "종합 분석",
       "tradeReview": "거래 리뷰"
+    },
+    "reportTrend": {
+      "viewTrends": "추이 보기",
+      "hideTrends": "추이 닫기",
+      "title": "리포트 추이 분석",
+      "winRate": "승률",
+      "pnlPercent": "수익률",
+      "rrRatio": "R:R 비율",
+      "tradeCount": "거래 횟수",
+      "emptyState": "리포트를 2개 이상 생성하면 추이를 볼 수 있습니다.",
+      "guestNotice": "로그인 후 이용할 수 있는 기능입니다.",
+      "aiTrendButton": "AI 트렌드 분석 ({cost}코인)",
+      "aiTrendTitle": "AI 성장 트렌드 요약",
+      "aiTrendLoading": "트렌드 분석 중...",
+      "noMetrics": "추이를 표시할 수 있는 지표가 없습니다.",
+      "coinShort": "코인 부족 ({balance}/{cost})",
+      "reports": "개의 리포트"
     },
     "hook": {
       "insufficientCoins": "코인이 부족합니다. 코인을 충전해주세요.",
@@ -1049,6 +1069,34 @@
       "indicator": "📊 경제지표",
       "global": "🌐 해외주식"
     }
+  },
+  "riskAlert": {
+    "criticalTitle": "위험 경고",
+    "warningTitle": "주의 알림",
+    "dismissToday": "오늘 알림 끄기",
+    "acknowledge": "확인",
+    "lossStreak": "{streak}연패 중입니다. 잠시 매매를 멈추고 전략을 점검해보세요.",
+    "overtrading": "오늘 {count}건의 거래를 기록했습니다. 과매매에 주의하세요.",
+    "emotionalStreak": "최근 {streak}건의 거래가 감정적 매매({tags})입니다. 규칙에 따른 매매인지 점검하세요.",
+    "dailyLoss": "오늘 누적 손실이 투자금 대비 {percent}%입니다. 추가 손실 확대에 주의하세요."
+  },
+  "insight": {
+    "title": {
+      "win_rate_drop": "승률 하락 감지",
+      "win_rate_rise": "승률 상승 감지",
+      "overtrading": "과매매 경고",
+      "emotion_shift": "감정적 매매 증가",
+      "losing_streak": "연속 손실 경고"
+    },
+    "winRateDrop": "최근 7일 승률이 {previous}%에서 {current}%로 {diff}%p 하락했습니다.",
+    "winRateRise": "최근 7일 승률이 {previous}%에서 {current}%로 {diff}%p 상승했습니다.",
+    "overtrading": "일일 평균 거래 횟수가 {previousAvg}건에서 {currentAvg}건으로 {multiplier}배 증가했습니다.",
+    "emotionShift": "최근 7일간 {tag} 태그 비율이 {previousPercent}%에서 {currentPercent}%로 {diff}%p 증가했습니다.",
+    "losingStreak": "현재 {count}연패 중입니다. 복수 매매(revenge trading) 위험에 주의하세요.",
+    "getAIComment": "AI 코멘트 받기 (1코인)",
+    "analyzing": "분석 중...",
+    "dismiss": "닫기",
+    "loginForAI": "로그인하고 AI 분석 받기"
   },
   "format": {
     "monthLabel": "{year}년 {month}월",

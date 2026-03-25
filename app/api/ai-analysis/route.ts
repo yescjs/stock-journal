@@ -32,11 +32,24 @@ interface ChatQARequest {
   history?: { role: 'user' | 'assistant'; text: string }[];
 }
 
-interface BaseRequest {
-  locale?: string;
+interface ReportTrendRequest {
+  type: 'report_trend';
+  trendData: { date: string; winRate?: number; totalTrades?: number; pnlPercent?: number; rrRatio?: number }[];
 }
 
-type AIAnalysisRequest = (WeeklyReportRequest | TradeReviewRequest | PreTradeCoachRequest | ChatQARequest) & BaseRequest;
+interface PatternInsightRequest {
+  type: 'pattern_insight';
+  patternType: string;
+  patternData: Record<string, unknown>;
+  summaryValues: Record<string, string | number>;
+}
+
+interface BaseRequest {
+  locale?: string;
+  stream?: boolean;
+}
+
+type AIAnalysisRequest = (WeeklyReportRequest | TradeReviewRequest | PreTradeCoachRequest | ChatQARequest | ReportTrendRequest | PatternInsightRequest) & BaseRequest;
 
 interface AIAnalysisResponse {
   report: string;
@@ -444,9 +457,214 @@ ${question}`;
 ${question}`;
 }
 
+// ─── Report Trend Prompt ─────────────────────────────────────────────────
+
+function buildReportTrendPrompt(req: ReportTrendRequest, locale?: string): string {
+  const { trendData } = req;
+  const isEn = locale === 'en';
+  const count = trendData.length;
+  const first = trendData[0];
+  const last = trendData[count - 1];
+
+  const dataRows = trendData.map(d => {
+    const parts = [`Date: ${d.date}`];
+    if (d.winRate != null) parts.push(`Win rate: ${d.winRate.toFixed(1)}%`);
+    if (d.totalTrades != null) parts.push(`Trades: ${d.totalTrades}`);
+    if (d.pnlPercent != null) parts.push(`P&L: ${d.pnlPercent >= 0 ? '+' : ''}${d.pnlPercent.toFixed(2)}%`);
+    if (d.rrRatio != null) parts.push(`R:R: ${d.rrRatio.toFixed(2)}`);
+    return `- ${parts.join(' | ')}`;
+  }).join('\n');
+
+  // Compute summary stats for the prompt
+  const winRates = trendData.filter(d => d.winRate != null).map(d => d.winRate!);
+  const pnls = trendData.filter(d => d.pnlPercent != null).map(d => d.pnlPercent!);
+  const bestWinRate = winRates.length > 0 ? Math.max(...winRates) : null;
+  const worstWinRate = winRates.length > 0 ? Math.min(...winRates) : null;
+  const bestPnl = pnls.length > 0 ? Math.max(...pnls) : null;
+  const worstPnl = pnls.length > 0 ? Math.min(...pnls) : null;
+
+  const summaryStats = [
+    first?.winRate != null && last?.winRate != null ? `Win rate: ${first.winRate.toFixed(1)}% (first) -> ${last.winRate.toFixed(1)}% (latest)` : null,
+    first?.pnlPercent != null && last?.pnlPercent != null ? `P&L: ${first.pnlPercent >= 0 ? '+' : ''}${first.pnlPercent.toFixed(2)}% (first) -> ${last.pnlPercent >= 0 ? '+' : ''}${last.pnlPercent.toFixed(2)}% (latest)` : null,
+    first?.rrRatio != null && last?.rrRatio != null ? `R:R: ${first.rrRatio.toFixed(2)} (first) -> ${last.rrRatio.toFixed(2)} (latest)` : null,
+    bestWinRate != null && worstWinRate != null ? `Best win rate: ${bestWinRate.toFixed(1)}%, Worst: ${worstWinRate.toFixed(1)}%` : null,
+    bestPnl != null && worstPnl != null ? `Best P&L: ${bestPnl >= 0 ? '+' : ''}${bestPnl.toFixed(2)}%, Worst: ${worstPnl >= 0 ? '+' : ''}${worstPnl.toFixed(2)}%` : null,
+  ].filter(Boolean).join('\n');
+
+  if (isEn) {
+    return `Analyze the following trading report trend data as a dedicated 1:1 trading coach. Address the trader directly and personally.
+
+## Report History (${count} reports, oldest to newest)
+${dataRows}
+
+## Key Comparisons (first vs latest period)
+${summaryStats}
+
+## Output Format (use this exact markdown structure)
+
+Write your analysis using these 4 sections with emoji headers. Keep the total length to 6-8 sentences across all sections. Use **bold** for key numbers.
+
+\`\`\`
+📊 **Performance Trend Analysis**
+[1-2 sentences comparing first vs latest periods with specific numbers and % changes. State whether they are improving, declining, or plateauing.]
+
+🔑 **Key Turning Points**
+- [bullet: most significant metric shift with specific numbers, e.g., "Win rate jumped from X% to Y% between report #3 and #4"]
+- [bullet: second notable change if applicable]
+
+💡 **Coaching Advice**
+[1-2 sentences of personalized, encouraging but honest advice referencing specific weaknesses and strengths from the data]
+
+🎯 **Action Items for Next Week**
+- [actionable step 1 with concrete target number]
+- [actionable step 2]
+\`\`\`
+
+Be warm and encouraging about improvements, but honest about areas needing work. Always cite specific numbers.`;
+  }
+
+  return `아래 매매 리포트 추이 데이터를 전담 1:1 과외 선생님으로서 분석하세요. 트레이더님을 직접 호칭하며 개인적으로 코칭하세요.
+
+## 리포트 히스토리 (${count}개 리포트, 오래된 순)
+${dataRows}
+
+## 핵심 비교 (첫 번째 vs 최근 기간)
+${summaryStats}
+
+## 출력 형식 (아래 마크다운 구조를 정확히 따르세요)
+
+아래 4개 섹션으로 분석을 작성하세요. 전체 길이는 6~8문장으로 유지하세요. 핵심 수치는 **볼드**로 표시하세요.
+
+\`\`\`
+📊 **성과 추이 분석**
+[1~2문장: 첫 번째와 최근 기간을 구체적 수치와 변화율로 비교. 개선/하락/정체 여부 판단.]
+
+🔑 **핵심 변화 포인트**
+- [가장 눈에 띄는 지표 변화와 구체적 수치, 예: "리포트 #3과 #4 사이에 승률이 X%에서 Y%로 급등"]
+- [두 번째 주목할 변화가 있다면 추가]
+
+💡 **코칭 조언**
+[1~2문장: 데이터에 기반한 개인 맞춤형 조언. 잘한 점은 격려하되 약점은 솔직하게.]
+
+🎯 **다음 주 실천 목표**
+- [구체적 목표 수치가 포함된 실행 항목 1]
+- [실행 항목 2]
+\`\`\`
+
+개선된 부분은 따뜻하게 격려하되, 개선이 필요한 부분은 솔직하게 짚어주세요. 항상 구체적 수치를 인용하세요.`;
+}
+
+// ─── Pattern Insight Prompt ──────────────────────────────────────────────
+
+const PATTERN_INSIGHT_SYSTEM_KO = `당신은 전문 트레이딩 분석가이자 1:1 매매 코치입니다.
+사용자의 매매 패턴 변화 데이터를 분석하여 구체적인 수치를 기반으로 원인과 개선 방안을 제시합니다.
+존댓말 사용. 투자 권유 금지. 격려하되 위험 요소는 직설적으로 전달합니다.
+
+반드시 아래 마크다운 구조로 응답하세요:
+
+**패턴 감지: [패턴 유형]**
+[감지된 내용을 구체적 수치와 함께 1~2문장으로 설명]
+
+**원인 분석**
+- [가능한 원인 1]
+- [가능한 원인 2]
+
+**개선 제안**
+- [실천 가능한 조언 1]
+- [실천 가능한 조언 2]
+
+**즉시 실천 사항**
+[다음 매매 전 반드시 해야 할 한 가지 구체적 행동]`;
+
+const PATTERN_INSIGHT_SYSTEM_EN = `You are a professional trading analyst and dedicated 1:1 trading coach.
+Analyze users' trading pattern changes with specific numbers and provide causes and actionable improvement plans.
+No investment recommendations. Be encouraging but direct about risks.
+
+You MUST respond in the following markdown structure:
+
+**Pattern Detected: [pattern type]**
+[1-2 sentence explanation of what was detected with specific numbers]
+
+**Root Cause Analysis**
+- [possible cause 1]
+- [possible cause 2]
+
+**Improvement Suggestions**
+- [actionable advice 1]
+- [actionable advice 2]
+
+**Immediate Action Item**
+[one specific thing to do before the next trade]`;
+
+function buildPatternInsightPrompt(req: PatternInsightRequest & BaseRequest): string {
+  const { patternType, patternData, summaryValues, locale } = req;
+  const isEn = locale === 'en';
+
+  const patternLabels: Record<string, { ko: string; en: string }> = {
+    win_rate_drop: { ko: '승률 하락', en: 'Win rate decline' },
+    win_rate_rise: { ko: '승률 상승', en: 'Win rate improvement' },
+    overtrading: { ko: '과매매 증가', en: 'Overtrading increase' },
+    emotion_shift: { ko: '감정적 매매 증가', en: 'Emotional trading increase' },
+    losing_streak: { ko: '연속 손실', en: 'Consecutive losses' },
+  };
+
+  const label = patternLabels[patternType]?.[isEn ? 'en' : 'ko'] || patternType;
+
+  if (isEn) {
+    return `Pattern detected: ${label}
+Summary data: ${JSON.stringify(summaryValues)}
+Detailed metrics: ${JSON.stringify(patternData)}
+
+Analyze this pattern change in detail. Include specific numbers from the data (e.g., "win rate dropped from 80% to 30%, a 50pp decline").
+Provide 5-8 sentences total across all sections. Follow the exact markdown structure from your system instructions.`;
+  }
+
+  return `감지된 패턴: ${label}
+요약 데이터: ${JSON.stringify(summaryValues)}
+상세 지표: ${JSON.stringify(patternData)}
+
+이 패턴 변화를 상세히 분석하세요. 데이터의 구체적인 수치를 포함하세요 (예: "승률이 80%에서 30%로 50%p 하락").
+모든 섹션을 합쳐 5~8문장으로 작성하세요. 시스템 지침의 마크다운 구조를 정확히 따르세요.`;
+}
+
 // ─── Mock Report Builder (when GEMINI_API_KEY is not set) ────────────────
 
 function buildMockReport(body: AIAnalysisRequest): string {
+  if (body.type === 'pattern_insight') {
+    if (body.locale === 'en') {
+      return `**Pattern Detected: Trading Pattern Change**
+A notable shift has been detected in your recent trading behavior compared to your historical baseline.
+
+**Root Cause Analysis**
+- Increased emotional trading or deviation from your documented trading rules
+- Possible overconfidence after a winning streak or fear-driven decisions after losses
+
+**Improvement Suggestions**
+- Review your last 10 trades and compare them against your strategy checklist
+- Set strict entry/exit rules and commit to following them for the next 5 trades
+
+**Immediate Action Item**
+Before your next trade, write down your entry reason, stop-loss, and target price — and only execute if all three are defined.
+
+> Mock mode: Set GEMINI_API_KEY for personalized AI insights.`;
+    }
+    return `**패턴 감지: 매매 패턴 변화**
+최근 매매 행동에서 과거 기준 대비 주목할 만한 변화가 감지되었습니다.
+
+**원인 분석**
+- 감정적 매매 증가 또는 기존 매매 규칙에서의 이탈 가능성
+- 연속 수익 후 과신 또는 손실 후 공포 기반 의사결정 가능성
+
+**개선 제안**
+- 최근 10건의 거래를 전략 체크리스트와 비교 검토하세요
+- 엄격한 진입/청산 규칙을 설정하고 향후 5건의 거래에서 반드시 준수하세요
+
+**즉시 실천 사항**
+다음 매매 전, 진입 사유, 손절가, 목표가를 반드시 기록하고 세 가지가 모두 정해졌을 때만 실행하세요.
+
+> Mock 모드: GEMINI_API_KEY 설정 후 맞춤형 AI 인사이트를 받을 수 있습니다.`;
+  }
+
   if (body.type === 'pre_trade_coach') {
     if (body.locale === 'en') {
       return `- [ ] Have you set a stop-loss? (Current R:R ${body.analysis.advancedMetrics.rrRatio.toFixed(1)})
@@ -477,6 +695,20 @@ Win rate **${body.analysis.profile.winRate.toFixed(1)}%**, overall grade **${bod
 승률 **${body.analysis.profile.winRate.toFixed(1)}%**, 종합 등급 **${body.analysis.profile.overallGrade}**입니다.
 
 > Mock 모드: GEMINI_API_KEY 설정 후 상세한 AI 분석을 받을 수 있습니다.`;
+  }
+
+  if (body.type === 'report_trend') {
+    const count = body.trendData.length;
+    const first = body.trendData[0];
+    const last = body.trendData[count - 1];
+    if (body.locale === 'en') {
+      return `Over ${count} reports (${first?.date} to ${last?.date}), your trading metrics show a developing pattern. ${last?.winRate != null && first?.winRate != null ? `Win rate moved from ${first.winRate.toFixed(1)}% to ${last.winRate.toFixed(1)}%.` : ''} Continue tracking to identify sustained trends.
+
+> Mock mode: Set GEMINI_API_KEY for AI-powered trend analysis.`;
+    }
+    return `${count}개 리포트(${first?.date} ~ ${last?.date}) 기간 동안의 매매 지표 추이입니다. ${last?.winRate != null && first?.winRate != null ? `승률이 ${first.winRate.toFixed(1)}%에서 ${last.winRate.toFixed(1)}%로 변화했습니다.` : ''} 지속적인 추적을 통해 안정적인 트렌드를 확인하세요.
+
+> Mock 모드: GEMINI_API_KEY 설정 후 AI 트렌드 분석을 받을 수 있습니다.`;
   }
 
   if (body.type === 'weekly_report') {
@@ -620,6 +852,137 @@ async function callGeminiAPI(systemPrompt: string, userPrompt: string): Promise<
   throw lastError ?? new Error('모든 Gemini 모델 호출에 실패했습니다.');
 }
 
+// ─── Gemini Streaming API 호출 ──────────────────────────────────────────
+
+async function callGeminiStreamAPI(
+  systemPrompt: string,
+  userPrompt: string,
+): Promise<ReadableStream<Uint8Array>> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY가 설정되지 않았습니다.');
+
+  const requestBody = JSON.stringify({
+    system_instruction: {
+      parts: [{ text: systemPrompt }],
+    },
+    contents: [
+      {
+        role: 'user',
+        parts: [{ text: userPrompt }],
+      },
+    ],
+    generationConfig: {
+      temperature: 0.7,
+    },
+  });
+
+  let lastError: Error | null = null;
+
+  // 각 모델에 대해 최대 2회 재시도 (503/429 시 1초 대기)
+  for (const model of GEMINI_MODELS) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        if (attempt > 0) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
+
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: requestBody,
+        });
+
+        if (response.status === 503 || response.status === 429) {
+          const errorBody = await response.text();
+          console.warn(`Gemini stream ${model} (attempt ${attempt + 1}): ${response.status} — ${errorBody.slice(0, 200)}`);
+          lastError = new Error(`Gemini ${model}: ${response.status}`);
+          continue;
+        }
+
+        if (!response.ok) {
+          const errorBody = await response.text();
+          console.error(`Gemini stream ${model} error:`, errorBody);
+          lastError = new Error(`Gemini API 스트리밍 요청 실패 (${response.status})`);
+          break; // 4xx 등 다른 에러는 재시도 불필요, 다음 모델로
+        }
+
+        if (!response.body) {
+          lastError = new Error('Gemini API에서 스트리밍 body를 받지 못했습니다.');
+          break;
+        }
+
+        // Transform Gemini SSE stream into our own SSE format
+        const encoder = new TextEncoder();
+        const decoder = new TextDecoder();
+        const reader = response.body.getReader();
+
+        return new ReadableStream<Uint8Array>({
+          async start(controller) {
+            let buffer = '';
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                  if (line.startsWith('data: ')) {
+                    const jsonStr = line.slice(6).trim();
+                    if (!jsonStr) continue;
+                    try {
+                      const parsed = JSON.parse(jsonStr);
+                      const text = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
+                      if (text) {
+                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ chunk: text })}\n\n`));
+                      }
+                    } catch {
+                      // skip malformed JSON
+                    }
+                  }
+                }
+              }
+              // Process remaining buffer
+              if (buffer.startsWith('data: ')) {
+                const jsonStr = buffer.slice(6).trim();
+                if (jsonStr) {
+                  try {
+                    const parsed = JSON.parse(jsonStr);
+                    const text = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (text) {
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ chunk: text })}\n\n`));
+                    }
+                  } catch { /* skip */ }
+                }
+              }
+              controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+              controller.close();
+            } catch (err) {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: err instanceof Error ? err.message : 'Stream error' })}\n\n`));
+              controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+              controller.close();
+            }
+          },
+          cancel() {
+            reader.cancel();
+          },
+        });
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        console.warn(`Gemini stream ${model} network error (attempt ${attempt + 1}):`, lastError.message);
+      }
+    }
+    // 현재 모델 실패 — 다음 모델 시도
+    console.warn(`⚠ ${model} 스트리밍 실패, 다음 모델로 폴백...`);
+  }
+
+  throw lastError ?? new Error('모든 Gemini 모델 스트리밍 호출에 실패했습니다.');
+}
+
 // ─── GET Handler — fetch current daily chat_qa usage ─────────────────────
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
@@ -651,162 +1014,282 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 }
 
-// ─── POST Handler — generate AI analysis ─────────────────────────────────
+// ─── Shared logic: build prompts and handle coin deduction ────────────────
 
-export async function POST(req: NextRequest): Promise<NextResponse<AIAnalysisResponse | { error: string }>> {
+interface PreparedRequest {
+  body: AIAnalysisRequest;
+  userPrompt: string;
+  systemPrompt: string;
+  chatQaMeta: Record<string, unknown>;
+  coinDeducted: boolean;
+  cost: number;
+  user: { id: string };
+  supabase: ReturnType<typeof createAuthedClient> | null;
+}
+
+async function prepareAIRequest(req: NextRequest): Promise<PreparedRequest | NextResponse> {
+  const body = (await req.json()) as AIAnalysisRequest;
+
+  // 입력 검증
+  if (!body.type || !['weekly_report', 'trade_review', 'pre_trade_coach', 'chat_qa', 'report_trend', 'pattern_insight'].includes(body.type)) {
+    return NextResponse.json({ error: 'Invalid request type' }, { status: 400 });
+  }
+  if (body.type === 'weekly_report' && !(body as WeeklyReportRequest).analysis?.profile) {
+    return NextResponse.json({ error: 'Missing analysis data' }, { status: 400 });
+  }
+  if (body.type === 'trade_review' && !(body as TradeReviewRequest).roundTrip) {
+    return NextResponse.json({ error: 'Missing roundTrip data' }, { status: 400 });
+  }
+  if (body.type === 'report_trend') {
+    const trendReq = body as ReportTrendRequest;
+    if (!Array.isArray(trendReq.trendData) || trendReq.trendData.length === 0) {
+      return NextResponse.json({ error: 'Missing or empty trendData' }, { status: 400 });
+    }
+    if (trendReq.trendData.length > 20) {
+      return NextResponse.json({ error: 'trendData exceeds maximum of 20 items' }, { status: 400 });
+    }
+    for (const item of trendReq.trendData) {
+      if (typeof item.date !== 'string' || item.date.length > 50) {
+        return NextResponse.json({ error: 'Invalid trendData item: date must be a string (max 50 chars)' }, { status: 400 });
+      }
+      if (item.winRate !== undefined && typeof item.winRate !== 'number') {
+        return NextResponse.json({ error: 'Invalid trendData item: winRate must be a number' }, { status: 400 });
+      }
+      if (item.totalTrades !== undefined && typeof item.totalTrades !== 'number') {
+        return NextResponse.json({ error: 'Invalid trendData item: totalTrades must be a number' }, { status: 400 });
+      }
+      if (item.pnlPercent !== undefined && typeof item.pnlPercent !== 'number') {
+        return NextResponse.json({ error: 'Invalid trendData item: pnlPercent must be a number' }, { status: 400 });
+      }
+      if (item.rrRatio !== undefined && typeof item.rrRatio !== 'number') {
+        return NextResponse.json({ error: 'Invalid trendData item: rrRatio must be a number' }, { status: 400 });
+      }
+    }
+  }
+  if (body.type === 'pattern_insight') {
+    const pi = body as PatternInsightRequest;
+    if (!pi.patternType || !pi.patternData || !pi.summaryValues) {
+      return NextResponse.json({ error: 'Missing pattern insight data (patternType, patternData, summaryValues)' }, { status: 400 });
+    }
+  }
+
+  // 인증 확인
+  const { user } = await getAuthUser(req);
+  const token = req.headers.get('Authorization')?.replace('Bearer ', '');
+  const supabase = token ? createAuthedClient(token) : null;
+
+  const costMap: Record<string, number> = {
+    weekly_report: COIN_COSTS.weekly_report,
+    trade_review: COIN_COSTS.trade_review,
+    pre_trade_coach: COIN_COSTS.pre_trade_coach,
+    chat_qa: COIN_COSTS.chat_qa,
+    report_trend: COIN_COSTS.report_trend,
+    pattern_insight: COIN_COSTS.pattern_insight,
+  };
+  let cost = costMap[body.type] ?? COIN_COSTS.trade_review;
+  let coinDeducted = false;
+  let chatQaDailyUsed = 0;
+
+  // Mock mode: API 키 미설정 또는 비인증 사용자
+  if (!process.env.GEMINI_API_KEY || !user) {
+    const mockReport = buildMockReport(body);
+    return NextResponse.json({
+      report: mockReport,
+      generatedAt: new Date().toISOString(),
+    });
+  }
+
+  // chat_qa: check daily free quota before charging coins
+  if (body.type === 'chat_qa' && user && supabase) {
+    const todayStart = new Date();
+    todayStart.setUTCHours(0, 0, 0, 0);
+
+    const { count } = await supabase
+      .from('coin_transactions')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('reference_type', 'chat_qa')
+      .eq('amount', 0)
+      .gte('created_at', todayStart.toISOString());
+
+    chatQaDailyUsed = count ?? 0;
+
+    if (chatQaDailyUsed < CHAT_QA_FREE_DAILY) {
+      cost = 0;
+    }
+  }
+
+  if (user && supabase && cost > 0) {
+    const { error: deductError } = await supabase.rpc('deduct_coins', {
+      p_user_id: user.id,
+      p_amount: cost,
+      p_ref_type: body.type,
+      p_ref_id: null,
+    });
+
+    if (deductError) {
+      if (deductError.message.includes('INSUFFICIENT_COINS')) {
+        return NextResponse.json({ error: 'INSUFFICIENT_COINS' }, { status: 402 });
+      }
+      return NextResponse.json({ error: 'Coin deduction failed' }, { status: 500 });
+    }
+    coinDeducted = true;
+  }
+
+  // For free-tier chat_qa, record a zero-amount transaction
+  if (body.type === 'chat_qa' && user && supabase && cost === 0) {
+    const { data: balanceData } = await supabase
+      .from('user_coins')
+      .select('balance')
+      .eq('user_id', user.id)
+      .single();
+
+    const { error: trackError } = await supabase.from('coin_transactions').insert({
+      user_id: user.id,
+      type: 'spend',
+      amount: 0,
+      balance_after: balanceData?.balance ?? 0,
+      reference_type: 'chat_qa',
+      reference_id: null,
+    });
+    if (trackError) {
+      console.error('Failed to record free chat_qa usage:', trackError);
+    }
+  }
+
+  const chatQaMeta = body.type === 'chat_qa'
+    ? { chatQaDailyUsed: cost === 0 ? chatQaDailyUsed + 1 : chatQaDailyUsed, chatQaDailyLimit: CHAT_QA_FREE_DAILY, wasFree: cost === 0 }
+    : {};
+
+  let userPrompt: string;
+  let systemPrompt = getSystemPrompt(body.locale);
+
+  if (body.type === 'weekly_report') {
+    userPrompt = buildWeeklyReportPrompt(body);
+  } else if (body.type === 'trade_review') {
+    userPrompt = buildTradeReviewPrompt(body);
+  } else if (body.type === 'pre_trade_coach') {
+    userPrompt = buildPreTradeCoachPrompt(body);
+  } else if (body.type === 'chat_qa') {
+    const isEn = body.locale === 'en';
+    const historyLabel = isEn ? '## Previous Conversation' : '## 이전 대화';
+    const qLabel = isEn ? 'Question' : '질문';
+    const aLabel = isEn ? 'Answer' : '답변';
+    const historyContext = body.history && body.history.length > 0
+      ? `\n\n${historyLabel}\n` + body.history.slice(0, -1).map(h =>
+          h.role === 'user' ? `${qLabel}: ${h.text}` : `${aLabel}: ${h.text}`
+        ).join('\n')
+      : '';
+    systemPrompt = getChatSystemPrompt(body.locale) + historyContext;
+    userPrompt = buildChatQAPrompt(body, body.locale);
+  } else if (body.type === 'pattern_insight') {
+    systemPrompt = body.locale === 'en' ? PATTERN_INSIGHT_SYSTEM_EN : PATTERN_INSIGHT_SYSTEM_KO;
+    userPrompt = buildPatternInsightPrompt(body);
+  } else if (body.type === 'report_trend') {
+    systemPrompt = body.locale === 'en'
+      ? 'You are a dedicated 1:1 trading coach and tutor. You analyze your student\'s trading performance trends with warmth, honesty, and expertise. Address the user directly as "Trader" or "you". Be encouraging about improvements but honest about weaknesses. Always reference specific numbers from the data. Use structured markdown with emoji section headers.'
+      : '당신은 전담 1:1 트레이딩 과외 선생님입니다. 학생의 매매 성과 추이를 따뜻하면서도 솔직하고 전문적으로 분석합니다. 사용자를 "트레이더님"으로 직접 호칭합니다. 개선된 부분은 격려하되 약점은 솔직하게 짚어줍니다. 항상 데이터의 구체적 수치를 인용합니다. 이모지 섹션 헤더가 포함된 구조화된 마크다운을 사용합니다.';
+    userPrompt = buildReportTrendPrompt(body, body.locale);
+  } else {
+    userPrompt = buildTradeReviewPrompt(body);
+  }
+
+  return { body, userPrompt, systemPrompt, chatQaMeta, coinDeducted, cost, user, supabase };
+}
+
+// ─── POST Handler — generate AI analysis (non-streaming + streaming) ─────
+
+export async function POST(req: NextRequest): Promise<NextResponse | Response> {
   try {
-    const body = (await req.json()) as AIAnalysisRequest;
+    const prepared = await prepareAIRequest(req);
 
-    // 입력 검증
-    if (!body.type || !['weekly_report', 'trade_review', 'pre_trade_coach', 'chat_qa'].includes(body.type)) {
-      return NextResponse.json({ error: 'Invalid request type' }, { status: 400 });
-    }
-    if (body.type === 'weekly_report' && !(body as WeeklyReportRequest).analysis?.profile) {
-      return NextResponse.json({ error: 'Missing analysis data' }, { status: 400 });
-    }
-    if (body.type === 'trade_review' && !(body as TradeReviewRequest).roundTrip) {
-      return NextResponse.json({ error: 'Missing roundTrip data' }, { status: 400 });
+    // If prepareAIRequest returned a NextResponse (error or mock), return it directly
+    if (prepared instanceof NextResponse) {
+      return prepared;
     }
 
-    // 인증 확인
-    const { user } = await getAuthUser(req);
-    const token = req.headers.get('Authorization')?.replace('Bearer ', '');
-    const supabase = token ? createAuthedClient(token) : null;
+    const { body, userPrompt, systemPrompt, chatQaMeta, coinDeducted, cost, user, supabase } = prepared;
+    const wantsStream = body.stream === true;
 
-    const costMap: Record<string, number> = {
-      weekly_report: COIN_COSTS.weekly_report,
-      trade_review: COIN_COSTS.trade_review,
-      pre_trade_coach: COIN_COSTS.pre_trade_coach,
-      chat_qa: COIN_COSTS.chat_qa,
-    };
-    let cost = costMap[body.type] ?? COIN_COSTS.trade_review;
-    let coinDeducted = false;
-    let chatQaDailyUsed = 0;
+    if (wantsStream) {
+      // ─── Streaming path ──────────────────────────────────────────
+      try {
+        const sseStream = await callGeminiStreamAPI(systemPrompt, userPrompt);
 
-    // Mock mode: API 키 미설정 또는 비인증 사용자
-    if (!process.env.GEMINI_API_KEY || !user) {
-      const mockReport = buildMockReport(body);
-      return NextResponse.json({
-        report: mockReport,
-        generatedAt: new Date().toISOString(),
-      });
-    }
+        // Prepend metadata as first SSE event (for chat_qa daily usage tracking)
+        const encoder = new TextEncoder();
+        const metaEvent = Object.keys(chatQaMeta).length > 0
+          ? encoder.encode(`data: ${JSON.stringify({ meta: chatQaMeta })}\n\n`)
+          : null;
 
-    // chat_qa: check daily free quota before charging coins
-    if (body.type === 'chat_qa' && user && supabase) {
-      // Use UTC midnight for consistent day boundary regardless of server timezone
-      const todayStart = new Date();
-      todayStart.setUTCHours(0, 0, 0, 0);
-
-      // Count only free-tier tracking records (amount=0) to avoid counting old paid questions
-      const { count } = await supabase
-        .from('coin_transactions')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('reference_type', 'chat_qa')
-        .eq('amount', 0)
-        .gte('created_at', todayStart.toISOString());
-
-      chatQaDailyUsed = count ?? 0;
-
-      if (chatQaDailyUsed < CHAT_QA_FREE_DAILY) {
-        cost = 0;
-      }
-    }
-
-    if (user && supabase && cost > 0) {
-      const { error: deductError } = await supabase.rpc('deduct_coins', {
-        p_user_id: user.id,
-        p_amount: cost,
-        p_ref_type: body.type,
-        p_ref_id: null,
-      });
-
-      if (deductError) {
-        if (deductError.message.includes('INSUFFICIENT_COINS')) {
-          return NextResponse.json({ error: 'INSUFFICIENT_COINS' }, { status: 402 });
-        }
-        return NextResponse.json({ error: 'Coin deduction failed' }, { status: 500 });
-      }
-      coinDeducted = true;
-    }
-
-    // For free-tier chat_qa, record a zero-amount transaction with real balance for daily count tracking
-    if (body.type === 'chat_qa' && user && supabase && cost === 0) {
-      // Fetch actual balance to avoid corrupting the ledger with sentinel values
-      const { data: balanceData } = await supabase
-        .from('user_coins')
-        .select('balance')
-        .eq('user_id', user.id)
-        .single();
-
-      const { error: trackError } = await supabase.from('coin_transactions').insert({
-        user_id: user.id,
-        type: 'spend',
-        amount: 0,
-        balance_after: balanceData?.balance ?? 0,
-        reference_type: 'chat_qa',
-        reference_id: null,
-      });
-      if (trackError) {
-        console.error('Failed to record free chat_qa usage:', trackError);
-      }
-    }
-
-    try {
-      // chat_qa usage metadata to include in response
-      const chatQaMeta = body.type === 'chat_qa'
-        ? { chatQaDailyUsed: cost === 0 ? chatQaDailyUsed + 1 : chatQaDailyUsed, chatQaDailyLimit: CHAT_QA_FREE_DAILY, wasFree: cost === 0 }
-        : {};
-
-      let userPrompt: string;
-      let systemPrompt = getSystemPrompt(body.locale);
-
-      if (body.type === 'weekly_report') {
-        userPrompt = buildWeeklyReportPrompt(body);
-      } else if (body.type === 'trade_review') {
-        userPrompt = buildTradeReviewPrompt(body);
-      } else if (body.type === 'pre_trade_coach') {
-        userPrompt = buildPreTradeCoachPrompt(body);
-      } else if (body.type === 'chat_qa') {
-        // Include conversation history in system prompt for context
-        const isEn = body.locale === 'en';
-        const historyLabel = isEn ? '## Previous Conversation' : '## 이전 대화';
-        const qLabel = isEn ? 'Question' : '질문';
-        const aLabel = isEn ? 'Answer' : '답변';
-        const historyContext = body.history && body.history.length > 0
-          ? `\n\n${historyLabel}\n` + body.history.slice(0, -1).map(h =>
-              h.role === 'user' ? `${qLabel}: ${h.text}` : `${aLabel}: ${h.text}`
-            ).join('\n')
-          : '';
-        systemPrompt = getChatSystemPrompt(body.locale) + historyContext;
-        userPrompt = buildChatQAPrompt(body, body.locale);
-      } else {
-        userPrompt = buildTradeReviewPrompt(body);
-      }
-
-      const report = await callGeminiAPI(systemPrompt, userPrompt);
-
-      return NextResponse.json({
-        report,
-        generatedAt: new Date().toISOString(),
-        ...chatQaMeta,
-      });
-    } catch (err) {
-      // AI 실패 시 코인 반환
-      if (coinDeducted && supabase) {
-        const { error: refundError } = await supabase.rpc('add_coins', {
-          p_user_id: user.id,
-          p_amount: cost,
-          p_type: 'refund',
-          p_ref_type: body.type,
-          p_ref_id: null,
+        const wrappedStream = new ReadableStream<Uint8Array>({
+          async start(controller) {
+            if (metaEvent) {
+              controller.enqueue(metaEvent);
+            }
+            const reader = sseStream.getReader();
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                controller.enqueue(value);
+              }
+              controller.close();
+            } catch (err) {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: err instanceof Error ? err.message : 'Stream error' })}\n\n`));
+              controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+              controller.close();
+            }
+          },
+          cancel() {
+            sseStream.cancel();
+          },
         });
-        if (refundError) {
-          console.error('Coin refund failed:', refundError);
+
+        return new Response(wrappedStream, {
+          headers: {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+          },
+        });
+      } catch (err) {
+        // Streaming failed — refund coins if deducted
+        if (coinDeducted && supabase) {
+          const { error: refundError } = await supabase.rpc('add_coins', {
+            p_user_id: user.id,
+            p_amount: cost,
+            p_type: 'refund',
+            p_ref_type: body.type,
+            p_ref_id: null,
+          });
+          if (refundError) console.error('Coin refund failed:', refundError);
         }
+        throw err;
       }
-      throw err;
+    } else {
+      // ─── Non-streaming path (original) ───────────────────────────
+      try {
+        const report = await callGeminiAPI(systemPrompt, userPrompt);
+
+        return NextResponse.json({
+          report,
+          generatedAt: new Date().toISOString(),
+          ...chatQaMeta,
+        });
+      } catch (err) {
+        if (coinDeducted && supabase) {
+          const { error: refundError } = await supabase.rpc('add_coins', {
+            p_user_id: user.id,
+            p_amount: cost,
+            p_type: 'refund',
+            p_ref_type: body.type,
+            p_ref_id: null,
+          });
+          if (refundError) console.error('Coin refund failed:', refundError);
+        }
+        throw err;
+      }
     }
   } catch (err) {
     console.error('AI analysis error:', err);

@@ -23,7 +23,10 @@ export type RiskAlertType = 'loss_streak' | 'overtrading' | 'emotional_streak' |
 
 export interface RiskAlert {
   type: RiskAlertType;
-  message: string;
+  /** i18n message key under 'riskAlert' namespace */
+  messageKey: string;
+  /** interpolation values for the message */
+  messageParams: Record<string, string | number>;
   severity: 'warning' | 'critical';
 }
 
@@ -65,7 +68,8 @@ function detectLossStreak(trades: Trade[]): RiskAlert | null {
   if (streak >= RISK_THRESHOLDS.lossStreak) {
     return {
       type: 'loss_streak',
-      message: `${streak}연패 중입니다. 잠시 매매를 멈추고 전략을 점검해보세요.`,
+      messageKey: 'lossStreak',
+      messageParams: { streak },
       severity: streak >= 5 ? 'critical' : 'warning',
     };
   }
@@ -79,7 +83,8 @@ function detectOvertrading(trades: Trade[]): RiskAlert | null {
   if (todayTrades.length >= RISK_THRESHOLDS.maxDailyTrades) {
     return {
       type: 'overtrading',
-      message: `오늘 ${todayTrades.length}건의 거래를 기록했습니다. 과매매에 주의하세요.`,
+      messageKey: 'overtrading',
+      messageParams: { count: todayTrades.length },
       severity: todayTrades.length >= 5 ? 'critical' : 'warning',
     };
   }
@@ -106,7 +111,8 @@ function detectEmotionalStreak(trades: Trade[]): RiskAlert | null {
       .join(', ');
     return {
       type: 'emotional_streak',
-      message: `최근 ${streak}건의 거래가 감정적 매매(${tags})입니다. 규칙에 따른 매매인지 점검하세요.`,
+      messageKey: 'emotionalStreak',
+      messageParams: { streak, tags },
       severity: streak >= 3 ? 'critical' : 'warning',
     };
   }
@@ -139,7 +145,8 @@ function detectDailyLoss(trades: Trade[]): RiskAlert | null {
     if (lossPercent >= RISK_THRESHOLDS.dailyLossPercent) {
       return {
         type: 'daily_loss',
-        message: `오늘 누적 손실이 투자금 대비 ${lossPercent.toFixed(1)}%입니다. 추가 손실 확대에 주의하세요.`,
+        messageKey: 'dailyLoss',
+        messageParams: { percent: lossPercent.toFixed(1) },
         severity: lossPercent >= 10 ? 'critical' : 'warning',
       };
     }

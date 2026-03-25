@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useRouter } from '@/i18n/navigation';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { ArrowRight } from 'lucide-react';
 
 // Types
@@ -24,6 +24,7 @@ import { useRiskAlert } from '@/app/hooks/useRiskAlert';
 import { usePreTradeCoach } from '@/app/hooks/usePreTradeCoach';
 import { useAIChat } from '@/app/hooks/useAIChat';
 import { useDailyBonus } from '@/app/hooks/useDailyBonus';
+import { usePatternDetection } from '@/app/hooks/usePatternDetection';
 
 // Components
 import { BottomSheet } from '@/app/components/BottomSheet';
@@ -40,6 +41,7 @@ import { DailyBonusToast } from '@/app/components/DailyBonusToast';
 import { PreTradeChecklist } from '@/app/components/PreTradeChecklist';
 import { AIChatFAB } from '@/app/components/AIChatFAB';
 import { SpeedDialFAB } from '@/app/components/SpeedDialFAB';
+import { InsightCardList } from '@/app/components/InsightCard';
 import { readGuestTrades, deduplicateGuestTrades, GUEST_TRADES_KEY } from '@/app/utils/migrationUtils';
 import { analyzeTradesComplete } from '@/app/utils/tradeAnalysis';
 
@@ -50,6 +52,7 @@ const OPEN_MONTHS_KEY = 'stock-journal-open-months-v1';
 
 export default function TradePage() {
     const router = useRouter();
+    const locale = useLocale();
     const tc = useTranslations('common');
     const t = useTranslations('trade');
     const ta = useTranslations('auth');
@@ -99,6 +102,20 @@ export default function TradePage() {
 
     // --- Daily Bonus ---
     const { bonusResult, dismissBonus } = useDailyBonus(currentUser, streak.currentStreak, streakLoading, refreshBalance);
+
+    // --- Pattern Detection ---
+    const {
+        patterns: insightPatterns,
+        dismissPattern: dismissInsight,
+        aiComments: insightAIComments,
+        aiLoading: insightAILoading,
+        requestAIComment: requestInsightAI,
+    } = usePatternDetection(trades, {
+        user: currentUser,
+        locale,
+        coinBalance,
+        onCoinsConsumed: refreshBalance,
+    });
 
     // 페이지 진입 시 스트릭 자동 기록 (거래 추가 여부와 무관하게 접속일 카운트)
     const streakRecordedRef = useRef(false);
@@ -410,6 +427,19 @@ export default function TradePage() {
                         )}
                     </div>
 
+                    {/* Pattern Insight Cards */}
+                    <InsightCardList
+                        patterns={insightPatterns}
+                        onDismiss={dismissInsight}
+                        onRequestAI={requestInsightAI}
+                        aiComments={insightAIComments}
+                        aiLoading={insightAILoading}
+                        isLoggedIn={!!currentUser}
+                        coinBalance={coinBalance}
+                        onLoginPrompt={() => setShowLoginModal(true)}
+                        onChargeCoins={() => setShowCoinShop(true)}
+                    />
+
                     <TradeListView
                                 tradesLoading={tradesLoading}
                                 darkMode={true}
@@ -478,6 +508,8 @@ export default function TradePage() {
                     isFree={aiChat.isFree}
                     isOpen={isChatOpen}
                     onClose={() => setIsChatOpen(false)}
+                    isStreaming={aiChat.isStreaming}
+                    onStopStreaming={aiChat.stopStreaming}
                 />
             )}
 

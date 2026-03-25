@@ -1,8 +1,9 @@
 // AI Report Card component — renders markdown reports with custom styled components
+// Supports real-time streaming with progressive markdown rendering
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Bot, RefreshCw, X, ChevronDown, ChevronUp, Sparkles, Gem } from 'lucide-react';
+import { Bot, RefreshCw, X, ChevronDown, ChevronUp, Sparkles, Gem, Square } from 'lucide-react';
 import { markdownComponents } from '@/app/components/AIReportHistory';
 import { useTranslations, useLocale } from 'next-intl';
 
@@ -20,6 +21,10 @@ interface AIReportCardProps {
   coinBalance?: number;
   onChargeCoins?: () => void;
   isLoggedIn?: boolean;
+  // Streaming props
+  isStreaming?: boolean;
+  streamedContent?: string;
+  onStopStreaming?: () => void;
 }
 
 export function AIReportCard({
@@ -36,6 +41,9 @@ export function AIReportCard({
   coinBalance = 0,
   onChargeCoins,
   isLoggedIn = true,
+  isStreaming = false,
+  streamedContent = '',
+  onStopStreaming,
 }: AIReportCardProps) {
   const [collapsed, setCollapsed] = useState(false);
   const t = useTranslations('analysis.aiReport');
@@ -43,8 +51,11 @@ export function AIReportCard({
   const locale = useLocale();
   const numLocale = locale === 'ko' ? 'ko-KR' : 'en-US';
 
+  // Show streamed content during streaming, or final report when done
+  const displayContent = isStreaming ? streamedContent : report;
+
   return (
-    <div className={`rounded-2xl border transition-all ${report
+    <div className={`rounded-2xl border transition-all ${displayContent
         ? 'border-indigo-500/20 bg-gradient-to-b from-indigo-500/5 to-transparent'
         : 'border-white/8 bg-white/3'
       }`}>
@@ -61,15 +72,21 @@ export function AIReportCard({
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-bold text-white">{title}</h3>
-              {report && (
+              {displayContent && !isStreaming && (
                 <span className="hidden sm:inline-flex items-center gap-1 text-xs text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full">
                   <Sparkles size={9} />
                   {t('aiGenerated')}
                 </span>
               )}
+              {isStreaming && (
+                <span className="inline-flex items-center gap-1 text-xs text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full animate-pulse">
+                  <Sparkles size={9} />
+                  {t('streaming')}
+                </span>
+              )}
             </div>
             {subtitle && <p className="text-xs text-white/30 truncate">{subtitle}</p>}
-            {generatedAt && (
+            {generatedAt && !isStreaming && (
               <p className="text-xs text-white/20">
                 {new Date(generatedAt).toLocaleString(numLocale, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} {t('generated')}
               </p>
@@ -78,7 +95,18 @@ export function AIReportCard({
         </div>
 
         <div className="flex items-center gap-2 flex-none">
-          {report && !compact && (
+          {/* Stop button during streaming */}
+          {isStreaming && onStopStreaming && (
+            <button
+              onClick={onStopStreaming}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border bg-red-500/15 text-red-400 border-red-500/20 hover:bg-red-500/25 transition-all"
+            >
+              <Square size={10} className="fill-current" />
+              {t('stop')}
+            </button>
+          )}
+
+          {displayContent && !compact && !isStreaming && (
             <button
               onClick={() => setCollapsed(c => !c)}
               className="p-1.5 rounded-lg text-white/30 hover:text-white/60 transition-colors"
@@ -87,7 +115,7 @@ export function AIReportCard({
               {collapsed ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
             </button>
           )}
-          {report && onClear && (
+          {displayContent && onClear && !isStreaming && (
             <button
               onClick={onClear}
               className="p-1.5 rounded-lg text-white/20 hover:text-white/40 transition-colors"
@@ -96,30 +124,34 @@ export function AIReportCard({
               <X size={14} />
             </button>
           )}
-          {!isLoggedIn ? (
-            <div className="text-xs text-white/30 px-2">{tc('loginRequired')}</div>
-          ) : coinCost !== undefined && coinBalance < coinCost && !report ? (
-            <button
-              onClick={onChargeCoins}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border bg-yellow-500/15 text-yellow-400 border-yellow-500/20 hover:bg-yellow-500/25 transition-all"
-            >
-              <Gem size={11} />
-              {t('coinShort', { balance: coinBalance, cost: coinCost })}
-            </button>
-          ) : (
-            <button
-              onClick={onGenerate}
-              disabled={loading}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${loading
-                  ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/20 cursor-wait'
-                  : report
-                    ? 'text-white/40 bg-white/5 border-white/8 hover:text-white/70 hover:bg-white/8'
-                    : 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30 hover:bg-indigo-500/30'
-                }`}
-            >
-              <Sparkles size={11} />
-              {loading ? t('generating') : report ? t('regenerate') : coinCost ? t('analyzeWithCoin', { cost: coinCost }) : t('analyze')}
-            </button>
+          {!isStreaming && (
+            <>
+              {!isLoggedIn ? (
+                <div className="text-xs text-white/30 px-2">{tc('loginRequired')}</div>
+              ) : coinCost !== undefined && coinBalance < coinCost && !displayContent ? (
+                <button
+                  onClick={onChargeCoins}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border bg-yellow-500/15 text-yellow-400 border-yellow-500/20 hover:bg-yellow-500/25 transition-all"
+                >
+                  <Gem size={11} />
+                  {t('coinShort', { balance: coinBalance, cost: coinCost })}
+                </button>
+              ) : (
+                <button
+                  onClick={onGenerate}
+                  disabled={loading}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${loading
+                      ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/20 cursor-wait'
+                      : displayContent
+                        ? 'text-white/40 bg-white/5 border-white/8 hover:text-white/70 hover:bg-white/8'
+                        : 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30 hover:bg-indigo-500/30'
+                    }`}
+                >
+                  <Sparkles size={11} />
+                  {loading ? t('generating') : displayContent ? t('regenerate') : coinCost ? t('analyzeWithCoin', { cost: coinCost }) : t('analyze')}
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -127,24 +159,27 @@ export function AIReportCard({
       {/* Error */}
       {error && (
         <div className="mx-4 mb-4 px-4 py-3 rounded-xl bg-red-500/8 border border-red-500/15 text-xs text-red-400">
-          ⚠ {error}
+          {error}
         </div>
       )}
 
-      {/* Report Content — custom styled markdown */}
-      {report && !collapsed && (
+      {/* Report Content — custom styled markdown (shows during streaming too) */}
+      {displayContent && !collapsed && (
         <div className="px-4 sm:px-5 pb-5">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={markdownComponents}
           >
-            {report}
+            {displayContent}
           </ReactMarkdown>
+          {isStreaming && (
+            <span className="inline-block w-2 h-4 bg-indigo-400 animate-pulse ml-0.5 align-middle" />
+          )}
         </div>
       )}
 
       {/* Empty state prompt */}
-      {!report && !loading && !error && (
+      {!displayContent && !loading && !error && (
         <div className="px-5 pb-5 text-xs text-white/20 leading-relaxed">
           {compact
             ? t('emptyCompact')
