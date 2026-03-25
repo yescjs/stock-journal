@@ -237,6 +237,53 @@ export const WEEKDAY_SUFFIX_I18N: Record<string, string> = {
   en: '',
 };
 
+// ─── Heatmap Types ──────────────────────────────────────────────────────
+
+export interface HeatmapCell {
+  symbol: string;
+  symbolName?: string;
+  month: string;        // YYYY-MM
+  avgReturn: number;    // Percentage
+  totalPnl: number;
+  tradeCount: number;
+  roundTrips: RoundTrip[];
+}
+
+export interface HeatmapRow {
+  symbol: string;
+  symbolName?: string;
+  cells: Map<string, HeatmapCell>;
+}
+
+// ─── Period Comparison Types ────────────────────────────────────────────
+
+export interface PeriodMetrics {
+  month: string;        // YYYY-MM
+  label: string;
+  winRate: number;
+  avgReturn: number;
+  profitFactor: number;
+  maxLoss: number;      // worst single trade return %
+  tradeCount: number;
+  totalPnl: number;
+  currency: 'KRW' | 'USD' | 'mixed';
+}
+
+export interface PeriodComparison {
+  periodA: PeriodMetrics;
+  periodB: PeriodMetrics;
+  changes: {
+    winRate: number;
+    avgReturn: number;
+    profitFactor: number;
+    maxLoss: number;
+    tradeCount: number;
+    totalPnl: number;
+  };
+}
+
+// ─── Monthly Stats ──────────────────────────────────────────────────────
+
 export interface MonthlyStats {
   month: string;        // YYYY-MM
   label: string;        // e.g., "24년 1월"

@@ -17,7 +17,7 @@ import {
   Calendar, Clock, Heart,
   AlertTriangle, CheckCircle, Info, XCircle,
   ChevronDown, MessageSquare, Gem, Sparkles, RefreshCw,
-  BarChart2, Bot, ListOrdered, Award, Briefcase, Share2,
+  BarChart2, Bot, ListOrdered, Award, Briefcase, Share2, Grid3X3, ArrowUpRight, ArrowDownRight, Minus, GitCompareArrows,
 } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import { AIReportCard } from '@/app/components/AIReportCard';
@@ -25,7 +25,8 @@ import { AIReportHistory } from '@/app/components/AIReportHistory';
 import { PortfolioView } from '@/app/components/PortfolioView';
 import { PerformanceShareCard } from '@/app/components/PerformanceShareCard';
 import { useAIAnalysis } from '@/app/hooks/useAIAnalysis';
-import { calcEquityCurve, calcMonthlyStats } from '@/app/utils/tradeAnalysis';
+import { calcEquityCurve, calcMonthlyStats, calcSymbolMonthlyHeatmap, calcPeriodComparison, getAvailableMonths } from '@/app/utils/tradeAnalysis';
+import type { HeatmapCell } from '@/app/types/analysis';
 import type { PortfolioSummary } from '@/app/hooks/usePortfolio';
 
 interface AnalysisDashboardProps {
@@ -746,6 +747,293 @@ function ConcentrationChart({ data }: { data: { symbol: string; symbolName?: str
   );
 }
 
+// ─── Symbol Heatmap Section ──────────────────────────────────────────────
+
+function HeatmapSection({ analysis, onCellClick }: {
+  analysis: TradeAnalysis;
+  onCellClick?: (cell: HeatmapCell) => void;
+}) {
+  const tc = useTranslations('analysis.charts');
+  const locale = useLocale();
+
+  const { rows, months } = useMemo(
+    () => calcSymbolMonthlyHeatmap(analysis.roundTrips),
+    [analysis.roundTrips]
+  );
+
+  if (rows.length === 0) {
+    return (
+      <div className="p-5 rounded-2xl border border-white/8 bg-white/3">
+        <div className="flex items-center gap-2 mb-3">
+          <Grid3X3 size={16} className="text-purple-400" />
+          <h3 className="text-sm font-bold text-white">{tc('heatmapTitle')}</h3>
+        </div>
+        <p className="text-xs text-white/30">{tc('heatmapEmpty')}</p>
+      </div>
+    );
+  }
+
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const formatMonth = (m: string) => {
+    const [, mon] = m.split('-');
+    return locale === 'ko'
+      ? `${parseInt(mon)}월`
+      : `${monthNames[parseInt(mon) - 1]}`;
+  };
+
+  const getCellColor = (avgReturn: number): string => {
+    // Korean convention: red = profit, blue = loss
+    if (avgReturn > 10) return 'rgba(239,68,68,0.7)';
+    if (avgReturn > 5) return 'rgba(239,68,68,0.5)';
+    if (avgReturn > 0) return 'rgba(239,68,68,0.25)';
+    if (avgReturn === 0) return 'rgba(148,163,184,0.15)';
+    if (avgReturn > -5) return 'rgba(59,130,246,0.25)';
+    if (avgReturn > -10) return 'rgba(59,130,246,0.5)';
+    return 'rgba(59,130,246,0.7)';
+  };
+
+  return (
+    <div className="p-5 rounded-2xl border border-white/8 bg-white/3">
+      <div className="flex items-center gap-2 mb-4">
+        <Grid3X3 size={16} className="text-purple-400" />
+        <h3 className="text-sm font-bold text-white">{tc('heatmapTitle')}</h3>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr>
+              <th className="text-left text-white/30 font-normal pb-2 pr-2 min-w-[80px]"></th>
+              {months.map(m => (
+                <th key={m} className="text-center text-white/30 font-normal pb-2 px-1 min-w-[60px]">
+                  {formatMonth(m)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(row => (
+              <tr key={row.symbol}>
+                <td className="text-white/60 font-medium pr-2 py-1 truncate max-w-[100px]" title={row.symbolName || row.symbol}>
+                  {row.symbolName || row.symbol}
+                </td>
+                {months.map(m => {
+                  const cell = row.cells.get(m);
+                  if (!cell) {
+                    return (
+                      <td key={m} className="px-1 py-1">
+                        <div className="rounded-md h-10 flex items-center justify-center" style={{ backgroundColor: 'rgba(148,163,184,0.05)' }}>
+                          <span className="text-white/10">{tc('heatmapNoData')}</span>
+                        </div>
+                      </td>
+                    );
+                  }
+                  return (
+                    <td key={m} className="px-1 py-1">
+                      <button
+                        onClick={() => onCellClick?.(cell)}
+                        className="rounded-md h-10 w-full flex flex-col items-center justify-center cursor-pointer hover:ring-1 hover:ring-white/20 transition-all"
+                        style={{ backgroundColor: getCellColor(cell.avgReturn) }}
+                        title={`${cell.symbol} - ${cell.tradeCount} ${tc('heatmapTrades')}`}
+                      >
+                        <span className="text-white font-bold text-[11px]">
+                          {cell.avgReturn >= 0 ? '+' : ''}{cell.avgReturn.toFixed(1)}%
+                        </span>
+                        <span className="text-white/50 text-[9px]">{cell.tradeCount}{tc('heatmapTrades')}</span>
+                      </button>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {/* Legend */}
+      <div className="flex items-center justify-center gap-1 mt-3 text-[10px] text-white/30">
+        <div className="flex items-center gap-1">
+          <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'rgba(59,130,246,0.5)' }} />
+          <span>{tc('heatmapLoss')}</span>
+        </div>
+        <div className="w-8 h-[2px] bg-gradient-to-r from-blue-500/50 via-slate-400/15 to-red-500/50 rounded" />
+        <div className="flex items-center gap-1">
+          <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'rgba(239,68,68,0.5)' }} />
+          <span>{tc('heatmapProfit')}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Period Comparison Section ───────────────────────────────────────────
+
+function PeriodComparisonSection({ analysis }: {
+  analysis: TradeAnalysis;
+}) {
+  const tc = useTranslations('analysis.charts');
+  const locale = useLocale();
+
+  const availableMonths = useMemo(
+    () => getAvailableMonths(analysis.roundTrips, locale),
+    [analysis.roundTrips, locale]
+  );
+
+  const [monthA, setMonthA] = useState<string>(() =>
+    availableMonths.length >= 2 ? availableMonths[availableMonths.length - 2].value : availableMonths[0]?.value ?? ''
+  );
+  const [monthB, setMonthB] = useState<string>(() =>
+    availableMonths.length >= 2 ? availableMonths[availableMonths.length - 1].value : ''
+  );
+
+  const comparison = useMemo(() => {
+    if (!monthA || !monthB) return null;
+    return calcPeriodComparison(analysis.roundTrips, monthA, monthB, locale);
+  }, [analysis.roundTrips, monthA, monthB, locale]);
+
+  if (availableMonths.length < 2) return null;
+
+  const formatMetricValue = (v: number, suffix: string) => {
+    if (!isFinite(v)) return '∞';
+    return `${v.toFixed(1)}${suffix}`;
+  };
+
+  const ChangeIndicator = ({ value, suffix = '%', positiveIsGood = true }: { value: number; suffix?: string; positiveIsGood?: boolean }) => {
+    if (!isFinite(value)) return <span className="text-xs text-white/30">-</span>;
+    if (Math.abs(value) < 0.01) return <Minus size={12} className="text-white/30" />;
+    const isPositive = value > 0;
+    const isGood = positiveIsGood ? isPositive : !isPositive;
+    return (
+      <span className={`flex items-center gap-0.5 text-xs font-bold ${isGood ? 'text-emerald-400' : 'text-red-400'}`}>
+        {isPositive ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+        {isPositive ? '+' : ''}{value.toFixed(1)}{suffix}
+      </span>
+    );
+  };
+
+  const metricCards = comparison ? [
+    { label: tc('periodWinRate'), valueA: comparison.periodA.winRate, valueB: comparison.periodB.winRate, change: comparison.changes.winRate, suffix: '%', positiveIsGood: true },
+    { label: tc('periodAvgReturn'), valueA: comparison.periodA.avgReturn, valueB: comparison.periodB.avgReturn, change: comparison.changes.avgReturn, suffix: '%', positiveIsGood: true },
+    { label: tc('periodProfitFactor'), valueA: comparison.periodA.profitFactor, valueB: comparison.periodB.profitFactor, change: comparison.changes.profitFactor, suffix: '', positiveIsGood: true },
+    { label: tc('periodMaxLoss'), valueA: comparison.periodA.maxLoss, valueB: comparison.periodB.maxLoss, change: comparison.changes.maxLoss, suffix: '%', positiveIsGood: true },
+    { label: tc('periodTradeCount'), valueA: comparison.periodA.tradeCount, valueB: comparison.periodB.tradeCount, change: comparison.changes.tradeCount, suffix: '', positiveIsGood: true },
+  ] : [];
+
+  // Radar chart data: normalize to 0-100 scale
+  const radarData = comparison ? [
+    {
+      metric: tc('periodWinRate'),
+      A: comparison.periodA.winRate,
+      B: comparison.periodB.winRate,
+    },
+    {
+      metric: tc('periodAvgReturn'),
+      A: Math.max(0, Math.min(100, (comparison.periodA.avgReturn + 50))),
+      B: Math.max(0, Math.min(100, (comparison.periodB.avgReturn + 50))),
+    },
+    {
+      metric: tc('periodProfitFactor'),
+      A: Math.min(100, (comparison.periodA.profitFactor === Infinity ? 100 : comparison.periodA.profitFactor * 20)),
+      B: Math.min(100, (comparison.periodB.profitFactor === Infinity ? 100 : comparison.periodB.profitFactor * 20)),
+    },
+    {
+      metric: tc('periodTradeCount'),
+      A: Math.min(100, comparison.periodA.tradeCount * 10),
+      B: Math.min(100, comparison.periodB.tradeCount * 10),
+    },
+  ] : [];
+
+  return (
+    <div className="p-5 rounded-2xl border border-white/8 bg-white/3">
+      <div className="flex items-center gap-2 mb-4">
+        <GitCompareArrows size={16} className="text-cyan-400" />
+        <h3 className="text-sm font-bold text-white">{tc('periodCompareTitle')}</h3>
+      </div>
+
+      {/* Period Selectors */}
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <div>
+          <label className="text-xs text-white/30 mb-1 block">{tc('periodA')}</label>
+          <select
+            value={monthA}
+            onChange={e => setMonthA(e.target.value)}
+            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-white/20"
+          >
+            {availableMonths.map(m => (
+              <option key={m.value} value={m.value} className="bg-gray-900">{m.label}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-white/30 mb-1 block">{tc('periodB')}</label>
+          <select
+            value={monthB}
+            onChange={e => setMonthB(e.target.value)}
+            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-white/20"
+          >
+            {availableMonths.map(m => (
+              <option key={m.value} value={m.value} className="bg-gray-900">{m.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {!comparison && (
+        <p className="text-xs text-white/30 text-center py-4">{tc('periodSelectHint')}</p>
+      )}
+
+      {comparison && (comparison.periodA.tradeCount === 0 && comparison.periodB.tradeCount === 0) && (
+        <p className="text-xs text-white/30 text-center py-4">{tc('periodNoData')}</p>
+      )}
+
+      {comparison && (comparison.periodA.tradeCount > 0 || comparison.periodB.tradeCount > 0) && (
+        <>
+          {/* Metric Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mb-4">
+            {metricCards.map((m, i) => (
+              <div key={i} className="p-3 rounded-xl bg-white/3 border border-white/5">
+                <div className="text-[10px] text-white/30 mb-1">{m.label}</div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-xs text-white/40">{formatMetricValue(m.valueA, m.suffix)}</span>
+                    <span className="text-white/20">→</span>
+                    <span className="text-sm font-bold text-white">{formatMetricValue(m.valueB, m.suffix)}</span>
+                  </div>
+                  <ChangeIndicator value={m.change} suffix={m.suffix} positiveIsGood={m.positiveIsGood} />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Radar Chart Overlay */}
+          <div className="mt-4">
+            <div className="flex items-center justify-center gap-4 mb-2 text-[10px]">
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-[2px] rounded" style={{ backgroundColor: '#818cf8' }} />
+                <span className="text-white/40">{comparison.periodA.label}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-[2px] rounded" style={{ backgroundColor: '#f472b6' }} />
+                <span className="text-white/40">{comparison.periodB.label}</span>
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height={220}>
+              <RadarChart data={radarData}>
+                <PolarGrid stroke="rgba(255,255,255,0.08)" />
+                <PolarAngleAxis dataKey="metric" tick={{ fontSize: 10, fill: 'rgba(255,255,255,0.4)' }} />
+                <PolarRadiusAxis tick={false} domain={[0, 100]} axisLine={false} />
+                <Radar name={comparison.periodA.label} dataKey="A" stroke="#818cf8" fill="#818cf8" fillOpacity={0.15} strokeWidth={2} />
+                <Radar name={comparison.periodB.label} dataKey="B" stroke="#f472b6" fill="#f472b6" fillOpacity={0.15} strokeWidth={2} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: 'rgba(20,22,32,0.97)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '12px', fontSize: '12px', color: '#fff' }}
+                />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── Streaks Card ─────────────────────────────────────────────────────────
 
 function StreaksCard({ streaks }: { streaks: { currentWin: number; currentLoss: number; maxWin: number; maxLoss: number } }) {
@@ -907,6 +1195,7 @@ export function AnalysisDashboard({
 }: AnalysisDashboardProps) {
   const [activeTab, setActiveTab] = useState<DashboardTab>(initialTab ?? 'performance');
   const [showShareCard, setShowShareCard] = useState(false);
+  const [selectedHeatmapCell, setSelectedHeatmapCell] = useState<HeatmapCell | null>(null);
   const t = useTranslations('analysis');
   const tc = useTranslations('common');
 
@@ -994,6 +1283,41 @@ export function AnalysisDashboard({
             <StatsBarChart data={analysis.holdingPeriodStats} title={t('charts.holdingPeriodReturn')} icon={<Clock size={16} className="text-cyan-400" />} dataKey="avgReturn" />
             <StatsBarChart data={analysis.emotionStats} title={t('charts.emotionTagWinRate')} icon={<Heart size={16} className="text-pink-400" />} dataKey="winRate" />
             <ConcentrationChart data={analysis.concentration} />
+          </div>
+          <HeatmapSection analysis={analysis} onCellClick={setSelectedHeatmapCell} />
+          <PeriodComparisonSection analysis={analysis} />
+        </div>
+      )}
+
+      {/* Heatmap Cell Detail Modal */}
+      {selectedHeatmapCell && (
+        <div className="fixed inset-0 z-60 flex items-end sm:items-center justify-center" onClick={() => setSelectedHeatmapCell(null)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div
+            className="relative z-70 w-full max-w-md max-h-[80vh] bg-gray-900 border border-white/10 rounded-t-2xl sm:rounded-2xl p-5 overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-white">
+                {selectedHeatmapCell.symbolName || selectedHeatmapCell.symbol} — {selectedHeatmapCell.month}
+              </h3>
+              <button onClick={() => setSelectedHeatmapCell(null)} className="text-white/30 hover:text-white/60">
+                <XCircle size={18} />
+              </button>
+            </div>
+            <div className="space-y-2">
+              {selectedHeatmapCell.roundTrips.map((trip, i) => (
+                <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-white/3 border border-white/5">
+                  <div>
+                    <div className="text-xs text-white/60">{trip.entryDate} → {trip.exitDate}</div>
+                    <div className="text-[10px] text-white/30">{trip.quantity}{t('charts.heatmapShares')} · {trip.holdingDays}{t('charts.heatmapDays')}</div>
+                  </div>
+                  <span className={`text-sm font-bold ${trip.isWin ? 'text-red-400' : 'text-blue-400'}`}>
+                    {trip.pnlPercent >= 0 ? '+' : ''}{trip.pnlPercent.toFixed(1)}%
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
