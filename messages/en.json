@@ -230,7 +230,7 @@
       "validateNumber": "Price and quantity must be numbers.",
       "validatePricePositive": "Price must be greater than 0.",
       "validateQuantityPositive": "Quantity must be greater than 0.",
-      "validateQuantityInteger": "Quantity must be a whole number.",
+      "validateQuantityInteger": "Domestic stocks require whole number quantities.",
       "addTradeAriaLabel": "Add new trade record",
       "addTradeShort": "Add Record",
       "recentSymbols": "Recent",

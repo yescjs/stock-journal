@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { User } from '@supabase/supabase-js';
 import { TradeSide, Trade } from '@/app/types/trade';
-import { getCurrencySymbol } from '@/app/utils/format';
+import { getCurrencySymbol, isKRWSymbol } from '@/app/utils/format';
 import {
     EmotionWarning,
     ChecklistItem,
@@ -266,7 +266,7 @@ export function TradeForm({
         if (Number.isNaN(p) || Number.isNaN(q)) { alert(t('validateNumber')); return false; }
         if (p <= 0) { alert(t('validatePricePositive')); return false; }
         if (q <= 0) { alert(t('validateQuantityPositive')); return false; }
-        if (q % 1 !== 0) { alert(t('validateQuantityInteger')); return false; }
+        if (isKRWSymbol(form.symbol) && q % 1 !== 0) { alert(t('validateQuantityInteger')); return false; }
         return true;
     };
 
@@ -532,7 +532,7 @@ export function TradeForm({
                         </label>
                         <input
                             type="number"
-                            inputMode="numeric"
+                            inputMode={form.symbol && !isKRWSymbol(form.symbol) ? 'decimal' : 'numeric'}
                             name="quantity"
                             placeholder="0"
                             value={form.quantity}

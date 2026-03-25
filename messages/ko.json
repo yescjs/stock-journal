@@ -230,7 +230,7 @@
       "validateNumber": "가격과 수량은 숫자로 입력해주세요.",
       "validatePricePositive": "가격은 0보다 큰 값을 입력해주세요.",
       "validateQuantityPositive": "수량은 0보다 큰 값을 입력해주세요.",
-      "validateQuantityInteger": "수량은 정수로 입력해주세요.",
+      "validateQuantityInteger": "국내 주식은 정수 수량만 가능합니다.",
       "addTradeAriaLabel": "새 매매 기록 추가",
       "addTradeShort": "기록 추가",
       "recentSymbols": "최근 종목",
