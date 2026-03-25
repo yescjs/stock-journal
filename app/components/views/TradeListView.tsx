@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { Trade } from '@/app/types/trade';
 import { User } from '@supabase/supabase-js';
@@ -14,9 +14,9 @@ import { isKRWSymbol } from '@/app/utils/format';
 import {
   LayoutGrid, List as ListIcon, Search, X, ChevronDown,
   TrendingUp, TrendingDown, Wallet, BarChart3, DollarSign, Briefcase, Calendar, RotateCw, Brain,
-  BookOpen, PenLine, BarChart2, Sparkles, ArrowDown, Upload
+  BookOpen, PenLine, BarChart2, Sparkles, ArrowDown, Upload, ArrowUpDown, AlignJustify
 } from 'lucide-react';
-import { useTradeFilter, DatePreset } from '@/app/hooks/useTradeFilter';
+import { useTradeFilter, DatePreset, SideFilter } from '@/app/hooks/useTradeFilter';
 import { useTradeAnalysis } from '@/app/hooks/useTradeAnalysis';
 import { usePortfolio } from '@/app/hooks/usePortfolio';
 import { StreakBadge } from '@/app/components/StreakBadge';
@@ -251,6 +251,7 @@ export function TradeListView({
   onCopy,
 }: TradeListViewProps) {
   const tv = useTranslations('trade.view');
+  const tc = useTranslations('common');
   const currentLocale = useLocale();
 
   const DATE_PRESETS = useMemo(() => DATE_PRESET_KEYS.map(key => ({
@@ -265,6 +266,8 @@ export function TradeListView({
   const [isMobileView, setIsMobileView] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)').matches : false
   );
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 767px)');
@@ -272,6 +275,17 @@ export function TradeListView({
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
   }, []);
+
+  useEffect(() => {
+    if (!showSortDropdown) return;
+    const handler = (e: MouseEvent) => {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(e.target as Node)) {
+        setShowSortDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showSortDropdown]);
 
   const switchToAnalysis = useCallback(() => {
     setViewMode('analysis');
@@ -315,6 +329,9 @@ export function TradeListView({
     dateTo, setDateTo,
     holdingOnly, setHoldingOnly,
     activeDatePreset, applyDatePreset,
+    sideFilter, setSideFilter,
+    sortBy, setSortBy,
+    viewDensity, updateViewDensity,
   } = filterState;
 
   // Derive Daily Data for Calendar (evaluation P&L for held, realized P&L for sold)
@@ -643,6 +660,77 @@ export function TradeListView({
 
             {/* Filter Buttons */}
             <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+              {/* Side Filter */}
+              <div className="flex p-0.5 rounded-xl bg-white/5 border border-white/8 gap-0.5">
+                {(['ALL', 'BUY', 'SELL'] as const).map(side => (
+                  <button
+                    key={side}
+                    onClick={() => setSideFilter(side as SideFilter)}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                      sideFilter === side
+                        ? 'bg-white/10 text-white shadow-sm'
+                        : 'text-white/30 hover:text-white/60'
+                    }`}
+                  >
+                    {side === 'ALL' ? tv('sideAll') : side === 'BUY' ? tc('buy') : tc('sell')}
+                  </button>
+                ))}
+              </div>
+
+              {/* Sort */}
+              <div className="relative" ref={sortDropdownRef}>
+                <button
+                  onClick={() => setShowSortDropdown(v => !v)}
+                  className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border transition-all whitespace-nowrap ${
+                    sortBy !== 'date-desc'
+                      ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30'
+                      : 'text-white/40 bg-white/5 border-white/8 hover:text-white/60 hover:bg-white/8'
+                  }`}
+                >
+                  <ArrowUpDown size={13} />
+                  {tv({
+                    'date-desc': 'sort_date-desc' as const,
+                    'date-asc': 'sort_date-asc' as const,
+                    'pnl-desc': 'sort_pnl-desc' as const,
+                    'pnl-asc': 'sort_pnl-asc' as const,
+                  }[sortBy])}
+                </button>
+                {showSortDropdown && (
+                  <div className="absolute top-full left-0 mt-1 w-40 z-20 rounded-xl border border-white/10 bg-card shadow-toss-lg overflow-hidden">
+                    {(['date-desc', 'date-asc', 'pnl-desc', 'pnl-asc'] as const).map(opt => (
+                      <button
+                        key={opt}
+                        onClick={() => { setSortBy(opt); setShowSortDropdown(false); }}
+                        className={`w-full text-left px-3 py-2.5 text-xs font-semibold transition-colors ${
+                          sortBy === opt ? 'bg-indigo-500/10 text-indigo-400' : 'text-white/60 hover:bg-white/5'
+                        }`}
+                      >
+                        {tv({
+                          'date-desc': 'sort_date-desc' as const,
+                          'date-asc': 'sort_date-asc' as const,
+                          'pnl-desc': 'sort_pnl-desc' as const,
+                          'pnl-asc': 'sort_pnl-asc' as const,
+                        }[opt])}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* View Density */}
+              <button
+                onClick={() => updateViewDensity(viewDensity === 'default' ? 'compact' : 'default')}
+                className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border transition-all whitespace-nowrap ${
+                  viewDensity === 'compact'
+                    ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30'
+                    : 'text-white/40 bg-white/5 border-white/8 hover:text-white/60 hover:bg-white/8'
+                }`}
+                title={tv('viewDensityToggle')}
+              >
+                <AlignJustify size={13} />
+                {tv('compactView')}
+              </button>
+
               {/* Holding Only Toggle */}
               <button
                 onClick={() => setHoldingOnly(!holdingOnly)}
@@ -891,6 +979,8 @@ export function TradeListView({
                 showConverted={showConverted}
                 currentPrices={currentPrices}
                 heldSymbols={filterState.heldSymbols}
+                sortBy={sortBy}
+                viewDensity={viewDensity}
               />
             )
           )}

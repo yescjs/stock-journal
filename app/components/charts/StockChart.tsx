@@ -71,7 +71,7 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
 
         // 매수/매도 마커 데이터 준비
         const symbolTrades = trades.filter(t => t.symbol === symbol);
-        const tradesByDate = new Map<number, { side: string; price: number; quantity: number }>();
+        const tradesByDate = new Map<number, { side: string; price: number; quantity: number; count: number }>();
 
         symbolTrades.forEach(trade => {
             const tradeTimestamp = new Date(trade.date).getTime();
@@ -79,12 +79,29 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
             const closestDataPoint = chartData.reduce((prev, curr) => {
                 return Math.abs(curr.date - tradeTimestamp) < Math.abs(prev.date - tradeTimestamp) ? curr : prev;
             });
-            // 날짜별로 마지막 거래만 저장 (또는 병합 가능)
-            tradesByDate.set(closestDataPoint.date, {
-                side: trade.side,
-                price: trade.price,
-                quantity: trade.quantity,
-            });
+            const key = closestDataPoint.date;
+            const existing = tradesByDate.get(key);
+            if (existing) {
+                // Aggregate: weighted average price, sum quantities
+                const totalQty = existing.quantity + trade.quantity;
+                const existingAmount = existing.price * existing.quantity;
+                const newAmount = trade.price * trade.quantity;
+                // Prefer side with higher total amount
+                const side = newAmount > existingAmount ? trade.side : existing.side;
+                tradesByDate.set(key, {
+                    side,
+                    price: (existingAmount + newAmount) / totalQty,
+                    quantity: totalQty,
+                    count: existing.count + 1,
+                });
+            } else {
+                tradesByDate.set(key, {
+                    side: trade.side,
+                    price: trade.price,
+                    quantity: trade.quantity,
+                    count: 1,
+                });
+            }
         });
 
         return chartData.map((d, i) => {
@@ -100,6 +117,7 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
                 markerPrice: marker?.price,
                 markerSide: marker?.side,
                 markerQty: marker?.quantity,
+                markerCount: marker?.count,
             };
         });
     }, [chartData, trades, symbol]);
@@ -272,6 +290,7 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
                 markerSide?: string;
                 markerPrice?: number;
                 markerQty?: number;
+                markerCount?: number;
             };
         }>;
     }
@@ -280,7 +299,7 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
         if (!active || !payload || !payload[0]) return null;
 
         const data = payload[0].payload;
-        const { date, open, high, low, close, markerSide, markerPrice, markerQty } = data;
+        const { date, open, high, low, close, markerSide, markerPrice, markerQty, markerCount } = data;
 
         return (
             <div
@@ -317,7 +336,7 @@ export function StockChart({ symbol, darkMode, trades = [], compact = false, onC
                     <div className={`mt-1.5 pt-1.5 border-t ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
                         <div className={`font-bold ${markerSide === 'BUY' ? 'text-rose-500' : 'text-blue-500'}`}>
                             {markerSide === 'BUY' ? t('tooltipBuy') : t('tooltipSell')} {formatNumber(markerPrice, undefined, numLocale)}
-                            {markerQty && <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}> ({markerQty}{tc('shares')})</span>}
+                            {markerQty && <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}> ({markerQty}{tc('shares')}{markerCount && markerCount > 1 ? ` · ${tc('count', { count: markerCount })}` : ''})</span>}
                         </div>
                     </div>
                 )}

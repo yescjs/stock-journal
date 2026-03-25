@@ -115,6 +115,48 @@ export function TradeForm({
 
     const isFirstTrade = baseTrades.length === 0 && !initialData;
 
+    // Recent symbols for quick entry
+    const recentSymbols = useMemo(() => {
+        if (initialData || isCompact) return [];
+        const seen = new Set<string>();
+        const result: { symbol: string; symbol_name: string }[] = [];
+        const sorted = [...allTrades].sort((a, b) => b.date.localeCompare(a.date));
+        for (const trade of sorted) {
+            if (seen.has(trade.symbol)) continue;
+            seen.add(trade.symbol);
+            result.push({ symbol: trade.symbol, symbol_name: trade.symbol_name || trade.symbol });
+            if (result.length >= 5) break;
+        }
+        return result;
+    }, [allTrades, initialData, isCompact]);
+
+    const [priceFetching, setPriceFetching] = useState(false);
+
+    const handleRecentSymbolClick = useCallback(async (sym: string, symName: string) => {
+        setForm(prev => ({
+            ...prev,
+            symbol: sym,
+            symbol_name: symName,
+        }));
+        // Auto-fetch current price for BUY
+        if (form.side === 'BUY') {
+            setPriceFetching(true);
+            try {
+                const res = await fetch(`/api/stock-price?symbol=${encodeURIComponent(sym)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.price) {
+                        setForm(prev => ({ ...prev, price: String(data.price) }));
+                    }
+                }
+            } catch {
+                // silently fail - user can enter price manually
+            } finally {
+                setPriceFetching(false);
+            }
+        }
+    }, [form.side]);
+
     // showAdvanced가 열릴 때만 패턴 계산 (성능 최적화)
     const emotionWarnings = useMemo<EmotionWarning[]>(() => {
         if (!showAdvanced) return [];
@@ -374,6 +416,33 @@ export function TradeForm({
                             ))}
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* Recent Symbols Quick Select */}
+            {recentSymbols.length > 0 && !initialData && (
+                <div className="mb-3">
+                    <div className="text-[10px] font-bold text-white/30 uppercase tracking-wider mb-1.5">{t('recentSymbols')}</div>
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden">
+                        {recentSymbols.map(rs => (
+                            <button
+                                key={rs.symbol}
+                                type="button"
+                                onClick={() => handleRecentSymbolClick(rs.symbol, rs.symbol_name)}
+                                disabled={priceFetching}
+                                className={`flex-none px-3 py-1.5 rounded-xl text-xs font-bold border transition-all whitespace-nowrap ${
+                                    form.symbol === rs.symbol
+                                        ? 'bg-primary/15 text-primary border-primary/30'
+                                        : 'text-white/50 bg-white/5 border-white/8 hover:text-white/70 hover:bg-white/8'
+                                }`}
+                            >
+                                {rs.symbol_name}
+                            </button>
+                        ))}
+                        {priceFetching && (
+                            <span className="text-[10px] text-white/30 ml-1">{t('fetchingPrice')}</span>
+                        )}
+                    </div>
                 </div>
             )}
 

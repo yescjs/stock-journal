@@ -232,7 +232,9 @@
       "validateQuantityPositive": "Quantity must be greater than 0.",
       "validateQuantityInteger": "Quantity must be a whole number.",
       "addTradeAriaLabel": "Add new trade record",
-      "addTradeShort": "Add Record"
+      "addTradeShort": "Add Record",
+      "recentSymbols": "Recent",
+      "fetchingPrice": "Fetching price..."
     },
     "fab": {
       "open": "Open menu",
@@ -317,7 +319,14 @@
       "datePresetWeek": "This week",
       "datePresetMonth": "This month",
       "datePresetYear": "This year",
-      "datePresetAll": "All"
+      "datePresetAll": "All",
+      "sideAll": "All",
+      "sort_date-desc": "Newest",
+      "sort_date-asc": "Oldest",
+      "sort_pnl-desc": "Top P&L",
+      "sort_pnl-asc": "Worst P&L",
+      "compactView": "Compact",
+      "viewDensityToggle": "Toggle view density"
     },
     "empty": {
       "title": "Start your trade journal",
