@@ -138,24 +138,22 @@ export function TradeForm({
             symbol: sym,
             symbol_name: symName,
         }));
-        // Auto-fetch current price for BUY
-        if (form.side === 'BUY') {
-            setPriceFetching(true);
-            try {
-                const res = await fetch(`/api/stock-price?symbol=${encodeURIComponent(sym)}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.price) {
-                        setForm(prev => ({ ...prev, price: String(data.price) }));
-                    }
+        // Auto-fetch current price
+        setPriceFetching(true);
+        try {
+            const res = await fetch(`/api/stock-price?symbol=${encodeURIComponent(sym)}`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.price) {
+                    setForm(prev => ({ ...prev, price: String(data.price) }));
                 }
-            } catch {
-                // silently fail - user can enter price manually
-            } finally {
-                setPriceFetching(false);
             }
+        } catch {
+            // silently fail - user can enter price manually
+        } finally {
+            setPriceFetching(false);
         }
-    }, [form.side]);
+    }, []);
 
     // showAdvanced가 열릴 때만 패턴 계산 (성능 최적화)
     const emotionWarnings = useMemo<EmotionWarning[]>(() => {
