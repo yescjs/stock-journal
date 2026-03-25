@@ -15,16 +15,12 @@ interface ImportModalProps {
   onImport: (trades: Omit<Trade, 'id' | 'user_id' | 'created_at'>[]) => Promise<number>;
 }
 
-// Helper function to render text with <b> tags as React elements
-function renderBoldText(text: string) {
-    return text.split(/(<b>.*?<\/b>)/g).map((part, i) =>
-        part.startsWith('<b>') ? (
-            <strong key={i} className="text-white/85 font-semibold">
-                {part.slice(3, -4)}
-            </strong>
-        ) : part
-    );
-}
+// Rich text renderer for next-intl: provides <b> tag as bold text
+const richTextRenderers = {
+    b: (chunks: React.ReactNode) => (
+        <strong className="text-white/85 font-semibold">{chunks}</strong>
+    ),
+};
 
 const BROKER_LABEL_KEYS: Record<BrokerType, string> = {
   kiwoom: 'brokerKiwoom',
@@ -350,7 +346,7 @@ export function ImportModal({ isOpen, onClose, existingTrades, onImport }: Impor
                                   {i + 1}
                                 </span>
                                 <span className="text-xs text-white/60 leading-relaxed">
-                                  {renderBoldText(t(stepKey) as string)}
+                                  {t.rich(stepKey, richTextRenderers)}
                                 </span>
                               </li>
                             ))}
