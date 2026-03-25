@@ -141,11 +141,12 @@ export function TradeForm({
         // Auto-fetch current price
         setPriceFetching(true);
         try {
-            const res = await fetch(`/api/stock-price?symbol=${encodeURIComponent(sym)}`);
+            const res = await fetch(`/api/stock-price?symbols=${encodeURIComponent(sym)}`);
             if (res.ok) {
                 const data = await res.json();
-                if (data.price) {
-                    setForm(prev => ({ ...prev, price: String(data.price) }));
+                const price = data.prices?.[sym];
+                if (price) {
+                    setForm(prev => ({ ...prev, price: String(price) }));
                 }
             }
         } catch {
