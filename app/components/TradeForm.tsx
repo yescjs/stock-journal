@@ -115,7 +115,7 @@ export function TradeForm({
 
     const isFirstTrade = baseTrades.length === 0 && !initialData;
 
-    // Quick entry symbols: BUY → recent symbols, SELL → held symbols only
+    // Quick entry symbols: BUY → recent symbols, SELL → held symbols with qty
     const quickSymbols = useMemo(() => {
         if (initialData || isCompact) return [];
 
@@ -127,15 +127,15 @@ export function TradeForm({
                 netQty.set(t.symbol, (netQty.get(t.symbol) ?? 0) + (t.side === 'BUY' ? t.quantity : -t.quantity));
                 if (t.symbol_name && !nameMap.has(t.symbol)) nameMap.set(t.symbol, t.symbol_name);
             }
-            const result: { symbol: string; symbol_name: string }[] = [];
-            // Sort by most recent trade date
+            const result: { symbol: string; symbol_name: string; heldQty?: number }[] = [];
             const sorted = [...allTrades].sort((a, b) => b.date.localeCompare(a.date));
             const seen = new Set<string>();
             for (const t of sorted) {
                 if (seen.has(t.symbol)) continue;
                 seen.add(t.symbol);
-                if ((netQty.get(t.symbol) ?? 0) > 0) {
-                    result.push({ symbol: t.symbol, symbol_name: nameMap.get(t.symbol) || t.symbol });
+                const qty = netQty.get(t.symbol) ?? 0;
+                if (qty > 0) {
+                    result.push({ symbol: t.symbol, symbol_name: nameMap.get(t.symbol) || t.symbol, heldQty: qty });
                 }
                 if (result.length >= 5) break;
             }
@@ -144,7 +144,7 @@ export function TradeForm({
 
         // BUY: recent symbols
         const seen = new Set<string>();
-        const result: { symbol: string; symbol_name: string }[] = [];
+        const result: { symbol: string; symbol_name: string; heldQty?: number }[] = [];
         const sorted = [...allTrades].sort((a, b) => b.date.localeCompare(a.date));
         for (const trade of sorted) {
             if (seen.has(trade.symbol)) continue;
@@ -157,11 +157,12 @@ export function TradeForm({
 
     const [priceFetching, setPriceFetching] = useState(false);
 
-    const handleRecentSymbolClick = useCallback(async (sym: string, symName: string) => {
+    const handleRecentSymbolClick = useCallback(async (sym: string, symName: string, heldQty?: number) => {
         setForm(prev => ({
             ...prev,
             symbol: sym,
             symbol_name: symName,
+            ...(heldQty != null ? { quantity: String(heldQty) } : {}),
         }));
         // Auto-fetch current price
         setPriceFetching(true);
@@ -452,7 +453,7 @@ export function TradeForm({
                             <button
                                 key={rs.symbol}
                                 type="button"
-                                onClick={() => handleRecentSymbolClick(rs.symbol, rs.symbol_name)}
+                                onClick={() => handleRecentSymbolClick(rs.symbol, rs.symbol_name, rs.heldQty)}
                                 disabled={priceFetching}
                                 className={`flex-none px-3 py-1.5 rounded-xl text-xs font-bold border transition-all whitespace-nowrap ${
                                     form.symbol === rs.symbol
@@ -460,7 +461,7 @@ export function TradeForm({
                                         : 'text-white/50 bg-white/5 border-white/8 hover:text-white/70 hover:bg-white/8'
                                 }`}
                             >
-                                {rs.symbol_name}
+                                {rs.symbol_name}{rs.heldQty != null && <span className="text-white/30 ml-1">({rs.heldQty})</span>}
                             </button>
                         ))}
                         {priceFetching && (
