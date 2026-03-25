@@ -852,12 +852,12 @@ function HeatmapSection({ analysis, onCellClick }: {
       <div className="flex items-center justify-center gap-1 mt-3 text-[10px] text-white/30">
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'rgba(59,130,246,0.5)' }} />
-          <span>{locale === 'ko' ? '손실' : 'Loss'}</span>
+          <span>{tc('heatmapLoss')}</span>
         </div>
         <div className="w-8 h-[2px] bg-gradient-to-r from-blue-500/50 via-slate-400/15 to-red-500/50 rounded" />
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'rgba(239,68,68,0.5)' }} />
-          <span>{locale === 'ko' ? '수익' : 'Profit'}</span>
+          <span>{tc('heatmapProfit')}</span>
         </div>
       </div>
     </div>
@@ -866,9 +866,8 @@ function HeatmapSection({ analysis, onCellClick }: {
 
 // ─── Period Comparison Section ───────────────────────────────────────────
 
-function PeriodComparisonSection({ analysis, exchangeRate = 1 }: {
+function PeriodComparisonSection({ analysis }: {
   analysis: TradeAnalysis;
-  exchangeRate?: number;
 }) {
   const tc = useTranslations('analysis.charts');
   const locale = useLocale();
@@ -892,7 +891,13 @@ function PeriodComparisonSection({ analysis, exchangeRate = 1 }: {
 
   if (availableMonths.length < 2) return null;
 
+  const formatMetricValue = (v: number, suffix: string) => {
+    if (!isFinite(v)) return '∞';
+    return `${v.toFixed(1)}${suffix}`;
+  };
+
   const ChangeIndicator = ({ value, suffix = '%', positiveIsGood = true }: { value: number; suffix?: string; positiveIsGood?: boolean }) => {
+    if (!isFinite(value)) return <span className="text-xs text-white/30">-</span>;
     if (Math.abs(value) < 0.01) return <Minus size={12} className="text-white/30" />;
     const isPositive = value > 0;
     const isGood = positiveIsGood ? isPositive : !isPositive;
@@ -988,9 +993,9 @@ function PeriodComparisonSection({ analysis, exchangeRate = 1 }: {
                 <div className="text-[10px] text-white/30 mb-1">{m.label}</div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-xs text-white/40">{m.valueA.toFixed(1)}{m.suffix}</span>
+                    <span className="text-xs text-white/40">{formatMetricValue(m.valueA, m.suffix)}</span>
                     <span className="text-white/20">→</span>
-                    <span className="text-sm font-bold text-white">{m.valueB === Infinity ? '∞' : m.valueB.toFixed(1)}{m.suffix}</span>
+                    <span className="text-sm font-bold text-white">{formatMetricValue(m.valueB, m.suffix)}</span>
                   </div>
                   <ChangeIndicator value={m.change} suffix={m.suffix} positiveIsGood={m.positiveIsGood} />
                 </div>
@@ -1186,7 +1191,6 @@ export function AnalysisDashboard({
   const [selectedHeatmapCell, setSelectedHeatmapCell] = useState<HeatmapCell | null>(null);
   const t = useTranslations('analysis');
   const tc = useTranslations('common');
-  const locale = useLocale();
 
   // initialTab prop이 변경되면 반영 (외부 네비게이션)
   useEffect(() => {
@@ -1271,7 +1275,7 @@ export function AnalysisDashboard({
             <ConcentrationChart data={analysis.concentration} />
           </div>
           <HeatmapSection analysis={analysis} onCellClick={setSelectedHeatmapCell} />
-          <PeriodComparisonSection analysis={analysis} exchangeRate={exchangeRate} />
+          <PeriodComparisonSection analysis={analysis} />
         </div>
       )}
 
@@ -1296,7 +1300,7 @@ export function AnalysisDashboard({
                 <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-white/3 border border-white/5">
                   <div>
                     <div className="text-xs text-white/60">{trip.entryDate} → {trip.exitDate}</div>
-                    <div className="text-[10px] text-white/30">{trip.quantity}{locale === 'ko' ? '주' : ' shares'} · {trip.holdingDays}{locale === 'ko' ? '일' : 'd'}</div>
+                    <div className="text-[10px] text-white/30">{trip.quantity}{t('charts.heatmapShares')} · {trip.holdingDays}{t('charts.heatmapDays')}</div>
                   </div>
                   <span className={`text-sm font-bold ${trip.isWin ? 'text-red-400' : 'text-blue-400'}`}>
                     {trip.pnlPercent >= 0 ? '+' : ''}{trip.pnlPercent.toFixed(1)}%
