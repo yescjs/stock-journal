@@ -354,6 +354,10 @@ export function TradeListView({
         (t.symbol_name && t.symbol_name.toLowerCase().includes(lower))
       );
     }
+    // Side Filter
+    if (sideFilter !== 'ALL') {
+      source = source.filter(t => t.side === sideFilter);
+    }
     // Apply date filter so calendar reflects active preset/date range
     if (dateFrom) source = source.filter(t => t.date >= dateFrom);
     if (dateTo) source = source.filter(t => t.date <= dateTo);
@@ -423,7 +427,7 @@ export function TradeListView({
       krwValue: krw,
       usdValue: usd,
     }));
-  }, [trades, selectedSymbol, holdingOnly, filterSymbol, filterState.heldSymbols, showConverted, exchangeRate, currentPrices, dateFrom, dateTo]);
+  }, [trades, selectedSymbol, holdingOnly, filterSymbol, filterState.heldSymbols, showConverted, exchangeRate, currentPrices, dateFrom, dateTo, sideFilter]);
 
   // Trades and P&L for the selected calendar day
   const calendarDayTrades = useMemo(() => {
