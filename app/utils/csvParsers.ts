@@ -140,24 +140,26 @@ export function normalizeNumber(raw: string): number {
 export function detectBroker(headerLine: string): BrokerType {
   const h = headerLine;
 
-  // 키움증권: 종목번호 또는 매매구분 조합
+  // ─── 1차: 고유 키워드로 확실히 구분되는 증권사 ──────────────────
+  // 키움증권: '종목번호'는 키움 고유
   if (h.includes('종목번호') && h.includes('매매구분')) return 'kiwoom';
-  if (h.includes('종목코드') && h.includes('매매구분') && h.includes('체결단가')) return 'kiwoom';
-  if (h.includes('종목코드') && h.includes('매매구분') && h.includes('단가')) return 'kiwoom';
 
-  // NH투자증권: 거래유형 OR 매도/매수 조합
+  // NH투자증권: '거래유형' 또는 '매도/매수'는 NH 고유
   if (h.includes('거래유형') && (h.includes('거래일') || h.includes('거래일자'))) return 'nh';
   if (h.includes('매도/매수') || h.includes('매도매수구분')) return 'nh';
 
-  // 삼성증권: 거래일 + 매매구분 + 체결가격 조합 (POP HTS)
+  // ─── 2차: '체결가격' vs '체결단가'로 삼성/한투 구분 ────────────
+  // 삼성증권: '체결가격'은 삼성 고유 (POP HTS)
   if (h.includes('체결가격') && h.includes('매매구분')) return 'samsung';
-  if (h.includes('거래일') && h.includes('매매구분') && h.includes('체결가')) return 'samsung';
 
-  // 한국투자증권: 주문일 + 매매구분 + 체결단가 조합 (eFriend Expert)
-  if (h.includes('주문일') && h.includes('매매구분') && h.includes('체결단가')) return 'hankook';
-  if (h.includes('거래일') && h.includes('매도매수') && h.includes('체결단가')) return 'hankook';
+  // 한국투자증권: '체결단가' + '매매구분' (eFriend Expert)
+  // 주의: '체결단가'는 키움에서도 사용하므로 '종목번호' 없는 경우만 여기 도달
+  if (h.includes('체결단가') && h.includes('매매구분')) return 'hankook';
 
-  // 미래에셋: 거래일자 + 거래구분
+  // ─── 3차: 키움 폴백 — 위에서 삼성/한투가 먼저 매칭되므로 안전 ───
+  if (h.includes('종목코드') && h.includes('매매구분') && h.includes('단가')) return 'kiwoom';
+
+  // ─── 4차: 미래에셋 — '거래구분'은 미래에셋 고유 ──────────────
   if (h.includes('거래일자') && h.includes('거래구분')) return 'mirae';
   if (h.includes('체결일') && h.includes('거래구분')) return 'mirae';
   if (h.includes('거래일') && h.includes('거래구분')) return 'mirae';
