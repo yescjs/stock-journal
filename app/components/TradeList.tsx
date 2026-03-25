@@ -106,13 +106,17 @@ export function TradeList({
                 case 'pnl-asc': {
                     const getCp = (t: Trade) => currentPrices?.[t.symbol] ?? 0;
                     const getAvg = (t: Trade) => avgBuyPriceMap.get(t.symbol) ?? 0;
+                    const SORT_BOTTOM = sortBy === 'pnl-desc' ? -Infinity : Infinity;
                     const getPnl = (t: Trade) => {
                         if (t.side === 'BUY' && getCp(t) > 0 && heldSymbols?.has(t.symbol)) return (getCp(t) - t.price) * t.quantity;
                         if (t.side === 'SELL' && getAvg(t) > 0) return (t.price - getAvg(t)) * t.quantity;
-                        return 0;
+                        return SORT_BOTTOM;
                     };
                     const pnlA = getPnl(a);
                     const pnlB = getPnl(b);
+                    if (pnlA === SORT_BOTTOM && pnlB === SORT_BOTTOM) {
+                        return b.date.localeCompare(a.date);
+                    }
                     return sortBy === 'pnl-desc' ? pnlB - pnlA : pnlA - pnlB;
                 }
                 default: // date-desc

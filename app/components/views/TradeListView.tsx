@@ -746,6 +746,7 @@ export function TradeListView({
               </button>
 
               {/* More Actions Dropdown */}
+              {(hasUSDTrades || onRefreshPrices || onImport) && (
               <div className="relative" ref={moreDropdownRef}>
                 <button
                   onClick={() => setShowMoreDropdown(v => !v)}
@@ -799,6 +800,7 @@ export function TradeListView({
                   </div>
                 )}
               </div>
+              )}
 
               {/* Date Filter Active Badge */}
               {dateFrom && (
