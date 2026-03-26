@@ -3,9 +3,10 @@
 import React, { useState, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Trash2, CheckCircle, Search, AlertTriangle } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { Trade } from '@/app/types/trade';
 import { findDuplicateGroups, DuplicateGroup } from '@/app/utils/duplicateDetector';
+import { getCurrencySymbol } from '@/app/utils/format';
 
 interface DuplicateCleanupModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ export function DuplicateCleanupModal({ isOpen, onClose, trades, onRemoveTrades 
   const [done, setDone] = useState(false);
   const [deletedCount, setDeletedCount] = useState(0);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const duplicateGroups = useMemo(() => findDuplicateGroups(trades), [trades]);
 
@@ -62,6 +64,7 @@ export function DuplicateCleanupModal({ isOpen, onClose, trades, onRemoveTrades 
 
   const handleDelete = async () => {
     setDeleting(true);
+    setDeleteError(null);
     try {
       const idsToDelete: string[] = [];
       for (const group of duplicateGroups) {
@@ -76,8 +79,9 @@ export function DuplicateCleanupModal({ isOpen, onClose, trades, onRemoveTrades 
       setDeletedCount(idsToDelete.length);
       setDone(true);
       setShowConfirm(false);
-    } catch {
-      // Error handled by parent
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : t('deleteError'));
+      setShowConfirm(false);
     } finally {
       setDeleting(false);
     }
@@ -88,6 +92,7 @@ export function DuplicateCleanupModal({ isOpen, onClose, trades, onRemoveTrades 
     setDone(false);
     setDeletedCount(0);
     setShowConfirm(false);
+    setDeleteError(null);
     onClose();
   };
 
@@ -176,6 +181,14 @@ export function DuplicateCleanupModal({ isOpen, onClose, trades, onRemoveTrades 
                 </div>
               )}
 
+              {/* Error message */}
+              {deleteError && (
+                <div className="mt-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-start gap-2">
+                  <AlertTriangle size={15} className="text-rose-400 flex-none mt-0.5" />
+                  <p className="text-sm text-rose-400">{deleteError}</p>
+                </div>
+              )}
+
               {/* Confirm dialog */}
               {showConfirm && (
                 <div className="mt-4 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20">
@@ -254,7 +267,9 @@ function DuplicateGroupCard({
   onToggle: (id: string) => void;
 }) {
   const t = useTranslations('duplicateCleanup');
+  const locale = useLocale();
   const sample = group.trades[0];
+  const currencyUnit = getCurrencySymbol(sample.symbol, locale);
 
   return (
     <div className="rounded-xl border border-white/8 bg-white/3 overflow-hidden">
@@ -272,7 +287,7 @@ function DuplicateGroupCard({
           <span className="text-xs text-white/30">{t('duplicateCount', { count: group.trades.length })}</span>
         </div>
         <p className="text-xs text-white/40 mt-0.5">
-          {sample.date} · {sample.price.toLocaleString()}{t('priceUnit')} · {sample.quantity}{t('quantityUnit')}
+          {sample.date} · {sample.price.toLocaleString()}{currencyUnit} · {sample.quantity}{t('quantityUnit')}
         </p>
       </div>
 

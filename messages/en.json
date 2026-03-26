@@ -834,7 +834,6 @@
     "cleanupComplete": "Cleanup Complete",
     "deletedCount": "{count} deleted",
     "duplicateCount": "{count} duplicates",
-    "priceUnit": "",
     "quantityUnit": " shares",
     "keep": "Keep",
     "remove": "Remove",
@@ -842,6 +841,7 @@
     "confirmDelete": "This will delete {count} duplicate trades. This action cannot be undone.",
     "cancel": "Cancel",
     "confirmButton": "Confirm Delete",
+    "deleteError": "An error occurred while deleting.",
     "deleting": "Deleting...",
     "doneButton": "Done",
     "closeButton": "Close"

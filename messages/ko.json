@@ -834,7 +834,6 @@
     "cleanupComplete": "정리 완료",
     "deletedCount": "{count}건 삭제됨",
     "duplicateCount": "{count}건 중복",
-    "priceUnit": "원",
     "quantityUnit": "주",
     "keep": "유지",
     "remove": "삭제",
@@ -842,6 +841,7 @@
     "confirmDelete": "{count}건의 중복 거래를 삭제합니다. 이 작업은 되돌릴 수 없습니다.",
     "cancel": "취소",
     "confirmButton": "삭제 확인",
+    "deleteError": "삭제 중 오류가 발생했습니다.",
     "deleting": "삭제 중...",
     "doneButton": "완료",
     "closeButton": "닫기"
