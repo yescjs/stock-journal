@@ -829,7 +829,12 @@
   "calendar": {
     "weekdays": ["일", "월", "화", "수", "목", "금", "토"],
     "tradesCount": "거래 {count}건",
-    "noTrades": "이 날은 거래가 없어요"
+    "noTrades": "이 날은 거래가 없어요",
+    "openCalendar": "달력 열기",
+    "closeCalendar": "달력 닫기",
+    "calendarDialog": "날짜 선택",
+    "prevMonth": "이전 달",
+    "nextMonth": "다음 달"
   },
   "emotion": {
     "PLANNED": "계획된 매매",
