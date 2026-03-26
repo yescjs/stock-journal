@@ -132,7 +132,7 @@ export function ImportPreviewTable({
                         : 'opacity-40 hover:opacity-60'
                     }`}
                   >
-                    <td className="px-3 py-2.5text-center">
+                    <td className="px-3 py-2.5 text-center">
                       {duplicate ? (
                         <AlertTriangle size={14} className="text-yellow-500 mx-auto" />
                       ) : (
@@ -144,10 +144,10 @@ export function ImportPreviewTable({
                         />
                       )}
                     </td>
-                    <td className="px-3 py-2.5text-white/50 whitespace-nowrap">{row.date}</td>
-                    <td className="px-3 py-2.5text-white/70 font-mono whitespace-nowrap">{row.symbol}</td>
-                    <td className="px-3 py-2.5text-white/70 whitespace-nowrap max-w-[120px] truncate">{row.symbol_name}</td>
-                    <td className="px-3 py-2.5text-center">
+                    <td className="px-3 py-2.5 text-white/50 whitespace-nowrap">{row.date}</td>
+                    <td className="px-3 py-2.5 text-white/70 font-mono whitespace-nowrap">{row.symbol}</td>
+                    <td className="px-3 py-2.5 text-white/70 whitespace-nowrap max-w-[120px] truncate">{row.symbol_name}</td>
+                    <td className="px-3 py-2.5 text-center">
                       <span
                         className={`inline-block px-2 py-0.5 rounded-md text-xs font-bold ${
                           row.side === 'BUY'
@@ -158,10 +158,10 @@ export function ImportPreviewTable({
                         {row.side === 'BUY' ? tc('buy') : tc('sell')}
                       </span>
                     </td>
-                    <td className="px-3 py-2.5text-right text-white/60 whitespace-nowrap">
+                    <td className="px-3 py-2.5 text-right text-white/60 whitespace-nowrap">
                       {row.quantity.toLocaleString()}
                     </td>
-                    <td className="px-3 py-2.5text-right text-white/60 whitespace-nowrap">
+                    <td className="px-3 py-2.5 text-right text-white/60 whitespace-nowrap">
                       {row.price.toLocaleString()}
                     </td>
                   </tr>
