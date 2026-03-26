@@ -829,7 +829,12 @@
   "calendar": {
     "weekdays": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
     "tradesCount": "{count} trades",
-    "noTrades": "No trades on this day"
+    "noTrades": "No trades on this day",
+    "openCalendar": "Open calendar",
+    "closeCalendar": "Close calendar",
+    "calendarDialog": "Select date",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month"
   },
   "emotion": {
     "PLANNED": "Planned Trade",
