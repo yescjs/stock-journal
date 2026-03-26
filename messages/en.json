@@ -239,8 +239,7 @@
     },
     "fab": {
       "open": "Open menu",
-      "close": "Close menu",
-      "duplicateCheck": "Duplicate Check"
+      "close": "Close menu"
     },
     "preCoach": {
       "title": "AI Pre-Trade Checklist",
@@ -826,25 +825,6 @@
     "headerSide": "Side",
     "headerQuantity": "Qty",
     "headerPrice": "Price"
-  },
-  "duplicateCleanup": {
-    "title": "Duplicate Trade Check",
-    "groupsFound": "{count} duplicate groups found",
-    "noDuplicates": "No duplicate trades found",
-    "cleanupComplete": "Cleanup Complete",
-    "deletedCount": "{count} deleted",
-    "duplicateCount": "{count} duplicates",
-    "quantityUnit": " shares",
-    "keep": "Keep",
-    "remove": "Remove",
-    "deleteButton": "Delete {count} items",
-    "confirmDelete": "This will delete {count} duplicate trades. This action cannot be undone.",
-    "cancel": "Cancel",
-    "confirmButton": "Confirm Delete",
-    "deleteError": "An error occurred while deleting.",
-    "deleting": "Deleting...",
-    "doneButton": "Done",
-    "closeButton": "Close"
   },
   "calendar": {
     "weekdays": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],

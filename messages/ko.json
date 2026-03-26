@@ -239,8 +239,7 @@
     },
     "fab": {
       "open": "메뉴 열기",
-      "close": "메뉴 닫기",
-      "duplicateCheck": "중복 검사"
+      "close": "메뉴 닫기"
     },
     "preCoach": {
       "title": "AI 매매 전 체크리스트",
@@ -826,25 +825,6 @@
     "headerSide": "구분",
     "headerQuantity": "수량",
     "headerPrice": "단가"
-  },
-  "duplicateCleanup": {
-    "title": "중복 거래 검사",
-    "groupsFound": "{count}개 중복 그룹 발견",
-    "noDuplicates": "중복 거래가 없습니다",
-    "cleanupComplete": "정리 완료",
-    "deletedCount": "{count}건 삭제됨",
-    "duplicateCount": "{count}건 중복",
-    "quantityUnit": "주",
-    "keep": "유지",
-    "remove": "삭제",
-    "deleteButton": "{count}건 삭제",
-    "confirmDelete": "{count}건의 중복 거래를 삭제합니다. 이 작업은 되돌릴 수 없습니다.",
-    "cancel": "취소",
-    "confirmButton": "삭제 확인",
-    "deleteError": "삭제 중 오류가 발생했습니다.",
-    "deleting": "삭제 중...",
-    "doneButton": "완료",
-    "closeButton": "닫기"
   },
   "calendar": {
     "weekdays": ["일", "월", "화", "수", "목", "금", "토"],

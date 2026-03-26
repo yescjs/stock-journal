@@ -1,14 +1,12 @@
 /**
- * Unit tests for CSV parsers and duplicate detector.
+ * Unit tests for CSV parsers.
  * Run with: npx tsx tests/unit-test-parsers.ts
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
 import { detectBroker, parseCSV, parseCSVLine, normalizeDate, normalizeSymbol, normalizeSide, normalizeNumber } from '@/app/utils/csvParsers';
-import type { ParseResult, BrokerType } from '@/app/utils/csvParsers';
-import { findDuplicateGroups } from '@/app/utils/duplicateDetector';
-import type { Trade } from '@/app/types/trade';
+import type { ParseResult } from '@/app/utils/csvParsers';
 
 // ─── Test harness ────────────────────────────────────────────────────────────
 
@@ -151,79 +149,12 @@ async function runAsyncTests() {
 }
 
 runAsyncTests().then(() => {
-
-// ─── 4. findDuplicateGroups tests ───────────────────────────────────────────
-
-section('4. findDuplicateGroups()');
-
-function makeTrade(overrides: Partial<Trade>): Trade {
-  return {
-    id: `test-${Math.random().toString(36).slice(2, 8)}`,
-    date: '2025-01-01',
-    symbol: '005930',
-    side: 'BUY',
-    price: 70000,
-    quantity: 10,
-    ...overrides,
-  };
-}
-
-// No duplicates
-{
-  const trades = [
-    makeTrade({ date: '2025-01-01', symbol: '005930', side: 'BUY', price: 70000, quantity: 10 }),
-    makeTrade({ date: '2025-01-02', symbol: '005930', side: 'BUY', price: 71000, quantity: 10 }),
-    makeTrade({ date: '2025-01-01', symbol: '000660', side: 'BUY', price: 70000, quantity: 10 }),
-  ];
-  const groups = findDuplicateGroups(trades);
-  assertEqual(groups.length, 0, 'No duplicates -> empty array');
-}
-
-// 2 trades same date+symbol+side+price+quantity -> 1 group with 2 trades
-{
-  const trades = [
-    makeTrade({ date: '2025-01-01', symbol: '005930', side: 'BUY', price: 70000, quantity: 10 }),
-    makeTrade({ date: '2025-01-01', symbol: '005930', side: 'BUY', price: 70000, quantity: 10 }),
-  ];
-  const groups = findDuplicateGroups(trades);
-  assertEqual(groups.length, 1, '2 identical trades -> 1 group');
-  assertEqual(groups[0]?.trades.length, 2, '1 group with 2 trades');
-}
-
-// 3 trades where 2 are duplicates -> 1 group with 2 trades
-{
-  const trades = [
-    makeTrade({ date: '2025-01-01', symbol: '005930', side: 'BUY', price: 70000, quantity: 10 }),
-    makeTrade({ date: '2025-01-01', symbol: '005930', side: 'BUY', price: 70000, quantity: 10 }),
-    makeTrade({ date: '2025-01-01', symbol: '005930', side: 'SELL', price: 70000, quantity: 10 }), // different side
-  ];
-  const groups = findDuplicateGroups(trades);
-  assertEqual(groups.length, 1, '3 trades, 2 dups -> 1 group');
-  assertEqual(groups[0]?.trades.length, 2, 'group has 2 trades');
-}
-
-// Groups sorted by date descending
-{
-  const trades = [
-    makeTrade({ date: '2025-01-01', symbol: '005930', side: 'BUY', price: 70000, quantity: 10 }),
-    makeTrade({ date: '2025-01-01', symbol: '005930', side: 'BUY', price: 70000, quantity: 10 }),
-    makeTrade({ date: '2025-03-01', symbol: '000660', side: 'SELL', price: 80000, quantity: 5 }),
-    makeTrade({ date: '2025-03-01', symbol: '000660', side: 'SELL', price: 80000, quantity: 5 }),
-  ];
-  const groups = findDuplicateGroups(trades);
-  assertEqual(groups.length, 2, '2 duplicate groups');
-  assertEqual(groups[0]?.trades[0].date, '2025-03-01', 'First group is later date (descending)');
-  assertEqual(groups[1]?.trades[0].date, '2025-01-01', 'Second group is earlier date');
-}
-
-// ─── Summary ─────────────────────────────────────────────────────────────────
-
-console.log(`\n${'='.repeat(50)}`);
-console.log(`Results: ${passed} passed, ${failed} failed, ${passed + failed} total`);
-if (failures.length > 0) {
-  console.log(`\nFailures:`);
-  failures.forEach(f => console.log(`  - ${f}`));
-}
-process.exit(failed > 0 ? 1 : 0);
-
-}); // end runAsyncTests().then()
+  // ─── Summary ───────────────────────────────────────────────────────────────
+  console.log(`\n${'='.repeat(50)}`);
+  console.log(`Results: ${passed} passed, ${failed} failed, ${passed + failed} total`);
+  if (failures.length > 0) {
+    console.log(`\nFailures:`);
+    failures.forEach(f => console.log(`  - ${f}`));
+  }
+  process.exit(failed > 0 ? 1 : 0);
+});

@@ -34,7 +34,6 @@ import { TradeListView } from '@/app/components/views/TradeListView';
 import { CoinBalance } from '@/app/components/CoinBalance';
 import { CoinShopModal } from '@/app/components/CoinShopModal';
 import { ImportModal } from '@/app/components/ImportModal';
-import { DuplicateCleanupModal } from '@/app/components/DuplicateCleanupModal';
 import { GuestMigrationModal } from '@/app/components/GuestMigrationModal';
 import { Footer } from '@/app/components/Footer';
 import { RiskAlertToast } from '@/app/components/RiskAlertToast';
@@ -60,7 +59,7 @@ export default function TradePage() {
 
     // --- Auth & Data ---
     const { user: currentUser, loading: authLoading, logout: supabaseLogout, authError } = useSupabaseAuth();
-    const { trades, loading: tradesLoading, addTrade, removeTrade, removeTrades, updateTrade, importTrades, setTrades } = useTrades(currentUser);
+    const { trades, loading: tradesLoading, addTrade, removeTrade, updateTrade, importTrades, setTrades } = useTrades(currentUser);
     const { currentPrices, refresh: refreshPrices, loading: pricesLoading } = useCurrentPrices(trades);
     const { exchangeRate } = useExchangeRate();
 
@@ -194,7 +193,6 @@ export default function TradePage() {
     const [notify, setNotify] = useState<{ type: NotifyType; message: string } | null>(null);
     const [showCoinShop, setShowCoinShop] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
-    const [showDuplicateModal, setShowDuplicateModal] = useState(false);
 
     // --- Guest Migration State ---
     const [showMigrationModal, setShowMigrationModal] = useState(false);
@@ -493,7 +491,6 @@ export default function TradePage() {
                 isFree={aiChat.isFree}
                 coinBalance={coinBalance}
                 hasUnread={aiChat.messages.length > lastReadCount && aiChat.messages[aiChat.messages.length - 1]?.role === 'assistant'}
-                onDuplicateCheck={() => setShowDuplicateModal(true)}
             />
 
             {/* AI Chat Panel (controlled by SpeedDialFAB) */}
@@ -582,14 +579,6 @@ export default function TradePage() {
                     track('import_completed', { trade_count: count });
                     return count;
                 }}
-            />
-
-            {/* Duplicate Cleanup Modal */}
-            <DuplicateCleanupModal
-                isOpen={showDuplicateModal}
-                onClose={() => setShowDuplicateModal(false)}
-                trades={trades}
-                onRemoveTrades={removeTrades}
             />
 
             {/* Guest Migration Modal */}

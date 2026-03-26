@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, PenLine, MessageSquare, Gem, Search } from 'lucide-react';
+import { Plus, PenLine, MessageSquare, Gem } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 interface SpeedDialFABProps {
@@ -20,8 +20,6 @@ interface SpeedDialFABProps {
   coinBalance: number;
   /** Whether there are unread AI messages */
   hasUnread: boolean;
-  /** Callback to open duplicate cleanup modal */
-  onDuplicateCheck?: () => void;
 }
 
 export function SpeedDialFAB({
@@ -33,7 +31,6 @@ export function SpeedDialFAB({
   isFree,
   coinBalance,
   hasUnread,
-  onDuplicateCheck,
 }: SpeedDialFABProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const t = useTranslations('trade');
@@ -50,11 +47,6 @@ export function SpeedDialFAB({
     close();
     onOpenChat();
   }, [close, onOpenChat]);
-
-  const handleDuplicateCheck = useCallback(() => {
-    close();
-    onDuplicateCheck?.();
-  }, [close, onDuplicateCheck]);
 
   return (
     <>
@@ -138,24 +130,6 @@ export function SpeedDialFAB({
                 </motion.button>
               )}
 
-              {/* Action 3: Duplicate Check */}
-              {onDuplicateCheck && (
-                <motion.button
-                  initial={{ opacity: 0, scale: 0.3, y: 20 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.3, y: 20 }}
-                  transition={{ type: 'spring', damping: 20, stiffness: 300, delay: 0.10 }}
-                  onClick={handleDuplicateCheck}
-                  className="flex items-center gap-2.5 group"
-                >
-                  <span className="px-3 py-1.5 rounded-lg bg-zinc-800/95 text-xs font-semibold text-white/90 shadow-lg border border-white/10 whitespace-nowrap">
-                    {t('fab.duplicateCheck')}
-                  </span>
-                  <span className="h-10 w-10 rounded-full bg-amber-600 text-white shadow-lg flex items-center justify-center hover:bg-amber-500 active:scale-95 transition-all">
-                    <Search size={16} />
-                  </span>
-                </motion.button>
-              )}
             </>
           )}
         </AnimatePresence>
