@@ -76,7 +76,9 @@ export function useSupabaseAuth() {
                 if (session?.user) {
                     setAuthError(null);
                     if (event === 'SIGNED_IN') {
-                        gtagEvent('sign_up', { method: session.user.app_metadata?.provider || 'email' });
+                        const createdAt = new Date(session.user.created_at).getTime();
+                        const isNewUser = Date.now() - createdAt < 30_000;
+                        gtagEvent(isNewUser ? 'sign_up' : 'login', { method: session.user.app_metadata?.provider || 'email' });
                     }
                 }
             }
