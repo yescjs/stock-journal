@@ -143,8 +143,7 @@
     "ctaBadge": "무료 · 회원가입 선택 · 즉시 시작",
     "ctaTitle1": "오늘 매매,",
     "ctaTitle2": "지금 기록하세요.",
-    "ctaDesc": "기록하지 않으면 성장하지 않습니다. 30초면 충분합니다.",
-    "startWithoutLoginCta": "로그인 없이 시작"
+    "ctaDesc": "기록하지 않으면 성장하지 않습니다. 30초면 충분합니다."
   },
   "auth": {
     "loginTab": "로그인",

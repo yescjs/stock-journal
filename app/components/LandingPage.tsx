@@ -447,11 +447,11 @@ export function LandingPage({ onStart, onStartAsGuest }: LandingPageProps) {
                     </h2>
                     <p className="text-white/35 text-sm mb-10 max-w-sm mx-auto">{t('ctaDesc')}</p>
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                        <button onClick={onStart} className="group flex items-center gap-2 px-8 py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-base transition-all shadow-2xl shadow-blue-600/25 active:scale-[0.97]">
-                            {t('startFree')} <ArrowRight size={17} className="group-hover:translate-x-0.5 transition-transform" />
+                        <button onClick={onStartAsGuest} className="group flex items-center gap-2 px-8 py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-base transition-all shadow-2xl shadow-blue-600/25 active:scale-[0.97]">
+                            {t('guestCTA')} <ArrowRight size={17} className="group-hover:translate-x-0.5 transition-transform" />
                         </button>
-                        <button onClick={onStartAsGuest} className="px-8 py-4 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white font-bold text-base transition-all active:scale-[0.97]">
-                            {t('startWithoutLoginCta')}
+                        <button onClick={onStart} className="px-8 py-4 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white font-bold text-base transition-all active:scale-[0.97]">
+                            {t('startFree')}
                         </button>
                     </div>
                 </ScrollIn>

@@ -73,7 +73,7 @@ export function useSupabaseAuth() {
             if (mounted) {
                 setUser(session?.user ?? null);
                 if (session?.user) {
-                    setAuthError(null);
+                    setAuthError(null); // Clear errors on successful auth
                 }
             }
         });

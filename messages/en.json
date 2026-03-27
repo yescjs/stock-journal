@@ -143,8 +143,7 @@
     "ctaBadge": "Free · Optional sign-up · Start instantly",
     "ctaTitle1": "Today's trades,",
     "ctaTitle2": "record them now.",
-    "ctaDesc": "You don't grow without recording. 30 seconds is all you need.",
-    "startWithoutLoginCta": "Start without login"
+    "ctaDesc": "You don't grow without recording. 30 seconds is all you need."
   },
   "auth": {
     "loginTab": "Log in",
