@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
+import { gtagEvent } from '@/app/lib/gtag';
 
 // Hooks
 import { useSupabaseAuth } from '@/app/hooks/useSupabaseAuth';
@@ -60,7 +61,10 @@ export default function Home() {
         <>
             <LandingPage
                 onStart={() => setShowLoginModal(true)}
-                onStartAsGuest={() => router.replace('/trade')}
+                onStartAsGuest={() => {
+                    gtagEvent('guest_start');
+                    router.replace('/trade');
+                }}
                 darkMode={true}
             />
             {showLoginModal && (
