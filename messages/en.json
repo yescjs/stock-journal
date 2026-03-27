@@ -60,12 +60,13 @@
     "tools": "Tools"
   },
   "landing": {
-    "heroTagline": "Trade Journal · AI Coaching · Chart Analysis · Cloud Sync",
+    "heroTagline": "Free trading journal for individual investors",
     "heroTitle1": "Your trade records",
     "heroTitle2": "build your skills.",
     "heroDesc": "Spend just 30 seconds on your trade journal. AI analyzes your patterns and coaches you to avoid repeating the same mistakes.",
-    "startFree": "Start for free",
+    "startFree": "Sign in to start",
     "browseWithoutLogin": "Browse without login",
+    "guestCTA": "Start without sign-up",
     "globalMarket": "Global Markets",
     "painPointsTitle1": "Sound familiar?",
     "painPointsTitle2": "",
