@@ -3,7 +3,6 @@ import { User } from '@supabase/supabase-js';
 import { useTranslations } from 'next-intl';
 import { supabase } from '@/app/lib/supabaseClient';
 import { Trade, TradeSide } from '@/app/types/trade';
-import { gtagEvent } from '@/app/lib/gtag';
 
 const GUEST_TRADES_KEY = 'stock-journal-guest-trades-v1';
 
@@ -125,7 +124,6 @@ export function useTrades(user: User | null) {
                     .single();
 
                 if (insertError) throw insertError;
-                if (trades.length === 0) gtagEvent('first_trade', { mode: 'user' });
                 setTrades((prev) => [newTrade as Trade, ...prev]);
             } else {
                 // Guest Local Insert
@@ -139,7 +137,6 @@ export function useTrades(user: User | null) {
                     quantity,
                     emotion_tag: emotion_tag || undefined,
                 };
-                if (trades.length === 0) gtagEvent('first_trade', { mode: 'guest' });
                 setTrades((prev) => [newTrade, ...prev]);
             }
         } catch (err) {

@@ -3,8 +3,6 @@ import { getMessages, setRequestLocale, getTranslations } from 'next-intl/server
 import { notFound } from 'next/navigation';
 import { routing } from '@/i18n/routing';
 import { Analytics } from '@vercel/analytics/next';
-import { GoogleAnalytics } from '@next/third-parties/google';
-import { GA_MEASUREMENT_ID } from '@/app/lib/gtag';
 import { SharedTopNav } from '../components/ui/SharedTopNav';
 import { AppBottomNav } from '../components/ui/AppBottomNav';
 import { fontVariables } from '../fonts';
@@ -58,7 +56,6 @@ export default async function LocaleLayout({
           {children}
           <AppBottomNav />
           <Analytics />
-          {GA_MEASUREMENT_ID && <GoogleAnalytics gaId={GA_MEASUREMENT_ID} />}
         </NextIntlClientProvider>
       </body>
     </html>

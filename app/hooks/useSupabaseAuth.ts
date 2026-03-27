@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/app/lib/supabaseClient';
-import { gtagEvent } from '@/app/lib/gtag';
 
 export function useSupabaseAuth() {
     const [user, setUser] = useState<User | null>(null);
@@ -70,16 +69,11 @@ export function useSupabaseAuth() {
 
         getSession();
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             if (mounted) {
                 setUser(session?.user ?? null);
                 if (session?.user) {
                     setAuthError(null);
-                    if (event === 'SIGNED_IN') {
-                        const createdAt = new Date(session.user.created_at).getTime();
-                        const isNewUser = Date.now() - createdAt < 30_000;
-                        gtagEvent(isNewUser ? 'sign_up' : 'login', { method: session.user.app_metadata?.provider || 'email' });
-                    }
                 }
             }
         });

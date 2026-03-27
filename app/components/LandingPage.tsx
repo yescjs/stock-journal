@@ -12,7 +12,6 @@ import { FinancialTable, type MarketIndex } from '@/app/components/ui/financial-
 import { Footer } from '@/app/components/Footer';
 import { LanguageSwitcher } from '@/app/components/ui/LanguageSwitcher';
 import { useTranslations, useLocale } from 'next-intl';
-import { gtagEvent } from '@/app/lib/gtag';
 
 interface LandingPageProps {
     onStart: () => void;
@@ -144,10 +143,10 @@ export function LandingPage({ onStart, onStartAsGuest }: LandingPageProps) {
 
                     <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.24 }}
                         className="flex flex-col sm:flex-row items-center gap-3 mb-14">
-                        <button onClick={() => { gtagEvent('landing_cta_click', { cta: 'guest_start' }); onStartAsGuest(); }} className="group flex items-center gap-2 px-7 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm md:text-base transition-all shadow-2xl shadow-blue-600/25 active:scale-[0.97]">
+                        <button onClick={onStartAsGuest} className="group flex items-center gap-2 px-7 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm md:text-base transition-all shadow-2xl shadow-blue-600/25 active:scale-[0.97]">
                             {t('guestCTA')} <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
                         </button>
-                        <button onClick={() => { gtagEvent('landing_cta_click', { cta: 'login' }); onStart(); }} className="px-7 py-3.5 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white font-bold text-sm md:text-base transition-all active:scale-[0.97]">
+                        <button onClick={onStart} className="px-7 py-3.5 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white font-bold text-sm md:text-base transition-all active:scale-[0.97]">
                             {t('startFree')}
                         </button>
                     </motion.div>
