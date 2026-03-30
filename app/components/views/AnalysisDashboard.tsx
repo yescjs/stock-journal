@@ -25,6 +25,7 @@ import { AIReportHistory } from '@/app/components/AIReportHistory';
 import { PortfolioView } from '@/app/components/PortfolioView';
 import { PerformanceShareCard } from '@/app/components/PerformanceShareCard';
 import { useAIAnalysis } from '@/app/hooks/useAIAnalysis';
+import { AIPlaybookCard } from '@/app/components/AIPlaybookCard';
 import { calcEquityCurve, calcMonthlyStats, calcSymbolMonthlyHeatmap, calcPeriodComparison, getAvailableMonths } from '@/app/utils/tradeAnalysis';
 import type { HeatmapCell } from '@/app/types/analysis';
 import type { PortfolioSummary } from '@/app/hooks/usePortfolio';
@@ -1070,7 +1071,7 @@ function StreaksCard({ streaks }: { streaks: { currentWin: number; currentLoss: 
 
 function RoundTripList({
   roundTrips, onReviewTrade, tradeReview, loadingReview, coinBalance = 0, isLoggedIn = true, onChargeCoins,
-  isStreamingReview = false, streamedReviewContent = '', onStopStreaming,
+  isStreamingReview = false, streamedReviewContent = '', onStopStreaming, tradeSentiment = {},
 }: {
   roundTrips: TradeAnalysis['roundTrips'];
   onReviewTrade: (trip: TradeAnalysis['roundTrips'][0]) => void;
@@ -1082,6 +1083,7 @@ function RoundTripList({
   isStreamingReview?: boolean;
   streamedReviewContent?: string;
   onStopStreaming?: () => void;
+  tradeSentiment?: Record<string, { score: number; label: string; headlines: string[] }>;
 }) {
   const [expanded, setExpanded] = useState(false);
   const t = useTranslations('analysis.roundTrips');
@@ -1110,6 +1112,10 @@ function RoundTripList({
           const key = `${trip.symbol}-${trip.entryDate}`;
           const review = tradeReview[key];
           const isLoadingThis = loadingReview === key;
+          const sentiment = tradeSentiment[key];
+          const sentimentColor = sentiment
+            ? sentiment.score > 0.15 ? 'text-emerald-400' : sentiment.score < -0.15 ? 'text-red-400' : 'text-white/40'
+            : null;
 
           return (
             <div key={i} className="rounded-xl bg-white/3 hover:bg-white/4 transition-colors">
@@ -1118,7 +1124,14 @@ function RoundTripList({
                   {trip.pnlPercent >= 0 ? '+' : ''}{trip.pnlPercent.toFixed(0)}%
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold text-white truncate">{trip.symbolName || trip.symbol}</div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-xs font-bold text-white truncate">{trip.symbolName || trip.symbol}</span>
+                    {sentiment && (
+                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-white/5 ${sentimentColor}`}>
+                        {sentiment.label}
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-white/30">{trip.entryDate} → {trip.exitDate} ({trip.holdingDays}{tc('days')})</div>
                 </div>
                 <div className="flex items-center gap-2 flex-none">
@@ -1219,6 +1232,9 @@ export function AnalysisDashboard({
     isStreamingWeekly, streamedWeeklyContent,
     isStreamingReview, streamedReviewContent,
     stopWeeklyStreaming, stopReviewStreaming,
+    playbookReport, loadingPlaybook, isStreamingPlaybook, streamedPlaybookContent,
+    generatePlaybook, stopPlaybookStreaming,
+    tradeSentiment,
   } = useAIAnalysis(currentUser, onCoinsConsumed);
 
   if (!analysis || analysis.roundTrips.length === 0) {
@@ -1358,6 +1374,20 @@ export function AnalysisDashboard({
             streamedContent={streamedWeeklyContent}
             onStopStreaming={stopWeeklyStreaming}
           />
+          <AIPlaybookCard
+            analysis={analysis}
+            savedReports={savedReports}
+            playbookReport={playbookReport}
+            loadingPlaybook={loadingPlaybook}
+            isStreamingPlaybook={isStreamingPlaybook}
+            streamedPlaybookContent={streamedPlaybookContent}
+            onGenerate={() => generatePlaybook(analysis, username)}
+            onStopStreaming={stopPlaybookStreaming}
+            coinCost={3}
+            coinBalance={coinBalance}
+            onChargeCoins={onChargeCoins}
+            isLoggedIn={!!currentUser}
+          />
           <AIReportHistory reports={savedReports} loading={loadingSavedReports} onDelete={deleteReport} userBalance={coinBalance} onCoinsConsumed={onCoinsConsumed} isLoggedIn={!!currentUser} />
         </div>
       )}
@@ -1374,6 +1404,7 @@ export function AnalysisDashboard({
           isStreamingReview={isStreamingReview}
           streamedReviewContent={streamedReviewContent}
           onStopStreaming={stopReviewStreaming}
+          tradeSentiment={tradeSentiment}
         />
       )}
 

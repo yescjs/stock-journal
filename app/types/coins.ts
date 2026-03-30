@@ -18,6 +18,8 @@ export const COIN_COSTS = {
   chat_qa: 1,
   report_trend: 1,
   pattern_insight: 1,
+  playbook: 3,
+  risk_intervention: 0,
 } as const
 
 /** Number of free chat_qa questions per day before coins are charged */

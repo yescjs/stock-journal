@@ -9,6 +9,7 @@ import { ArrowRight } from 'lucide-react';
 // Types
 import { NotifyType } from '@/app/types/ui';
 import { Trade } from '@/app/types/trade';
+import { supabase } from '@/app/lib/supabaseClient';
 
 // Hooks
 import { useSupabaseAuth } from '@/app/hooks/useSupabaseAuth';
@@ -77,6 +78,44 @@ export default function TradePage() {
 
     // --- Risk Alerts ---
     const { alerts: riskAlerts, hasAlerts: hasRiskAlerts, acknowledge: acknowledgeRisk, dismissToday: dismissRiskToday, resetIfNeeded: resetRiskAlerts } = useRiskAlert(trades);
+    const [aiRiskMessage, setAiRiskMessage] = useState<string | null>(null);
+
+    // AI 위험 개입 메시지 fetch (alerts 감지 시)
+    useEffect(() => {
+        if (!hasRiskAlerts || riskAlerts.length === 0) {
+            setAiRiskMessage(null);
+            return;
+        }
+        const controller = new AbortController();
+        (async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                const token = session?.access_token;
+                const res = await fetch('/api/ai-analysis', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                    },
+                    body: JSON.stringify({
+                        type: 'risk_intervention',
+                        alertTypes: riskAlerts.map(a => a.type),
+                        alertParams: riskAlerts.map(a => a.messageParams),
+                        locale,
+                    }),
+                    signal: controller.signal,
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.report) setAiRiskMessage(data.report);
+                }
+            } catch {
+                // silent fail — rule-based message remains
+            }
+        })();
+        return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hasRiskAlerts, riskAlerts.length]);
 
     // --- AI Chat (shared between FAB and AnalysisDashboard Q&A tab) ---
     const aiChat = useAIChat(currentUser, refreshBalance);
@@ -386,6 +425,7 @@ export default function TradePage() {
                     alerts={riskAlerts}
                     onAcknowledge={acknowledgeRisk}
                     onDismissToday={dismissRiskToday}
+                    aiMessage={aiRiskMessage}
                 />
             )}
 

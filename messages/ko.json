@@ -582,7 +582,8 @@
       "tradeReviewTitle": "{symbolName} 거래 리뷰 ({exitDate})",
       "unknownError": "알 수 없는 오류가 발생했습니다.",
       "loadTradesFailed": "매매 기록을 불러오는데 실패했습니다.",
-      "dataLoadFailed": "데이터 로딩 실패: {message}"
+      "dataLoadFailed": "데이터 로딩 실패: {message}",
+      "playbookTitle": "나의 AI 매매 플레이북"
     }
   },
   "news": {
@@ -826,7 +827,15 @@
     "headerPrice": "단가"
   },
   "calendar": {
-    "weekdays": ["일", "월", "화", "수", "목", "금", "토"],
+    "weekdays": [
+      "일",
+      "월",
+      "화",
+      "수",
+      "목",
+      "금",
+      "토"
+    ],
     "tradesCount": "거래 {count}건",
     "noTrades": "이 날은 거래가 없어요",
     "openCalendar": "달력 열기",
@@ -1125,5 +1134,19 @@
     "won": "{value}원",
     "billion": "{value}억",
     "tenThousand": "{value}만"
+  },
+  "aiPlaybook": {
+    "title": "나의 AI 플레이북",
+    "subtitle": "매매 데이터로 만든 나만의 매매 원칙서",
+    "generate": "플레이북 생성 ({cost}코인)",
+    "regenerate": "재생성",
+    "generating": "플레이북 생성 중...",
+    "stop": "중단",
+    "expand": "펼치기",
+    "collapse": "접기",
+    "emptyDesc": "과거 매매 데이터를 분석하여 나만의 이기는 패턴, 피해야 할 패턴, 매매 전 체크리스트를 자동 생성합니다.",
+    "minTradesRequired": "최소 {min}건의 완결 거래가 필요합니다 (현재 {current}건)",
+    "loginRequired": "플레이북 생성은 로그인 후 이용 가능합니다",
+    "coinShort": "코인 부족 ({balance}/{cost})"
   }
 }
