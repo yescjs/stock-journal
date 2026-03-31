@@ -582,7 +582,8 @@
       "tradeReviewTitle": "{symbolName} Trade Review ({exitDate})",
       "unknownError": "An unknown error occurred.",
       "loadTradesFailed": "Failed to load trade records.",
-      "dataLoadFailed": "Data loading failed: {message}"
+      "dataLoadFailed": "Data loading failed: {message}",
+      "playbookTitle": "My AI Trading Playbook"
     }
   },
   "news": {
@@ -826,7 +827,15 @@
     "headerPrice": "Price"
   },
   "calendar": {
-    "weekdays": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+    "weekdays": [
+      "Sun",
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri",
+      "Sat"
+    ],
     "tradesCount": "{count} trades",
     "noTrades": "No trades on this day",
     "openCalendar": "Open calendar",
@@ -1125,5 +1134,19 @@
     "won": "{value} KRW",
     "billion": "{value}B",
     "tenThousand": "{value}0K"
+  },
+  "aiPlaybook": {
+    "title": "My AI Playbook",
+    "subtitle": "Your personal trading rules built from your data",
+    "generate": "Generate Playbook ({cost} coins)",
+    "regenerate": "Regenerate",
+    "generating": "Generating playbook...",
+    "stop": "Stop",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "emptyDesc": "Analyzes your historical trade data to automatically generate your winning patterns, patterns to avoid, and a pre-trade checklist.",
+    "minTradesRequired": "Requires at least {min} closed trades (current: {current})",
+    "loginRequired": "Log in to generate your playbook",
+    "coinShort": "Not enough coins ({balance}/{cost})"
   }
 }

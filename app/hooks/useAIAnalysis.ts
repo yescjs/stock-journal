@@ -15,12 +15,18 @@ export interface AIReportResult {
 
 export interface SavedReport {
   id: string;
-  report_type: 'weekly_report' | 'trade_review';
+  report_type: 'weekly_report' | 'trade_review' | 'playbook';
   title: string;
   report: string;
   metadata: Record<string, unknown>;
   locale?: string;
   created_at: string;
+}
+
+export interface NewsSentiment {
+  score: number;
+  label: string;
+  headlines: string[];
 }
 
 interface UseAIAnalysisReturn {
@@ -32,6 +38,16 @@ interface UseAIAnalysisReturn {
   generateWeeklyReport: (analysis: TradeAnalysis, username?: string, onSuccess?: () => void) => Promise<void>;
   reviewTrade: (roundTrip: RoundTrip) => Promise<void>;
   clearWeeklyReport: () => void;
+  // 플레이북
+  playbookReport: AIReportResult | null;
+  loadingPlaybook: boolean;
+  isStreamingPlaybook: boolean;
+  streamedPlaybookContent: string;
+  generatePlaybook: (analysis: TradeAnalysis, username?: string) => Promise<void>;
+  clearPlaybook: () => void;
+  stopPlaybookStreaming: () => void;
+  // 뉴스 감성 (리뷰 키별)
+  tradeSentiment: Record<string, NewsSentiment>;
   // 저장된 리포트 관련
   savedReports: SavedReport[];
   loadingSavedReports: boolean;
@@ -63,6 +79,16 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
   const [streamedReviewContent, setStreamedReviewContent] = useState('');
   const weeklyAbortRef = useRef<AbortController | null>(null);
   const reviewAbortRef = useRef<AbortController | null>(null);
+
+  // 플레이북 state
+  const [playbookReport, setPlaybookReport] = useState<AIReportResult | null>(null);
+  const [loadingPlaybook, setLoadingPlaybook] = useState(false);
+  const [isStreamingPlaybook, setIsStreamingPlaybook] = useState(false);
+  const [streamedPlaybookContent, setStreamedPlaybookContent] = useState('');
+  const playbookAbortRef = useRef<AbortController | null>(null);
+
+  // 뉴스 감성 (리뷰 키별)
+  const [tradeSentiment, setTradeSentiment] = useState<Record<string, NewsSentiment>>({});
 
   // 저장된 리포트
   const [savedReports, setSavedReports] = useState<SavedReport[]>([]);
@@ -99,7 +125,7 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
 
   // DB에 리포트 자동 저장
   const saveReportToDB = useCallback(async (
-    reportType: 'weekly_report' | 'trade_review',
+    reportType: 'weekly_report' | 'trade_review' | 'playbook',
     title: string,
     report: string,
     metadata: Record<string, unknown> = {}
@@ -273,6 +299,12 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
     setStreamedReviewContent('');
     setError(null);
 
+    // US 종목의 경우 뉴스 감성 먼저 fetch (실패해도 리뷰는 진행)
+    const newsSentiment = await fetchNewsSentiment(roundTrip.symbol, roundTrip.entryDate);
+    if (newsSentiment) {
+      setTradeSentiment(prev => ({ ...prev, [key]: newsSentiment }));
+    }
+
     const abortController = new AbortController();
     reviewAbortRef.current = abortController;
     let fullReport = '';
@@ -286,7 +318,7 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ type: 'trade_review', roundTrip, locale, stream: true }),
+        body: JSON.stringify({ type: 'trade_review', roundTrip, newsSentiment, locale, stream: true }),
         signal: abortController.signal,
       });
 
@@ -361,6 +393,133 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saveReportToDB, onCoinsConsumed, locale, t, track]);
 
+  // 플레이북 생성 (스트리밍)
+  const generatePlaybook = useCallback(async (
+    analysis: TradeAnalysis,
+    username?: string,
+  ) => {
+    setLoadingPlaybook(true);
+    setIsStreamingPlaybook(true);
+    setStreamedPlaybookContent('');
+    setError(null);
+
+    const abortController = new AbortController();
+    playbookAbortRef.current = abortController;
+    let fullReport = '';
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const res = await fetch('/api/ai-analysis', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          type: 'playbook',
+          analysis,
+          username,
+          locale,
+          stream: true,
+        }),
+        signal: abortController.signal,
+      });
+
+      if (res.status === 402) {
+        setError(t('insufficientCoins'));
+        return;
+      }
+
+      if (!res.ok) {
+        const { error: msg } = await res.json();
+        throw new Error(msg || t('unknownError'));
+      }
+
+      const contentType = res.headers.get('Content-Type') || '';
+      if (contentType.includes('text/event-stream')) {
+        fullReport = await readSSEStream(
+          res,
+          (text) => { fullReport = text; setStreamedPlaybookContent(text); },
+          undefined,
+          abortController.signal,
+        );
+
+        const generatedAt = new Date().toISOString();
+        setPlaybookReport({ report: fullReport, generatedAt });
+        track('ai_analysis_run', { report_type: 'playbook' });
+
+        const title = t('playbookTitle');
+        await saveReportToDB('playbook', title, fullReport, {
+          totalTrades: analysis.profile.totalTrades,
+          winRate: analysis.profile.winRate,
+          overallGrade: analysis.profile.overallGrade,
+          generatedAt,
+        });
+      } else {
+        const data: AIReportResult = await res.json();
+        fullReport = data.report;
+        setPlaybookReport(data);
+        setStreamedPlaybookContent(data.report);
+        track('ai_analysis_run', { report_type: 'playbook' });
+
+        const title = t('playbookTitle');
+        await saveReportToDB('playbook', title, data.report, {
+          totalTrades: analysis.profile.totalTrades,
+          winRate: analysis.profile.winRate,
+          overallGrade: analysis.profile.overallGrade,
+          generatedAt: data.generatedAt,
+        });
+      }
+    } catch (err) {
+      if (abortController.signal.aborted) {
+        if (fullReport) {
+          const generatedAt = new Date().toISOString();
+          setPlaybookReport({ report: fullReport, generatedAt });
+        }
+      } else {
+        setError(err instanceof Error ? err.message : t('unknownError'));
+      }
+    } finally {
+      setLoadingPlaybook(false);
+      setIsStreamingPlaybook(false);
+      playbookAbortRef.current = null;
+      onCoinsConsumed?.();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saveReportToDB, onCoinsConsumed, locale, t, track]);
+
+  const stopPlaybookStreaming = useCallback(() => {
+    if (playbookAbortRef.current) {
+      playbookAbortRef.current.abort();
+      playbookAbortRef.current = null;
+    }
+  }, []);
+
+  const clearPlaybook = useCallback(() => {
+    setPlaybookReport(null);
+    setStreamedPlaybookContent('');
+  }, []);
+
+  // USD 종목 여부 판별 (6자리 KRW 코드 또는 .KS/.KQ 아닌 경우)
+  function isUSDSymbol(symbol: string): boolean {
+    return !/^\d{6}$/.test(symbol) && !symbol.endsWith('.KS') && !symbol.endsWith('.KQ');
+  }
+
+  // 뉴스 감성 fetch (US 종목만, graceful degradation)
+  const fetchNewsSentiment = useCallback(async (symbol: string, entryDate: string): Promise<NewsSentiment | null> => {
+    if (!isUSDSymbol(symbol)) return null;
+    try {
+      const res = await fetch(`/api/stock-news-sentiment?symbol=${encodeURIComponent(symbol)}&date=${encodeURIComponent(entryDate)}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (data.error || data.sentimentScore === null) return null;
+      return { score: data.sentimentScore, label: data.sentimentLabel, headlines: data.topHeadlines };
+    } catch {
+      return null;
+    }
+  }, []);
+
   const clearWeeklyReport = useCallback(() => {
     setWeeklyReport(null);
     setStreamedWeeklyContent('');
@@ -375,6 +534,14 @@ export function useAIAnalysis(user: User | null, onCoinsConsumed?: () => void): 
     generateWeeklyReport,
     reviewTrade,
     clearWeeklyReport,
+    playbookReport,
+    loadingPlaybook,
+    isStreamingPlaybook,
+    streamedPlaybookContent,
+    generatePlaybook,
+    clearPlaybook,
+    stopPlaybookStreaming,
+    tradeSentiment,
     savedReports,
     loadingSavedReports,
     loadSavedReports,

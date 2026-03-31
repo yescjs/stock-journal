@@ -10,9 +10,10 @@ interface RiskAlertToastProps {
   alerts: RiskAlert[];
   onAcknowledge: () => void;
   onDismissToday: () => void;
+  aiMessage?: string | null;
 }
 
-export function RiskAlertToast({ alerts, onAcknowledge, onDismissToday }: RiskAlertToastProps) {
+export function RiskAlertToast({ alerts, onAcknowledge, onDismissToday, aiMessage }: RiskAlertToastProps) {
   const t = useTranslations('riskAlert');
 
   if (alerts.length === 0) return null;
@@ -56,7 +57,7 @@ export function RiskAlertToast({ alerts, onAcknowledge, onDismissToday }: RiskAl
                 {isCritical ? t('criticalTitle') : t('warningTitle')}
               </h4>
               <p className="text-xs text-white/60 mt-1 leading-relaxed">
-                {t(primary.messageKey, primary.messageParams)}
+                {aiMessage ?? t(primary.messageKey, primary.messageParams)}
               </p>
             </div>
             <button
