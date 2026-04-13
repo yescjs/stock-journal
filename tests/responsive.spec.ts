@@ -33,8 +33,8 @@ test.describe('Responsive: Desktop', () => {
   });
 
   test('데스크탑에서 뷰 토글 버튼이 표시된다', async ({ page }) => {
-    await expect(page.getByRole('button', { name: /목록/ })).toBeVisible({ timeout: 5000 });
-    await expect(page.getByRole('button', { name: /캘린더/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /분석/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: '목록', exact: true })).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole('button', { name: '캘린더', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: '분석', exact: true })).toBeVisible();
   });
 });
