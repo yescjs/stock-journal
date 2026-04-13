@@ -23,11 +23,11 @@ test.describe('Landing Page', () => {
   test('Hero 섹션에 메인 타이틀과 CTA가 표시된다', async ({ page }) => {
     await expect(page.getByText('투자 기록이')).toBeVisible();
     await expect(page.getByText('실력이 됩니다')).toBeVisible();
-    await expect(page.getByRole('button', { name: /무료로 시작하기/ }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /가입 없이 바로 시작/ }).first()).toBeVisible();
   });
 
   test('Hero 배지가 표시된다', async ({ page }) => {
-    await expect(page.getByText('매매 일지 · 차트 분석 · 클라우드 동기화 · 무료')).toBeVisible();
+    await expect(page.getByText('개인 투자자를 위한 무료 매매일지')).toBeVisible();
   });
 
   test('금융 시뮬레이션 테이블이 표시된다', async ({ page }) => {
@@ -45,7 +45,7 @@ test.describe('Landing Page', () => {
 
   test('Benefits 섹션에 기능 카드가 표시된다', async ({ page }) => {
     await expect(page.getByText('30초 기록').first()).toBeVisible();
-    await expect(page.getByText('패턴 발견').first()).toBeVisible();
+    await expect(page.getByText('패턴 · 캘린더').first()).toBeVisible();
   });
 
   // ─── FAQ ──────────────────────────────────────────────────────────────
@@ -74,7 +74,7 @@ test.describe('Landing Page', () => {
   // ─── Guest Navigation ─────────────────────────────────────────────────
 
   test('게스트 시작 버튼으로 /trade로 이동한다', async ({ page }) => {
-    const guestBtn = page.getByRole('button', { name: /로그인 없이 둘러보기/ }).first();
+    const guestBtn = page.locator('nav').getByRole('button', { name: '게스트로 시작' });
     await guestBtn.click();
     await page.waitForURL('**/trade', { timeout: 10000 });
     expect(page.url()).toContain('/trade');
